@@ -14,10 +14,11 @@ impl From<fmt::Error> for EncoderError {
     }
 }
 
-#[derive(PartialEq)]
-enum EncodingFormat {
+enum EncodingFormat<'a> {
     Compact,
-    Pretty,
+    Pretty {
+        indent: &'a str,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -35,7 +36,7 @@ struct EncodingState {
 /// A structure for implementing serialization to RON.
 pub struct Encoder<'a> {
     writer: &'a mut (fmt::Write+'a),
-    format : EncodingFormat,
+    format : EncodingFormat<'a>,
     state: EncodingState,
 }
 
@@ -57,10 +58,12 @@ impl<'a> Encoder<'a> {
 
     /// Creates a new encoder whose output will be written in pretty
     /// RON to the specified writer
-    pub fn new_pretty(writer: &'a mut fmt::Write) -> Encoder<'a> {
+    pub fn new_pretty(writer: &'a mut fmt::Write, indent: &'a str) -> Encoder<'a> {
         Encoder {
             writer: writer,
-            format: EncodingFormat::Pretty,
+            format: EncodingFormat::Pretty {
+                indent: indent,
+            },
             state: EncodingState {
                 expect: Expect::Element,
                 indent: 0,
@@ -90,20 +93,19 @@ impl<'a> Encoder<'a> {
     }
 
     fn new_line(&mut self) -> Result<(), fmt::Error> {
-        if self.format == EncodingFormat::Pretty {
+        if let EncodingFormat::Pretty { indent } = self.format {
             try!(write!(self.writer, "\n"));
             for _ in 0 .. self.state.indent {
-                try!(write!(self.writer, "\t"));
+                try!(write!(self.writer, "{}", indent));
             }
         }
         Ok(())
     }
 
     fn get_space(&self) -> &'static str {
-        if self.format == EncodingFormat::Pretty {
-            " "
-        } else {
-            ""
+        match self.format {
+            EncodingFormat::Pretty{..} => " ",
+            EncodingFormat::Compact => "",
         }
     }
 }

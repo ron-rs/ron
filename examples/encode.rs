@@ -19,6 +19,6 @@ fn main() {
         q: Some((0.4, true)),
         w: Foo::Var2(["a", "b"])
     };
-    let s = ron::encode(&bar, true).unwrap();
+    let s = ron::encode(&bar, Some("\t")).unwrap();
     println!("{}", s);
 }
