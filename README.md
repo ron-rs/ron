@@ -1,14 +1,13 @@
 [![Build Status](https://travis-ci.org/kvark/ron.png?branch=master)](https://travis-ci.org/kvark/ron)
+## Rusty Object Notation
 
-# Rusty Object Notation
-
-JSON is a nice little format. However, using it outside of JavaScript domain reveals numerous limitations. Here I present RON - (yet) another JSON alternative, which is:
+JSON is a nice little format. However, using it outside of JavaScript domain reveals numerous limitations. Here I present RON - yet another JSON alternative, which is:
   - also a text
   - also self-describing
   - supports structs and enums
   - but still very simple!
 
-## Example in JSON
+### Example in JSON
 
 ```json
 {
@@ -44,7 +43,7 @@ Notice these issues:
   2. No trailing comma allowed
   3. No comments allowed
 
-## Same example in RON
+### Same example in RON
 
 ```rust
 Scene( // class name is optional
@@ -69,7 +68,7 @@ Scene( // class name is optional
 )
 ```
 
-The new format uses `(`/`)` brackets for *heterogeneous* structures (classes), while preserving the `{`/`}` for maps, and `[`/`]` for homogeneous structures (arrays). This distinction allows to solve the biggest problem with JSON.
+The new format uses `(`..`)` brackets for *heterogeneous* structures (classes), while preserving the `{`..`}` for maps, and `[`..`]` for *homogeneous* structures (arrays). This distinction allows to solve the biggest problem with JSON.
 
 Here are the general rules to parse the heterogeneous structures:
 
@@ -79,7 +78,7 @@ Here are the general rules to parse the heterogeneous structures:
 | yes             | no                | enum value / tuple struct | `Name(a, b)`      |
 | yes/no          | yes               | struct                    | `(f1: a, f2: b)`  |
 
-## Grammar
+### Grammar
 ```
 element:
    struct
@@ -99,17 +98,17 @@ map:
 
 array:
    `[` elem1, elem2, ... `]`
-   // where all alements are of the same type
+   // where all elements are of the same type
 
 struct:
    [Name] `(` field1: elem1, field2: elem2, ... `)`
 ```
 
-## Background
+### Background
 
-I have a scene [exporter](https://github.com/kvark/claymore/blob/master/etc/blender/io_kri_scene/scene.py) from Blender, where the result is loaded by the Rust [code](https://github.com/kvark/claymore/blob/master/src/load/scene.rs). The scene structure I'd like to see with my eyes, thus text form is preferred, while mesh contents and animation curves are passed in a custom binary format. I used JSON for the scene format, since it's been well-supported in Rust, but it proved to be inconvenient. I also tried to generate Rust code directly, but this approach has other major problems. I looked elsewere and didn't find anything good enough, so I figured out my own...
+I have a scene [exporter](https://github.com/kvark/claymore/blob/master/etc/blender/io_kri_scene/scene.py) from Blender, where the result is loaded by the Rust [code](https://github.com/kvark/claymore/blob/master/src/load/scene.rs). The scene structure I'd like to see with my eyes, thus text form is preferred, while mesh contents and animation curves are passed in a custom binary format. I used JSON for the scene format, since it's been well-supported in Rust, but it proved to be inconvenient. I also tried to generate Rust code directly, but this approach has other major problems. I looked elsewere and didn't find anything good enough, so I made my own.
 
-## Appendix
+### Appendix
 
 Why not XML?
   - too verbose
