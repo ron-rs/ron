@@ -1,13 +1,14 @@
 extern crate rustc_serialize;
 
-mod encode;
-mod decode;
+pub mod encode;
+pub mod decode;
 
-pub use self::encode::{Encoder, EncoderError, Expect};
+pub use self::encode::Encoder;
+pub use self::decode::Decoder;
 
 /// Shortcut function to encode a `T` into a RON string
 pub fn encode<'a, T: rustc_serialize::Encodable>(object: &T, indent: Option<&'a str>)
-              -> Result<String, EncoderError> {
+              -> Result<String, encode::Error> {
     let mut s = String::new();
     {
         let mut encoder = match indent {
@@ -16,4 +17,10 @@ pub fn encode<'a, T: rustc_serialize::Encodable>(object: &T, indent: Option<&'a 
         };
         object.encode(&mut encoder)
     }.map(|_| s)
+}
+
+/// Shortcut function to decode a RON `&str` into an object
+pub fn decode<T: ::rustc_serialize::Decodable>(s: &str) -> Result<T, decode::Error> {
+    let mut decoder = Decoder::new(s.chars());
+    rustc_serialize::Decodable::decode(&mut decoder)
 }
