@@ -165,7 +165,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _: u32,
         variant: &'static str
     ) -> Result<()> {
-        self.serialize_str(variant)
+        self.output += variant;
+
+        Ok(())
     }
 
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
@@ -188,10 +190,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     ) -> Result<()>
         where T: ?Sized + Serialize
     {
-        variant.serialize(&mut *self)?;
+        self.output += variant;
         self.output += "(";
         value.serialize(&mut *self)?;
-        self.output += ")";
+        self.output += ",)";
         Ok(())
     }
 
@@ -254,7 +256,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         variant: &'static str,
         _: usize
     ) -> Result<Self::SerializeStructVariant> {
-        variant.serialize(&mut *self)?;
+        self.output += variant;
         self.output += "(";
         Ok(self)
     }
@@ -326,10 +328,10 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
         where T: ?Sized + Serialize
     {
-        if !self.output.ends_with('[') {
-            self.output += ",";
-        }
-        value.serialize(&mut **self)
+        value.serialize(&mut **self)?;
+        self.output += ",";
+
+        Ok(())
     }
 
     fn end(self) -> Result<()> {
@@ -389,7 +391,7 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
         where T: ?Sized + Serialize
     {
-        key.serialize(&mut **self)?;
+        self.output += key;
         self.output += ":";
         value.serialize(&mut **self)?;
         self.output += ",";
@@ -416,16 +418,32 @@ mod tests {
     #[derive(Serialize)]
     struct MyStruct { x: f32, y: f32 }
 
+    #[derive(Serialize)]
+    enum MyEnum {
+        A,
+        B(bool),
+        C(bool, f32),
+        D { a: i32, b: i32 }
+    }
+
     #[test]
-    fn e_struct() {
+    fn test_empty_struct() {
         assert_eq!(to_string(&EmptyStruct1).unwrap(), "EmptyStruct1");
         assert_eq!(to_string(&EmptyStruct2 {}).unwrap(), "EmptyStruct2()");
     }
 
     #[test]
-    fn f_struct() {
+    fn test_struct() {
         let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
         assert_eq!(to_string(&my_struct).unwrap(), "MyStruct(x:4,y:7,)");
+    }
+
+    #[test]
+    fn test_enum() {
+        assert_eq!(to_string(&MyEnum::A).unwrap(), "A");
+        assert_eq!(to_string(&MyEnum::B(true)).unwrap(), "B(true,)");
+        assert_eq!(to_string(&MyEnum::C(true, 3.5)).unwrap(), "C(true,3.5,)");
+        assert_eq!(to_string(&MyEnum::D { a: 2, b: 3 }).unwrap(), "D(a:2,b:3,)");
     }
 }
