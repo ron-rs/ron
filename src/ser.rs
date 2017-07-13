@@ -446,4 +446,12 @@ mod tests {
         assert_eq!(to_string(&MyEnum::C(true, 3.5)).unwrap(), "C(true,3.5,)");
         assert_eq!(to_string(&MyEnum::D { a: 2, b: 3 }).unwrap(), "D(a:2,b:3,)");
     }
+
+    #[test]
+    fn test_array() {
+        let empty: [i32; 0] = [];
+        assert_eq!(to_string(&empty).unwrap(), "()");
+        let empty_ref: &[i32] = &empty;
+        assert_eq!(to_string(&empty_ref).unwrap(), "[]");
+    }
 }
