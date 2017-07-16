@@ -437,6 +437,21 @@ mod tests {
         let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
         assert_eq!(to_string(&my_struct).unwrap(), "MyStruct(x:4,y:7,)");
+
+        #[derive(Serialize)]
+        struct MyUnit;
+
+        assert_eq!(to_string(&MyUnit).unwrap(), "MyUnit");
+
+        #[derive(Serialize)]
+        struct NewType(i32);
+
+        assert_eq!(to_string(&NewType(42)).unwrap(), "NewType(42)");
+
+        #[derive(Serialize)]
+        struct TupleStruct(f32, f32);
+
+        assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "TupleStruct(2,5,)");
     }
 
     #[test]
@@ -453,5 +468,23 @@ mod tests {
         assert_eq!(to_string(&empty).unwrap(), "()");
         let empty_ref: &[i32] = &empty;
         assert_eq!(to_string(&empty_ref).unwrap(), "[]");
+
+        assert_eq!(to_string(&[2, 3, 4i32]).unwrap(), "(2,3,4,)");
+        assert_eq!(to_string(&(&[2, 3, 4i32] as &[i32])).unwrap(), "[2,3,4,]");
+    }
+
+    #[test]
+    fn test_map() {
+        use std::collections::HashMap;
+
+        let mut map = HashMap::new();
+        map.insert((true, false), 4);
+        map.insert((false, false), 123);
+
+        let s = to_string(&map).unwrap();
+        s.starts_with("{");
+        s.contains("(true,false,):4");
+        s.contains("(false,false,):123");
+        s.ends_with("}");
     }
 }
