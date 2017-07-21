@@ -34,6 +34,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match *self {
             Error::Message(ref e) => write!(f, "Cusom message: {}", e),
+            _ => unimplemented!()
         }
     }
 }
@@ -48,6 +49,7 @@ impl StdError for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Message(ref e) => e,
+            _ => unimplemented!()
         }
     }
 }
@@ -76,7 +78,7 @@ pub fn from_str<'a, T>(s: &'a str) -> Result<T>
 
 impl<'de> Deserializer<'de> {
     fn skip(&mut self, bytes: usize) {
-        self.input = &self.input[num..];
+        self.input = &self.input[bytes..];
     }
 
     fn peek_char(&mut self) -> Result<char> {
@@ -366,7 +368,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     // for a tuple in the Serde data model is required to know the length of the
     // tuple before even looking at the input data.
     fn deserialize_tuple<V>(
-        self,
+        mut self,
         _len: usize,
         visitor: V
     ) -> Result<V::Value>
