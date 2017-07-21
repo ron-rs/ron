@@ -14,10 +14,7 @@ pub fn to_string<T>(value: &T) -> Result<String>
 
 type Result<T> = ::std::result::Result<T, Error>;
 
-// This is a bare-bones implementation. A real library would provide additional
-// information in its error type, for example the line and column at which the
-// error occurred, the byte offset into the input, or the current key being
-// processed.
+/// Serialization error.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     /// A custom error emitted by a serialized value.
