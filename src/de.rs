@@ -248,7 +248,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let parser = sym(b'"') * (char_string | utf16_string) - sym(b'"');
 
         match parser.parse(&mut self.input) {
-            Ok(string) => visitor.visit_str(&string),
+            Ok(string) => visitor.visit_string(string),
             Err(_) => Err(Error::ExpectedString)
         }
     }
@@ -679,5 +679,17 @@ mod tests {
             (true,false,):4,
             (false,false,):123,
         }"));
+    }
+
+    #[test]
+    fn test_string() {
+        let s: String = from_str("\"String\"").unwrap();
+
+        assert_eq!("String", s);
+    }
+
+    #[test]
+    fn test_char() {
+        assert_eq!(Ok('c'), from_str("'c'"));
     }
 }
