@@ -12,6 +12,7 @@ name = "ron"
 
 [dependencies]
 serde = "1"
+pom = "1"
 
 [dev-dependencies]
 serde_derive = "1"
