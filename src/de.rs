@@ -1,9 +1,13 @@
+use std::borrow::Cow;
+use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
 use std::error::Error as StdError;
-use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::ops::{Neg, AddAssign, MulAssign};
+use std::fmt;
+use std::str::FromStr;
 
-use serde::de::{self, Deserialize, DeserializeSeed, Visitor, SeqAccess,
-                MapAccess, EnumAccess, VariantAccess, IntoDeserializer};
+use pom::{DataInput, Input};
+use pom::char_class;
+use pom::parser::*;
+use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 
 type Result<T> = ::std::result::Result<T, Error>;
 
@@ -17,30 +21,37 @@ pub enum Error {
     ExpectedBoolean,
     ExpectedEnum,
     ExpectedChar,
+    ExpectedFloat,
     ExpectedInteger,
+    ExpectedOption,
+    ExpectedOptionEnd,
     ExpectedMap,
     ExpectedMapColon,
     ExpectedMapComma,
     ExpectedMapEnd,
+    ExpectedStruct,
+    ExpectedStructEnd,
     ExpectetUnit,
+    ExpectedStructName,
     ExpectedString,
+    ExpectedIdentifier,
 
-    /// A custom error emitted by a serialized value.
+    /// A custom error emitted by the deserializer.
     Message(String),
     TrailingCharacters,
 }
 
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Message(ref e) => write!(f, "Cusom message: {}", e),
+            Error::Message(ref e) => write!(f, "Custom message: {}", e),
             _ => unimplemented!()
         }
     }
 }
 
 impl de::Error for Error {
-    fn custom<T: Display>(msg: T) -> Self {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
         Error::Message(msg.to_string())
     }
 }
@@ -55,21 +66,26 @@ impl StdError for Error {
 }
 
 pub struct Deserializer<'de> {
-    input: &'de str,
+    input: DataInput<'de, u8>,
 }
 
 impl<'de> Deserializer<'de> {
     pub fn from_str(input: &'de str) -> Self {
-        Deserializer { input: input }
+        Deserializer {
+            input: DataInput::new(input.as_bytes()),
+        }
+    }
+    pub fn remainder(&self) -> Cow<str> {
+        String::from_utf8_lossy(&self.input.data[self.input.position..])
     }
 }
 
 pub fn from_str<'a, T>(s: &'a str) -> Result<T>
-    where T: Deserialize<'a>
+    where T: de::Deserialize<'a>
 {
     let mut deserializer = Deserializer::from_str(s);
     let t = T::deserialize(&mut deserializer)?;
-    if deserializer.input.is_empty() {
+    if deserializer.input.position == deserializer.input.data.len() {
         Ok(t)
     } else {
         Err(Error::TrailingCharacters)
@@ -77,132 +93,76 @@ pub fn from_str<'a, T>(s: &'a str) -> Result<T>
 }
 
 impl<'de> Deserializer<'de> {
-    fn skip(&mut self, bytes: usize) {
-        self.input = &self.input[bytes..];
-    }
-
-    fn peek_char(&mut self) -> Result<char> {
-        self.input.chars().next().ok_or(Error::Eof)
-    }
-
-    fn next_char(&mut self) -> Result<char> {
-        let ch = self.peek_char()?;
-        self.skip(ch.len_utf8());
-
-        Ok(ch)
-    }
-
-    fn consume(&mut self, s: &str) -> bool {
-        if self.input.starts_with(s) {
-            self.skip(s.len());
-
-            true
-        } else {
-            false
-        }
-    }
-
-    fn parse_bool(&mut self) -> Result<bool> {
-        if self.consume("true") {
-            Ok(true)
-        } else if self.consume("false") {
-            Ok(false)
-        } else {
-            Err(Error::ExpectedBoolean)
-        }
-    }
-
     fn parse_unsigned<T>(&mut self) -> Result<T>
-        where T: AddAssign<T> + MulAssign<T> + From<u8>
+        where T: 'static + FromStr, T::Err: fmt::Debug
     {
-        let mut int = match self.next_char()? {
-            ch @ '0'...'9' => T::from(ch as u8 - b'0'),
-            _ => {
-                return Err(Error::ExpectedInteger);
-            }
-        };
-        loop {
-            match self.input.chars().next() {
-                Some(ch @ '0'...'9') => {
-                    self.input = &self.input[1..];
-                    int *= T::from(10);
-                    int += T::from(ch as u8 - b'0');
-                }
-                _ => {
-                    return Ok(int);
-                }
-            }
-        }
-    }
-
-    fn parse_signed_internal<T>(&mut self) -> Result<T>
-        where T: AddAssign<T> + MulAssign<T> + From<i8>
-    {
-        // Uses `i8` instead of `u8`.
-
-        let mut int = match self.next_char()? {
-            ch @ '0'...'9' => T::from(ch as i8 - b'0' as i8),
-            _ => {
-                return Err(Error::ExpectedInteger);
-            }
-        };
-        loop {
-            match self.input.chars().next() {
-                Some(ch @ '0'...'9') => {
-                    self.input = &self.input[1..];
-                    int *= T::from(10);
-                    int += T::from(ch as i8 - b'0' as i8);
-                }
-                _ => {
-                    return Ok(int);
-                }
-            }
-        }
+        let parser = one_of(b"0123456789").repeat(1..);
+        parser.convert(|bytes| String::from_utf8(bytes))
+              .convert(|string| FromStr::from_str(&string))
+              .parse(&mut self.input)
+              .map_err(|_| Error::ExpectedInteger)
     }
 
     fn parse_signed<T>(&mut self) -> Result<T>
-        where T: Neg<Output = T> + AddAssign<T> + MulAssign<T> + From<i8>
+        where T: 'static + FromStr, T::Err: fmt::Debug
     {
-        if self.consume("-") {
-            self.parse_signed_internal::<T>().map(|x| -x)
-        } else {
-            self.consume("+");
-
-            self.parse_signed_internal()
-        }
+        let parser = one_of(b"+-").opt() +
+                     one_of(b"0123456789").repeat(1..);
+        parser.collect()
+              .convert(|bytes| String::from_utf8(bytes))
+              .convert(|string| FromStr::from_str(&string))
+              .parse(&mut self.input)
+              .map_err(|_| Error::ExpectedInteger)
     }
 
-    fn parse_string(&mut self) -> Result<&'de str> {
-        // TODO: Handle escapes
+    fn parse_float<T>(&mut self) -> Result<T>
+        where T: 'static + FromStr, T::Err: fmt::Debug
+    {
+        let integer = one_of(b"123456789") - one_of(b"0123456789").repeat(0..) | sym(b'0');
+        let frac = sym(b'.') + one_of(b"0123456789").repeat(1..);
+        let exp = one_of(b"eE") + one_of(b"+-").opt() + one_of(b"0123456789").repeat(1..);
+        let parser = sym(b'-').opt() + integer + frac.opt() + exp.opt();
 
-        if !self.consume("\"") {
-            return Err(Error::ExpectedString);
-        }
-
-        match self.input.find('"') {
-            Some(len) => {
-                let s = &self.input[..len];
-                self.input = &self.input[len + 1..];
-                Ok(s)
-            }
-            None => Err(Error::Eof),
-        }
+        parser.collect()
+              .convert(|bytes| String::from_utf8(bytes))
+              .convert(|string| FromStr::from_str(&string))
+              .parse(&mut self.input)
+              .map_err(|_| Error::ExpectedFloat)
     }
+
+    fn consume(&mut self, what: &'static str) -> Result<()> {
+        let parser = seq(what.as_bytes()).discard();
+        parser.parse(&mut self.input)
+              .map_err(|_| Error::Syntax)
+    }
+}
+
+fn space<'a>() -> Parser<'a, u8, ()> {
+    one_of(b" \t\r\n").repeat(0..).discard()
+}
+fn comma<'a>() -> Parser<'a, u8, u8> {
+    space() * sym(b',') - space()
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        panic!("Give me some!");
     }
 
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        visitor.visit_bool(self.parse_bool()?)
+        match seq(b"true").parse(&mut self.input) {
+            Ok(_) => visitor.visit_bool(true),
+            Err(_) => match seq(b"false").parse(&mut self.input) {
+                Ok(_) => visitor.visit_bool(false),
+                Err(_) => Err(Error::ExpectedBoolean)
+            }
+        }
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
@@ -253,33 +213,44 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_u64(self.parse_unsigned()?)
     }
 
-    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        visitor.visit_f32(self.parse_float()?)
     }
 
-    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        visitor.visit_f64(self.parse_float()?)
     }
 
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        let s = self.parse_string()?;
-        if s.len() != 1 {
-            Err(Error::ExpectedChar)
-        } else {
-            visitor.visit_char(s.chars().nth(0).unwrap())
+        let parser = sym(b'\'') * take(1) - sym(b'\'');
+        match parser.parse(&mut self.input) {
+            Ok(c) => visitor.visit_char(c[0] as char),
+            Err(_) => Err(Error::ExpectedChar)
         }
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        visitor.visit_borrowed_str(self.parse_string()?)
+        let special_char = sym(b'\\') | sym(b'/') | sym(b'"')
+            | sym(b'b').map(|_|b'\x08') | sym(b'f').map(|_|b'\x0C')
+            | sym(b'n').map(|_|b'\n') | sym(b'r').map(|_|b'\r') | sym(b't').map(|_|b'\t');
+        let escape_sequence = sym(b'\\') * special_char;
+        let char_string = (none_of(b"\\\"") | escape_sequence).repeat(1..).convert(String::from_utf8);
+        let utf16_char = seq(b"\\u") * is_a(char_class::hex_digit).repeat(4).convert(String::from_utf8).convert(|digits|u16::from_str_radix(&digits, 16));
+        let utf16_string = utf16_char.repeat(1..).map(|chars| decode_utf16(chars).map(|r| r.unwrap_or(REPLACEMENT_CHARACTER)).collect::<String>());
+        let parser = sym(b'"') * (char_string | utf16_string) - sym(b'"');
+
+        match parser.parse(&mut self.input) {
+            Ok(string) => visitor.visit_str(&string),
+            Err(_) => Err(Error::ExpectedString)
+        }
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
@@ -305,11 +276,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.input.starts_with("null") {
-            self.input = &self.input["null".len()..];
-            visitor.visit_none()
-        } else {
-            visitor.visit_some(self)
+        match seq(b"None").discard().parse(&mut self.input) {
+            Ok(_) => visitor.visit_none(),
+            Err(_) => match (seq(b"Some(") - space()).discard().parse(&mut self.input) {
+                Ok(_) => {
+                    let value = visitor.visit_some(&mut *self)?;
+                    self.consume(")")
+                        .map(|_| value)
+                        .map_err(|_| Error::ExpectedOptionEnd)
+                },
+                Err(_) => Err(Error::ExpectedOption),
+            }
         }
     }
 
@@ -317,47 +294,57 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.consume("()") {
-            visitor.visit_unit()
-        } else {
-            Err(Error::ExpectetUnit)
+        match self.consume("()") {
+            Ok(_) => visitor.visit_unit(),
+            Err(_) => Err(Error::ExpectetUnit),
         }
     }
 
     fn deserialize_unit_struct<V>(
         self,
-        _name: &'static str,
+        name: &'static str,
         visitor: V
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        // TODO: Should we also allow `MyUnitValue`?
-
-        self.deserialize_unit(visitor)
+        match self.consume(name) {
+            Ok(_) => visitor.visit_unit(),
+            Err(_) => Err(Error::ExpectedStructName),
+        }
     }
 
     fn deserialize_newtype_struct<V>(
         self,
-        _name: &'static str,
+        name: &'static str,
         visitor: V
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        visitor.visit_newtype_struct(self)
+        let _ = self.consume(name);
+        match self.consume("(") {
+            Ok(_) => {
+                let value = visitor.visit_newtype_struct(&mut *self)?;
+                let _ = comma().parse(&mut self.input);
+                self.consume(")")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedStructEnd)
+            },
+            Err(_) => Err(Error::ExpectedStruct),
+        }
     }
 
     fn deserialize_seq<V>(mut self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.consume("[") {
-            let value = visitor.visit_seq(CommaSeparated::new(&mut self))?;
-            if self.consume("]") {
-                Ok(value)
-            } else {
-                Err(Error::ExpectedArrayEnd)
-            }
-        } else {
-            Err(Error::ExpectedArray)
+        match self.consume("[") {
+            Ok(_) => {
+                let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
+                let _ = comma().parse(&mut self.input);
+                self.consume("]")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedArrayEnd)
+            },
+            Err(_) => Err(Error::ExpectedArray)
         }
     }
 
@@ -374,15 +361,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.consume("(") {
-            let value = visitor.visit_seq(CommaSeparated::new(&mut self))?;
-            if self.consume(")") {
-                Ok(value)
-            } else {
-                Err(Error::ExpectedArrayEnd)
-            }
-        } else {
-            Err(Error::ExpectedArray)
+        match self.consume("(") {
+            Ok(_) => {
+                let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
+                let _ = comma().parse(&mut self.input);
+                self.consume(")")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedArrayEnd)
+            },
+            Err(_) => Err(Error::ExpectedArray)
         }
     }
 
@@ -394,38 +381,45 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        self.consume(name);
-
+        let _ = self.consume(name);
         self.deserialize_tuple(len, visitor)
     }
 
     fn deserialize_map<V>(mut self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.consume("{") {
-            let value = visitor.visit_map(CommaSeparated::new(&mut self))?;
-
-            if self.consume("}") {
-                Ok(value)
-            } else {
-                Err(Error::ExpectedMapEnd)
-            }
-        } else {
-            Err(Error::ExpectedMap)
+        match self.consume("{") {
+            Ok(_) => {
+                let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
+                let _ = comma().parse(&mut self.input);
+                self.consume("}")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedMapEnd)
+            },
+            Err(_) => Err(Error::ExpectedMap)
         }
     }
 
     fn deserialize_struct<V>(
-        self,
-        _name: &'static str,
+        mut self,
+        name: &'static str,
         _fields: &'static [&'static str],
         visitor: V
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        // TODO
+        let _ = self.consume(name);
 
-        self.deserialize_map(visitor)
+        match self.consume("(") {
+            Ok(_) => {
+                let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
+                let _ = comma().parse(&mut self.input);
+                self.consume(")")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedStructEnd)
+            },
+            Err(_) => Err(Error::ExpectedStruct)
+        }
     }
 
     fn deserialize_enum<V>(
@@ -436,7 +430,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        visitor.visit_enum(Enum::new(self))
     }
 
     fn deserialize_identifier<V>(
@@ -445,7 +439,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        let first = is_a(|b| char_class::alpha(b) || b == b'_');
+        let other = is_a(|b| char_class::alpha(b) || char_class::alphanum(b) || b == b'_');
+        let parser = space() * (first + other.repeat(0..)) - space();
+        match parser.collect().parse(&mut self.input) {
+            Ok(bytes) => visitor.visit_bytes(&bytes),
+            Err(_) => Err(Error::ExpectedIdentifier),
+        }
     }
 
     fn deserialize_ignored_any<V>(
@@ -460,48 +460,75 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 struct CommaSeparated<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
+    terminator: u8,
     first: bool,
 }
 
 impl<'a, 'de> CommaSeparated<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>) -> Self {
-        CommaSeparated { de: de, first: true }
+    fn new(terminator: u8, de: &'a mut Deserializer<'de>) -> Self {
+        CommaSeparated { de, terminator, first: true }
     }
 }
 
-impl<'de, 'a> SeqAccess<'de> for CommaSeparated<'a, 'de> {
+impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
         where T: DeserializeSeed<'de>
     {
         // Check if there are no more elements.
-        if self.de.peek_char()? == ']' {
-            return Ok(None);
+        if self.de.input.current() == Some(self.terminator) {
+            return Ok(None)
         }
         // Comma is required before every element except the first.
-        if !self.first && self.de.next_char()? != ',' {
-            return Err(Error::ExpectedArrayComma);
+        if !self.first {
+            if comma().parse(&mut self.de.input).is_err() {
+                return Err(Error::ExpectedArrayComma);
+            }
+            if self.de.input.current() == Some(self.terminator) {
+                return Ok(None)
+            }
         }
         self.first = false;
+        let _ = space().parse(&mut self.de.input);
         // Deserialize an array element.
         seed.deserialize(&mut *self.de).map(Some)
     }
 }
 
-impl<'de, 'a> MapAccess<'de> for CommaSeparated<'a, 'de> {
+impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
         where K: DeserializeSeed<'de>
     {
-        unimplemented!()
+        // Check if there are no more elements.
+        if self.de.input.current() == Some(self.terminator) {
+            return Ok(None)
+        }
+        // Comma is required before every element except the first.
+        if !self.first {
+            if comma().parse(&mut self.de.input).is_err() {
+                return Err(Error::ExpectedMapComma);
+            }
+            if self.de.input.current() == Some(self.terminator) {
+                return Ok(None)
+            }
+        }
+        self.first = false;
+        let _ = space().parse(&mut self.de.input);
+        // Deserialize a map key.
+        seed.deserialize(&mut *self.de).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
         where V: DeserializeSeed<'de>
     {
-        unimplemented!()
+        let parser = space() * sym(b':') - space();
+        match parser.parse(&mut self.de.input) {
+            Ok(_) => seed.deserialize(&mut *self.de),
+            Err(_) => Err(Error::ExpectedMapColon),
+        }
     }
 }
 
@@ -515,45 +542,142 @@ impl<'a, 'de> Enum<'a, 'de> {
     }
 }
 
-impl<'de, 'a> EnumAccess<'de> for Enum<'a, 'de> {
+impl<'de, 'a> de::EnumAccess<'de> for Enum<'a, 'de> {
     type Error = Error;
     type Variant = Self;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
         where V: DeserializeSeed<'de>
     {
-        unimplemented!()
+        let value = seed.deserialize(&mut *self.de)?;
+        Ok((value, self))
     }
 }
 
-impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
+impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
-        unimplemented!()
+        Ok(())
     }
 
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
         where T: DeserializeSeed<'de>
     {
-        unimplemented!()
+        match self.de.consume("(") {
+            Ok(_) => {
+                let value = seed.deserialize(&mut *self.de)?;
+                let _ = comma().parse(&mut self.de.input);
+                self.de.consume(")")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedStructEnd)
+            },
+            Err(_) => Err(Error::ExpectedStruct)
+        }
     }
 
-    // Tuple variants are represented in JSON as `{ NAME: [DATA...] }` so
-    // deserialize the sequence of data here.
-    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        self.de.deserialize_tuple(len, visitor)
     }
 
     fn struct_variant<V>(
         self,
-        _fields: &'static [&'static str],
+        fields: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        self.de.deserialize_struct("", fields, visitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, PartialEq, Deserialize)]
+    struct EmptyStruct1;
+
+    #[derive(Debug, PartialEq, Deserialize)]
+    struct EmptyStruct2 {}
+
+    #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
+    struct MyStruct { x: f32, y: f32 }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
+    enum MyEnum {
+        A,
+        B(bool),
+        C(bool, f32),
+        D { a: i32, b: i32 }
+    }
+
+    #[test]
+    fn test_empty_struct() {
+        assert_eq!(Ok(EmptyStruct1), from_str("EmptyStruct1"));
+        assert_eq!(Ok(EmptyStruct2{}), from_str("EmptyStruct2()"));
+    }
+
+
+    #[test]
+    fn test_struct() {
+        let my_struct = MyStruct { x: 4.0, y: 7.0 };
+
+        assert_eq!(Ok(my_struct), from_str("MyStruct(x:4,y:7,)"));
+        assert_eq!(Ok(my_struct), from_str("(x:4,y:7)"));
+
+        #[derive(Debug, PartialEq, Deserialize)]
+        struct NewType(i32);
+
+        assert_eq!(Ok(NewType(42)), from_str("NewType(42)"));
+        assert_eq!(Ok(NewType(33)), from_str("(33)"));
+
+        #[derive(Debug, PartialEq, Deserialize)]
+        struct TupleStruct(f32, f32);
+
+        assert_eq!(Ok(TupleStruct(2.0, 5.0)), from_str("TupleStruct(2,5,)"));
+        assert_eq!(Ok(TupleStruct(3.0, 4.0)), from_str("(3,4)"));
+    }
+
+
+    #[test]
+    fn test_option() {
+        assert_eq!(Ok(Some(1u8)), from_str("Some(1)"));
+        assert_eq!(Ok(None::<u8>), from_str("None"));
+    }
+
+    #[test]
+    fn test_enum() {
+        assert_eq!(Ok(MyEnum::A), from_str("A"));
+        assert_eq!(Ok(MyEnum::B(true)), from_str("B(true,)"));
+        assert_eq!(Ok(MyEnum::C(true, 3.5)), from_str("C(true,3.5,)"));
+        assert_eq!(Ok(MyEnum::D { a: 2, b: 3 }), from_str("D(a:2,b:3,)"));
+    }
+
+    #[test]
+    fn test_array() {
+        let empty: [i32; 0] = [];
+        assert_eq!(Ok(empty), from_str("()"));
+        let empty_array = empty.to_vec();
+        assert_eq!(Ok(empty_array), from_str("[]"));
+
+        assert_eq!(Ok([2, 3, 4i32]), from_str("(2,3,4,)"));
+        assert_eq!(Ok(([2, 3, 4i32].to_vec())), from_str("[2,3,4,]"));
+    }
+
+    #[test]
+    fn test_map() {
+        use std::collections::HashMap;
+
+        let mut map = HashMap::new();
+        map.insert((true, false), 4);
+        map.insert((false, false), 123);
+
+        assert_eq!(Ok(map), from_str("{
+            (true,false,):4,
+            (false,false,):123,
+        }"));
     }
 }

@@ -1,11 +1,9 @@
 [![Build Status](https://travis-ci.org/kvark/ron.png?branch=master)](https://travis-ci.org/kvark/ron)
+[![Docs](https://docs.rs/ron/badge.svg)](https://docs.rs/ron)
+[![Crates.io](https://img.shields.io/crates/v/ron.svg?maxAge=2592000)](https://crates.io/crates/ron)
 ## Rusty Object Notation
 
-JSON is a nice little format. However, using it outside of JavaScript domain reveals numerous limitations. Here I present RON - yet another JSON alternative, which is:
-  - also a text
-  - also self-describing
-  - supports structs and enums
-  - but still very simple!
+RON is a simple readable data serialization format that looks like Rust. It's designed to support structs, enums, tuples, arrays, generic maps, and primitive values.
 
 ### Example in JSON
 
@@ -103,10 +101,6 @@ array:
 struct:
    [Name] `(` field1: elem1, field2: elem2, ... `)`
 ```
-
-### Background
-
-I have a scene [exporter](https://github.com/kvark/claymore/blob/master/etc/blender/io_kri_scene/scene.py) from Blender, where the result is loaded by the Rust [code](https://github.com/kvark/claymore/blob/master/src/load/scene.rs). The scene structure I'd like to see with my eyes, thus text form is preferred, while mesh contents and animation curves are passed in a custom binary format. I used JSON for the scene format, since it's been well-supported in Rust, but it proved to be inconvenient. I also tried to generate Rust code directly, but this approach has other major problems. I looked elsewere and didn't find anything good enough, so I made my own.
 
 ### Appendix
 
