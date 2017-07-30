@@ -24,7 +24,7 @@ pub enum Error {
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match *self {
-            Error::Message(ref e) => write!(f, "Cusom message: {}", e),
+            Error::Message(ref e) => write!(f, "Custom message: {}", e),
         }
     }
 }
