@@ -26,6 +26,8 @@ pub enum Error {
     ExpectedMapColon,
     ExpectedMapComma,
     ExpectedMapEnd,
+    ExpectedStruct,
+    ExpectedStructEnd,
     ExpectetUnit,
     ExpectedStructName,
     ExpectedString,
@@ -131,6 +133,9 @@ impl<'de> Deserializer<'de> {
 
 fn space<'a>() -> Parser<'a, u8, ()> {
     one_of(b" \t\r\n").repeat(0..).discard()
+}
+fn comma<'a>() -> Parser<'a, u8, u8> {
+    space() * sym(b',') - space()
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
@@ -296,12 +301,24 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
     fn deserialize_newtype_struct<V>(
         self,
-        _name: &'static str,
+        name: &'static str,
         visitor: V
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        visitor.visit_newtype_struct(self)
+        match self.consume(name) {
+            Ok(_) => match self.consume("(") {
+                Ok(_) => {
+                    let value = visitor.visit_newtype_struct(&mut *self)?;
+                    let _ = comma().parse(&mut self.input);
+                    self.consume(")")
+                        .map(|_| value)
+                        .map_err(|_| Error::ExpectedStructEnd)
+                },
+                Err(_) => Err(Error::ExpectedStruct),
+            },
+            Err(_) => visitor.visit_newtype_struct(self),
+        }
     }
 
     fn deserialize_seq<V>(mut self, visitor: V) -> Result<V::Value>
@@ -309,7 +326,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.consume("[") {
             Ok(_) => {
-                let value = visitor.visit_seq(CommaSeparated::new(&mut self))?;
+                let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
+                let _ = comma().parse(&mut self.input);
                 self.consume("]")
                     .map(|_| value)
                     .map_err(|_| Error::ExpectedArrayEnd)
@@ -333,7 +351,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.consume("(") {
             Ok(_) => {
-                let value = visitor.visit_seq(CommaSeparated::new(&mut self))?;
+                let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
+                let _ = comma().parse(&mut self.input);
                 self.consume(")")
                     .map(|_| value)
                     .map_err(|_| Error::ExpectedArrayEnd)
@@ -359,7 +378,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.consume("{") {
             Ok(_) => {
-                let value = visitor.visit_seq(CommaSeparated::new(&mut self))?;
+                let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
+                let _ = comma().parse(&mut self.input);
                 self.consume("}")
                     .map(|_| value)
                     .map_err(|_| Error::ExpectedMapEnd)
@@ -369,7 +389,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     fn deserialize_struct<V>(
-        self,
+        mut self,
         name: &'static str,
         _fields: &'static [&'static str],
         visitor: V
@@ -377,7 +397,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         where V: Visitor<'de>
     {
         let _ = self.consume(name);
-        self.deserialize_map(visitor)
+
+        match self.consume("(") {
+            Ok(_) => {
+                let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
+                let _ = comma().parse(&mut self.input);
+                self.consume(")")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedStructEnd)
+            },
+            Err(_) => Err(Error::ExpectedStruct)
+        }
     }
 
     fn deserialize_enum<V>(
@@ -419,12 +449,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 struct CommaSeparated<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
+    terminator: u8,
     first: bool,
 }
 
 impl<'a, 'de> CommaSeparated<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>) -> Self {
-        CommaSeparated { de, first: true }
+    fn new(terminator: u8, de: &'a mut Deserializer<'de>) -> Self {
+        CommaSeparated { de, terminator, first: true }
     }
 }
 
@@ -434,16 +465,21 @@ impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
         where T: DeserializeSeed<'de>
     {
-        let peek = self.de.input.current();
         // Check if there are no more elements.
-        if peek == Some(b']') {
+        if self.de.input.current() == Some(self.terminator) {
             return Ok(None)
         }
         // Comma is required before every element except the first.
-        if !self.first && peek != Some(b',') {
-            return Err(Error::ExpectedArrayComma);
+        if !self.first {
+            if comma().parse(&mut self.de.input).is_err() {
+                return Err(Error::ExpectedArrayComma);
+            }
+            if self.de.input.current() == Some(self.terminator) {
+                return Ok(None)
+            }
         }
         self.first = false;
+        let _ = space().parse(&mut self.de.input);
         // Deserialize an array element.
         seed.deserialize(&mut *self.de).map(Some)
     }
@@ -455,26 +491,32 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
         where K: DeserializeSeed<'de>
     {
-        let peek = self.de.input.current();
         // Check if there are no more elements.
-        if peek == Some(b'}') {
+        if self.de.input.current() == Some(self.terminator) {
             return Ok(None)
         }
         // Comma is required before every element except the first.
-        if !self.first && peek != Some(b',') {
-            return Err(Error::ExpectedMapComma);
+        if !self.first {
+            if comma().parse(&mut self.de.input).is_err() {
+                return Err(Error::ExpectedMapComma);
+            }
+            if self.de.input.current() == Some(self.terminator) {
+                return Ok(None)
+            }
         }
         self.first = false;
-        // Deserialize an array element.
+        let _ = space().parse(&mut self.de.input);
+        // Deserialize a map key.
         seed.deserialize(&mut *self.de).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
         where V: DeserializeSeed<'de>
     {
-        match self.de.input.current() {
-            Some(b':') => seed.deserialize(&mut *self.de),
-            _ => Err(Error::ExpectedMapColon),
+        let parser = space() * sym(b':') - space();
+        match parser.parse(&mut self.de.input) {
+            Ok(_) => seed.deserialize(&mut *self.de),
+            Err(_) => Err(Error::ExpectedMapColon),
         }
     }
 }
@@ -542,63 +584,61 @@ mod tests {
     #[derive(Debug, PartialEq, Deserialize)]
     struct EmptyStruct2 {}
 
-/*   #[derive(Debug, PartialEq, Deserialize)]
+    #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
     struct MyStruct { x: f32, y: f32 }
 
-    #[derive(Deserialize)]
+    #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
     enum MyEnum {
         A,
         B(bool),
         C(bool, f32),
         D { a: i32, b: i32 }
-    }*/
+    }
 
     #[test]
     fn test_empty_struct() {
         assert_eq!(Ok(EmptyStruct1), from_str("EmptyStruct1"));
-        assert_eq!(Ok(EmptyStruct2{}), from_str("EmptyStruct2{}"));
+        assert_eq!(Ok(EmptyStruct2{}), from_str("EmptyStruct2()"));
     }
 
-/*
+
     #[test]
     fn test_struct() {
         let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
-        assert_eq!(to_string(&my_struct).unwrap(), "MyStruct(x:4,y:7,)");
+        assert_eq!(Ok(my_struct), from_str("MyStruct(x:4,y:7,)"));
+        assert_eq!(Ok(my_struct), from_str("(x:4,y:7)"));
 
-        #[derive(Serialize)]
-        struct MyUnit;
-
-        assert_eq!(to_string(&MyUnit).unwrap(), "MyUnit");
-
-        #[derive(Serialize)]
+        #[derive(Debug, PartialEq, Deserialize)]
         struct NewType(i32);
 
-        assert_eq!(to_string(&NewType(42)).unwrap(), "NewType(42)");
+        assert_eq!(Ok(NewType(42)), from_str("NewType(42)"));
+        assert_eq!(Ok(NewType(42)), from_str("42"));
 
-        #[derive(Serialize)]
+        #[derive(Debug, PartialEq, Deserialize)]
         struct TupleStruct(f32, f32);
 
-        assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "TupleStruct(2,5,)");
+        assert_eq!(Ok(TupleStruct(2.0, 5.0)), from_str("TupleStruct(2,5,)"));
+        assert_eq!(Ok(TupleStruct(3.0, 4.0)), from_str("(3,4)"));
     }
 
-    #[test]
+    //#[test]
     fn test_enum() {
-        assert_eq!(to_string(&MyEnum::A).unwrap(), "A");
-        assert_eq!(to_string(&MyEnum::B(true)).unwrap(), "B(true,)");
-        assert_eq!(to_string(&MyEnum::C(true, 3.5)).unwrap(), "C(true,3.5,)");
-        assert_eq!(to_string(&MyEnum::D { a: 2, b: 3 }).unwrap(), "D(a:2,b:3,)");
+        assert_eq!(Ok(MyEnum::A), from_str("A"));
+        assert_eq!(Ok(MyEnum::B(true)), from_str("B(true,)"));
+        assert_eq!(Ok(MyEnum::C(true, 3.5)), from_str("C(true,3.5,)"));
+        assert_eq!(Ok(MyEnum::D { a: 2, b: 3 }), from_str("D(a:2,b:3,)"));
     }
 
     #[test]
     fn test_array() {
         let empty: [i32; 0] = [];
-        assert_eq!(to_string(&empty).unwrap(), "()");
-        let empty_ref: &[i32] = &empty;
-        assert_eq!(to_string(&empty_ref).unwrap(), "[]");
+        assert_eq!(Ok(empty), from_str("()"));
+        let empty_array = empty.to_vec();
+        assert_eq!(Ok(empty_array), from_str("[]"));
 
-        assert_eq!(to_string(&[2, 3, 4i32]).unwrap(), "(2,3,4,)");
-        assert_eq!(to_string(&(&[2, 3, 4i32] as &[i32])).unwrap(), "[2,3,4,]");
+        assert_eq!(Ok([2, 3, 4i32]), from_str("(2,3,4,)"));
+        assert_eq!(Ok(([2, 3, 4i32].to_vec())), from_str("[2,3,4,]"));
     }
 
     #[test]
@@ -609,10 +649,9 @@ mod tests {
         map.insert((true, false), 4);
         map.insert((false, false), 123);
 
-        let s = to_string(&map).unwrap();
-        s.starts_with("{");
-        s.contains("(true,false,):4");
-        s.contains("(false,false,):123");
-        s.ends_with("}");
-    }*/
+        assert_eq!(Ok(map), from_str("{
+            (true,false,):4,
+            (false,false,):123,
+        }"));
+    }
 }

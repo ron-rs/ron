@@ -7,7 +7,10 @@ use serde::ser::{self, Serialize};
 pub fn to_string<T>(value: &T) -> Result<String>
     where T: Serialize
 {
-    let mut s = Serializer { output: String::new() };
+    let mut s = Serializer {
+        output: String::new(),
+        struct_names: false,
+    };
     value.serialize(&mut s)?;
     Ok(s.output)
 }
@@ -45,6 +48,7 @@ impl StdError for Error {
 
 pub struct Serializer {
     output: String,
+    struct_names: bool,
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
@@ -170,12 +174,15 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
         where T: ?Sized + Serialize
     {
-        self.output += name;
-        self.output += "(";
-        value.serialize(&mut *self)?;
-        self.output += ")";
-
-        Ok(())
+        if self.struct_names {
+            self.output += name;
+            self.output += "(";
+            value.serialize(&mut *self)?;
+            self.output += ")";
+            Ok(())
+        } else {
+            value.serialize(self)
+        }
     }
 
     fn serialize_newtype_variant<T>(
@@ -435,15 +442,11 @@ mod tests {
 
         assert_eq!(to_string(&my_struct).unwrap(), "MyStruct(x:4,y:7,)");
 
-        #[derive(Serialize)]
-        struct MyUnit;
-
-        assert_eq!(to_string(&MyUnit).unwrap(), "MyUnit");
 
         #[derive(Serialize)]
         struct NewType(i32);
 
-        assert_eq!(to_string(&NewType(42)).unwrap(), "NewType(42)");
+        assert_eq!(to_string(&NewType(42)).unwrap(), "42");
 
         #[derive(Serialize)]
         struct TupleStruct(f32, f32);
