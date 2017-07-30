@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
 use std::error::Error as StdError;
 use std::fmt;
@@ -6,7 +7,7 @@ use std::str::FromStr;
 use pom::{DataInput, Input};
 use pom::char_class;
 use pom::parser::*;
-use serde::de::{self, DeserializeSeed, Visitor};
+use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 
 type Result<T> = ::std::result::Result<T, Error>;
 
@@ -71,6 +72,9 @@ impl<'de> Deserializer<'de> {
         Deserializer {
             input: DataInput::new(input.as_bytes()),
         }
+    }
+    pub fn remainder(&self) -> Cow<str> {
+        String::from_utf8_lossy(&self.input.data[self.input.position..])
     }
 }
 
@@ -150,6 +154,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
+        println!("deserialize_bool: {:?}", self.remainder());
         match seq(b"true").parse(&mut self.input) {
             Ok(_) => visitor.visit_bool(true),
             Err(_) => match seq(b"false").parse(&mut self.input) {
@@ -414,12 +419,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self,
         _name: &'static str,
         _variants: &'static [&'static str],
-        _visitor: V
+        visitor: V
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        //self.visit_enum()
-        unimplemented!()
+        visitor.visit_enum(Enum::new(self))
     }
 
     fn deserialize_identifier<V>(
@@ -535,10 +539,11 @@ impl<'de, 'a> de::EnumAccess<'de> for Enum<'a, 'de> {
     type Error = Error;
     type Variant = Self;
 
-    fn variant_seed<V>(self, _seed: V) -> Result<(V::Value, Self::Variant)>
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
         where V: DeserializeSeed<'de>
     {
-        unimplemented!()
+        let value = seed.deserialize(&mut *self.de)?;
+        Ok((value, self))
     }
 }
 
@@ -546,31 +551,38 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
-        unimplemented!()
+        Ok(())
     }
 
-    fn newtype_variant_seed<T>(self, _seed: T) -> Result<T::Value>
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
         where T: DeserializeSeed<'de>
     {
-        unimplemented!()
+        match self.de.consume("(") {
+            Ok(_) => {
+                let value = seed.deserialize(&mut *self.de)?;
+                let _ = comma().parse(&mut self.de.input);
+                self.de.consume(")")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedStructEnd)
+            },
+            Err(_) => Err(Error::ExpectedStruct)
+        }
     }
 
-    // Tuple variants are represented in JSON as `{ NAME: [DATA...] }` so
-    // deserialize the sequence of data here.
-    fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        self.de.deserialize_tuple(len, visitor)
     }
 
     fn struct_variant<V>(
         self,
-        _fields: &'static [&'static str],
-        _visitor: V,
+        fields: &'static [&'static str],
+        visitor: V,
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        unimplemented!()
+        self.de.deserialize_struct("", fields, visitor)
     }
 }
 
@@ -622,7 +634,7 @@ mod tests {
         assert_eq!(Ok(TupleStruct(3.0, 4.0)), from_str("(3,4)"));
     }
 
-    //#[test]
+    #[test]
     fn test_enum() {
         assert_eq!(Ok(MyEnum::A), from_str("A"));
         assert_eq!(Ok(MyEnum::B(true)), from_str("B(true,)"));
