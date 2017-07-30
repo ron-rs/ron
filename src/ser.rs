@@ -512,4 +512,9 @@ mod tests {
     fn test_char() {
         assert_eq!(to_string(&'c').unwrap(), "'c'");
     }
+
+    #[test]
+    fn test_escape() {
+        assert_eq!(to_string(&"\"Quoted\"").unwrap(), r#"\"Quoted\""#);
+    }
 }

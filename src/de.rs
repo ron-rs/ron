@@ -692,4 +692,9 @@ mod tests {
     fn test_char() {
         assert_eq!(Ok('c'), from_str("'c'"));
     }
+
+    #[test]
+    fn test_escape() {
+        assert_eq!("\"Quoted\"", from_str::<String>(r#"\"Quoted\""#).unwrap());
+    }
 }
