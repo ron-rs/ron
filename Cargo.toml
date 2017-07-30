@@ -2,10 +2,17 @@
 name = "ron"
 version = "0.1.0"
 license = "Apache-2.0"
-keywords = ["gamedev"]
+keywords = ["parser", "serde", "serialization"]
 authors = [
-"Dzmitry Malyshau <kvarkus@gmail.com>",
+	"Dzmitry Malyshau <kvarkus@gmail.com>",
+	"Thomas Schaller <torkleyy@gmail.com>",
 ]
+description = "Rusty Object Notation"
+categories = ["encoding"]
+homepage = "https://github.com/kvark/ron"
+repository = "https://github.com/kvark/ron"
+documentation = "https://docs.rs/ron/"
+exclude = ["bors.toml", ".travis.yml"]
 
 [lib]
 name = "ron"
