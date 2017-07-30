@@ -23,6 +23,8 @@ pub enum Error {
     ExpectedChar,
     ExpectedFloat,
     ExpectedInteger,
+    ExpectedOption,
+    ExpectedOptionEnd,
     ExpectedMap,
     ExpectedMapColon,
     ExpectedMapComma,
@@ -154,7 +156,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        println!("deserialize_bool: {:?}", self.remainder());
         match seq(b"true").parse(&mut self.input) {
             Ok(_) => visitor.visit_bool(true),
             Err(_) => match seq(b"false").parse(&mut self.input) {
@@ -275,9 +276,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        match seq(b"null").discard().parse(&mut self.input) {
+        match seq(b"None").discard().parse(&mut self.input) {
             Ok(_) => visitor.visit_none(),
-            Err(_) => visitor.visit_some(self),
+            Err(_) => match (seq(b"Some(") - space()).discard().parse(&mut self.input) {
+                Ok(_) => {
+                    let value = visitor.visit_some(&mut *self)?;
+                    self.consume(")")
+                        .map(|_| value)
+                        .map_err(|_| Error::ExpectedOptionEnd)
+                },
+                Err(_) => Err(Error::ExpectedOption),
+            }
         }
     }
 
@@ -311,18 +320,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        match self.consume(name) {
-            Ok(_) => match self.consume("(") {
-                Ok(_) => {
-                    let value = visitor.visit_newtype_struct(&mut *self)?;
-                    let _ = comma().parse(&mut self.input);
-                    self.consume(")")
-                        .map(|_| value)
-                        .map_err(|_| Error::ExpectedStructEnd)
-                },
-                Err(_) => Err(Error::ExpectedStruct),
+        let _ = self.consume(name);
+        match self.consume("(") {
+            Ok(_) => {
+                let value = visitor.visit_newtype_struct(&mut *self)?;
+                let _ = comma().parse(&mut self.input);
+                self.consume(")")
+                    .map(|_| value)
+                    .map_err(|_| Error::ExpectedStructEnd)
             },
-            Err(_) => visitor.visit_newtype_struct(self),
+            Err(_) => Err(Error::ExpectedStruct),
         }
     }
 
@@ -625,13 +632,20 @@ mod tests {
         struct NewType(i32);
 
         assert_eq!(Ok(NewType(42)), from_str("NewType(42)"));
-        assert_eq!(Ok(NewType(42)), from_str("42"));
+        assert_eq!(Ok(NewType(33)), from_str("(33)"));
 
         #[derive(Debug, PartialEq, Deserialize)]
         struct TupleStruct(f32, f32);
 
         assert_eq!(Ok(TupleStruct(2.0, 5.0)), from_str("TupleStruct(2,5,)"));
         assert_eq!(Ok(TupleStruct(3.0, 4.0)), from_str("(3,4)"));
+    }
+
+
+    #[test]
+    fn test_option() {
+        assert_eq!(Ok(Some(1u8)), from_str("Some(1)"));
+        assert_eq!(Ok(None::<u8>), from_str("None"));
     }
 
     #[test]

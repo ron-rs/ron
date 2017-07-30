@@ -176,13 +176,12 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     {
         if self.struct_names {
             self.output += name;
-            self.output += "(";
-            value.serialize(&mut *self)?;
-            self.output += ")";
-            Ok(())
-        } else {
-            value.serialize(self)
         }
+
+        self.output += "(";
+        value.serialize(&mut *self)?;
+        self.output += ")";
+        Ok(())
     }
 
     fn serialize_newtype_variant<T>(
@@ -218,7 +217,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         name: &'static str,
         len: usize
     ) -> Result<Self::SerializeTupleStruct> {
-        self.output += name;
+        if self.struct_names {
+            self.output += name;
+        }
 
         self.serialize_tuple(len)
     }
@@ -247,7 +248,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         name: &'static str,
         _: usize
     ) -> Result<Self::SerializeStruct> {
-        self.output += name;
+        if self.struct_names {
+            self.output += name;
+        }
         self.output += "(";
 
         Ok(self)
@@ -433,25 +436,31 @@ mod tests {
     #[test]
     fn test_empty_struct() {
         assert_eq!(to_string(&EmptyStruct1).unwrap(), "EmptyStruct1");
-        assert_eq!(to_string(&EmptyStruct2 {}).unwrap(), "EmptyStruct2()");
+        assert_eq!(to_string(&EmptyStruct2 {}).unwrap(), "()");
     }
 
     #[test]
     fn test_struct() {
         let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
-        assert_eq!(to_string(&my_struct).unwrap(), "MyStruct(x:4,y:7,)");
+        assert_eq!(to_string(&my_struct).unwrap(), "(x:4,y:7,)");
 
 
         #[derive(Serialize)]
         struct NewType(i32);
 
-        assert_eq!(to_string(&NewType(42)).unwrap(), "42");
+        assert_eq!(to_string(&NewType(42)).unwrap(), "(42)");
 
         #[derive(Serialize)]
         struct TupleStruct(f32, f32);
 
-        assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "TupleStruct(2,5,)");
+        assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "(2,5,)");
+    }
+
+    #[test]
+    fn test_option() {
+        assert_eq!(to_string(&Some(1u8)).unwrap(), "Some(1)");
+        assert_eq!(to_string(&None::<u8>).unwrap(), "None");
     }
 
     #[test]
