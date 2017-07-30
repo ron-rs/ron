@@ -113,7 +113,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_char(self, v: char) -> Result<()> {
-        self.serialize_str(&v.to_string())
+        self.output += "'";
+        self.output.push(v);
+        self.output += "'";
+        Ok(())
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
@@ -495,5 +498,15 @@ mod tests {
         s.contains("(true,false,):4");
         s.contains("(false,false,):123");
         s.ends_with("}");
+    }
+
+    #[test]
+    fn test_string() {
+        assert_eq!(to_string(&"Some string").unwrap(), "\"Some string\"");
+    }
+
+    #[test]
+    fn test_char() {
+        assert_eq!(to_string(&'c').unwrap(), "'c'");
     }
 }
