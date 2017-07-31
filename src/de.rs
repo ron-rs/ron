@@ -31,10 +31,12 @@ pub enum Error {
     ExpectedMapEnd,
     ExpectedStruct,
     ExpectedStructEnd,
-    ExpectetUnit,
+    ExpectedUnit,
     ExpectedStructName,
     ExpectedString,
     ExpectedIdentifier,
+
+    InvalidEscape,
 
     /// A custom error emitted by the deserializer.
     Message(String),
@@ -228,9 +230,24 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        let parser = sym(b'\'') * take(1) - sym(b'\'');
+        let parser = sym(b'\'') * take(1);
         match parser.parse(&mut self.input) {
-            Ok(c) => visitor.visit_char(c[0] as char),
+            Ok(c) => {
+                let rv = if c[0] == b'\\' {
+                    match take(1).parse(&mut self.input) {
+                        Ok(ref c) if c[0] == b'\'' => visitor.visit_char('\''),
+                        Ok(ref c) if c[0] == b'\\' => visitor.visit_char('\\'),
+                        Ok(_) => Err(Error::InvalidEscape),
+                        Err(_) => Err(Error::InvalidEscape),
+                    }
+                } else {
+                    visitor.visit_char(c[0] as char)
+                };
+
+                sym(b'\'').parse(&mut self.input).map_err(|_| Error::ExpectedChar)?;
+
+                rv
+            },
             Err(_) => Err(Error::ExpectedChar)
         }
     }
@@ -296,7 +313,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.consume("()") {
             Ok(_) => visitor.visit_unit(),
-            Err(_) => Err(Error::ExpectetUnit),
+            Err(_) => Err(Error::ExpectedUnit),
         }
     }
 
@@ -691,6 +708,11 @@ mod tests {
     #[test]
     fn test_char() {
         assert_eq!(Ok('c'), from_str("'c'"));
+    }
+
+    #[test]
+    fn test_escape_char() {
+        assert_eq!('\'', from_str::<char>("'\\''").unwrap());
     }
 
     #[test]

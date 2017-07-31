@@ -33,7 +33,7 @@ fn main() {
         float: 2.18,
         map: HashMap::from_iter(vec![(0, '1'), (1, '2'), (3, '5'), (8, '1')]),
         nested: Nested {
-            a: "Hello from RON".to_string(),
+            a: "Hello from \"RON\"".to_string(),
             b: 'b',
         },
     }).expect("Serialization failed");
