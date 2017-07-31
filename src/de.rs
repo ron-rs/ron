@@ -717,6 +717,6 @@ mod tests {
 
     #[test]
     fn test_escape() {
-        assert_eq!("\"Quoted\"", from_str::<String>(r#"\"Quoted\""#).unwrap());
+        assert_eq!("\"Quoted\"", from_str::<String>(r#""\"Quoted\"""#).unwrap());
     }
 }
