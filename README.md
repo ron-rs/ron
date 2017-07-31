@@ -104,3 +104,8 @@ Why not TOML?
 
 Why not XXX?
   - if you know a better format, tell me!
+
+## License
+
+RON is dual-licensed under Apache-2.0 and MIT.
+
