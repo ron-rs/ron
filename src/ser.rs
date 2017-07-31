@@ -114,6 +114,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_char(self, v: char) -> Result<()> {
         self.output += "'";
+        if v == '\\' || v == '\'' {
+            self.output.push('\\');
+        }
         self.output.push(v);
         self.output += "'";
         Ok(())
@@ -121,7 +124,12 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_str(self, v: &str) -> Result<()> {
         self.output += "\"";
-        self.output += v;
+        for char in v.chars() {
+            if char == '\\' || char == '"' {
+                self.output.push('\\');
+            }
+            self.output.push(char);
+        }
         self.output += "\"";
         Ok(())
     }
@@ -511,5 +519,10 @@ mod tests {
     #[test]
     fn test_char() {
         assert_eq!(to_string(&'c').unwrap(), "'c'");
+    }
+
+    #[test]
+    fn test_escape() {
+        assert_eq!(to_string(&r#""Quoted""#).unwrap(), r#""\"Quoted\"""#);
     }
 }
