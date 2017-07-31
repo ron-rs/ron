@@ -364,7 +364,10 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
         where T: ?Sized + Serialize
     {
         self.output += ":";
-        value.serialize(&mut **self)
+        value.serialize(&mut **self)?;
+        self.output += ",";
+
+        Ok(())
     }
 
     fn end(self) -> Result<()> {
