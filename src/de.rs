@@ -324,9 +324,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        match self.consume(name) {
-            Ok(_) => visitor.visit_unit(),
-            Err(_) => Err(Error::ExpectedStructName),
+        if self.consume(name).is_ok() {
+            visitor.visit_unit()
+        } else {
+            self.deserialize_unit(visitor)
         }
     }
 

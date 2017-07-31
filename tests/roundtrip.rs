@@ -44,6 +44,9 @@ fn roundtrip() {
     };
 
     let serial = ron::ser::to_string(&value).unwrap();
+
+    println!("Serialized: {}", serial);
+
     let deserial = ron::de::from_str(&serial);
 
     assert_eq!(Ok(value), deserial);

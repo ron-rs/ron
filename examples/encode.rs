@@ -6,7 +6,7 @@ extern crate serde_derive;
 use std::collections::HashMap;
 use std::fs::File;
 
-use ron::ser::to_string;
+use ron::ser::pretty::to_string;
 
 #[derive(Serialize)]
 struct Config {
