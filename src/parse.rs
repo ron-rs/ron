@@ -5,6 +5,8 @@ use de::{Error, Result};
 
 const DIGITS: &[u8] = b"0123456789";
 const FLOAT_CHARS: &[u8] = b"0123456789.+-eE";
+const IDENT_FIRST: &[u8] = b"abcdefghijklmnopqrstuvwxyz_";
+const IDENT_CHAR: &[u8] = b"abcdefghijklmnopqrstuvwxyz_0123456789";
 const WHITE_SPACE: &[u8] = b"\n\t\r ";
 
 #[derive(Clone, Copy)]
@@ -127,6 +129,19 @@ impl<'a> Bytes<'a> {
         res
     }
 
+    pub fn identifier(&self) -> Result<&[u8]> {
+        if IDENT_FIRST.contains(&self.peek().ok_or(Error::Eof)?) {
+            let bytes = self.next_bytes_contained_in(IDENT_CHAR);
+
+            let (ident, bytes) = self.bytes.split_at(bytes);
+            self.bytes = bytes;
+
+            Ok(ident)
+        } else {
+            Err(Error::ExpectedIdentifier)
+        }
+    }
+
     pub fn next_bytes_contained_in(&self, allowed: &[u8]) -> usize {
         (0..)
             .flat_map(|i| self.bytes.get(i))
@@ -139,8 +154,6 @@ impl<'a> Bytes<'a> {
             let _ = self.advance_single();
         }
     }
-
-    pub fn option(&mut self) -> Result<Option<>>
 
     pub fn peek(&self) -> Option<u8> {
         self.bytes.get(0).map(|b| *b)

@@ -253,9 +253,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        match self.consume("()") {
-            Ok(_) => visitor.visit_unit(),
-            Err(_) => Err(Error::ExpectedUnit),
+        if self.bytes.consume("()") {
+            visitor.visit_unit()
+        } else {
+            Err(Error::ExpectedUnit)
         }
     }
 
@@ -266,7 +267,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.consume(name).is_ok() {
+        if self.bytes.consume(name) {
             visitor.visit_unit()
         } else {
             self.deserialize_unit(visitor)
@@ -280,31 +281,36 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        let _ = self.consume(name);
-        match self.consume("(") {
-            Ok(_) => {
-                let value = visitor.visit_newtype_struct(&mut *self)?;
-                let _ = comma().parse(&mut self.input);
-                self.consume(")")
-                    .map(|_| value)
-                    .map_err(|_| Error::ExpectedStructEnd)
-            },
-            Err(_) => Err(Error::ExpectedStruct),
+        self.bytes.consume(name);
+
+        if self.bytes.consume("(") {
+            let value = visitor.visit_newtype_struct(&mut *self)?;
+            self.bytes.comma();
+
+            if self.bytes.consume(")") {
+                Ok(value)
+            } else {
+                Err(Error::ExpectedStructEnd)
+            }
+        } else {
+            Err(Error::ExpectedStruct)
         }
     }
 
     fn deserialize_seq<V>(mut self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        match self.consume("[") {
-            Ok(_) => {
-                let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
-                let _ = comma().parse(&mut self.input);
-                self.consume("]")
-                    .map(|_| value)
-                    .map_err(|_| Error::ExpectedArrayEnd)
-            },
-            Err(_) => Err(Error::ExpectedArray)
+        if self.bytes.consume("[") {
+            let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
+            self.bytes.comma();
+
+            if self.bytes.consume("]") {
+                Ok(value)
+            } else {
+                Err(Error::ExpectedArrayEnd)
+            }
+        } else {
+            Err(Error::ExpectedArray)
         }
     }
 
@@ -321,15 +327,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        match self.consume("(") {
-            Ok(_) => {
-                let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
-                let _ = comma().parse(&mut self.input);
-                self.consume(")")
-                    .map(|_| value)
-                    .map_err(|_| Error::ExpectedArrayEnd)
-            },
-            Err(_) => Err(Error::ExpectedArray)
+        if self.bytes.consume("(") {
+            let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
+            self.bytes.comma();
+
+            if self.bytes.consume(")") {
+                Ok(value)
+            } else {
+                Err(Error::ExpectedArrayEnd)
+            }
+        } else {
+            Err(Error::ExpectedArray)
         }
     }
 
@@ -341,22 +349,24 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        let _ = self.consume(name);
+        self.bytes.consume(name);
         self.deserialize_tuple(len, visitor)
     }
 
     fn deserialize_map<V>(mut self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        match self.consume("{") {
-            Ok(_) => {
-                let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
-                let _ = comma().parse(&mut self.input);
-                self.consume("}")
-                    .map(|_| value)
-                    .map_err(|_| Error::ExpectedMapEnd)
-            },
-            Err(_) => Err(Error::ExpectedMap)
+        if self.bytes.consume("{") {
+            let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
+            self.bytes.comma();
+
+            if self.bytes.consume("}") {
+                Ok(value)
+            } else {
+                Err(Error::ExpectedMapEnd)
+            }
+        } else {
+            Err(Error::ExpectedMap)
         }
     }
 
@@ -368,17 +378,19 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        let _ = self.consume(name);
+        self.bytes.consume(name);
 
-        match self.consume("(") {
-            Ok(_) => {
-                let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
-                let _ = comma().parse(&mut self.input);
-                self.consume(")")
-                    .map(|_| value)
-                    .map_err(|_| Error::ExpectedStructEnd)
-            },
-            Err(_) => Err(Error::ExpectedStruct)
+        if self.bytes.consume("(") {
+            let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
+            self.bytes.comma();
+
+            if self.bytes.consume(")") {
+                Ok(value)
+            } else {
+                Err(Error::ExpectedStructEnd)
+            }
+        } else {
+            Err(Error::ExpectedStruct)
         }
     }
 
@@ -399,13 +411,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        let first = is_a(|b| char_class::alpha(b) || b == b'_');
-        let other = is_a(|b| char_class::alpha(b) || char_class::alphanum(b) || b == b'_');
-        let parser = space() * (first + other.repeat(0..)) - space();
-        match parser.collect().parse(&mut self.input) {
-            Ok(bytes) => visitor.visit_bytes(&bytes),
-            Err(_) => Err(Error::ExpectedIdentifier),
-        }
+        visitor.visit_bytes(self.bytes.identifier()?)
     }
 
     fn deserialize_ignored_any<V>(
