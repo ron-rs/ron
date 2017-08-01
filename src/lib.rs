@@ -6,3 +6,5 @@ extern crate serde_derive;
 
 pub mod de;
 pub mod ser;
+
+pub mod parse;

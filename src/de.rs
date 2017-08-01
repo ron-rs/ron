@@ -9,7 +9,7 @@ use pom::char_class;
 use pom::parser::*;
 use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 
-type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T> = ::std::result::Result<T, Error>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
