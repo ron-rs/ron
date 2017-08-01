@@ -7,6 +7,7 @@ const DIGITS: &[u8] = b"0123456789";
 const FLOAT_CHARS: &[u8] = b"0123456789.+-eE";
 const WHITE_SPACE: &[u8] = b"\n\t\r ";
 
+#[derive(Clone, Copy)]
 pub struct Bytes<'a> {
     bytes: &'a [u8],
     column: usize,
@@ -14,6 +15,14 @@ pub struct Bytes<'a> {
 }
 
 impl<'a> Bytes<'a> {
+    pub fn new(bytes: &'a [u8]) -> Self {
+        Bytes {
+            bytes,
+            column: 1,
+            line: 1,
+        }
+    }
+
     pub fn advance(&mut self, bytes: usize) -> Result<()> {
         for _ in 0..bytes {
             self.advance_single()?;
@@ -25,7 +34,7 @@ impl<'a> Bytes<'a> {
     pub fn advance_single(&mut self) -> Result<()> {
         if self.peek().ok_or(Error::Eof)? == b'\n' {
             self.line += 1;
-            self.column = 0;
+            self.column = 1;
         } else {
             self.column += 1;
         }
@@ -33,6 +42,46 @@ impl<'a> Bytes<'a> {
         self.bytes = &self.bytes[1..];
 
         Ok(())
+    }
+
+    pub fn bool(&mut self) -> Result<bool> {
+        if self.consume("true") {
+            Ok(true)
+        } else if self.consume("false") {
+            Ok(false)
+        } else {
+            Err(Error::ExpectedBoolean)
+        }
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    pub fn char(&mut self) -> Result<char> {
+        if !self.consume("'") {
+            return Err(Error::ExpectedChar);
+        }
+
+        let c = self.eat_byte()?;
+
+        let c = if c == b'\\' {
+            let c = self.eat_byte()?;
+
+            if c != b'\\' && c != b'\'' {
+                return Err(Error::InvalidEscape);
+            }
+
+            c
+        } else {
+            c
+        };
+
+        if !self.consume("'") {
+            return Err(Error::ExpectedChar);
+        }
+
+        Ok(c as char)
     }
 
     pub fn comma(&mut self) -> bool {
@@ -90,6 +139,8 @@ impl<'a> Bytes<'a> {
             let _ = self.advance_single();
         }
     }
+
+    pub fn option(&mut self) -> Result<Option<>>
 
     pub fn peek(&self) -> Option<u8> {
         self.bytes.get(0).map(|b| *b)
