@@ -153,6 +153,10 @@ impl<'a> Bytes<'a> {
         while self.peek().map(|c| WHITE_SPACE.contains(&c)).unwrap_or(false) {
             let _ = self.advance_single();
         }
+
+        if self.skip_comment() {
+            self.skip_ws();
+        }
     }
 
     pub fn peek(&self) -> Option<u8> {
@@ -318,6 +322,18 @@ impl<'a> Bytes<'a> {
         }
 
         Ok(())
+    }
+
+    fn skip_comment(&mut self) -> bool {
+        if self.consume("//") {
+            let bytes = self.bytes.iter().take_while(|&&b| b != b'\n').count();
+
+            let _ = self.advance(bytes);
+
+            true
+        } else {
+            false
+        }
     }
 }
 

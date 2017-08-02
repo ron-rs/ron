@@ -13,7 +13,6 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     Eof,
-    Syntax,
     ExpectedArray,
     ExpectedArrayEnd,
     ExpectedBoolean,
@@ -40,6 +39,9 @@ pub enum Error {
     Message(String),
     Utf8Error(Utf8Error),
     TrailingCharacters,
+
+    #[doc(hidden)]
+    __NonExhaustive,
 }
 
 impl fmt::Display for Error {
@@ -448,6 +450,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
             Ok(self.de.bytes.peek().ok_or(Error::Eof)? != self.terminator)
         } else {
             let comma = self.de.bytes.comma();
+            self.de.bytes.skip_ws();
 
             if self.de.bytes.peek().ok_or(Error::Eof)? == self.terminator {
                 Ok(false)
@@ -673,5 +676,15 @@ mod tests {
     #[test]
     fn test_escape() {
         assert_eq!("\"Quoted\"", from_str::<String>(r#""\"Quoted\"""#).unwrap());
+    }
+
+    #[test]
+    fn test_comment() {
+        assert_eq!(MyStruct { x: 1.0, y: 2.0 }, from_str("(
+x: 1.0, // x is just 1
+// There is another comment in the very next line..
+   // And y is indeed
+y: 2.0 // 2!
+        )").unwrap());
     }
 }
