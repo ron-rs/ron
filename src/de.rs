@@ -1,8 +1,8 @@
 use std::borrow::Cow;
-use std::char::{decode_utf16, REPLACEMENT_CHARACTER};
 use std::error::Error as StdError;
 use std::fmt;
-use std::str::FromStr;
+use std::str::Utf8Error;
+use std::string::FromUtf8Error;
 
 use parse::Bytes;
 
@@ -15,9 +15,9 @@ pub enum Error {
     Eof,
     Syntax,
     ExpectedArray,
-    ExpectedArrayComma,
     ExpectedArrayEnd,
     ExpectedBoolean,
+    ExpectedComma,
     ExpectedEnum,
     ExpectedChar,
     ExpectedFloat,
@@ -26,7 +26,6 @@ pub enum Error {
     ExpectedOptionEnd,
     ExpectedMap,
     ExpectedMapColon,
-    ExpectedMapComma,
     ExpectedMapEnd,
     ExpectedStruct,
     ExpectedStructEnd,
@@ -39,6 +38,7 @@ pub enum Error {
 
     /// A custom error emitted by the deserializer.
     Message(String),
+    Utf8Error(Utf8Error),
     TrailingCharacters,
 }
 
@@ -54,6 +54,18 @@ impl fmt::Display for Error {
 impl de::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Self {
         Error::Message(msg.to_string())
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(e: Utf8Error) -> Self {
+        Error::Utf8Error(e)
+    }
+}
+
+impl From<FromUtf8Error> for Error {
+    fn from(e: FromUtf8Error) -> Self {
+        Error::Utf8Error(e.utf8_error())
     }
 }
 
@@ -197,18 +209,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        let special_char = sym(b'\\') | sym(b'/') | sym(b'"')
-            | sym(b'b').map(|_|b'\x08') | sym(b'f').map(|_|b'\x0C')
-            | sym(b'n').map(|_|b'\n') | sym(b'r').map(|_|b'\r') | sym(b't').map(|_|b'\t');
-        let escape_sequence = sym(b'\\') * special_char;
-        let char_string = (none_of(b"\\\"") | escape_sequence).repeat(0..).convert(String::from_utf8);
-        let utf16_char = seq(b"\\u") * is_a(char_class::hex_digit).repeat(4).convert(String::from_utf8).convert(|digits|u16::from_str_radix(&digits, 16));
-        let utf16_string = utf16_char.repeat(0..).map(|chars| decode_utf16(chars).map(|r| r.unwrap_or(REPLACEMENT_CHARACTER)).collect::<String>());
-        let parser = sym(b'"') * (char_string | utf16_string) - sym(b'"');
+        use parse::ParsedStr;
 
-        match parser.parse(&mut self.input) {
-            Ok(string) => visitor.visit_string(string),
-            Err(_) => Err(Error::ExpectedString)
+        match self.bytes.string()? {
+            ParsedStr::Allocated(s) => visitor.visit_string(s),
+            ParsedStr::Slice(s) => visitor.visit_str(s),
         }
     }
 
@@ -434,6 +439,25 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
     fn new(terminator: u8, de: &'a mut Deserializer<'de>) -> Self {
         CommaSeparated { de, terminator, first: true }
     }
+
+    fn has_element(&mut self) -> Result<bool> {
+        if self.first {
+            self.de.bytes.skip_ws();
+            self.first = false;
+
+            Ok(self.de.bytes.peek().ok_or(Error::Eof)? != self.terminator)
+        } else {
+            let comma = self.de.bytes.comma();
+
+            if self.de.bytes.peek().ok_or(Error::Eof)? == self.terminator {
+                Ok(false)
+            } else if comma {
+                Ok(true)
+            } else {
+                Err(Error::ExpectedComma)
+            }
+        }
+    }
 }
 
 impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
@@ -442,23 +466,11 @@ impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
         where T: DeserializeSeed<'de>
     {
-        // Check if there are no more elements.
-        if self.de.input.current() == Some(self.terminator) {
-            return Ok(None)
+        if self.has_element()? {
+            seed.deserialize(&mut *self.de).map(Some)
+        } else {
+            Ok(None)
         }
-        // Comma is required before every element except the first.
-        if !self.first {
-            if comma().parse(&mut self.de.input).is_err() {
-                return Err(Error::ExpectedArrayComma);
-            }
-            if self.de.input.current() == Some(self.terminator) {
-                return Ok(None)
-            }
-        }
-        self.first = false;
-        let _ = space().parse(&mut self.de.input);
-        // Deserialize an array element.
-        seed.deserialize(&mut *self.de).map(Some)
     }
 }
 
@@ -468,32 +480,22 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
         where K: DeserializeSeed<'de>
     {
-        // Check if there are no more elements.
-        if self.de.input.current() == Some(self.terminator) {
-            return Ok(None)
+        if self.has_element()? {
+            seed.deserialize(&mut *self.de).map(Some)
+        } else {
+            Ok(None)
         }
-        // Comma is required before every element except the first.
-        if !self.first {
-            if comma().parse(&mut self.de.input).is_err() {
-                return Err(Error::ExpectedMapComma);
-            }
-            if self.de.input.current() == Some(self.terminator) {
-                return Ok(None)
-            }
-        }
-        self.first = false;
-        let _ = space().parse(&mut self.de.input);
-        // Deserialize a map key.
-        seed.deserialize(&mut *self.de).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
         where V: DeserializeSeed<'de>
     {
-        let parser = space() * sym(b':') - space();
-        match parser.parse(&mut self.de.input) {
-            Ok(_) => seed.deserialize(&mut *self.de),
-            Err(_) => Err(Error::ExpectedMapColon),
+        if self.de.bytes.consume(":") {
+            self.de.bytes.skip_ws();
+
+            seed.deserialize(&mut *self.de)
+        } else {
+            Err(Error::ExpectedMapColon)
         }
     }
 }
@@ -504,7 +506,7 @@ struct Enum<'a, 'de: 'a> {
 
 impl<'a, 'de> Enum<'a, 'de> {
     fn new(de: &'a mut Deserializer<'de>) -> Self {
-        Enum { de: de }
+        Enum { de }
     }
 }
 
@@ -516,6 +518,7 @@ impl<'de, 'a> de::EnumAccess<'de> for Enum<'a, 'de> {
         where V: DeserializeSeed<'de>
     {
         let value = seed.deserialize(&mut *self.de)?;
+
         Ok((value, self))
     }
 }
@@ -530,15 +533,18 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
         where T: DeserializeSeed<'de>
     {
-        match self.de.consume("(") {
-            Ok(_) => {
-                let value = seed.deserialize(&mut *self.de)?;
-                let _ = comma().parse(&mut self.de.input);
-                self.de.consume(")")
-                    .map(|_| value)
-                    .map_err(|_| Error::ExpectedStructEnd)
-            },
-            Err(_) => Err(Error::ExpectedStruct)
+        if self.de.bytes.consume("(") {
+            let val = seed.deserialize(&mut *self.de)?;
+
+            self.de.bytes.comma();
+
+            if self.de.bytes.consume(")") {
+                Ok(val)
+            } else {
+                Err(Error::ExpectedStructEnd)
+            }
+        } else {
+            Err(Error::ExpectedStruct)
         }
     }
 
