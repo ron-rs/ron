@@ -5,6 +5,12 @@ use serde::ser::{self, Serialize};
 
 pub mod pretty;
 
+#[cfg(not(target_os = "windows"))]
+const NEWLINE: &str = "\n";
+
+#[cfg(target_os = "windows")]
+const NEWLINE: &str = "\r\n";
+
 /// Serializes `value` and returns it as string.
 pub fn to_string<T>(value: &T) -> Result<String>
     where T: Serialize
@@ -63,7 +69,7 @@ impl Serializer {
     fn start_indent(&mut self) {
         if let Some(ref mut pretty) = self.pretty {
             pretty.indent += 1;
-            self.output += "\n";
+            self.output += NEWLINE;
         }
     }
 
@@ -338,7 +344,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         self.output += ",";
 
         if self.pretty.is_some() {
-            self.output += "\n";
+            self.output += NEWLINE;
         }
 
         Ok(())
@@ -437,7 +443,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
         self.output += ",";
 
         if self.pretty.is_some() {
-            self.output += "\n";
+            self.output += NEWLINE;
         }
 
         Ok(())
@@ -471,7 +477,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         self.output += ",";
 
         if self.pretty.is_some() {
-            self.output += "\n";
+            self.output += NEWLINE;
         }
 
         Ok(())
