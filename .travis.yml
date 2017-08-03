@@ -2,3 +2,8 @@ language: rust
 rust:
   - stable
   - nightly
+branches:
+  only:
+    - staging
+    - trying
+    - master
