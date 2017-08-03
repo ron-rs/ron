@@ -348,14 +348,20 @@ impl<'a> Bytes<'a> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum ParsedStr<'a> {
+    Allocated(String),
+    Slice(&'a str),
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Position {
     pub col: usize,
     pub line: usize,
 }
 
-#[derive(Clone, Debug)]
-pub enum ParsedStr<'a> {
-    Allocated(String),
-    Slice(&'a str),
+impl Display for Position {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        write!(f, "{}:{}", self.line, self.col)
+    }
 }

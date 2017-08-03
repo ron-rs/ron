@@ -51,8 +51,8 @@ pub enum ParseError {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Message(ref e) => write!(f, "Custom message: {}", e),
-            _ => unimplemented!()
+            Error::Message(ref s) => write!(f, "{}", s),
+            Error::Parser(_, pos) => write!(f, "{}: {}", pos, self.description()),
         }
     }
 }
