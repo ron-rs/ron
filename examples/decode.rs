@@ -41,7 +41,14 @@ const CONFIG: &str = "(
 )";
 
 fn main() {
-    let config: Config = from_str(CONFIG).expect("Failed to deserialize");
+    let config: Config = match from_str(CONFIG) {
+        Ok(x) => x,
+        Err(e) => {
+            println!("Failed to load config: {}", e);
+
+            ::std::process::exit(1);
+        },
+    };
 
     println!("Config: {:?}", &config);
 }

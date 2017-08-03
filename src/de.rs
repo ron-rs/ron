@@ -4,7 +4,7 @@ use std::fmt;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
-use parse::Bytes;
+use parse::{Bytes, Position};
 
 use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 
@@ -12,6 +12,12 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
+    Message(String),
+    Parser(ParseError, Position),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ParseError {
     Eof,
     ExpectedArray,
     ExpectedArrayEnd,
@@ -35,8 +41,6 @@ pub enum Error {
 
     InvalidEscape,
 
-    /// A custom error emitted by the deserializer.
-    Message(String),
     Utf8Error(Utf8Error),
     TrailingCharacters,
 
@@ -47,8 +51,8 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Message(ref e) => write!(f, "Custom message: {}", e),
-            _ => unimplemented!()
+            Error::Message(ref s) => write!(f, "{}", s),
+            Error::Parser(_, pos) => write!(f, "{}: {}", pos, self.description()),
         }
     }
 }
@@ -59,24 +63,52 @@ impl de::Error for Error {
     }
 }
 
-impl From<Utf8Error> for Error {
-    fn from(e: Utf8Error) -> Self {
-        Error::Utf8Error(e)
-    }
-}
-
-impl From<FromUtf8Error> for Error {
-    fn from(e: FromUtf8Error) -> Self {
-        Error::Utf8Error(e.utf8_error())
-    }
-}
-
 impl StdError for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Message(ref e) => e,
-            _ => unimplemented!()
+            Error::Parser(ref kind, _) => match *kind {
+                ParseError::Eof => "Unexpected end of file",
+                ParseError::ExpectedArray => "Expected array",
+                ParseError::ExpectedArrayEnd => "Expected end of array",
+                ParseError::ExpectedBoolean => "Expected boolean",
+                ParseError::ExpectedComma => "Expected comma",
+                ParseError::ExpectedEnum => "Expected enum",
+                ParseError::ExpectedChar => "Expected char",
+                ParseError::ExpectedFloat => "Expected float",
+                ParseError::ExpectedInteger => "Expected integer",
+                ParseError::ExpectedOption => "Expected option",
+                ParseError::ExpectedOptionEnd => "Expected end of option",
+                ParseError::ExpectedMap => "Expected map",
+                ParseError::ExpectedMapColon => "Expected colon",
+                ParseError::ExpectedMapEnd => "Expected end of map",
+                ParseError::ExpectedStruct => "Expected struct",
+                ParseError::ExpectedStructEnd => "Expected end of struct",
+                ParseError::ExpectedUnit => "Expected unit",
+                ParseError::ExpectedStructName => "Expected struct name",
+                ParseError::ExpectedString => "Expected string",
+                ParseError::ExpectedIdentifier => "Expected identifier",
+
+                ParseError::InvalidEscape => "Invalid escape sequence",
+
+                ParseError::Utf8Error(ref e) => e.description(),
+                ParseError::TrailingCharacters => "Non-whitespace trailing characters",
+
+                _ => unimplemented!(),
+            }
         }
+    }
+}
+
+impl From<Utf8Error> for ParseError {
+    fn from(e: Utf8Error) -> Self {
+        ParseError::Utf8Error(e)
+    }
+}
+
+impl From<FromUtf8Error> for ParseError {
+    fn from(e: FromUtf8Error) -> Self {
+        ParseError::Utf8Error(e.utf8_error())
     }
 }
 
@@ -122,7 +154,7 @@ impl<'de> Deserializer<'de> {
         if self.bytes.bytes().is_empty() {
             Ok(())
         } else {
-            Err(Error::TrailingCharacters)
+            self.bytes.err(ParseError::TrailingCharacters)
         }
     }
 }
@@ -246,13 +278,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(v)
             } else {
-                Err(Error::ExpectedOptionEnd)
+                self.bytes.err(ParseError::ExpectedOptionEnd)
             }
 
         } else if self.bytes.consume("None") {
             visitor.visit_none()
         } else {
-            Err(Error::ExpectedOption)
+            self.bytes.err(ParseError::ExpectedOption)
         }
     }
 
@@ -263,7 +295,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         if self.bytes.consume("()") {
             visitor.visit_unit()
         } else {
-            Err(Error::ExpectedUnit)
+            self.bytes.err(ParseError::ExpectedUnit)
         }
     }
 
@@ -297,10 +329,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(value)
             } else {
-                Err(Error::ExpectedStructEnd)
+                self.bytes.err(ParseError::ExpectedStructEnd)
             }
         } else {
-            Err(Error::ExpectedStruct)
+            self.bytes.err(ParseError::ExpectedStruct)
         }
     }
 
@@ -314,10 +346,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume("]") {
                 Ok(value)
             } else {
-                Err(Error::ExpectedArrayEnd)
+                self.bytes.err(ParseError::ExpectedArrayEnd)
             }
         } else {
-            Err(Error::ExpectedArray)
+            self.bytes.err(ParseError::ExpectedArray)
         }
     }
 
@@ -341,10 +373,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(value)
             } else {
-                Err(Error::ExpectedArrayEnd)
+                self.bytes.err(ParseError::ExpectedArrayEnd)
             }
         } else {
-            Err(Error::ExpectedArray)
+            self.bytes.err(ParseError::ExpectedArray)
         }
     }
 
@@ -370,10 +402,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume("}") {
                 Ok(value)
             } else {
-                Err(Error::ExpectedMapEnd)
+                self.bytes.err(ParseError::ExpectedMapEnd)
             }
         } else {
-            Err(Error::ExpectedMap)
+            self.bytes.err(ParseError::ExpectedMap)
         }
     }
 
@@ -394,10 +426,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(value)
             } else {
-                Err(Error::ExpectedStructEnd)
+                self.bytes.err(ParseError::ExpectedStructEnd)
             }
         } else {
-            Err(Error::ExpectedStruct)
+            self.bytes.err(ParseError::ExpectedStruct)
         }
     }
 
@@ -434,32 +466,27 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 struct CommaSeparated<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     terminator: u8,
-    first: bool,
+    had_comma: bool,
 }
 
 impl<'a, 'de> CommaSeparated<'a, 'de> {
     fn new(terminator: u8, de: &'a mut Deserializer<'de>) -> Self {
-        CommaSeparated { de, terminator, first: true }
+        CommaSeparated { de, terminator, had_comma: true }
+    }
+
+    fn err<T>(&self, kind: ParseError) -> Result<T> {
+        self.de.bytes.err(kind)
+    }
+
+    fn error(&self, kind: ParseError) -> Error {
+        self.de.bytes.error(kind)
     }
 
     fn has_element(&mut self) -> Result<bool> {
-        if self.first {
-            self.de.bytes.skip_ws();
-            self.first = false;
+        self.de.bytes.skip_ws();
 
-            Ok(self.de.bytes.peek().ok_or(Error::Eof)? != self.terminator)
-        } else {
-            let comma = self.de.bytes.comma();
-            self.de.bytes.skip_ws();
-
-            if self.de.bytes.peek().ok_or(Error::Eof)? == self.terminator {
-                Ok(false)
-            } else if comma {
-                Ok(true)
-            } else {
-                Err(Error::ExpectedComma)
-            }
-        }
+        Ok(self.had_comma &&
+            self.de.bytes.peek().ok_or(self.error(ParseError::Eof))? != self.terminator)
     }
 }
 
@@ -470,7 +497,11 @@ impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
         where T: DeserializeSeed<'de>
     {
         if self.has_element()? {
-            seed.deserialize(&mut *self.de).map(Some)
+            let res = seed.deserialize(&mut *self.de)?;
+
+            self.had_comma = self.de.bytes.comma();
+
+            Ok(Some(res))
         } else {
             Ok(None)
         }
@@ -496,9 +527,13 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         if self.de.bytes.consume(":") {
             self.de.bytes.skip_ws();
 
-            seed.deserialize(&mut *self.de)
+            let res = seed.deserialize(&mut *self.de)?;
+
+            self.had_comma = self.de.bytes.comma();
+
+            Ok(res)
         } else {
-            Err(Error::ExpectedMapColon)
+            self.err(ParseError::ExpectedMapColon)
         }
     }
 }
@@ -544,10 +579,10 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
             if self.de.bytes.consume(")") {
                 Ok(val)
             } else {
-                Err(Error::ExpectedStructEnd)
+                self.de.bytes.err(ParseError::ExpectedStructEnd)
             }
         } else {
-            Err(Error::ExpectedStruct)
+            self.de.bytes.err(ParseError::ExpectedStruct)
         }
     }
 
@@ -686,5 +721,29 @@ x: 1.0, // x is just 1
    // And y is indeed
 y: 2.0 // 2!
         )").unwrap());
+    }
+
+    fn err<T>(kind: ParseError, line: usize, col: usize) -> Result<T> {
+        Err(Error::Parser(kind, Position { line, col }))
+    }
+
+    #[test]
+    fn test_err_wrong_value() {
+        use self::ParseError::*;
+        use std::collections::HashMap;
+
+        assert_eq!(from_str::<f32>("'c'"), err(ExpectedFloat, 1, 1));
+        assert_eq!(from_str::<String>("'c'"), err(ExpectedString, 1, 1));
+        assert_eq!(from_str::<HashMap<u32, u32>>("'c'"), err(ExpectedMap, 1, 1));
+        assert_eq!(from_str::<[u8; 5]>("'c'"), err(ExpectedArray, 1, 1));
+        assert_eq!(from_str::<Vec<u32>>("'c'"), err(ExpectedArray, 1, 1));
+        assert_eq!(from_str::<MyEnum>("'c'"), err(ExpectedIdentifier, 1, 1));
+        assert_eq!(from_str::<MyStruct>("'c'"), err(ExpectedStruct, 1, 1));
+        assert_eq!(from_str::<(u8, bool)>("'c'"), err(ExpectedArray, 1, 1));
+        assert_eq!(from_str::<bool>("notabool"), err(ExpectedBoolean, 1, 1));
+
+        assert_eq!(from_str::<MyStruct>("MyStruct(\n    x: true)"), err(ExpectedFloat, 2, 8));
+        assert_eq!(from_str::<MyStruct>("MyStruct(\n    x: 3.5, \n    y:)"),
+                   err(ExpectedFloat, 3, 7));
     }
 }
