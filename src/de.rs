@@ -466,12 +466,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 struct CommaSeparated<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     terminator: u8,
-    first: bool,
+    had_comma: bool,
 }
 
 impl<'a, 'de> CommaSeparated<'a, 'de> {
     fn new(terminator: u8, de: &'a mut Deserializer<'de>) -> Self {
-        CommaSeparated { de, terminator, first: true }
+        CommaSeparated { de, terminator, had_comma: true }
     }
 
     fn err<T>(&self, kind: ParseError) -> Result<T> {
@@ -483,23 +483,10 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
     }
 
     fn has_element(&mut self) -> Result<bool> {
-        if self.first {
-            self.de.bytes.skip_ws();
-            self.first = false;
+        self.de.bytes.skip_ws();
 
-            Ok(self.de.bytes.peek().ok_or(self.error(ParseError::Eof))? != self.terminator)
-        } else {
-            let comma = self.de.bytes.comma();
-            self.de.bytes.skip_ws();
-
-            if self.de.bytes.peek().ok_or(self.error(ParseError::Eof))? == self.terminator {
-                Ok(false)
-            } else if comma {
-                Ok(true)
-            } else {
-                self.err(ParseError::ExpectedComma)
-            }
-        }
+        Ok(self.had_comma &&
+            self.de.bytes.peek().ok_or(self.error(ParseError::Eof))? != self.terminator)
     }
 }
 
@@ -510,7 +497,11 @@ impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
         where T: DeserializeSeed<'de>
     {
         if self.has_element()? {
-            seed.deserialize(&mut *self.de).map(Some)
+            let res = seed.deserialize(&mut *self.de)?;
+
+            self.had_comma = self.de.bytes.comma();
+
+            Ok(Some(res))
         } else {
             Ok(None)
         }
@@ -536,7 +527,11 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         if self.de.bytes.consume(":") {
             self.de.bytes.skip_ws();
 
-            seed.deserialize(&mut *self.de)
+            let res = seed.deserialize(&mut *self.de)?;
+
+            self.had_comma = self.de.bytes.comma();
+
+            Ok(res)
         } else {
             self.err(ParseError::ExpectedMapColon)
         }
