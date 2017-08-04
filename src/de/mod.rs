@@ -8,6 +8,7 @@ use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 mod error;
 #[cfg(test)]
 mod tests;
+mod value;
 
 pub struct Deserializer<'de> {
     bytes: Bytes<'de>,
