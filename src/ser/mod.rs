@@ -12,6 +12,9 @@ const NEWLINE: &str = "\n";
 const NEWLINE: &str = "\r\n";
 
 /// Serializes `value` and returns it as string.
+///
+/// This function does not generate any newlines or nice formatting;
+/// if you want that, you can use `pretty::to_string` instead.
 pub fn to_string<T>(value: &T) -> Result<String>
     where T: Serialize
 {
@@ -24,7 +27,8 @@ pub fn to_string<T>(value: &T) -> Result<String>
     Ok(s.output)
 }
 
-type Result<T> = ::std::result::Result<T, Error>;
+/// Serialization result.
+pub type Result<T> = ::std::result::Result<T, Error>;
 
 /// Serialization error.
 #[derive(Clone, Debug, PartialEq)]
@@ -59,6 +63,10 @@ struct Pretty {
     indent: usize,
 }
 
+/// The RON serializer.
+///
+/// You can just use `to_string` for deserializing a value.
+/// If you want it pretty-printed, take a look at the `pretty` module.
 pub struct Serializer {
     output: String,
     pretty: Option<Pretty>,
