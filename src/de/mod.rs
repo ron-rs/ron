@@ -1,3 +1,6 @@
+/// Deserialization module.
+///
+
 pub use self::error::{Error, ParseError, Result};
 
 use std::borrow::Cow;
@@ -9,6 +12,10 @@ mod error;
 #[cfg(test)]
 mod tests;
 
+/// The RON deserializer.
+///
+/// If you just want to simply deserialize a value,
+/// you can use the `from_str` convenience function.
 pub struct Deserializer<'de> {
     bytes: Bytes<'de>,
 }
@@ -31,6 +38,8 @@ impl<'de> Deserializer<'de> {
     }
 }
 
+/// A convenience function for building a deserializer
+/// and deserializing a value of type `T`.
 pub fn from_str<'a, T>(s: &'a str) -> Result<T>
     where T: de::Deserialize<'a>
 {

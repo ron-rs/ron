@@ -7,6 +7,7 @@ use serde::de;
 
 use parse::Position;
 
+/// Deserialization result.
 pub type Result<T> = ::std::result::Result<T, Error>;
 
 #[derive(Clone, Debug, PartialEq)]
