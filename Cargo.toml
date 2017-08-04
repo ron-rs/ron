@@ -9,8 +9,8 @@ authors = [
 ]
 description = "Rusty Object Notation"
 categories = ["encoding"]
-homepage = "https://github.com/kvark/ron"
-repository = "https://github.com/kvark/ron"
+homepage = "https://github.com/ron-rs/ron"
+repository = "https://github.com/ron-rs/ron"
 documentation = "https://docs.rs/ron/"
 exclude = ["bors.toml", ".travis.yml"]
 
