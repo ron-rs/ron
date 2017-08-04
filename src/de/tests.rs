@@ -19,10 +19,9 @@ enum MyEnum {
 
 #[test]
 fn test_empty_struct() {
-    assert_eq!(Ok(EmptyStruct1), from_str("EmptyStruct1"));
+    assert_eq!(Ok(EmptyStruct1), from_str("()"));
     assert_eq!(Ok(EmptyStruct2 {}), from_str("EmptyStruct2()"));
 }
-
 
 #[test]
 fn test_struct() {

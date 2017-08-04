@@ -201,14 +201,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_unit_struct(self, name: &'static str) -> Result<()> {
-        if self.struct_names {
-            self.output += name;
-
-            Ok(())
-        } else {
-            self.serialize_unit()
-        }
+    fn serialize_unit_struct(self, _: &'static str) -> Result<()> {
+        self.serialize_unit()
     }
 
     fn serialize_unit_variant(

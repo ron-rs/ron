@@ -198,16 +198,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
     fn deserialize_unit_struct<V>(
         self,
-        name: &'static str,
+        _: &'static str,
         visitor: V
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.bytes.consume(name) {
-            visitor.visit_unit()
-        } else {
-            self.deserialize_unit(visitor)
-        }
+        self.deserialize_unit(visitor)
     }
 
     fn deserialize_newtype_struct<V>(
