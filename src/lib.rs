@@ -1,4 +1,3 @@
-extern crate pom;
 extern crate serde;
 #[cfg(test)]
 #[macro_use]
