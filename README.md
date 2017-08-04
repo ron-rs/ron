@@ -1,9 +1,9 @@
 ## Rusty Object Notation
 
-[![Build Status](https://travis-ci.org/kvark/ron.png?branch=master)](https://travis-ci.org/kvark/ron)
+[![Build Status](https://travis-ci.org/ron-rs/ron.png?branch=master)](https://travis-ci.org/kvark/ron)
 [![Crates.io](https://img.shields.io/crates/v/ron.svg?maxAge=2592000)](https://crates.io/crates/ron)
 [![Docs](https://docs.rs/ron/badge.svg)](https://docs.rs/ron)
-[![Gitter](https://badges.gitter.im/rusty-object-notation/Lobby.svg)](https://gitter.im/rusty-object-notation/Lobby)
+[![Gitter](https://badges.gitter.im/ron-rs/ron.svg)](https://gitter.im/ron-rs/ron)
 
 RON is a simple readable data serialization format that looks similar to Rust syntax.
 It's designed to support all of [Serde's data model](https://serde.rs/data-model.html), so
