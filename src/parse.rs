@@ -19,11 +19,15 @@ pub struct Bytes<'a> {
 
 impl<'a> Bytes<'a> {
     pub fn new(bytes: &'a [u8]) -> Self {
-        Bytes {
+        let mut b = Bytes {
             bytes,
             column: 1,
             line: 1,
-        }
+        };
+
+        b.skip_ws();
+
+        b
     }
 
     pub fn advance(&mut self, bytes: usize) -> Result<()> {
@@ -88,6 +92,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn comma(&mut self) -> bool {
+        self.skip_ws();
+
         if self.consume(",") {
             self.skip_ws();
 

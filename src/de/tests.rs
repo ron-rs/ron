@@ -141,3 +141,9 @@ fn test_err_wrong_value() {
     assert_eq!(from_str::<MyStruct>("MyStruct(\n    x: 3.5, \n    y:)"),
                err(ExpectedFloat, 3, 7));
 }
+
+#[test]
+fn test_perm_ws() {
+    assert_eq!(from_str::<MyStruct>("\nMyStruct  \t ( \n x   : 3.5 , \t y\n: 4.5 \n ) \t\n"),
+                Ok(MyStruct { x: 3.5, y: 4.5 }));
+}

@@ -178,8 +178,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.bytes.consume("Some(") {
+        if self.bytes.consume("Some") && { self.bytes.skip_ws(); self.bytes.consume("(") } {
             let v = visitor.visit_some(&mut *self)?;
+
+            self.bytes.skip_ws();
 
             if self.bytes.consume(")") {
                 Ok(v)
@@ -227,6 +229,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         where V: Visitor<'de>
     {
         self.bytes.consume(name);
+
+        self.bytes.skip_ws();
 
         if self.bytes.consume("(") {
             let value = visitor.visit_newtype_struct(&mut *self)?;
@@ -324,6 +328,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         where V: Visitor<'de>
     {
         self.bytes.consume(name);
+
+        self.bytes.skip_ws();
 
         if self.bytes.consume("(") {
             let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
@@ -430,6 +436,8 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
         where V: DeserializeSeed<'de>
     {
+        self.de.bytes.skip_ws();
+
         if self.de.bytes.consume(":") {
             self.de.bytes.skip_ws();
 
@@ -477,6 +485,8 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
         where T: DeserializeSeed<'de>
     {
+        self.de.bytes.skip_ws();
+        
         if self.de.bytes.consume("(") {
             let val = seed.deserialize(&mut *self.de)?;
 
@@ -495,6 +505,8 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
+        self.de.bytes.skip_ws();
+
         self.de.deserialize_tuple(len, visitor)
     }
 
@@ -505,6 +517,8 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
+        self.de.bytes.skip_ws();
+
         self.de.deserialize_struct("", fields, visitor)
     }
 }
