@@ -13,7 +13,7 @@ pub type Result<T> = ::std::result::Result<T, Error>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
-    IOError(String),
+    IoError(String),
     Message(String),
     Parser(ParseError, Position),
 }
@@ -53,7 +53,7 @@ pub enum ParseError {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::IOError(ref s) => write!(f, "{}", s),
+            Error::IoError(ref s) => write!(f, "{}", s),
             Error::Message(ref s) => write!(f, "{}", s),
             Error::Parser(_, pos) => write!(f, "{}: {}", pos, self.description()),
         }
@@ -69,7 +69,7 @@ impl de::Error for Error {
 impl StdError for Error {
     fn description(&self) -> &str {
         match *self {
-            Error::IOError(ref s) => s,
+            Error::IoError(ref s) => s,
             Error::Message(ref e) => e,
             Error::Parser(ref kind, _) => match *kind {
                 ParseError::Eof => "Unexpected end of file",
@@ -124,6 +124,6 @@ impl From<Utf8Error> for Error {
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
-        Error::IOError(e.description().to_string())
+        Error::IoError(e.description().to_string())
     }
 }
