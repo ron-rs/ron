@@ -4,6 +4,8 @@
 pub use self::error::{Error, ParseError, Result};
 
 use std::borrow::Cow;
+use std::io;
+use std::str;
 use parse::Bytes;
 
 use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
@@ -36,6 +38,18 @@ impl<'de> Deserializer<'de> {
     pub fn remainder(&self) -> Cow<str> {
         String::from_utf8_lossy(&self.bytes.bytes())
     }
+}
+
+/// A convenience function for reading data from a reader
+/// and feeding into a deserializer
+pub fn from_reader<R, T>(mut rdr: R) -> Result<T>
+    where R: io::Read,
+          T: de::DeserializeOwned
+{
+    let mut bytes = Vec::new();
+    rdr.read_to_end(&mut bytes)?;
+    let s = str::from_utf8(&bytes)?;
+    from_str(s)
 }
 
 /// A convenience function for building a deserializer
