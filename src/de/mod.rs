@@ -85,7 +85,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        panic!("Give me some!");
+        Err(Error::custom("RON does not support Deserializer::deserialize_any"))
     }
 
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
