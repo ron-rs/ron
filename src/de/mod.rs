@@ -13,6 +13,7 @@ use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 mod error;
 #[cfg(test)]
 mod tests;
+mod value;
 
 /// The RON deserializer.
 ///
@@ -85,6 +86,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
+        use serde::de::Error;
+
         Err(Error::custom("RON does not support Deserializer::deserialize_any"))
     }
 
