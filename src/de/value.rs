@@ -1,14 +1,13 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use serde::de::{EnumAccess, Error, MapAccess, SeqAccess, Visitor};
+use serde::de::{Error, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Deserializer};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Value {
     Bool(bool),
     Char(char),
-    Enum(String, Box<Value>),
     Map(BTreeMap<Value, Value>),
     Number(()),
     Option(Option<Box<Value>>),
@@ -138,13 +137,5 @@ impl<'de> Visitor<'de> for ValueVisitor {
         }
 
         Ok(Value::Map(res))
-    }
-
-    fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
-        where A: EnumAccess<'de>
-    {
-        let (value, variant) = data.variant()?;
-
-        Ok(Value::Enum(variant, Box::new(value)))
     }
 }
