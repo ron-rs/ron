@@ -39,7 +39,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn advance_single(&mut self) -> Result<()> {
-        if self.peek().ok_or(self.error(ParseError::Eof))? == b'\n' {
+        if self.peek_or_eof()? == b'\n' {
             self.line += 1;
             self.column = 1;
         } else {
@@ -114,13 +114,10 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn eat_byte(&mut self) -> Result<u8> {
-        if let Some(peek) = self.peek() {
-            let _ = self.advance_single();
+        let peek = self.peek_or_eof()?;
+        let _ = self.advance_single();
 
-            Ok(peek)
-        } else {
-            self.err(ParseError::Eof)
-        }
+        Ok(peek)
     }
 
     pub fn err<T>(&self, kind: ParseError) -> Result<T> {
@@ -145,7 +142,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&[u8]> {
-        if IDENT_FIRST.contains(&self.peek().ok_or(self.error(ParseError::Eof))?) {
+        if IDENT_FIRST.contains(&self.peek_or_eof()?) {
             let bytes = self.next_bytes_contained_in(IDENT_CHAR);
 
             let ident = &self.bytes[..bytes];
@@ -178,20 +175,25 @@ impl<'a> Bytes<'a> {
         self.bytes.get(0).map(|b| *b)
     }
 
-    pub fn signed_integer<T>(&mut self) -> Result<T> where T: FromStr + Neg<Output=T> {
-        match self.peek() {
-            Some(b'+') => {
+    pub fn peek_or_eof(&self) -> Result<u8> {
+        self.bytes.get(0).map(|b| *b).ok_or(self.error(ParseError::Eof))
+    }
+
+    pub fn signed_integer<T>(&mut self) -> Result<T>
+        where T: FromStr + Neg<Output=T>
+    {
+        match self.peek_or_eof()? {
+            b'+' => {
                 let _ = self.advance_single();
 
                 self.unsigned_integer()
             }
-            Some(b'-') => {
+            b'-' => {
                 let _ = self.advance_single();
 
                 self.unsigned_integer::<T>().map(Neg::neg)
             }
-            Some(_) => self.unsigned_integer(),
-            None => self.err(ParseError::Eof),
+            _ => self.unsigned_integer(),
         }
     }
 

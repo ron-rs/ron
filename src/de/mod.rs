@@ -415,7 +415,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
         self.de.bytes.skip_ws();
 
         Ok(self.had_comma &&
-            self.de.bytes.peek().ok_or(self.error(ParseError::Eof))? != self.terminator)
+           self.de.bytes.peek_or_eof()? != self.terminator)
     }
 }
 
