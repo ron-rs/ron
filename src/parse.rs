@@ -103,6 +103,12 @@ impl<'a> Bytes<'a> {
         }
     }
 
+    /// Only returns true if the char after `ident` cannot belong
+    /// to an identifier.
+    pub fn check_ident(&mut self, ident: &str) -> bool {
+        self.test_for(ident) && !self.check_ident_char(ident.len())
+    }
+
     fn check_ident_char(&self, index: usize) -> bool {
         self.bytes.get(index).map(|b| IDENT_CHAR.contains(b)).unwrap_or(false)
     }
@@ -110,7 +116,7 @@ impl<'a> Bytes<'a> {
     /// Only returns true if the char after `ident` cannot belong
     /// to an identifier.
     pub fn consume_ident(&mut self, ident: &str) -> bool {
-        if self.test_for(ident) && !self.check_ident_char(ident.len()) {
+        if self.check_ident(ident) {
             let _ = self.advance(ident.len());
 
             true

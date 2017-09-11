@@ -43,6 +43,8 @@ pub enum ParseError {
 
     InvalidEscape,
 
+    UnexpectedByte(char),
+
     Utf8Error(Utf8Error),
     TrailingCharacters,
 

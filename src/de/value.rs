@@ -198,4 +198,49 @@ mod tests {
     fn test_none() {
         assert_eq!(eval("None"), Value::Option(None));
     }
+
+    #[test]
+    fn test_some() {
+        assert_eq!(eval("Some(())"), Value::Option(Some(Box::new(Value::Unit))));
+        assert_eq!(eval("Some  (  () )"), Value::Option(Some(Box::new(Value::Unit))));
+    }
+
+    #[test]
+    fn test_complex() {
+        assert_eq!(eval("Some([
+    Room ( width: 20, height: 5, name: \"The Room\" ),
+
+    (
+        width: 10,
+        height: 10,
+        name: \"Another room\"
+        enemy_levels: {
+            \"Enemy1\": 3,
+            \"Enemy2\": 5,
+            \"Enemy3\": 7,
+        },
+    ),
+])"),
+                   Value::Option(Some(Box::new(Value::Seq(
+                       vec![
+                           Value::Map(vec![
+                               (Value::String("width".to_owned()), Value::Number(Number::new(20.0))),
+                               (Value::String("height".to_owned()), Value::Number(Number::new(5.0))),
+                               (Value::String("name".to_owned()), Value::String("The Room".to_owned())),
+                           ].into_iter().collect()),
+                           Value::Map(vec![
+                               (Value::String("width".to_owned()), Value::Number(Number::new(10.0))),
+                               (Value::String("height".to_owned()), Value::Number(Number::new(10.0))),
+                               (Value::String("name".to_owned()), Value::String("Another Room".to_owned())),
+                               (Value::String("enemy_levels".to_owned()), Value::Map(
+                                   vec![
+                                       (Value::String("Enemy1".to_owned()), Value::Number(Number::new(3.0))),
+                                       (Value::String("Enemy2".to_owned()), Value::Number(Number::new(5.0))),
+                                       (Value::String("Enemy3".to_owned()), Value::Number(Number::new(7.0))),
+                                   ].into_iter().collect()
+                               )),
+                           ].into_iter().collect()),
+                       ]
+                   )))));
+    }
 }

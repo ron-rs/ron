@@ -90,15 +90,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_bool(true);
         } else if self.bytes.consume_ident("false") {
             return visitor.visit_bool(false);
-        } else if self.bytes.consume_ident("Some") {
-            return visitor.visit_some(self);
+        } else if self.bytes.check_ident("Some") {
+            return self.deserialize_option(visitor);
         } else if self.bytes.consume_ident("None") {
             return visitor.visit_none();
         } else if self.bytes.consume("()") {
             return visitor.visit_unit();
         }
 
-        let _identifier = self.bytes.identifier().is_ok();
+        if self.bytes.identifier().is_ok() {
+            self.bytes.skip_ws();
+        }
 
         match self.bytes.peek_or_eof()? {
             b'(' => self.deserialize_struct("", &[], visitor),
@@ -107,7 +109,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'0' ... b'9' | b'+' | b'-' | b'.' => self.deserialize_f64(visitor),
             b'"' => self.deserialize_string(visitor),
             b'\'' => self.deserialize_char(visitor),
-            _ => unimplemented!("TODO"),
+            other => self.bytes.err(ParseError::UnexpectedByte(other as char)),
         }
     }
 
@@ -216,6 +218,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         where V: Visitor<'de>
     {
         if self.bytes.consume("Some") && { self.bytes.skip_ws(); self.bytes.consume("(") } {
+            self.bytes.skip_ws();
+
             let v = visitor.visit_some(&mut *self)?;
 
             self.bytes.skip_ws();
