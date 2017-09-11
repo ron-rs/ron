@@ -83,12 +83,32 @@ impl<'de> Deserializer<'de> {
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
-    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        use serde::de::Error;
+        if self.bytes.consume_ident("true") {
+            return visitor.visit_bool(true);
+        } else if self.bytes.consume_ident("false") {
+            return visitor.visit_bool(false);
+        } else if self.bytes.consume_ident("Some") {
+            return visitor.visit_some(self);
+        } else if self.bytes.consume_ident("None") {
+            return visitor.visit_none();
+        } else if self.bytes.consume("()") {
+            return visitor.visit_unit();
+        }
 
-        Err(Error::custom("RON does not support Deserializer::deserialize_any"))
+        let _identifier = self.bytes.identifier().is_ok();
+
+        match self.bytes.peek_or_eof()? {
+            b'(' => self.deserialize_struct("", &[], visitor),
+            b'[' => self.deserialize_seq(visitor),
+            b'{' => self.deserialize_map(visitor),
+            b'0' ... b'9' | b'+' | b'-' | b'.' => self.deserialize_f64(visitor),
+            b'"' => self.deserialize_string(visitor),
+            b'\'' => self.deserialize_char(visitor),
+            _ => unimplemented!("TODO"),
+        }
     }
 
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
@@ -405,10 +425,6 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
 
     fn err<T>(&self, kind: ParseError) -> Result<T> {
         self.de.bytes.err(kind)
-    }
-
-    fn error(&self, kind: ParseError) -> Error {
-        self.de.bytes.error(kind)
     }
 
     fn has_element(&mut self) -> Result<bool> {

@@ -103,8 +103,24 @@ impl<'a> Bytes<'a> {
         }
     }
 
+    fn check_ident_char(&self, index: usize) -> bool {
+        self.bytes.get(index).map(|b| IDENT_CHAR.contains(b)).unwrap_or(false)
+    }
+
+    /// Only returns true if the char after `ident` cannot belong
+    /// to an identifier.
+    pub fn consume_ident(&mut self, ident: &str) -> bool {
+        if self.test_for(ident) && !self.check_ident_char(ident.len()) {
+            let _ = self.advance(ident.len());
+
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn consume(&mut self, s: &str) -> bool {
-        if s.bytes().enumerate().all(|(i, b)| self.bytes.get(i).map(|t| *t == b).unwrap_or(false)) {
+        if self.test_for(s) {
             let _ = self.advance(s.len());
 
             true
@@ -242,6 +258,10 @@ impl<'a> Bytes<'a> {
                 }
             }
         }
+    }
+
+    fn test_for(&self, s: &str) -> bool {
+        s.bytes().enumerate().all(|(i, b)| self.bytes.get(i).map(|t| *t == b).unwrap_or(false))
     }
 
     pub fn unsigned_integer<T>(&mut self) -> Result<T> where T: FromStr {
