@@ -147,3 +147,15 @@ fn test_perm_ws() {
     assert_eq!(from_str::<MyStruct>("\nMyStruct  \t ( \n x   : 3.5 , \t y\n: 4.5 \n ) \t\n"),
                 Ok(MyStruct { x: 3.5, y: 4.5 }));
 }
+
+#[test]
+fn untagged() {
+    #[derive(Deserialize, Debug, PartialEq)]
+    #[serde(untagged)]
+    enum Untagged {
+        U8(u8),
+        Bool(bool),
+    }
+
+    assert_eq!(from_str::<Untagged>("true").unwrap(), Untagged::Bool(true));
+}
