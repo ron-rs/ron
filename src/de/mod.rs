@@ -2,15 +2,19 @@
 ///
 
 pub use self::error::{Error, ParseError, Result};
+pub use self::value::{Number, Value};
 
 use std::borrow::Cow;
 use std::io;
 use std::str;
-use parse::Bytes;
 
 use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 
+use parse::Bytes;
+use self::id::IdDeserializer;
+
 mod error;
+mod id;
 #[cfg(test)]
 mod tests;
 mod value;
@@ -100,6 +104,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         if self.bytes.identifier().is_ok() {
             self.bytes.skip_ws();
+
+            return self.deserialize_struct("", &[], visitor);
         }
 
         match self.bytes.peek_or_eof()? {
@@ -464,7 +470,11 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         where K: DeserializeSeed<'de>
     {
         if self.has_element()? {
-            seed.deserialize(&mut *self.de).map(Some)
+            if self.terminator == b'}' {
+                seed.deserialize(&mut *self.de).map(Some)
+            } else {
+                seed.deserialize(IdDeserializer::new(&mut *self.de)).map(Some)
+            }
         } else {
             Ok(None)
         }

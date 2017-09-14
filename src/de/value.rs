@@ -213,7 +213,7 @@ mod tests {
     (
         width: 10,
         height: 10,
-        name: \"Another room\"
+        name: \"Another room\",
         enemy_levels: {
             \"Enemy1\": 3,
             \"Enemy2\": 5,
@@ -231,7 +231,7 @@ mod tests {
                            Value::Map(vec![
                                (Value::String("width".to_owned()), Value::Number(Number::new(10.0))),
                                (Value::String("height".to_owned()), Value::Number(Number::new(10.0))),
-                               (Value::String("name".to_owned()), Value::String("Another Room".to_owned())),
+                               (Value::String("name".to_owned()), Value::String("Another room".to_owned())),
                                (Value::String("enemy_levels".to_owned()), Value::Map(
                                    vec![
                                        (Value::String("Enemy1".to_owned()), Value::Number(Number::new(3.0))),
