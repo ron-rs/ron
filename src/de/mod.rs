@@ -2,7 +2,6 @@
 ///
 
 pub use self::error::{Error, ParseError, Result};
-pub use self::value::{Number, Value};
 
 use std::borrow::Cow;
 use std::io;
