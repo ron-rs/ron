@@ -469,10 +469,10 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         where K: DeserializeSeed<'de>
     {
         if self.has_element()? {
-            if self.terminator == b'}' {
-                seed.deserialize(&mut *self.de).map(Some)
+            if self.terminator == b')' {
+                seed.deserialize(&mut IdDeserializer::new(&mut *self.de)).map(Some)
             } else {
-                seed.deserialize(IdDeserializer::new(&mut *self.de)).map(Some)
+                seed.deserialize(&mut *self.de).map(Some)
             }
         } else {
             Ok(None)
