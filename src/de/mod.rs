@@ -6,13 +6,17 @@ pub use self::error::{Error, ParseError, Result};
 use std::borrow::Cow;
 use std::io;
 use std::str;
-use parse::Bytes;
 
 use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 
+use parse::Bytes;
+use self::id::IdDeserializer;
+
 mod error;
+mod id;
 #[cfg(test)]
 mod tests;
+mod value;
 
 /// The RON deserializer.
 ///
@@ -82,10 +86,36 @@ impl<'de> Deserializer<'de> {
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
-    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        panic!("Give me some!");
+        if self.bytes.consume_ident("true") {
+            return visitor.visit_bool(true);
+        } else if self.bytes.consume_ident("false") {
+            return visitor.visit_bool(false);
+        } else if self.bytes.check_ident("Some") {
+            return self.deserialize_option(visitor);
+        } else if self.bytes.consume_ident("None") {
+            return visitor.visit_none();
+        } else if self.bytes.consume("()") {
+            return visitor.visit_unit();
+        }
+
+        if self.bytes.identifier().is_ok() {
+            self.bytes.skip_ws();
+
+            return self.deserialize_struct("", &[], visitor);
+        }
+
+        match self.bytes.peek_or_eof()? {
+            b'(' => self.deserialize_struct("", &[], visitor),
+            b'[' => self.deserialize_seq(visitor),
+            b'{' => self.deserialize_map(visitor),
+            b'0' ... b'9' | b'+' | b'-' | b'.' => self.deserialize_f64(visitor),
+            b'"' => self.deserialize_string(visitor),
+            b'\'' => self.deserialize_char(visitor),
+            other => self.bytes.err(ParseError::UnexpectedByte(other as char)),
+        }
     }
 
     fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
@@ -193,6 +223,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         where V: Visitor<'de>
     {
         if self.bytes.consume("Some") && { self.bytes.skip_ws(); self.bytes.consume("(") } {
+            self.bytes.skip_ws();
+
             let v = visitor.visit_some(&mut *self)?;
 
             self.bytes.skip_ws();
@@ -404,15 +436,11 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
         self.de.bytes.err(kind)
     }
 
-    fn error(&self, kind: ParseError) -> Error {
-        self.de.bytes.error(kind)
-    }
-
     fn has_element(&mut self) -> Result<bool> {
         self.de.bytes.skip_ws();
 
         Ok(self.had_comma &&
-            self.de.bytes.peek().ok_or(self.error(ParseError::Eof))? != self.terminator)
+           self.de.bytes.peek_or_eof()? != self.terminator)
     }
 }
 
@@ -441,7 +469,11 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         where K: DeserializeSeed<'de>
     {
         if self.has_element()? {
-            seed.deserialize(&mut *self.de).map(Some)
+            if self.terminator == b')' {
+                seed.deserialize(&mut IdDeserializer::new(&mut *self.de)).map(Some)
+            } else {
+                seed.deserialize(&mut *self.de).map(Some)
+            }
         } else {
             Ok(None)
         }

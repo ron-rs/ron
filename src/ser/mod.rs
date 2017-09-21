@@ -5,6 +5,8 @@ use serde::ser::{self, Serialize};
 
 pub mod pretty;
 
+mod value;
+
 #[cfg(not(target_os = "windows"))]
 const NEWLINE: &str = "\n";
 
