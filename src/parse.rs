@@ -177,8 +177,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn next_bytes_contained_in(&self, allowed: &[u8]) -> usize {
-        (0..self.bytes.len())
-            .flat_map(|i| self.bytes.get(i))
+        self.bytes
+            .iter()
             .take_while(|b| allowed.contains(b))
             .fold(0, |acc, _| acc + 1)
     }
@@ -224,11 +224,11 @@ impl<'a> Bytes<'a> {
             return self.err(ParseError::ExpectedString);
         }
 
-        let (i, end_or_escape) = (0..)
-            .flat_map(|i| self.bytes.get(i))
+        let (i, end_or_escape) = self.bytes
+            .iter()
             .enumerate()
             .find(|&(_, &b)| b == b'\\' || b == b'"')
-            .ok_or(self.error(ParseError::Eof))?;
+            .ok_or(self.error(ParseError::ExpectedStringEnd))?;
 
         if *end_or_escape == b'"' {
             let s = from_utf8(&self.bytes[..i]).map_err(|e| self.error(e.into()))?;
@@ -246,8 +246,8 @@ impl<'a> Bytes<'a> {
                 let _ = self.advance(i + 1);
                 self.parse_str_escape(&mut s)?;
 
-                let (new_i, end_or_escape) = (0..)
-                    .flat_map(|i| self.bytes.get(i))
+                let (new_i, end_or_escape) = self.bytes
+                    .iter()
                     .enumerate()
                     .find(|&(_, &b)| b == b'\\' || b == b'"')
                     .ok_or(ParseError::Eof)
