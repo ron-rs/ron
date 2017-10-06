@@ -13,6 +13,12 @@ struct Config {
     float: f32,
     map: HashMap<u8, char>,
     nested: Nested,
+    var: Variant,
+}
+
+#[derive(Serialize)]
+enum Variant {
+    A(u8, &'static str),
 }
 
 #[derive(Serialize)]
@@ -35,6 +41,7 @@ fn main() {
             a: "Hello from \"RON\"".to_string(),
             b: 'b',
         },
+        var: Variant::A(!0, ""),
     }).expect("Serialization failed");
 
     file.write(s.as_bytes()).expect("Failed to write data to file");

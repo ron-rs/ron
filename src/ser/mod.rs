@@ -297,8 +297,6 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.output += variant;
         self.output += "(";
 
-        self.start_indent();
-
         Ok(self)
     }
 
