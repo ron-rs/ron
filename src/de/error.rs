@@ -39,6 +39,7 @@ pub enum ParseError {
     ExpectedUnit,
     ExpectedStructName,
     ExpectedString,
+    ExpectedStringEnd,
     ExpectedIdentifier,
 
     InvalidEscape,

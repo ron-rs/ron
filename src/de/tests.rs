@@ -159,3 +159,13 @@ fn untagged() {
 
     assert_eq!(from_str::<Untagged>("true").unwrap(), Untagged::Bool(true));
 }
+
+#[test]
+fn forgot_apostrophes() {
+    let de: Result<(i32, String)> = from_str("(4, \"Hello)");
+
+    assert!(match de {
+        Err(Error::Parser(ParseError::ExpectedStringEnd, _)) => true,
+        _ => false,
+    });
+}
