@@ -217,10 +217,10 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
 
     fn deserialize_ignored_any<V>(
         self,
-        _: V
+        visitor: V
     ) -> Result<V::Value>
         where V: Visitor<'b>
     {
-        unimplemented!("IdDeserializer may only be used for identifiers")
+        self.deserialize_any(visitor)
     }
 }
