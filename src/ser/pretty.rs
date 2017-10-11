@@ -1,18 +1,14 @@
-//! Provides pretty serialization with `to_string`.
+//! Provides default pretty serialization with `to_string`.
 
-use super::{Pretty, Result, Serializer};
+use super::{Result, to_string_pretty};
 
 use serde::ser::Serialize;
+use std::default::Default;
 
-/// Serializes `value` in the recommended RON layout.
+/// Serializes `value` in the recommended RON layout with
+/// default pretty configuration.
 pub fn to_string<T>(value: &T) -> Result<String>
     where T: Serialize
 {
-    let mut s = Serializer {
-        output: String::new(),
-        pretty: Some(Pretty { indent: 0 }),
-        struct_names: false,
-    };
-    value.serialize(&mut s)?;
-    Ok(s.output)
+    to_string_pretty(value, Default::default())
 }

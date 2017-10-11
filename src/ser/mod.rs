@@ -1,17 +1,12 @@
 use std::error::Error as StdError;
+use std::result::Result as StdResult;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 use serde::ser::{self, Serialize};
 
+#[deprecated(since="0.1.4", note="please use `to_string_pretty` with `PrettyConfig::default()` instead")]
 pub mod pretty;
-
 mod value;
-
-#[cfg(not(target_os = "windows"))]
-const NEWLINE: &str = "\n";
-
-#[cfg(target_os = "windows")]
-const NEWLINE: &str = "\r\n";
 
 /// Serializes `value` and returns it as string.
 ///
@@ -29,8 +24,21 @@ pub fn to_string<T>(value: &T) -> Result<String>
     Ok(s.output)
 }
 
+/// Serializes `value` in the recommended RON layout in a pretty way.
+pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
+    where T: Serialize
+{
+    let mut s = Serializer {
+        output: String::new(),
+        pretty: Some((config, Pretty { indent: 0 })),
+        struct_names: false,
+    };
+    value.serialize(&mut s)?;
+    Ok(s.output)
+}
+
 /// Serialization result.
-pub type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T> = StdResult<T, Error>;
 
 /// Serialization error.
 #[derive(Clone, Debug, PartialEq)]
@@ -61,8 +69,33 @@ impl StdError for Error {
     }
 }
 
+/// Pretty serializer state
 struct Pretty {
     indent: usize,
+}
+
+/// Pretty serializer configuration
+#[derive(Clone, Debug)]
+pub struct PrettyConfig {
+    /// New line string
+    pub new_line: String,
+    /// Indentation string
+    pub indentor: String,
+    /// Separate tuple members with indentation
+    pub separate_tuple_members: bool,
+}
+
+impl Default for PrettyConfig {
+    fn default() -> Self {
+        PrettyConfig {
+            #[cfg(not(target_os = "windows"))]
+            new_line: "\n".to_string(),
+            #[cfg(target_os = "windows")]
+            new_line: "\r\n".to_string(),
+            indentor: "    ".to_string(),
+            separate_tuple_members: false,
+        }
+    }
 }
 
 /// The RON serializer.
@@ -71,28 +104,34 @@ struct Pretty {
 /// If you want it pretty-printed, take a look at the `pretty` module.
 pub struct Serializer {
     output: String,
-    pretty: Option<Pretty>,
+    pretty: Option<(PrettyConfig, Pretty)>,
     struct_names: bool,
 }
 
 impl Serializer {
+    fn separate_tuple_members(&self) -> bool {
+        self.pretty.as_ref()
+            .map(|&(ref config, _)| config.separate_tuple_members)
+            .unwrap_or(false)
+    }
+
     fn start_indent(&mut self) {
-        if let Some(ref mut pretty) = self.pretty {
+        if let Some((ref config, ref mut pretty)) = self.pretty {
             pretty.indent += 1;
-            self.output += NEWLINE;
+            self.output += &config.new_line;
         }
     }
 
     fn indent(&mut self) {
-        if let Some(ref pretty) = self.pretty {
-            self.output.extend((0..pretty.indent * 4).map(|_| " "));
+        if let Some((ref config, ref pretty)) = self.pretty {
+            self.output.extend((0..pretty.indent).map(|_| config.indentor.as_str()));
         }
     }
 
     fn end_indent(&mut self) {
-        if let Some(ref mut pretty) = self.pretty {
+        if let Some((ref config, ref mut pretty)) = self.pretty {
             pretty.indent -= 1;
-            self.output.extend((0..pretty.indent * 4).map(|_| " "));
+            self.output.extend((0..pretty.indent).map(|_| config.indentor.as_str()));
         }
     }
 }
@@ -256,7 +295,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     {
         self.output += variant;
         self.output += "(";
+
         value.serialize(&mut *self)?;
+
         self.output += ")";
         Ok(())
     }
@@ -271,6 +312,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple> {
         self.output += "(";
+
+        if self.separate_tuple_members() {
+            self.start_indent();
+        }
 
         Ok(self)
     }
@@ -296,6 +341,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     ) -> Result<Self::SerializeTupleVariant> {
         self.output += variant;
         self.output += "(";
+
+        if self.separate_tuple_members() {
+            self.start_indent();
+        }
 
         Ok(self)
     }
@@ -351,8 +400,8 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if self.pretty.is_some() {
-            self.output += NEWLINE;
+        if let Some((ref config, _)) = self.pretty {
+            self.output += &config.new_line;
         }
 
         Ok(())
@@ -373,11 +422,15 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
         where T: ?Sized + Serialize
     {
+        if self.separate_tuple_members() {
+            self.indent();
+        }
+
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if self.pretty.is_some() {
-            self.output += " ";
+        if let Some((ref config, _)) = self.pretty {
+            self.output += if self.separate_tuple_members() { &config.new_line } else { " " };
         }
 
         Ok(())
@@ -385,8 +438,12 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
 
     fn end(self) -> Result<()> {
         if self.pretty.is_some() {
-            self.output.pop();
-            self.output.pop();
+            if self.separate_tuple_members() {
+                self.end_indent();
+            } else {
+                self.output.pop();
+                self.output.pop();
+            }
         }
 
         self.output += ")";
@@ -450,8 +507,8 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if self.pretty.is_some() {
-            self.output += NEWLINE;
+        if let Some((ref config, _)) = self.pretty {
+            self.output += &config.new_line;
         }
 
         Ok(())
@@ -484,8 +541,8 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if self.pretty.is_some() {
-            self.output += NEWLINE;
+        if let Some((ref config, _)) = self.pretty {
+            self.output += &config.new_line;
         }
 
         Ok(())
