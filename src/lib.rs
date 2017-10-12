@@ -57,10 +57,8 @@ Serializing / Deserializing is as simple as calling `to_string` / `from_str`.
 
 !*/
 
-extern crate serde;
-#[cfg(test)]
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 pub mod de;
 pub mod ser;
