@@ -75,7 +75,7 @@ struct Pretty {
 }
 
 /// Pretty serializer configuration
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PrettyConfig {
     /// New line string
     pub new_line: String,

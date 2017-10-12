@@ -1,6 +1,6 @@
 extern crate ron;
 #[macro_use]
-extern crate serde_derive;
+extern crate serde;
 
 use std::collections::HashMap;
 
