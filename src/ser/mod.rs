@@ -19,7 +19,6 @@ pub fn to_string<T>(value: &T) -> Result<String>
     let mut s = Serializer {
         output: String::new(),
         pretty: None,
-        struct_names: false,
     };
     value.serialize(&mut s)?;
     Ok(s.output)
