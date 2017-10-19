@@ -1,11 +1,9 @@
 use std::error::Error as StdError;
 use std::result::Result as StdResult;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-use std::marker::PhantomData;
 use serde::ser::{self, Serialize};
 
-#[deprecated(since = "0.1.4",
-             note = "please use `to_string_pretty` with `PrettyConfig::default()` instead")]
+#[deprecated(since="0.1.4", note="please use `to_string_pretty` with `PrettyConfig::default()` instead")]
 pub mod pretty;
 mod value;
 
@@ -84,7 +82,7 @@ pub struct PrettyConfig {
     pub separate_tuple_members: bool,
     /// Add struct names
     pub struct_names: bool,
-    _phantom: PhantomData<bool>,
+    _dummy: (),
 }
 
 impl Default for PrettyConfig {
@@ -97,14 +95,13 @@ impl Default for PrettyConfig {
             indentor: "    ".to_string(),
             separate_tuple_members: false,
             struct_names: false,
-            _phantom: PhantomData,
+            _dummy: ()
         }
     }
 }
 
 impl PrettyConfig {
-    #[allow(dead_code)]
-    fn new(
+    pub fn new(
         new_line: String,
         indentor: String,
         separate_tuple_members: bool,
@@ -115,7 +112,7 @@ impl PrettyConfig {
             indentor: indentor,
             separate_tuple_members: separate_tuple_members,
             struct_names: struct_names,
-            _phantom: PhantomData,
+            _dummy: (),
         }
     }
 }
