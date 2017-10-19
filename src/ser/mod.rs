@@ -31,7 +31,7 @@ pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
     let mut s = Serializer {
         output: String::new(),
         pretty: Some((config, Pretty { indent: 0 })),
-        struct_names: false,
+        struct_names: true,
     };
     value.serialize(&mut s)?;
     Ok(s.output)
