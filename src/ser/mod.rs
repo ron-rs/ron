@@ -1,10 +1,11 @@
 use std::error::Error as StdError;
 use std::result::Result as StdResult;
 use std::fmt::{Display, Formatter, Result as FmtResult};
-
+use std::marker::PhantomData;
 use serde::ser::{self, Serialize};
 
-#[deprecated(since="0.1.4", note="please use `to_string_pretty` with `PrettyConfig::default()` instead")]
+#[deprecated(since = "0.1.4",
+             note = "please use `to_string_pretty` with `PrettyConfig::default()` instead")]
 pub mod pretty;
 mod value;
 
@@ -13,12 +14,12 @@ mod value;
 /// This function does not generate any newlines or nice formatting;
 /// if you want that, you can use `pretty::to_string` instead.
 pub fn to_string<T>(value: &T) -> Result<String>
-    where T: Serialize
+where
+    T: Serialize,
 {
     let mut s = Serializer {
         output: String::new(),
         pretty: None,
-        struct_names: false,
     };
     value.serialize(&mut s)?;
     Ok(s.output)
@@ -26,12 +27,12 @@ pub fn to_string<T>(value: &T) -> Result<String>
 
 /// Serializes `value` in the recommended RON layout in a pretty way.
 pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
-    where T: Serialize
+where
+    T: Serialize,
 {
     let mut s = Serializer {
         output: String::new(),
         pretty: Some((config, Pretty { indent: 0 })),
-        struct_names: true,
     };
     value.serialize(&mut s)?;
     Ok(s.output)
@@ -83,6 +84,9 @@ pub struct PrettyConfig {
     pub indentor: String,
     /// Separate tuple members with indentation
     pub separate_tuple_members: bool,
+    /// Add struct names
+    pub struct_names: bool,
+    _phantom: PhantomData<bool>,
 }
 
 impl Default for PrettyConfig {
@@ -94,6 +98,26 @@ impl Default for PrettyConfig {
             new_line: "\r\n".to_string(),
             indentor: "    ".to_string(),
             separate_tuple_members: false,
+            struct_names: false,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl PrettyConfig {
+    #[allow(dead_code)]
+    fn new(
+        new_line: String,
+        indentor: String,
+        separate_tuple_members: bool,
+        struct_names: bool,
+    ) -> Self {
+        PrettyConfig {
+            new_line: new_line,
+            indentor: indentor,
+            separate_tuple_members: separate_tuple_members,
+            struct_names: struct_names,
+            _phantom: PhantomData,
         }
     }
 }
@@ -105,7 +129,6 @@ impl Default for PrettyConfig {
 pub struct Serializer {
     output: String,
     pretty: Option<(PrettyConfig, Pretty)>,
-    struct_names: bool,
 }
 
 impl Serializer {
@@ -120,6 +143,12 @@ impl Serializer {
             pretty.indent += 1;
             self.output += &config.new_line;
         }
+    }
+
+    fn struct_names(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |&(ref config, _)| config.struct_names)
     }
 
     fn indent(&mut self) {
@@ -251,7 +280,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_unit_struct(self, name: &'static str) -> Result<()> {
-        if self.struct_names {
+        if self.struct_names() {
             self.output += name;
 
             Ok(())
@@ -274,7 +303,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
         where T: ?Sized + Serialize
     {
-        if self.struct_names {
+        if self.struct_names() {
             self.output += name;
         }
 
@@ -325,7 +354,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         name: &'static str,
         len: usize
     ) -> Result<Self::SerializeTupleStruct> {
-        if self.struct_names {
+        if self.struct_names() {
             self.output += name;
         }
 
@@ -362,7 +391,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         name: &'static str,
         _: usize
     ) -> Result<Self::SerializeStruct> {
-        if self.struct_names {
+        if self.struct_names() {
             self.output += name;
         }
         self.output += "(";

@@ -48,11 +48,10 @@ fn main() {
         var: Variant::A(!0, ""),
     };
 
-    let pretty = PrettyConfig {
-        separate_tuple_members: true,
-        .. PrettyConfig::default()
-    };
+    let mut pretty = PrettyConfig::default();
+    pretty.separate_tuple_members = true;
     let s = to_string_pretty(&data, pretty).expect("Serialization failed");
 
-    file.write(s.as_bytes()).expect("Failed to write data to file");
+    file.write(s.as_bytes())
+        .expect("Failed to write data to file");
 }
