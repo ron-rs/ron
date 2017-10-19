@@ -82,6 +82,7 @@ pub struct PrettyConfig {
     pub separate_tuple_members: bool,
     /// Add struct names
     pub struct_names: bool,
+    #[serde(skip)]
     _dummy: (),
 }
 
