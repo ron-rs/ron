@@ -16,7 +16,7 @@ pub fn to_string<T>(value: &T) -> Result<String>
 {
     let mut s = Serializer {
         output: String::new(),
-        pretty: None,
+        pretty: (PrettyConfig::basic(false), Pretty { indent: 0 }),
     };
     value.serialize(&mut s)?;
     Ok(s.output)
@@ -28,7 +28,7 @@ pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 {
     let mut s = Serializer {
         output: String::new(),
-        pretty: Some((config, Pretty { indent: 0 })),
+        pretty: (config, Pretty { indent: 0 }),
     };
     value.serialize(&mut s)?;
     Ok(s.output)
@@ -82,6 +82,8 @@ pub struct PrettyConfig {
     pub separate_tuple_members: bool,
     /// Add struct names
     pub struct_names: bool,
+    /// Add spaces after commas between elements in tuples and maps
+    pub add_space: bool,
     #[serde(skip)]
     _dummy: (),
 }
@@ -95,26 +97,30 @@ impl Default for PrettyConfig {
             new_line: "\r\n".to_string(),
             indentor: "    ".to_string(),
             separate_tuple_members: false,
-            struct_names: false,
+            struct_names: true,
+            add_space: true,
             _dummy: ()
         }
     }
 }
 
 impl PrettyConfig {
-    pub fn new(
-        new_line: String,
-        indentor: String,
-        separate_tuple_members: bool,
-        struct_names: bool,
-    ) -> Self {
-        PrettyConfig {
-            new_line: new_line,
-            indentor: indentor,
-            separate_tuple_members: separate_tuple_members,
-            struct_names: struct_names,
-            _dummy: (),
-        }
+    pub fn default_with<F>(f: F) -> Self 
+        where F: Fn(&mut Self)
+    {
+        let mut cfg = PrettyConfig::default();
+        f(&mut cfg);
+        cfg
+    }
+
+    pub fn basic(struct_names: bool) -> PrettyConfig {
+        PrettyConfig::default_with(|x|{
+            x.new_line = String::from("");
+            x.indentor = String::from("");
+            x.separate_tuple_members = false;
+            x.struct_names = struct_names;
+            x.add_space = false;
+        })
     }
 }
 
@@ -124,40 +130,42 @@ impl PrettyConfig {
 /// If you want it pretty-printed, take a look at the `pretty` module.
 pub struct Serializer {
     output: String,
-    pretty: Option<(PrettyConfig, Pretty)>,
+    pretty: (PrettyConfig, Pretty),
 }
 
 impl Serializer {
     fn separate_tuple_members(&self) -> bool {
-        self.pretty.as_ref()
-            .map(|&(ref config, _)| config.separate_tuple_members)
-            .unwrap_or(false)
-    }
-
-    fn start_indent(&mut self) {
-        if let Some((ref config, ref mut pretty)) = self.pretty {
-            pretty.indent += 1;
-            self.output += &config.new_line;
-        }
+        self.pretty.0.separate_tuple_members
     }
 
     fn struct_names(&self) -> bool {
-        self.pretty
-            .as_ref()
-            .map_or(false, |&(ref config, _)| config.struct_names)
+        self.pretty.0.struct_names
+    }
+    
+    fn new_line(&self) -> String {
+        self.pretty.0.new_line.clone()
+    }
+
+    fn space(&self) -> String {
+        if self.pretty.0.add_space { String::from(" ") } else { String::from("") }
+    }
+
+
+    fn start_indent(&mut self) {
+        let (ref config, ref mut pretty) = self.pretty;
+        pretty.indent += 1;
+        self.output += &config.new_line;
     }
 
     fn indent(&mut self) {
-        if let Some((ref config, ref pretty)) = self.pretty {
-            self.output.extend((0..pretty.indent).map(|_| config.indentor.as_str()));
-        }
+        let (ref config, ref pretty) = self.pretty;
+        self.output.extend((0..pretty.indent).map(|_| config.indentor.as_str()));
     }
 
     fn end_indent(&mut self) {
-        if let Some((ref config, ref mut pretty)) = self.pretty {
-            pretty.indent -= 1;
-            self.output.extend((0..pretty.indent).map(|_| config.indentor.as_str()));
-        }
+        let (ref config, ref mut pretty) = self.pretty;
+        pretty.indent -= 1;
+        self.output.extend((0..pretty.indent).map(|_| config.indentor.as_str()));
     }
 }
 
@@ -421,13 +429,9 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         where T: ?Sized + Serialize
     {
         self.indent();
-
         value.serialize(&mut **self)?;
         self.output += ",";
-
-        if let Some((ref config, _)) = self.pretty {
-            self.output += &config.new_line;
-        }
+        self.output += &self.new_line();
 
         Ok(())
     }
@@ -450,23 +454,23 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
         if self.separate_tuple_members() {
             self.indent();
         }
-
         value.serialize(&mut **self)?;
         self.output += ",";
-
-        if let Some((ref config, _)) = self.pretty {
-            self.output += if self.separate_tuple_members() { &config.new_line } else { " " };
-        }
-
+        
+        if self.separate_tuple_members() { 
+            self.output += &self.new_line(); 
+        } else { 
+            self.output += &self.space();
+        };
         Ok(())
     }
 
     fn end(self) -> Result<()> {
-        if self.pretty.is_some() {
-            if self.separate_tuple_members() {
-                self.end_indent();
-            } else {
-                self.output.pop();
+        if self.separate_tuple_members() {
+            self.end_indent();
+        } else {
+            let len = self.space().len() + self.new_line().len();
+            for _ in 0..len {
                 self.output.pop();
             }
         }
@@ -524,18 +528,10 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
         where T: ?Sized + Serialize
     {
         self.output += ":";
-
-        if self.pretty.is_some() {
-            self.output += " ";
-        }
-
+        self.output += &self.space();
         value.serialize(&mut **self)?;
         self.output += ",";
-
-        if let Some((ref config, _)) = self.pretty {
-            self.output += &config.new_line;
-        }
-
+        self.output += &self.new_line();
         Ok(())
     }
 
@@ -558,18 +554,10 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
 
         self.output += key;
         self.output += ":";
-
-        if self.pretty.is_some() {
-            self.output += " ";
-        }
-
+        self.output += &self.space();
         value.serialize(&mut **self)?;
         self.output += ",";
-
-        if let Some((ref config, _)) = self.pretty {
-            self.output += &config.new_line;
-        }
-
+        self.output += &self.new_line();
         Ok(())
     }
 
@@ -680,6 +668,37 @@ mod tests {
         s.contains("(false,false,):123");
         s.ends_with("}");
     }
+
+    
+    #[test]
+    fn test_basic_vs_pretty_basic() {
+
+        let my_struct = MyStruct { x: 4.0, y: 7.0 };
+        let pretty = to_string_pretty(&my_struct, PrettyConfig::basic(false)).unwrap();
+        let basic = to_string(&my_struct).unwrap();
+
+        assert_eq!(basic, "(x:4,y:7,)");
+        assert_eq!(basic, pretty);
+
+        #[derive(Serialize)]
+        struct NewType(i32);
+
+        let pretty = to_string_pretty(&NewType(42), PrettyConfig::basic(false)).unwrap();
+        let basic = to_string(&NewType(42)).unwrap();
+        assert_eq!(basic, "(42)");
+        assert_eq!(basic, pretty);
+
+        #[derive(Serialize)]
+        struct TupleStruct(f32, f32);
+
+        let tuple = TupleStruct(2.0,5.0);
+        let pretty = to_string_pretty(&tuple, PrettyConfig::basic(false)).unwrap();
+        let basic = to_string(&tuple).unwrap();
+
+        assert_eq!(basic, "(2,5,)");
+        assert_eq!(basic, pretty);
+    }
+
 
     #[test]
     fn test_string() {
