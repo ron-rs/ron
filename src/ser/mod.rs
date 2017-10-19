@@ -14,12 +14,12 @@ mod value;
 /// This function does not generate any newlines or nice formatting;
 /// if you want that, you can use `pretty::to_string` instead.
 pub fn to_string<T>(value: &T) -> Result<String>
-where
-    T: Serialize,
+    where T: Serialize
 {
     let mut s = Serializer {
         output: String::new(),
         pretty: None,
+        struct_names: false,
     };
     value.serialize(&mut s)?;
     Ok(s.output)
@@ -27,8 +27,7 @@ where
 
 /// Serializes `value` in the recommended RON layout in a pretty way.
 pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
-where
-    T: Serialize,
+    where T: Serialize
 {
     let mut s = Serializer {
         output: String::new(),
