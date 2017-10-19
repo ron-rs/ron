@@ -469,7 +469,7 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
         if self.separate_tuple_members() {
             self.end_indent();
         } else {
-            let len = self.space().len() + self.new_line().len();
+            let len = self.space().len();
             for _ in 0..len {
                 self.output.pop();
             }
