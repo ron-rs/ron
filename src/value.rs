@@ -4,7 +4,7 @@ use std::cmp::{Eq, Ordering};
 use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
-use serde::de::{DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor};
+use serde::de::{DeserializeSeed, Deserializer, Error as SerdeErr, MapAccess, SeqAccess, Visitor};
 
 use de::{Error as RonError, Result};
 
@@ -85,8 +85,70 @@ impl<'de> Deserializer<'de> for Value {
         }
     }
 
+    fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_i64(visitor)
+    }
+
+    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_i64(visitor)
+    }
+
+    fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_i64(visitor)
+    }
+
+    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        match self {
+            Value::Number(n) => visitor.visit_i64(n.get() as i64),
+            v => Err(RonError::custom(format!("Expected a number, got {:?}", v))),
+        }
+    }
+
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_u64(visitor)
+    }
+
+    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_u64(visitor)
+    }
+
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_u64(visitor)
+    }
+
+    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        match self {
+            Value::Number(n) => visitor.visit_u64(n.get() as u64),
+            v => Err(RonError::custom(format!("Expected a number, got {:?}", v))),
+        }
+    }
+
     forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes
+        bool f32 f64 char str string bytes
         byte_buf option unit unit_struct newtype_struct seq tuple
         tuple_struct map struct enum identifier ignored_any
     }
@@ -169,6 +231,12 @@ mod tests {
     fn float() {
         assert_same::<f64>("0.123");
         assert_same::<f64>("-4.19");
+    }
+
+    #[test]
+    fn int() {
+        assert_same::<u32>("626");
+        assert_same::<i32>("-50");
     }
 
     #[test]
