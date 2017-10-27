@@ -69,14 +69,18 @@ impl<'de> Deserializer<'de> for Value {
             Value::Bool(b) => visitor.visit_bool(b),
             Value::Char(c) => visitor.visit_char(c),
             Value::Map(m) => visitor.visit_map(Map {
-                keys: m.keys().cloned().collect(),
-                values: m.values().cloned().collect(),
+                keys: m.keys().cloned().rev().collect(),
+                values: m.values().cloned().rev().collect(),
             }),
             Value::Number(n) => visitor.visit_f64(n.get()),
             Value::Option(Some(o)) => visitor.visit_some(*o),
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
-            Value::Seq(seq) => visitor.visit_seq(Seq { seq }),
+            Value::Seq(mut seq) => {
+                seq.reverse();
+
+                visitor.visit_seq(Seq { seq })
+            }
             Value::Unit => visitor.visit_unit(),
         }
     }
@@ -100,9 +104,9 @@ impl<'de> MapAccess<'de> for Map {
     where
         K: DeserializeSeed<'de>,
     {
+        // The `Vec` is reversed, so we can pop to get the originally first element
         self.keys
-            .drain(..)
-            .next()
+            .pop()
             .map_or(Ok(None), |v| seed.deserialize(v).map(Some))
     }
 
@@ -110,9 +114,9 @@ impl<'de> MapAccess<'de> for Map {
     where
         V: DeserializeSeed<'de>,
     {
+        // The `Vec` is reversed, so we can pop to get the originally first element
         self.values
-            .drain(..)
-            .next()
+            .pop()
             .map(|v| seed.deserialize(v))
             .expect("Contract violation")
     }
@@ -129,9 +133,73 @@ impl<'de> SeqAccess<'de> for Seq {
     where
         T: DeserializeSeed<'de>,
     {
+        // The `Vec` is reversed, so we can pop to get the originally first element
         self.seq
-            .drain(..)
-            .next()
+            .pop()
             .map_or(Ok(None), |v| seed.deserialize(v).map(Some))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fmt::Debug;
+    use serde::Deserialize;
+    use super::*;
+
+    fn assert_same<'de, T>(s: &'de str)
+    where
+        T: Debug + Deserialize<'de> + PartialEq,
+    {
+        use de::from_str;
+
+        let direct: T = from_str(s).unwrap();
+        let value: Value = from_str(s).unwrap();
+        let value = T::deserialize(value).unwrap();
+
+        assert_eq!(direct, value, "Deserialization for {:?} is not the same", s);
+    }
+
+    #[test]
+    fn boolean() {
+        assert_same::<bool>("true");
+        assert_same::<bool>("false");
+    }
+
+    #[test]
+    fn float() {
+        assert_same::<f64>("0.123");
+        assert_same::<f64>("-4.19");
+    }
+
+    #[test]
+    fn char() {
+        assert_same::<char>("'4'");
+        assert_same::<char>("'c'");
+    }
+
+    #[test]
+    fn map() {
+        assert_same::<BTreeMap<char, String>>(
+            "{
+'a': \"Hello\",
+'b': \"Bye\",
+        }",
+        );
+    }
+
+    #[test]
+    fn option() {
+        assert_same::<Option<char>>("Some('a')");
+        assert_same::<Option<char>>("None");
+    }
+
+    #[test]
+    fn seq() {
+        assert_same::<Vec<f64>>("[1.0, 2.0, 3.0, 4.0]");
+    }
+
+    #[test]
+    fn unit() {
+        assert_same::<()>("()");
     }
 }
