@@ -109,6 +109,22 @@ pub struct Serializer {
 }
 
 impl Serializer {
+    /// Creates a new `Serializer`.
+    ///
+    /// Most of the time you can just use `to_string` or `to_string_pretty`.
+    pub fn new(config: Option<PrettyConfig>, struct_names: bool) -> Self {
+        Serializer {
+            output: String::new(),
+            pretty: config.map(|conf| (conf, Pretty { indent: 0 })),
+            struct_names,
+        }
+    }
+
+    /// Consumes `self` and returns the built `String`.
+    pub fn into_output_string(self) -> String {
+        self.output
+    }
+
     fn separate_tuple_members(&self) -> bool {
         self.pretty.as_ref()
             .map(|&(ref config, _)| config.separate_tuple_members)
