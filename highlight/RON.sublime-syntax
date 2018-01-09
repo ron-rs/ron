@@ -4,8 +4,6 @@ name: RON
 file_extensions:
   - ron
 scope: source.ron
-variables:
-  ident: '[A-Za-z_][A-Za-z_0-9]*'
 contexts:
   main:
     - include: value
@@ -67,7 +65,7 @@ contexts:
         )
       scope: constant.numeric.ron
   object:
-    - match: '{{ident}}'
+    - match: '[A-Za-z_][A-Za-z_0-9]*'
       scope: entity.name.class.ron
     - match: '\('
       scope: punctuation.section.dictionary.begin.ron
@@ -76,7 +74,7 @@ contexts:
         - match: '\)'
           scope: punctuation.section.dictionary.end.ron
           pop: true
-        - match: '{{ident}}'
+        - match: '[a-z_][A-Za-z_0-9]*'
           scope: entity.name.tag.ron
         - match: '\:'
           scope: punctuation.separator.dictionary.key-value.ron
