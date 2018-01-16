@@ -23,6 +23,8 @@ pub enum ParseError {
     Eof,
     ExpectedArray,
     ExpectedArrayEnd,
+    ExpectedAttribute,
+    ExpectedAttributeEnd,
     ExpectedBoolean,
     ExpectedComma,
     ExpectedEnum,
@@ -43,6 +45,8 @@ pub enum ParseError {
     ExpectedIdentifier,
 
     InvalidEscape,
+
+    NoSuchExtension(String),
 
     UnexpectedByte(char),
 
@@ -78,6 +82,8 @@ impl StdError for Error {
                 ParseError::Eof => "Unexpected end of file",
                 ParseError::ExpectedArray => "Expected array",
                 ParseError::ExpectedArrayEnd => "Expected end of array",
+                ParseError::ExpectedAttribute => "Expected an enable attribute",
+                ParseError::ExpectedAttributeEnd => "Expected a closing `]` after the attribute",
                 ParseError::ExpectedBoolean => "Expected boolean",
                 ParseError::ExpectedComma => "Expected comma",
                 ParseError::ExpectedEnum => "Expected enum",

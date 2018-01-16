@@ -10,7 +10,7 @@ use value::{Number, Value};
 impl Value {
     /// Creates a value from a string reference.
     pub fn from_str(s: &str) -> de::Result<Self> {
-        Self::deserialize(&mut super::Deserializer::from_str(s))
+        Value::deserialize(&mut super::Deserializer::from_str(s)?)
     }
 }
 

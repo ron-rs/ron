@@ -9,7 +9,7 @@ use std::str;
 
 use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 
-use parse::Bytes;
+use parse::{Bytes, Extension};
 use self::id::IdDeserializer;
 
 mod error;
@@ -27,16 +27,14 @@ pub struct Deserializer<'de> {
 }
 
 impl<'de> Deserializer<'de> {
-    pub fn from_str(input: &'de str) -> Self {
-        Deserializer {
-            bytes: Bytes::new(input.as_bytes()),
-        }
+    pub fn from_str(input: &'de str) -> Result<Self> {
+        Deserializer::from_bytes(input.as_bytes())
     }
 
-    pub fn from_bytes(input: &'de [u8]) -> Self {
-        Deserializer {
-            bytes: Bytes::new(input),
-        }
+    pub fn from_bytes(input: &'de [u8]) -> Result<Self> {
+        Ok(Deserializer {
+            bytes: Bytes::new(input)?,
+        })
     }
 
     pub fn remainder(&self) -> Cow<str> {
@@ -45,23 +43,31 @@ impl<'de> Deserializer<'de> {
 }
 
 /// A convenience function for reading data from a reader
-/// and feeding into a deserializer
+/// and feeding into a deserializer.
 pub fn from_reader<R, T>(mut rdr: R) -> Result<T>
     where R: io::Read,
           T: de::DeserializeOwned
 {
     let mut bytes = Vec::new();
     rdr.read_to_end(&mut bytes)?;
-    let s = str::from_utf8(&bytes)?;
-    from_str(s)
+
+    from_bytes(&bytes)
 }
 
 /// A convenience function for building a deserializer
-/// and deserializing a value of type `T`.
+/// and deserializing a value of type `T` from a string.
 pub fn from_str<'a, T>(s: &'a str) -> Result<T>
     where T: de::Deserialize<'a>
 {
-    let mut deserializer = Deserializer::from_str(s);
+    from_bytes(s.as_bytes())
+}
+
+/// A convenience function for building a deserializer
+/// and deserializing a value of type `T` from bytes.
+pub fn from_bytes<'a, T>(s: &'a [u8]) -> Result<T>
+    where T: de::Deserialize<'a>
+{
+    let mut deserializer = Deserializer::from_bytes(s)?;
     let t = T::deserialize(&mut deserializer)?;
 
     deserializer.end()?;
@@ -274,6 +280,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
+        if Extension::unwrap_newtypes(self.bytes.exts) {
+            return visitor.visit_newtype_struct(&mut *self);
+        }
+
         self.bytes.consume(name);
 
         self.bytes.skip_ws();

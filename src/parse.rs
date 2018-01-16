@@ -12,22 +12,27 @@ const WHITE_SPACE: &[u8] = b"\n\t\r ";
 
 #[derive(Clone, Copy, Debug)]
 pub struct Bytes<'a> {
+    /// Bits set according to `Extension` enum.
+    pub exts: usize,
     bytes: &'a [u8],
     column: usize,
     line: usize,
 }
 
 impl<'a> Bytes<'a> {
-    pub fn new(bytes: &'a [u8]) -> Self {
+    pub fn new(bytes: &'a [u8]) -> Result<Self> {
         let mut b = Bytes {
             bytes,
             column: 1,
+            exts: 0,
             line: 1,
         };
 
         b.skip_ws();
+        b.exts = b.extensions()?;
+        b.skip_ws();
 
-        b
+        Ok(b)
     }
 
     pub fn advance(&mut self, bytes: usize) -> Result<()> {
@@ -150,6 +155,50 @@ impl<'a> Bytes<'a> {
         Error::Parser(kind, Position { line: self.line, col: self.column })
     }
 
+    /// Returns the extensions bit mask.
+    fn extensions(&mut self) -> Result<usize> {
+        if self.peek() != Some(b'#') {
+            return Ok(0)
+        }
+
+        // TODO: could be more permissive
+        if !self.consume("#![enable(") {
+            return self.err(ParseError::ExpectedAttribute);
+        }
+
+        self.skip_ws();
+        let mut extensions = 0;
+
+        loop {
+            let ident = self.identifier()?;
+            let extension = Extension::from_ident(ident)
+                .ok_or_else(|| {
+                    self.error(ParseError::NoSuchExtension(from_utf8(ident).unwrap().to_owned()))
+                })?;
+
+            extensions |= extension as usize;
+
+            let comma = self.comma();
+
+            // If we have no comma but another item, return an error
+            if !comma && self.check_ident_char(0) {
+                return self.err(ParseError::ExpectedComma);
+            }
+
+            // If there's no comma, assume the list ended.
+            // If there is, it might be a trailing one, thus we only
+            // continue the loop if we get an ident char.
+            if !comma || !self.check_ident_char(0) {
+                break;
+            }
+        }
+
+        match self.consume(")]") {
+            true => Ok(extensions),
+            false => Err(self.error(ParseError::ExpectedAttributeEnd)),
+        }
+    }
+
     pub fn float<T>(&mut self) -> Result<T>
         where T: FromStr
     {
@@ -163,7 +212,7 @@ impl<'a> Bytes<'a> {
         res
     }
 
-    pub fn identifier(&mut self) -> Result<&[u8]> {
+    pub fn identifier(&mut self) -> Result<&'a [u8]> {
         if IDENT_FIRST.contains(&self.peek_or_eof()?) {
             let bytes = self.next_bytes_contained_in(IDENT_CHAR);
 
@@ -274,7 +323,7 @@ impl<'a> Bytes<'a> {
         let num_bytes = self.next_bytes_contained_in(DIGITS);
 
         if num_bytes == 0 {
-            return self.err(ParseError::Eof);
+            return self.err(ParseError::ExpectedInteger);
         }
 
         let res = FromStr::from_str(unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) })
@@ -379,6 +428,26 @@ impl<'a> Bytes<'a> {
         } else {
             false
         }
+    }
+}
+
+#[derive(Debug)]
+#[repr(usize)]
+pub enum Extension {
+    UnwrapNewtypes = 0x1,
+}
+
+impl Extension {
+    /// Creates an extension from an ident.
+    pub fn from_ident(ident: &[u8]) -> Option<Extension> {
+        match ident {
+            b"unwrap_newtypes" => Some(Extension::UnwrapNewtypes),
+            _ => None,
+        }
+    }
+
+    pub fn unwrap_newtypes(exts: usize) -> bool {
+        (exts & Extension::UnwrapNewtypes as usize) != 0
     }
 }
 
