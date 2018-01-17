@@ -228,23 +228,28 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if self.bytes.consume("Some") && { self.bytes.skip_ws(); self.bytes.consume("(") } {
-            self.bytes.skip_ws();
-
-            let v = visitor.visit_some(&mut *self)?;
-
-            self.bytes.skip_ws();
-
-            if self.bytes.consume(")") {
-                Ok(v)
-            } else {
-                self.bytes.err(ParseError::ExpectedOptionEnd)
-            }
-
-        } else if self.bytes.consume("None") {
+        if self.bytes.consume("None") {
             visitor.visit_none()
         } else {
-            self.bytes.err(ParseError::ExpectedOption)
+            if self.bytes.exts.contains(Extensions::IMPLICIT_SOME) {
+                visitor.visit_some(&mut *self)
+            } else {
+                if self.bytes.consume("Some") && { self.bytes.skip_ws(); self.bytes.consume("(") } {
+                    self.bytes.skip_ws();
+
+                    let v = visitor.visit_some(&mut *self)?;
+
+                    self.bytes.skip_ws();
+
+                    if self.bytes.consume(")") {
+                        Ok(v)
+                    } else {
+                        self.bytes.err(ParseError::ExpectedOptionEnd)
+                    }
+                } else {
+                    self.bytes.err(ParseError::ExpectedOption)
+                }
+            }
         }
     }
 
