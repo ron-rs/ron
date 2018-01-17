@@ -9,7 +9,7 @@ use std::str;
 
 use serde::de::{self, Deserializer as Deserializer_, DeserializeSeed, Visitor};
 
-use parse::{Bytes, Extension};
+use parse::{Bytes, Extensions};
 use self::id::IdDeserializer;
 
 mod error;
@@ -280,7 +280,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     ) -> Result<V::Value>
         where V: Visitor<'de>
     {
-        if Extension::unwrap_newtypes(self.bytes.exts) {
+        if self.bytes.exts.contains(Extensions::UNWRAP_NEWTYPES) {
             return visitor.visit_newtype_struct(&mut *self);
         }
 

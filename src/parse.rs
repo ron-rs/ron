@@ -13,7 +13,7 @@ const WHITE_SPACE: &[u8] = b"\n\t\r ";
 #[derive(Clone, Copy, Debug)]
 pub struct Bytes<'a> {
     /// Bits set according to `Extension` enum.
-    pub exts: usize,
+    pub exts: Extensions,
     bytes: &'a [u8],
     column: usize,
     line: usize,
@@ -24,7 +24,7 @@ impl<'a> Bytes<'a> {
         let mut b = Bytes {
             bytes,
             column: 1,
-            exts: 0,
+            exts: Extensions::empty(),
             line: 1,
         };
 
@@ -33,13 +33,13 @@ impl<'a> Bytes<'a> {
         loop {
             let attribute = b.extensions()?;
 
-            if attribute == 0 {
+            if attribute.is_empty() {
                 break;
             }
 
-            b.exts = attribute;
+            b.exts |= attribute;
+            b.skip_ws();
         }
-        b.skip_ws();
 
         Ok(b)
     }
@@ -180,9 +180,9 @@ impl<'a> Bytes<'a> {
     }
 
     /// Returns the extensions bit mask.
-    fn extensions(&mut self) -> Result<usize> {
+    fn extensions(&mut self) -> Result<Extensions> {
         if self.peek() != Some(b'#') {
-            return Ok(0)
+            return Ok(Extensions::empty())
         }
 
         if !self.consume_all(&["#", "!", "[", "enable", "("]) {
@@ -190,16 +190,16 @@ impl<'a> Bytes<'a> {
         }
 
         self.skip_ws();
-        let mut extensions = 0;
+        let mut extensions = Extensions::empty();
 
         loop {
             let ident = self.identifier()?;
-            let extension = Extension::from_ident(ident)
+            let extension = Extensions::from_ident(ident)
                 .ok_or_else(|| {
                     self.error(ParseError::NoSuchExtension(from_utf8(ident).unwrap().to_owned()))
                 })?;
 
-            extensions |= extension as usize;
+            extensions |= extension;
 
             let comma = self.comma();
 
@@ -454,23 +454,19 @@ impl<'a> Bytes<'a> {
     }
 }
 
-#[derive(Debug)]
-#[repr(usize)]
-pub enum Extension {
-    UnwrapNewtypes = 0x1,
+bitflags! {
+    pub struct Extensions: usize {
+        const UNWRAP_NEWTYPES = 0x1;
+    }
 }
 
-impl Extension {
-    /// Creates an extension from an ident.
-    pub fn from_ident(ident: &[u8]) -> Option<Extension> {
+impl Extensions {
+    /// Creates an extension flag from an ident.
+    pub fn from_ident(ident: &[u8]) -> Option<Extensions> {
         match ident {
-            b"unwrap_newtypes" => Some(Extension::UnwrapNewtypes),
+            b"unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
             _ => None,
         }
-    }
-
-    pub fn unwrap_newtypes(exts: usize) -> bool {
-        (exts & Extension::UnwrapNewtypes as usize) != 0
     }
 }
 
