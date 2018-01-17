@@ -72,7 +72,7 @@ Scene( // class name is optional
 
 The new format uses `(`..`)` brackets for *heterogeneous* structures (classes),
 while preserving the `{`..`}` for maps, and `[`..`]` for *homogeneous* structures (arrays).
-This distinction allows to solve the biggest problem with JSON.
+This distinction allows us to solve the biggest problem with JSON.
 
 Here are the general rules to parse the heterogeneous structures:
 
