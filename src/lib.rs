@@ -58,6 +58,8 @@ Serializing / Deserializing is as simple as calling `to_string` / `from_str`.
 !*/
 
 #[macro_use]
+extern crate bitflags;
+#[macro_use]
 extern crate serde;
 
 pub mod de;

@@ -12,22 +12,36 @@ const WHITE_SPACE: &[u8] = b"\n\t\r ";
 
 #[derive(Clone, Copy, Debug)]
 pub struct Bytes<'a> {
+    /// Bits set according to `Extension` enum.
+    pub exts: Extensions,
     bytes: &'a [u8],
     column: usize,
     line: usize,
 }
 
 impl<'a> Bytes<'a> {
-    pub fn new(bytes: &'a [u8]) -> Self {
+    pub fn new(bytes: &'a [u8]) -> Result<Self> {
         let mut b = Bytes {
             bytes,
             column: 1,
+            exts: Extensions::empty(),
             line: 1,
         };
 
         b.skip_ws();
+        // Loop over all extensions attributes
+        loop {
+            let attribute = b.extensions()?;
 
-        b
+            if attribute.is_empty() {
+                break;
+            }
+
+            b.exts |= attribute;
+            b.skip_ws();
+        }
+
+        Ok(b)
     }
 
     pub fn advance(&mut self, bytes: usize) -> Result<()> {
@@ -135,6 +149,21 @@ impl<'a> Bytes<'a> {
         }
     }
 
+    fn consume_all(&mut self, all: &[&str]) -> bool {
+        all
+            .iter()
+            .map(|elem| {
+                if self.consume(elem) {
+                    self.skip_ws();
+
+                    true
+                } else {
+                    false
+                }
+            })
+            .all(|b| b)
+    }
+
     pub fn eat_byte(&mut self) -> Result<u8> {
         let peek = self.peek_or_eof()?;
         let _ = self.advance_single();
@@ -150,6 +179,51 @@ impl<'a> Bytes<'a> {
         Error::Parser(kind, Position { line: self.line, col: self.column })
     }
 
+    /// Returns the extensions bit mask.
+    fn extensions(&mut self) -> Result<Extensions> {
+        if self.peek() != Some(b'#') {
+            return Ok(Extensions::empty())
+        }
+
+        if !self.consume_all(&["#", "!", "[", "enable", "("]) {
+            return self.err(ParseError::ExpectedAttribute);
+        }
+
+        self.skip_ws();
+        let mut extensions = Extensions::empty();
+
+        loop {
+            let ident = self.identifier()?;
+            let extension = Extensions::from_ident(ident)
+                .ok_or_else(|| {
+                    self.error(ParseError::NoSuchExtension(from_utf8(ident).unwrap().to_owned()))
+                })?;
+
+            extensions |= extension;
+
+            let comma = self.comma();
+
+            // If we have no comma but another item, return an error
+            if !comma && self.check_ident_char(0) {
+                return self.err(ParseError::ExpectedComma);
+            }
+
+            // If there's no comma, assume the list ended.
+            // If there is, it might be a trailing one, thus we only
+            // continue the loop if we get an ident char.
+            if !comma || !self.check_ident_char(0) {
+                break;
+            }
+        }
+
+        self.skip_ws();
+
+        match self.consume_all(&[")", "]"]) {
+            true => Ok(extensions),
+            false => Err(self.error(ParseError::ExpectedAttributeEnd)),
+        }
+    }
+
     pub fn float<T>(&mut self) -> Result<T>
         where T: FromStr
     {
@@ -163,7 +237,7 @@ impl<'a> Bytes<'a> {
         res
     }
 
-    pub fn identifier(&mut self) -> Result<&[u8]> {
+    pub fn identifier(&mut self) -> Result<&'a [u8]> {
         if IDENT_FIRST.contains(&self.peek_or_eof()?) {
             let bytes = self.next_bytes_contained_in(IDENT_CHAR);
 
@@ -274,7 +348,7 @@ impl<'a> Bytes<'a> {
         let num_bytes = self.next_bytes_contained_in(DIGITS);
 
         if num_bytes == 0 {
-            return self.err(ParseError::Eof);
+            return self.err(ParseError::ExpectedInteger);
         }
 
         let res = FromStr::from_str(unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) })
@@ -378,6 +452,22 @@ impl<'a> Bytes<'a> {
             true
         } else {
             false
+        }
+    }
+}
+
+bitflags! {
+    pub struct Extensions: usize {
+        const UNWRAP_NEWTYPES = 0x1;
+    }
+}
+
+impl Extensions {
+    /// Creates an extension flag from an ident.
+    pub fn from_ident(ident: &[u8]) -> Option<Extensions> {
+        match ident {
+            b"unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
+            _ => None,
         }
     }
 }

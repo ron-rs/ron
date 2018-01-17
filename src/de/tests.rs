@@ -169,3 +169,43 @@ fn forgot_apostrophes() {
         _ => false,
     });
 }
+
+#[test]
+fn expected_attribute() {
+    let de: Result<String> = from_str("#\"Hello\"");
+
+    assert_eq!(de, err(ParseError::ExpectedAttribute, 1, 2));
+}
+
+#[test]
+fn expected_attribute_end() {
+    let de: Result<String> = from_str("#![enable(unwrap_newtypes) \"Hello\"");
+
+    assert_eq!(de, err(ParseError::ExpectedAttributeEnd, 1, 28));
+}
+
+#[test]
+fn invalid_attribute() {
+    let de: Result<String> = from_str("#![enable(invalid)] \"Hello\"");
+
+    assert_eq!(de, err(ParseError::NoSuchExtension("invalid".to_string()), 1, 18));
+}
+
+#[test]
+fn multiple_attributes() {
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct New(String);
+    let de: Result<New> = from_str("#![enable(unwrap_newtypes)] #![enable(unwrap_newtypes)] \"Hello\"");
+
+    assert_eq!(de, Ok(New("Hello".to_owned())));
+}
+
+#[test]
+fn uglified_attribute() {
+    let de: Result<()> = from_str("#   !\
+    // We definitely want to add a comment here
+    [\t\tenable( // best style ever
+            unwrap_newtypes  ) ] ()");
+
+    assert_eq!(de, Ok(()));
+}
