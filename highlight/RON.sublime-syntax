@@ -6,6 +6,10 @@ file_extensions:
 scope: source.ron
 contexts:
   main:
+    # extensions
+    - match: '\#\!'
+      push:
+        - include: array
     - include: value
   array:
     - match: '\['

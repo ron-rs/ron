@@ -140,6 +140,21 @@ impl<'a> Bytes<'a> {
         }
     }
 
+    fn consume_all(&mut self, all: &[&str]) -> bool {
+        all
+            .iter()
+            .map(|elem| {
+                if self.consume(elem) {
+                    self.skip_ws();
+
+                    true
+                } else {
+                    false
+                }
+            })
+            .all(|b| b)
+    }
+
     pub fn eat_byte(&mut self) -> Result<u8> {
         let peek = self.peek_or_eof()?;
         let _ = self.advance_single();
@@ -161,8 +176,7 @@ impl<'a> Bytes<'a> {
             return Ok(0)
         }
 
-        // TODO: could be more permissive
-        if !self.consume("#![enable(") {
+        if !self.consume_all(&["#", "!", "[", "enable", "("]) {
             return self.err(ParseError::ExpectedAttribute);
         }
 
@@ -193,7 +207,7 @@ impl<'a> Bytes<'a> {
             }
         }
 
-        match self.consume(")]") {
+        match self.consume_all(&[")", "]"]) {
             true => Ok(extensions),
             false => Err(self.error(ParseError::ExpectedAttributeEnd)),
         }
