@@ -83,7 +83,7 @@ impl StdError for Error {
                 ParseError::ExpectedArray => "Expected array",
                 ParseError::ExpectedArrayEnd => "Expected end of array",
                 ParseError::ExpectedAttribute => "Expected an enable attribute",
-                ParseError::ExpectedAttributeEnd => "Expected a closing `]` after the attribute",
+                ParseError::ExpectedAttributeEnd => "Expected closing `)` and `]` after the attribute",
                 ParseError::ExpectedBoolean => "Expected boolean",
                 ParseError::ExpectedComma => "Expected comma",
                 ParseError::ExpectedEnum => "Expected enum",

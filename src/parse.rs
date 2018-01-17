@@ -216,6 +216,8 @@ impl<'a> Bytes<'a> {
             }
         }
 
+        self.skip_ws();
+
         match self.consume_all(&[")", "]"]) {
             true => Ok(extensions),
             false => Err(self.error(ParseError::ExpectedAttributeEnd)),
