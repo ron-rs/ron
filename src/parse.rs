@@ -29,7 +29,16 @@ impl<'a> Bytes<'a> {
         };
 
         b.skip_ws();
-        b.exts = b.extensions()?;
+        // Loop over all extensions attributes
+        loop {
+            let attribute = b.extensions()?;
+
+            if attribute == 0 {
+                break;
+            }
+
+            b.exts = attribute;
+        }
         b.skip_ws();
 
         Ok(b)
