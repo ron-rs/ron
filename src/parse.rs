@@ -459,6 +459,7 @@ impl<'a> Bytes<'a> {
 bitflags! {
     pub struct Extensions: usize {
         const UNWRAP_NEWTYPES = 0x1;
+        const IMPLICIT_SOME = 0x2;
     }
 }
 
@@ -467,6 +468,7 @@ impl Extensions {
     pub fn from_ident(ident: &[u8]) -> Option<Extensions> {
         match ident {
             b"unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
+            b"implicit_some" => Some(Extensions::IMPLICIT_SOME),
             _ => None,
         }
     }

@@ -54,3 +54,31 @@ fn unwrap_newtypes() {
 
     println!("unwrap_newtypes: {:#?}", d);
 }
+
+const CONFIG_I_S: &str = "
+#![enable(implicit_some)]
+
+(
+    tuple: ((), (0.5), ((), -5)),
+    vec: [
+        None,
+        (),
+        UnitStruct,
+        None,
+        (),
+    ],
+    map: {
+        (7): Bool(true),
+        (9): Chars('x', \"\"),
+        (6): Bool(false),
+        (5): Unit,
+    },
+)
+";
+
+#[test]
+fn implicit_some() {
+    let d: Struct = ron::de::from_str(&CONFIG_I_S).expect("Failed to deserialize");
+
+    println!("implicit_some: {:#?}", d);
+}
