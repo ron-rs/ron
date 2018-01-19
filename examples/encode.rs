@@ -3,7 +3,6 @@ extern crate ron;
 extern crate serde;
 
 use std::collections::HashMap;
-use std::default::Default;
 use std::fs::File;
 
 use ron::ser::{PrettyConfig, to_string_pretty};
@@ -48,10 +47,7 @@ fn main() {
         var: Variant::A(!0, ""),
     };
 
-    let pretty = PrettyConfig {
-        separate_tuple_members: true,
-        .. PrettyConfig::default()
-    };
+    let pretty = PrettyConfig::default_with(|x|{x.separate_tuple_members=true});
     let s = to_string_pretty(&data, pretty).expect("Serialization failed");
 
     file.write(s.as_bytes()).expect("Failed to write data to file");
