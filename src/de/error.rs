@@ -1,7 +1,7 @@
 use std::error::Error as StdError;
 use std::fmt;
-use std::str::Utf8Error;
 use std::io;
+use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
 use serde::de;
@@ -53,8 +53,7 @@ pub enum ParseError {
     Utf8Error(Utf8Error),
     TrailingCharacters,
 
-    #[doc(hidden)]
-    __NonExhaustive,
+    #[doc(hidden)] __NonExhaustive,
 }
 
 impl fmt::Display for Error {
@@ -83,7 +82,9 @@ impl StdError for Error {
                 ParseError::ExpectedArray => "Expected array",
                 ParseError::ExpectedArrayEnd => "Expected end of array",
                 ParseError::ExpectedAttribute => "Expected an enable attribute",
-                ParseError::ExpectedAttributeEnd => "Expected closing `)` and `]` after the attribute",
+                ParseError::ExpectedAttributeEnd => {
+                    "Expected closing `)` and `]` after the attribute"
+                }
                 ParseError::ExpectedBoolean => "Expected boolean",
                 ParseError::ExpectedComma => "Expected comma",
                 ParseError::ExpectedEnum => "Expected enum",
@@ -108,7 +109,7 @@ impl StdError for Error {
                 ParseError::TrailingCharacters => "Non-whitespace trailing characters",
 
                 _ => unimplemented!(),
-            }
+            },
         }
     }
 }
@@ -127,7 +128,7 @@ impl From<FromUtf8Error> for ParseError {
 
 impl From<Utf8Error> for Error {
     fn from(e: Utf8Error) -> Self {
-        Error::Parser(ParseError::Utf8Error(e), Position { line : 0, col : 0})
+        Error::Parser(ParseError::Utf8Error(e), Position { line: 0, col: 0 })
     }
 }
 

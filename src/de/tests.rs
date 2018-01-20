@@ -7,14 +7,17 @@ struct EmptyStruct1;
 struct EmptyStruct2 {}
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
-struct MyStruct { x: f32, y: f32 }
+struct MyStruct {
+    x: f32,
+    y: f32,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 enum MyEnum {
     A,
     B(bool),
     C(bool, f32),
-    D { a: i32, b: i32 }
+    D { a: i32, b: i32 },
 }
 
 #[test]
@@ -22,7 +25,6 @@ fn test_empty_struct() {
     assert_eq!(Ok(EmptyStruct1), from_str("EmptyStruct1"));
     assert_eq!(Ok(EmptyStruct2 {}), from_str("EmptyStruct2()"));
 }
-
 
 #[test]
 fn test_struct() {
@@ -43,7 +45,6 @@ fn test_struct() {
     assert_eq!(Ok(TupleStruct(2.0, 5.0)), from_str("TupleStruct(2,5,)"));
     assert_eq!(Ok(TupleStruct(3.0, 4.0)), from_str("(3,4)"));
 }
-
 
 #[test]
 fn test_option() {
@@ -78,10 +79,15 @@ fn test_map() {
     map.insert((true, false), 4);
     map.insert((false, false), 123);
 
-    assert_eq!(Ok(map), from_str("{
+    assert_eq!(
+        Ok(map),
+        from_str(
+            "{
         (true,false,):4,
         (false,false,):123,
-    }"));
+    }"
+        )
+    );
 }
 
 #[test]
@@ -108,12 +114,17 @@ fn test_escape() {
 
 #[test]
 fn test_comment() {
-    assert_eq!(MyStruct { x: 1.0, y: 2.0 }, from_str("(
+    assert_eq!(
+        MyStruct { x: 1.0, y: 2.0 },
+        from_str(
+            "(
 x: 1.0, // x is just 1
 // There is another comment in the very next line..
 // And y is indeed
 y: 2.0 // 2!
-    )").unwrap());
+    )"
+        ).unwrap()
+    );
 }
 
 fn err<T>(kind: ParseError, line: usize, col: usize) -> Result<T> {
@@ -137,15 +148,22 @@ fn test_err_wrong_value() {
     assert_eq!(from_str::<(u8, bool)>("'c'"), err(ExpectedArray, 1, 1));
     assert_eq!(from_str::<bool>("notabool"), err(ExpectedBoolean, 1, 1));
 
-    assert_eq!(from_str::<MyStruct>("MyStruct(\n    x: true)"), err(ExpectedFloat, 2, 8));
-    assert_eq!(from_str::<MyStruct>("MyStruct(\n    x: 3.5, \n    y:)"),
-               err(ExpectedFloat, 3, 7));
+    assert_eq!(
+        from_str::<MyStruct>("MyStruct(\n    x: true)"),
+        err(ExpectedFloat, 2, 8)
+    );
+    assert_eq!(
+        from_str::<MyStruct>("MyStruct(\n    x: 3.5, \n    y:)"),
+        err(ExpectedFloat, 3, 7)
+    );
 }
 
 #[test]
 fn test_perm_ws() {
-    assert_eq!(from_str::<MyStruct>("\nMyStruct  \t ( \n x   : 3.5 , \t y\n: 4.5 \n ) \t\n"),
-                Ok(MyStruct { x: 3.5, y: 4.5 }));
+    assert_eq!(
+        from_str::<MyStruct>("\nMyStruct  \t ( \n x   : 3.5 , \t y\n: 4.5 \n ) \t\n"),
+        Ok(MyStruct { x: 3.5, y: 4.5 })
+    );
 }
 
 #[test]
@@ -188,24 +206,30 @@ fn expected_attribute_end() {
 fn invalid_attribute() {
     let de: Result<String> = from_str("#![enable(invalid)] \"Hello\"");
 
-    assert_eq!(de, err(ParseError::NoSuchExtension("invalid".to_string()), 1, 18));
+    assert_eq!(
+        de,
+        err(ParseError::NoSuchExtension("invalid".to_string()), 1, 18)
+    );
 }
 
 #[test]
 fn multiple_attributes() {
     #[derive(Debug, Deserialize, PartialEq)]
     struct New(String);
-    let de: Result<New> = from_str("#![enable(unwrap_newtypes)] #![enable(unwrap_newtypes)] \"Hello\"");
+    let de: Result<New> =
+        from_str("#![enable(unwrap_newtypes)] #![enable(unwrap_newtypes)] \"Hello\"");
 
     assert_eq!(de, Ok(New("Hello".to_owned())));
 }
 
 #[test]
 fn uglified_attribute() {
-    let de: Result<()> = from_str("#   !\
+    let de: Result<()> = from_str(
+        "#   !\
     // We definitely want to add a comment here
     [\t\tenable( // best style ever
-            unwrap_newtypes  ) ] ()");
+            unwrap_newtypes  ) ] ()",
+    );
 
     assert_eq!(de, Ok(()));
 }
@@ -224,10 +248,10 @@ fn implicit_some() {
     assert_eq!(de("5"), Some(5));
     assert_eq!(de("\"Hello\""), Some("Hello".to_owned()));
     assert_eq!(de("false"), Some(false));
-    assert_eq!(de("MyStruct(x: .4, y: .5)"), Some(MyStruct {
-        x: 0.4,
-        y: 0.5,
-    }));
+    assert_eq!(
+        de("MyStruct(x: .4, y: .5)"),
+        Some(MyStruct { x: 0.4, y: 0.5 })
+    );
 
     assert_eq!(de::<char>("None"), None);
 

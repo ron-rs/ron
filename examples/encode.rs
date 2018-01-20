@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::default::Default;
 use std::fs::File;
 
-use ron::ser::{PrettyConfig, to_string_pretty};
+use ron::ser::{to_string_pretty, PrettyConfig};
 
 #[derive(Serialize)]
 struct Config {
@@ -50,9 +50,10 @@ fn main() {
 
     let pretty = PrettyConfig {
         separate_tuple_members: true,
-        .. PrettyConfig::default()
+        ..PrettyConfig::default()
     };
     let s = to_string_pretty(&data, pretty).expect("Serialization failed");
 
-    file.write(s.as_bytes()).expect("Failed to write data to file");
+    file.write(s.as_bytes())
+        .expect("Failed to write data to file");
 }

@@ -204,9 +204,9 @@ impl<'de> SeqAccess<'de> for Seq {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Debug;
-    use serde::Deserialize;
     use super::*;
+    use serde::Deserialize;
+    use std::fmt::Debug;
 
     fn assert_same<'de, T>(s: &'de str)
     where
