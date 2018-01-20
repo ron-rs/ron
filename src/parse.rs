@@ -1,10 +1,11 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Neg;
+use std::result::Result as StdResult;
 use std::str::{FromStr, from_utf8, from_utf8_unchecked};
 
 use de::{Error, ParseError, Result};
 
-const DIGITS: &[u8] = b"0123456789";
+const DIGITS: &[u8] = b"0123456789ABCDEFabcdef";
 const FLOAT_CHARS: &[u8] = b"0123456789.+-eE";
 const IDENT_FIRST: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";
 const IDENT_CHAR: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789";
@@ -276,7 +277,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn signed_integer<T>(&mut self) -> Result<T>
-        where T: FromStr + Neg<Output=T>
+        where T: Neg<Output=T> + Num,
     {
         match self.peek_or_eof()? {
             b'+' => {
@@ -344,14 +345,31 @@ impl<'a> Bytes<'a> {
         s.bytes().enumerate().all(|(i, b)| self.bytes.get(i).map(|t| *t == b).unwrap_or(false))
     }
 
-    pub fn unsigned_integer<T>(&mut self) -> Result<T> where T: FromStr {
+    pub fn unsigned_integer<T: Num>(&mut self) -> Result<T> {
+        let base = if self.peek() == Some(b'0') {
+            match self.bytes.get(1).cloned() {
+                Some(b'x') => 16,
+                Some(b'b') => 2,
+                Some(b'o') => 8,
+                _ => 10,
+            }
+        } else {
+            10
+        };
+
+        if base != 10 {
+            // If we have `0x45A` for example,
+            // cut it to `45A`.
+            let _ = self.advance(2);
+        }
+
         let num_bytes = self.next_bytes_contained_in(DIGITS);
 
         if num_bytes == 0 {
             return self.err(ParseError::ExpectedInteger);
         }
 
-        let res = FromStr::from_str(unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) })
+        let res = Num::from_str(unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) }, base)
             .map_err(|_| self.error(ParseError::ExpectedInteger));
 
         let _ = self.advance(num_bytes);
@@ -473,6 +491,25 @@ impl Extensions {
         }
     }
 }
+
+pub trait Num: Sized {
+    fn from_str(src: &str, radix: u32) -> StdResult<Self, ()>;
+}
+
+macro_rules! impl_num {
+    ($ty:ident) => {
+        impl Num for $ty {
+            fn from_str(src: &str, radix: u32) -> StdResult<Self, ()> {
+                $ty::from_str_radix(src, radix).map_err(|_| ())
+            }
+        }
+    };
+    ($($tys:ident)*) => {
+        $( impl_num!($tys); )*
+    };
+}
+
+impl_num!(u8 u16 u32 u64 i8 i16 i32 i64);
 
 #[derive(Clone, Debug)]
 pub enum ParsedStr<'a> {
