@@ -81,29 +81,52 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn char(&mut self) -> Result<char> {
+        use std::cmp::min;
+
         if !self.consume("'") {
             return self.err(ParseError::ExpectedChar);
         }
 
-        let c = self.eat_byte()?;
+        let c = self.peek_or_eof()?;
 
         let c = if c == b'\\' {
+            let _ = self.advance(1);
             let c = self.eat_byte()?;
 
             if c != b'\\' && c != b'\'' {
                 return self.err(ParseError::InvalidEscape);
             }
 
-            c
+            c as char
         } else {
-            c
+            // Check where the end of the char (') is and try to
+            // interpret the rest as UTF-8
+
+            let max = min(5, self.bytes.len());
+            let pos: usize = self.bytes[..max]
+                .iter()
+                .position(|&x| x == b'\'')
+                .ok_or_else(|| self.error(ParseError::ExpectedChar))?;
+            let s = from_utf8(&self.bytes[0..pos]).map_err(|e| self.error(e.into()))?;
+            let mut chars = s.chars();
+
+            let first = chars
+                .next()
+                .ok_or_else(|| self.error(ParseError::ExpectedChar))?;
+            if chars.next().is_some() {
+                return self.err(ParseError::ExpectedChar);
+            }
+
+            let _ = self.advance(pos);
+
+            first
         };
 
         if !self.consume("'") {
             return self.err(ParseError::ExpectedChar);
         }
 
-        Ok(c as char)
+        Ok(c)
     }
 
     pub fn comma(&mut self) -> bool {
