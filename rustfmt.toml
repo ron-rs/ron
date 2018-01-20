@@ -1,0 +1,7 @@
+reorder_imports = true
+reorder_imported_names = true
+reorder_imports_in_group = true
+wrap_comments = false
+# This was unfortunately removed from rustfmt
+# re-enable once it (hopefully) gets added back
+# same_line_attributes = false

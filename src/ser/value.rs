@@ -4,8 +4,8 @@ use value::Value;
 
 impl Serialize for Value {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer
+    where
+        S: Serializer,
     {
         match *self {
             Value::Bool(b) => serializer.serialize_bool(b),

@@ -1,10 +1,11 @@
 use std::error::Error as StdError;
-use std::result::Result as StdResult;
 use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::result::Result as StdResult;
 
 use serde::ser::{self, Serialize};
 
-#[deprecated(since="0.1.4", note="please use `to_string_pretty` with `PrettyConfig::default()` instead")]
+#[deprecated(since = "0.1.4",
+             note = "please use `to_string_pretty` with `PrettyConfig::default()` instead")]
 pub mod pretty;
 mod value;
 
@@ -13,7 +14,8 @@ mod value;
 /// This function does not generate any newlines or nice formatting;
 /// if you want that, you can use `pretty::to_string` instead.
 pub fn to_string<T>(value: &T) -> Result<String>
-    where T: Serialize
+where
+    T: Serialize,
 {
     let mut s = Serializer {
         output: String::new(),
@@ -26,7 +28,8 @@ pub fn to_string<T>(value: &T) -> Result<String>
 
 /// Serializes `value` in the recommended RON layout in a pretty way.
 pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
-    where T: Serialize
+where
+    T: Serialize,
 {
     let mut s = Serializer {
         output: String::new(),
@@ -126,7 +129,8 @@ impl Serializer {
     }
 
     fn separate_tuple_members(&self) -> bool {
-        self.pretty.as_ref()
+        self.pretty
+            .as_ref()
             .map(|&(ref config, _)| config.separate_tuple_members)
             .unwrap_or(false)
     }
@@ -140,14 +144,16 @@ impl Serializer {
 
     fn indent(&mut self) {
         if let Some((ref config, ref pretty)) = self.pretty {
-            self.output.extend((0..pretty.indent).map(|_| config.indentor.as_str()));
+            self.output
+                .extend((0..pretty.indent).map(|_| config.indentor.as_str()));
         }
     }
 
     fn end_indent(&mut self) {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             pretty.indent -= 1;
-            self.output.extend((0..pretty.indent).map(|_| config.indentor.as_str()));
+            self.output
+                .extend((0..pretty.indent).map(|_| config.indentor.as_str()));
         }
     }
 }
@@ -251,7 +257,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_some<T>(self, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         self.output += "Some(";
         value.serialize(&mut *self)?;
@@ -276,19 +283,15 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         }
     }
 
-    fn serialize_unit_variant(
-        self,
-        _: &'static str,
-        _: u32,
-        variant: &'static str
-    ) -> Result<()> {
+    fn serialize_unit_variant(self, _: &'static str, _: u32, variant: &'static str) -> Result<()> {
         self.output += variant;
 
         Ok(())
     }
 
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         if self.struct_names {
             self.output += name;
@@ -305,9 +308,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _: &'static str,
         _: u32,
         variant: &'static str,
-        value: &T
+        value: &T,
     ) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         self.output += variant;
         self.output += "(";
@@ -339,7 +343,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     fn serialize_tuple_struct(
         self,
         name: &'static str,
-        len: usize
+        len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
         if self.struct_names {
             self.output += name;
@@ -353,7 +357,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _: &'static str,
         _: u32,
         variant: &'static str,
-        _: usize
+        _: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         self.output += variant;
         self.output += "(";
@@ -373,11 +377,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(self)
     }
 
-    fn serialize_struct(
-        self,
-        name: &'static str,
-        _: usize
-    ) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, name: &'static str, _: usize) -> Result<Self::SerializeStruct> {
         if self.struct_names {
             self.output += name;
         }
@@ -393,7 +393,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _: &'static str,
         _: u32,
         variant: &'static str,
-        _: usize
+        _: usize,
     ) -> Result<Self::SerializeStructVariant> {
         self.output += variant;
         self.output += "(";
@@ -409,7 +409,8 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         self.indent();
 
@@ -436,7 +437,8 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         if self.separate_tuple_members() {
             self.indent();
@@ -446,7 +448,11 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
         self.output += ",";
 
         if let Some((ref config, _)) = self.pretty {
-            self.output += if self.separate_tuple_members() { &config.new_line } else { " " };
+            self.output += if self.separate_tuple_members() {
+                &config.new_line
+            } else {
+                " "
+            };
         }
 
         Ok(())
@@ -474,7 +480,8 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         ser::SerializeTuple::serialize_element(self, value)
     }
@@ -489,7 +496,8 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         ser::SerializeTuple::serialize_element(self, value)
     }
@@ -504,7 +512,8 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_key<T>(&mut self, key: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         self.indent();
 
@@ -512,7 +521,8 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         self.output += ":";
 
@@ -543,7 +553,8 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         self.indent();
 
@@ -577,7 +588,8 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     type Error = Error;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-        where T: ?Sized + Serialize
+    where
+        T: ?Sized + Serialize,
     {
         ser::SerializeStruct::serialize_field(self, key, value)
     }
@@ -598,14 +610,17 @@ mod tests {
     struct EmptyStruct2 {}
 
     #[derive(Serialize)]
-    struct MyStruct { x: f32, y: f32 }
+    struct MyStruct {
+        x: f32,
+        y: f32,
+    }
 
     #[derive(Serialize)]
     enum MyEnum {
         A,
         B(bool),
         C(bool, f32),
-        D { a: i32, b: i32 }
+        D { a: i32, b: i32 },
     }
 
     #[test]
@@ -619,7 +634,6 @@ mod tests {
         let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
         assert_eq!(to_string(&my_struct).unwrap(), "(x:4,y:7,)");
-
 
         #[derive(Serialize)]
         struct NewType(i32);

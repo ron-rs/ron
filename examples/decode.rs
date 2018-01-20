@@ -46,7 +46,7 @@ fn main() {
             println!("Failed to load config: {}", e);
 
             ::std::process::exit(1);
-        },
+        }
     };
 
     println!("Config: {:?}", &config);

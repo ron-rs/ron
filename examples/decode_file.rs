@@ -23,8 +23,7 @@ struct Nested {
 }
 
 fn main() {
-    let input_path = format!("{}/examples/example.ron",
-                             env!("CARGO_MANIFEST_DIR"));
+    let input_path = format!("{}/examples/example.ron", env!("CARGO_MANIFEST_DIR"));
     let f = File::open(&input_path).expect("Failed opening file");
     let config: Config = match from_reader(f) {
         Ok(x) => x,
@@ -32,7 +31,7 @@ fn main() {
             println!("Failed to load config: {}", e);
 
             ::std::process::exit(1);
-        },
+        }
     };
 
     println!("Config: {:?}", &config);

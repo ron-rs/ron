@@ -125,7 +125,10 @@ impl<'a> Bytes<'a> {
     }
 
     fn check_ident_char(&self, index: usize) -> bool {
-        self.bytes.get(index).map(|b| IDENT_CHAR.contains(b)).unwrap_or(false)
+        self.bytes
+            .get(index)
+            .map(|b| IDENT_CHAR.contains(b))
+            .unwrap_or(false)
     }
 
     /// Only returns true if the char after `ident` cannot belong
@@ -151,8 +154,7 @@ impl<'a> Bytes<'a> {
     }
 
     fn consume_all(&mut self, all: &[&str]) -> bool {
-        all
-            .iter()
+        all.iter()
             .map(|elem| {
                 if self.consume(elem) {
                     self.skip_ws();
@@ -177,13 +179,19 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn error(&self, kind: ParseError) -> Error {
-        Error::Parser(kind, Position { line: self.line, col: self.column })
+        Error::Parser(
+            kind,
+            Position {
+                line: self.line,
+                col: self.column,
+            },
+        )
     }
 
     /// Returns the extensions bit mask.
     fn extensions(&mut self) -> Result<Extensions> {
         if self.peek() != Some(b'#') {
-            return Ok(Extensions::empty())
+            return Ok(Extensions::empty());
         }
 
         if !self.consume_all(&["#", "!", "[", "enable", "("]) {
@@ -195,10 +203,11 @@ impl<'a> Bytes<'a> {
 
         loop {
             let ident = self.identifier()?;
-            let extension = Extensions::from_ident(ident)
-                .ok_or_else(|| {
-                    self.error(ParseError::NoSuchExtension(from_utf8(ident).unwrap().to_owned()))
-                })?;
+            let extension = Extensions::from_ident(ident).ok_or_else(|| {
+                self.error(ParseError::NoSuchExtension(
+                    from_utf8(ident).unwrap().to_owned(),
+                ))
+            })?;
 
             extensions |= extension;
 
@@ -226,7 +235,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn float<T>(&mut self) -> Result<T>
-        where T: FromStr
+    where
+        T: FromStr,
     {
         let num_bytes = self.next_bytes_contained_in(FLOAT_CHARS);
 
@@ -259,7 +269,10 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn skip_ws(&mut self) {
-        while self.peek().map(|c| WHITE_SPACE.contains(&c)).unwrap_or(false) {
+        while self.peek()
+            .map(|c| WHITE_SPACE.contains(&c))
+            .unwrap_or(false)
+        {
             let _ = self.advance_single();
         }
 
@@ -273,11 +286,15 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn peek_or_eof(&self) -> Result<u8> {
-        self.bytes.get(0).map(|b| *b).ok_or(self.error(ParseError::Eof))
+        self.bytes
+            .get(0)
+            .map(|b| *b)
+            .ok_or(self.error(ParseError::Eof))
     }
 
     pub fn signed_integer<T>(&mut self) -> Result<T>
-        where T: Neg<Output=T> + Num,
+    where
+        T: Neg<Output = T> + Num,
     {
         match self.peek_or_eof()? {
             b'+' => {
@@ -334,15 +351,17 @@ impl<'a> Bytes<'a> {
                 if *end_or_escape == b'"' {
                     let _ = self.advance(i + 1);
 
-                    break Ok(ParsedStr::Allocated(String::from_utf8(s)
-                        .map_err(|e| self.error(e.into()))?));
+                    let s = String::from_utf8(s).map_err(|e| self.error(e.into()))?;
+                    break Ok(ParsedStr::Allocated(s));
                 }
             }
         }
     }
 
     fn test_for(&self, s: &str) -> bool {
-        s.bytes().enumerate().all(|(i, b)| self.bytes.get(i).map(|t| *t == b).unwrap_or(false))
+        s.bytes()
+            .enumerate()
+            .all(|(i, b)| self.bytes.get(i).map(|t| *t == b).unwrap_or(false))
     }
 
     pub fn unsigned_integer<T: Num>(&mut self) -> Result<T> {
@@ -369,8 +388,10 @@ impl<'a> Bytes<'a> {
             return self.err(ParseError::ExpectedInteger);
         }
 
-        let res = Num::from_str(unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) }, base)
-            .map_err(|_| self.error(ParseError::ExpectedInteger));
+        let res = Num::from_str(
+            unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) },
+            base,
+        ).map_err(|_| self.error(ParseError::ExpectedInteger));
 
         let _ = self.advance(num_bytes);
 
@@ -381,7 +402,7 @@ impl<'a> Bytes<'a> {
         let mut n = 0;
         for _ in 0..4 {
             n = match self.eat_byte()? {
-                c @ b'0' ... b'9' => n * 16_u16 + ((c as u16) - (b'0' as u16)),
+                c @ b'0'...b'9' => n * 16_u16 + ((c as u16) - (b'0' as u16)),
                 b'a' | b'A' => n * 16_u16 + 10_u16,
                 b'b' | b'B' => n * 16_u16 + 11_u16,
                 b'c' | b'C' => n * 16_u16 + 12_u16,
@@ -410,11 +431,11 @@ impl<'a> Bytes<'a> {
             b't' => store.push(b'\t'),
             b'u' => {
                 let c: char = match self.decode_hex_escape()? {
-                    0xDC00 ... 0xDFFF => {
+                    0xDC00...0xDFFF => {
                         return self.err(ParseError::InvalidEscape);
                     }
 
-                    n1 @ 0xD800 ... 0xDBFF => {
+                    n1 @ 0xD800...0xDBFF => {
                         if self.eat_byte()? != b'\\' {
                             return self.err(ParseError::InvalidEscape);
                         }
@@ -439,14 +460,12 @@ impl<'a> Bytes<'a> {
                         }
                     }
 
-                    n => {
-                        match ::std::char::from_u32(n as u32) {
-                            Some(c) => c,
-                            None => {
-                                return self.err(ParseError::InvalidEscape);
-                            }
+                    n => match ::std::char::from_u32(n as u32) {
+                        Some(c) => c,
+                        None => {
+                            return self.err(ParseError::InvalidEscape);
                         }
-                    }
+                    },
                 };
 
                 let char_start = store.len();
