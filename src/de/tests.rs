@@ -68,7 +68,7 @@ fn test_array() {
     assert_eq!(Ok(empty_array), from_str("[]"));
 
     assert_eq!(Ok([2, 3, 4i32]), from_str("(2,3,4,)"));
-    assert_eq!(Ok(([2, 3, 4i32].to_vec())), from_str("[2,3,4,]"));
+    assert_eq!(Ok([2, 3, 4i32].to_vec()), from_str("[2,3,4,]"));
 }
 
 #[test]

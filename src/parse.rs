@@ -1,3 +1,4 @@
+use std::char::from_u32 as char_from_u32;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::ops::Neg;
 use std::result::Result as StdResult;
@@ -91,13 +92,8 @@ impl<'a> Bytes<'a> {
 
         let c = if c == b'\\' {
             let _ = self.advance(1);
-            let c = self.eat_byte()?;
 
-            if c != b'\\' && c != b'\'' {
-                return self.err(ParseError::InvalidEscape);
-            }
-
-            c as char
+            self.parse_escape()?
         } else {
             // Check where the end of the char (') is and try to
             // interpret the rest as UTF-8
@@ -209,6 +205,13 @@ impl<'a> Bytes<'a> {
                 col: self.column,
             },
         )
+    }
+
+    pub fn expect_byte(&mut self, byte: u8, error: ParseError) -> Result<()> {
+        self.eat_byte().and_then(|b| match b == byte {
+            true => Ok(()),
+            false => self.err(error),
+        })
     }
 
     /// Returns the extensions bit mask.
@@ -335,6 +338,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn string(&mut self) -> Result<ParsedStr> {
+        use std::iter::repeat;
+
         if !self.consume("\"") {
             return self.err(ParseError::ExpectedString);
         }
@@ -359,7 +364,15 @@ impl<'a> Bytes<'a> {
 
             loop {
                 let _ = self.advance(i + 1);
-                self.parse_str_escape(&mut s)?;
+                let character = self.parse_escape()?;
+                match character.len_utf8() {
+                    1 => s.push(character as u8),
+                    len => {
+                        let start = s.len();
+                        s.extend(repeat(0).take(len));
+                        character.encode_utf8(&mut s[start..]);
+                    }
+                }
 
                 let (new_i, end_or_escape) = self.bytes
                     .iter()
@@ -421,86 +434,75 @@ impl<'a> Bytes<'a> {
         res
     }
 
-    fn decode_hex_escape(&mut self) -> Result<u16> {
+    fn decode_ascii_escape(&mut self) -> Result<u8> {
         let mut n = 0;
-        for _ in 0..4 {
-            n = match self.eat_byte()? {
-                c @ b'0'...b'9' => n * 16_u16 + ((c as u16) - (b'0' as u16)),
-                b'a' | b'A' => n * 16_u16 + 10_u16,
-                b'b' | b'B' => n * 16_u16 + 11_u16,
-                b'c' | b'C' => n * 16_u16 + 12_u16,
-                b'd' | b'D' => n * 16_u16 + 13_u16,
-                b'e' | b'E' => n * 16_u16 + 14_u16,
-                b'f' | b'F' => n * 16_u16 + 15_u16,
-                _ => {
-                    return self.err(ParseError::InvalidEscape);
-                }
-            };
+        for _ in 0..2 {
+            n = n << 4;
+            let byte = self.eat_byte()?;
+            let decoded = self.decode_hex(byte)?;
+            n |= decoded;
         }
 
         Ok(n)
     }
 
-    fn parse_str_escape(&mut self, store: &mut Vec<u8>) -> Result<()> {
-        use std::iter::repeat;
+    fn decode_hex(&self, c: u8) -> Result<u8> {
+        match c {
+            c @ b'0'...b'9' => Ok(c - b'0'),
+            c @ b'a'...b'f' => Ok(10 + c - b'a'),
+            c @ b'A'...b'F' => Ok(10 + c - b'A'),
+            _ => self.err(ParseError::InvalidEscape("Non-hex digit found")),
+        }
+    }
 
-        match self.eat_byte()? {
-            b'"' => store.push(b'"'),
-            b'\\' => store.push(b'\\'),
-            b'b' => store.push(b'\x08'),
-            b'f' => store.push(b'\x0c'),
-            b'n' => store.push(b'\n'),
-            b'r' => store.push(b'\r'),
-            b't' => store.push(b'\t'),
+    fn parse_escape(&mut self) -> Result<char> {
+        let c = match self.eat_byte()? {
+            b'\'' => '\'',
+            b'"' => '"',
+            b'\\' => '\\',
+            b'n' => '\n',
+            b'r' => '\r',
+            b't' => '\t',
+            b'x' => self.decode_ascii_escape()? as char,
             b'u' => {
-                let c: char = match self.decode_hex_escape()? {
-                    0xDC00...0xDFFF => {
-                        return self.err(ParseError::InvalidEscape);
+                self.expect_byte(b'{', ParseError::InvalidEscape("Missing {"))?;
+
+                let mut bytes: u32 = 0;
+                let mut num_digits = 0;
+
+                while num_digits < 6 {
+                    let byte = self.peek_or_eof()?;
+
+                    if byte == b'}' {
+                        break;
+                    } else {
+                        self.advance_single()?;
                     }
 
-                    n1 @ 0xD800...0xDBFF => {
-                        if self.eat_byte()? != b'\\' {
-                            return self.err(ParseError::InvalidEscape);
-                        }
+                    let byte = self.decode_hex(byte)?;
+                    bytes = bytes << 4;
+                    bytes |= byte as u32;
 
-                        if self.eat_byte()? != b'u' {
-                            return self.err(ParseError::InvalidEscape);
-                        }
+                    num_digits += 1;
+                }
 
-                        let n2 = self.decode_hex_escape()?;
+                if num_digits == 0 {
+                    return self.err(ParseError::InvalidEscape(
+                        "Expected 1-6 digits, got 0 digits",
+                    ));
+                }
 
-                        if n2 < 0xDC00 || n2 > 0xDFFF {
-                            return self.err(ParseError::InvalidEscape);
-                        }
-
-                        let n = (((n1 - 0xD800) as u32) << 10 | (n2 - 0xDC00) as u32) + 0x1_0000;
-
-                        match ::std::char::from_u32(n as u32) {
-                            Some(c) => c,
-                            None => {
-                                return self.err(ParseError::InvalidEscape);
-                            }
-                        }
-                    }
-
-                    n => match ::std::char::from_u32(n as u32) {
-                        Some(c) => c,
-                        None => {
-                            return self.err(ParseError::InvalidEscape);
-                        }
-                    },
-                };
-
-                let char_start = store.len();
-                store.extend(repeat(0).take(c.len_utf8()));
-                c.encode_utf8(&mut store[char_start..]);
+                self.expect_byte(b'}', ParseError::InvalidEscape("No } at the end"))?;
+                let character = char_from_u32(bytes)
+                    .ok_or_else(|| self.error(ParseError::InvalidEscape("Not a valid char")))?;
+                character
             }
             _ => {
-                return self.err(ParseError::InvalidEscape);
+                return self.err(ParseError::InvalidEscape("Unknown escape character"));
             }
-        }
+        };
 
-        Ok(())
+        Ok(c)
     }
 
     fn skip_comment(&mut self) -> bool {
@@ -568,5 +570,16 @@ pub struct Position {
 impl Display for Position {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(f, "{}:{}", self.line, self.col)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decode_x10() {
+        let mut bytes = Bytes::new(b"10").unwrap();
+        assert_eq!(bytes.decode_ascii_escape(), Ok(0x10));
     }
 }

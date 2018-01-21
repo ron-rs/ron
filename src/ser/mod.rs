@@ -156,6 +156,12 @@ impl Serializer {
                 .extend((0..pretty.indent).map(|_| config.indentor.as_str()));
         }
     }
+
+    fn serialize_escaped_str(&mut self, value: &str) {
+        self.output += "\"";
+        self.output.extend(value.chars().flat_map(|c| c.escape_debug()));
+        self.output += "\"";
+    }
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
@@ -231,14 +237,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.output += "\"";
-        for char in v.chars() {
-            if char == '\\' || char == '"' {
-                self.output.push('\\');
-            }
-            self.output.push(char);
-        }
-        self.output += "\"";
+        self.serialize_escaped_str(v);
+
         Ok(())
     }
 
