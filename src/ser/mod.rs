@@ -211,7 +211,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
-        self.serialize_f64(v as f64)
+        self.output += &v.to_string();
+        Ok(())
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
