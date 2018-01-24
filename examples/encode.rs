@@ -15,6 +15,7 @@ struct Config {
     map: HashMap<u8, char>,
     nested: Nested,
     var: Variant,
+    array: Vec<()>,
 }
 
 #[derive(Serialize)]
@@ -46,6 +47,7 @@ fn main() {
             b: 'b',
         },
         var: Variant::A(!0, ""),
+        array: vec![(); 3],
     };
 
     let pretty = PrettyConfig {
