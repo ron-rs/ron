@@ -51,3 +51,30 @@ fn roundtrip() {
 
     assert_eq!(Ok(value), deserial);
 }
+
+#[test]
+fn roundtrip_pretty() {
+    let value = Struct {
+        tuple: ((), NewType(0.5), TupleStruct(UnitStruct, -5)),
+        vec: vec![None, Some(UnitStruct)],
+        map: vec![
+            (Key(5), Enum::Unit),
+            (Key(6), Enum::Bool(false)),
+            (Key(7), Enum::Bool(true)),
+            (Key(9), Enum::Chars('x', "".to_string())),
+        ].into_iter()
+            .collect(),
+    };
+
+    let pretty = ron::ser::PrettyConfig {
+        enumerate_arrays: true,
+        .. Default::default()
+    };
+    let serial = ron::ser::to_string_pretty(&value, pretty).unwrap();
+
+    println!("Serialized: {}", serial);
+
+    let deserial = ron::de::from_str(&serial);
+
+    assert_eq!(Ok(value), deserial);
+}
