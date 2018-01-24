@@ -1,12 +1,9 @@
 use std::error::Error as StdError;
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::fmt::{Display, Formatter, Write, Result as FmtResult};
 use std::result::Result as StdResult;
 
 use serde::ser::{self, Serialize};
 
-#[deprecated(since = "0.1.4",
-             note = "please use `to_string_pretty` with `PrettyConfig::default()` instead")]
-pub mod pretty;
 mod value;
 
 /// Serializes `value` and returns it as string.
@@ -33,7 +30,7 @@ where
 {
     let mut s = Serializer {
         output: String::new(),
-        pretty: Some((config, Pretty { indent: 0 })),
+        pretty: Some((config, Pretty { indent: 0, sequence_index: 0 })),
         struct_names: false,
     };
     value.serialize(&mut s)?;
@@ -75,6 +72,7 @@ impl StdError for Error {
 /// Pretty serializer state
 struct Pretty {
     indent: usize,
+    sequence_index: usize,
 }
 
 /// Pretty serializer configuration
@@ -86,6 +84,8 @@ pub struct PrettyConfig {
     pub indentor: String,
     /// Separate tuple members with indentation
     pub separate_tuple_members: bool,
+    /// Enumerate array items in comments
+    pub enumerate_arrays: bool,
 }
 
 impl Default for PrettyConfig {
@@ -97,6 +97,7 @@ impl Default for PrettyConfig {
             new_line: "\r\n".to_string(),
             indentor: "    ".to_string(),
             separate_tuple_members: false,
+            enumerate_arrays: false,
         }
     }
 }
@@ -118,7 +119,7 @@ impl Serializer {
     pub fn new(config: Option<PrettyConfig>, struct_names: bool) -> Self {
         Serializer {
             output: String::new(),
-            pretty: config.map(|conf| (conf, Pretty { indent: 0 })),
+            pretty: config.map(|conf| (conf, Pretty { indent: 0, sequence_index: 0 })),
             struct_names,
         }
     }
@@ -244,6 +245,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
         use serde::ser::SerializeSeq;
+        //TODO: shorter version? e.g. base64 encoding in a single line
         let mut seq = self.serialize_seq(Some(v.len()))?;
         for byte in v {
             seq.serialize_element(byte)?;
@@ -327,6 +329,10 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.output += "[";
 
         self.start_indent();
+
+        if let Some((_, ref mut pretty)) = self.pretty {
+            pretty.sequence_index = 0;
+        }
 
         Ok(self)
     }
@@ -418,8 +424,16 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if let Some((ref config, _)) = self.pretty {
+        if let Some((ref config, ref mut pretty)) = self.pretty {
+            if config.enumerate_arrays {
+                assert!(config.new_line.contains('\n'));
+                //TODO: when /**/ comments are supported, prepend the index
+                // to an element instead of appending it.
+                // Note: this doesn't if `new_line` is not an actual new line.
+                write!(self.output, "// [{}]", pretty.sequence_index).unwrap();
+            }
             self.output += &config.new_line;
+            pretty.sequence_index += 1;
         }
 
         Ok(())
