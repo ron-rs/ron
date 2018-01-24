@@ -52,7 +52,8 @@ fn main() {
 
     let pretty = PrettyConfig {
         separate_tuple_members: true,
-        .. PrettyConfig::default()
+        enumerate_arrays: true,
+        ..PrettyConfig::default()
     };
     let s = to_string_pretty(&data, pretty).expect("Serialization failed");
 

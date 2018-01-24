@@ -30,7 +30,7 @@ pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 {
     let mut s = Serializer {
         output: String::new(),
-        pretty: Some((config, Pretty { indent: 0, sequence_index: 0 })),
+        pretty: Some((config, Pretty { indent: 0, sequence_index: Vec::new() })),
         struct_names: false,
     };
     value.serialize(&mut s)?;
@@ -72,7 +72,7 @@ impl StdError for Error {
 /// Pretty serializer state
 struct Pretty {
     indent: usize,
-    sequence_index: usize,
+    sequence_index: Vec<usize>,
 }
 
 /// Pretty serializer configuration
@@ -119,7 +119,7 @@ impl Serializer {
     pub fn new(config: Option<PrettyConfig>, struct_names: bool) -> Self {
         Serializer {
             output: String::new(),
-            pretty: config.map(|conf| (conf, Pretty { indent: 0, sequence_index: 0 })),
+            pretty: config.map(|conf| (conf, Pretty { indent: 0, sequence_index: Vec::new() })),
             struct_names,
         }
     }
@@ -329,7 +329,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         self.start_indent();
 
         if let Some((_, ref mut pretty)) = self.pretty {
-            pretty.sequence_index = 0;
+            pretty.sequence_index.push(0);
         }
 
         Ok(self)
@@ -428,13 +428,13 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             if config.enumerate_arrays {
                 assert!(config.new_line.contains('\n'));
+                let index = pretty.sequence_index.last_mut().unwrap();
                 //TODO: when /**/ comments are supported, prepend the index
                 // to an element instead of appending it.
-                // Note: this doesn't if `new_line` is not an actual new line.
-                write!(self.output, "// [{}]", pretty.sequence_index).unwrap();
+                write!(self.output, "// [{}]", index).unwrap();
+                *index += 1;
             }
             self.output += &config.new_line;
-            pretty.sequence_index += 1;
         }
 
         Ok(())
@@ -442,6 +442,10 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
 
     fn end(self) -> Result<()> {
         self.end_indent();
+
+        if let Some((_, ref mut pretty)) = self.pretty {
+            pretty.sequence_index.pop();
+        }
 
         self.output += "]";
         Ok(())
