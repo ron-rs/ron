@@ -15,6 +15,7 @@ mod error;
 mod id;
 #[cfg(test)]
 mod tests;
+#[cfg(feature = "value")]
 mod value;
 
 /// The RON deserializer.

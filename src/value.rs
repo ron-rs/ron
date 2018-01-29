@@ -4,8 +4,10 @@ use std::cmp::{Eq, Ordering};
 use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
+#[cfg(feature = "deserialize")]
 use serde::de::{DeserializeSeed, Deserializer, Error as SerdeErr, MapAccess, SeqAccess, Visitor};
 
+#[cfg(feature = "deserialize")]
 use de::{Error as RonError, Result};
 
 /// A wrapper for `f64` which guarantees that the inner value
@@ -58,6 +60,7 @@ pub enum Value {
 
 /// Deserializer implementation for RON `Value`.
 /// This does not support enums (because `Value` doesn't store them).
+#[cfg(feature = "deserialize")]
 impl<'de> Deserializer<'de> for Value {
     type Error = RonError;
 
@@ -154,11 +157,13 @@ impl<'de> Deserializer<'de> for Value {
     }
 }
 
+#[cfg(feature = "deserialize")]
 struct Map {
     keys: Vec<Value>,
     values: Vec<Value>,
 }
 
+#[cfg(feature = "deserialize")]
 impl<'de> MapAccess<'de> for Map {
     type Error = RonError;
 
@@ -184,10 +189,12 @@ impl<'de> MapAccess<'de> for Map {
     }
 }
 
+#[cfg(feature = "deserialize")]
 struct Seq {
     seq: Vec<Value>,
 }
 
+#[cfg(feature = "deserialize")]
 impl<'de> SeqAccess<'de> for Seq {
     type Error = RonError;
 
@@ -202,7 +209,7 @@ impl<'de> SeqAccess<'de> for Seq {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "deserialize"))]
 mod tests {
     use super::*;
     use serde::Deserialize;

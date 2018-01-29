@@ -3,7 +3,21 @@ rust:
   - stable
   - nightly
 branches:
-  only:
-    - staging
-    - trying
-    - master
+  except:
+    - staging.tmp
+matrix:
+  fast_finish: true
+
+env:
+  - FEATURES=
+  - FEATURES=value
+  - FEATURES=serialize
+  - FEATURES=deserialize
+  - FEATURES=serialize deserialize
+  - FEATURES=value deserialize
+  - FEATURES=value serialize
+  - FEATURES=value serialize deserialize
+
+script:
+  - cargo check --features "${FEATURES}"
+  - cargo test --features "${FEATURES}"
