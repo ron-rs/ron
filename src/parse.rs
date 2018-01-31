@@ -20,6 +20,7 @@ pub struct Bytes<'a> {
     line: usize,
 }
 
+#[cfg(feature = "deserialize")]
 impl<'a> Bytes<'a> {
     pub fn new(bytes: &'a [u8]) -> Result<Self> {
         let mut b = Bytes {

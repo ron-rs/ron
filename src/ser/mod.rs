@@ -4,6 +4,7 @@ use std::result::Result as StdResult;
 
 use serde::ser::{self, Serialize};
 
+#[cfg(feature = "value")]
 mod value;
 
 /// Serializes `value` and returns it as string.

@@ -62,8 +62,12 @@ extern crate bitflags;
 #[macro_use]
 extern crate serde;
 
+#[cfg(feature = "deserialize")]
 pub mod de;
+#[cfg(feature = "serialize")]
 pub mod ser;
+#[cfg(feature = "value")]
 pub mod value;
 
+#[cfg(feature = "deserialize")]
 mod parse;

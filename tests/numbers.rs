@@ -1,3 +1,5 @@
+#![cfg(feature = "deserialize")]
+
 extern crate ron;
 
 #[test]

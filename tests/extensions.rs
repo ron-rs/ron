@@ -1,3 +1,5 @@
+#![cfg(feature = "deserailize")]
+
 extern crate ron;
 #[macro_use]
 extern crate serde;
