@@ -4,7 +4,6 @@ extern crate serde;
 
 use std::collections::HashMap;
 use std::default::Default;
-use std::fs::File;
 
 use ron::ser::{to_string_pretty, PrettyConfig};
 
@@ -33,10 +32,7 @@ struct Nested {
 }
 
 fn main() {
-    use std::io::Write;
     use std::iter::FromIterator;
-
-    let mut file = File::create("config.ron").expect("Failed to create file");
 
     let data = Config {
         float: (2.18, -1.1),
@@ -51,12 +47,12 @@ fn main() {
     };
 
     let pretty = PrettyConfig {
+        depth_limit: 2,
         separate_tuple_members: true,
         enumerate_arrays: true,
         ..PrettyConfig::default()
     };
     let s = to_string_pretty(&data, pretty).expect("Serialization failed");
 
-    file.write(s.as_bytes())
-        .expect("Failed to write data to file");
+    println!("{}", s);
 }
