@@ -173,6 +173,31 @@ impl Serializer {
             pretty.indent -= 1;
         }
     }
+
+    /// Use to follow up a map/struct field.
+    fn next_field(&mut self) {
+        self.output += ",";
+
+        if let Some((ref config, ref pretty)) = self.pretty {
+            self.output += if pretty.indent < config.depth_limit {
+                &config.new_line
+            } else {
+                " "
+            };
+        }
+    }
+
+    /// Trim the formatting from the last field.
+    fn trim_field(&mut self) {
+        if !self.is_pretty() {
+            if self.pretty.is_some() {
+                // trim the space
+                self.output.pop();
+            }
+            // trim the comma
+            self.output.pop();
+        }
+    }
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
@@ -458,6 +483,11 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
+        if !self.is_pretty() {
+            // trim the comma
+            self.output.pop();
+        }
+
         self.end_indent();
 
         if let Some((_, ref mut pretty)) = self.pretty {
@@ -482,16 +512,16 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
         }
 
         value.serialize(&mut **self)?;
+
+        //TODO: extend `next_field` to support this?
         self.output += ",";
 
         if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
-                self.output += if self.separate_tuple_members() {
-                    &config.new_line
-                } else {
-                    " "
-                };
-            }
+            self.output += if pretty.indent < config.depth_limit && config.separate_tuple_members {
+                &config.new_line
+            } else {
+                " "
+            };
         }
 
         Ok(())
@@ -499,9 +529,18 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
 
     fn end(self) -> Result<()> {
         if self.separate_tuple_members() {
+            if !self.is_pretty() {
+                // trim the space & comma
+                self.output.pop();
+                self.output.pop();
+            }
             self.end_indent();
-        } else if self.is_pretty() {
-            self.output.pop();
+        } else {
+            if self.is_pretty() {
+                // trim the space
+                self.output.pop();
+            }
+            // trim the comma
             self.output.pop();
         }
 
@@ -563,23 +602,18 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     {
         self.output += ":";
 
-        if self.is_pretty() {
+        if self.pretty.is_some() {
             self.output += " ";
         }
 
         value.serialize(&mut **self)?;
-        self.output += ",";
 
-        if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
-                self.output += &config.new_line;
-            }
-        }
-
+        self.next_field();
         Ok(())
     }
 
     fn end(self) -> Result<()> {
+        self.trim_field();
         self.end_indent();
 
         self.output += "}";
@@ -600,23 +634,18 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         self.output += key;
         self.output += ":";
 
-        if self.is_pretty() {
+        if self.pretty.is_some() {
             self.output += " ";
         }
 
         value.serialize(&mut **self)?;
-        self.output += ",";
 
-        if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
-                self.output += &config.new_line;
-            }
-        }
-
+        self.next_field();
         Ok(())
     }
 
     fn end(self) -> Result<()> {
+        self.trim_field();
         self.end_indent();
 
         self.output += ")";
@@ -674,7 +703,7 @@ mod tests {
     fn test_struct() {
         let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
-        assert_eq!(to_string(&my_struct).unwrap(), "(x:4,y:7,)");
+        assert_eq!(to_string(&my_struct).unwrap(), "(x:4,y:7)");
 
         #[derive(Serialize)]
         struct NewType(i32);
@@ -684,7 +713,7 @@ mod tests {
         #[derive(Serialize)]
         struct TupleStruct(f32, f32);
 
-        assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "(2,5,)");
+        assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "(2,5)");
     }
 
     #[test]
@@ -697,8 +726,8 @@ mod tests {
     fn test_enum() {
         assert_eq!(to_string(&MyEnum::A).unwrap(), "A");
         assert_eq!(to_string(&MyEnum::B(true)).unwrap(), "B(true)");
-        assert_eq!(to_string(&MyEnum::C(true, 3.5)).unwrap(), "C(true,3.5,)");
-        assert_eq!(to_string(&MyEnum::D { a: 2, b: 3 }).unwrap(), "D(a:2,b:3,)");
+        assert_eq!(to_string(&MyEnum::C(true, 3.5)).unwrap(), "C(true,3.5)");
+        assert_eq!(to_string(&MyEnum::D { a: 2, b: 3 }).unwrap(), "D(a:2,b:3)");
     }
 
     #[test]
@@ -708,8 +737,8 @@ mod tests {
         let empty_ref: &[i32] = &empty;
         assert_eq!(to_string(&empty_ref).unwrap(), "[]");
 
-        assert_eq!(to_string(&[2, 3, 4i32]).unwrap(), "(2,3,4,)");
-        assert_eq!(to_string(&(&[2, 3, 4i32] as &[i32])).unwrap(), "[2,3,4,]");
+        assert_eq!(to_string(&[2, 3, 4i32]).unwrap(), "(2,3,4)");
+        assert_eq!(to_string(&(&[2, 3, 4i32] as &[i32])).unwrap(), "[2,3,4]");
     }
 
     #[test]
