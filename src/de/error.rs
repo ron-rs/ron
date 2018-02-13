@@ -44,7 +44,7 @@ pub enum ParseError {
     ExpectedStringEnd,
     ExpectedIdentifier,
 
-    InvalidEscape,
+    InvalidEscape(&'static str),
 
     NoSuchExtension(String),
 
@@ -103,7 +103,7 @@ impl StdError for Error {
                 ParseError::ExpectedString => "Expected string",
                 ParseError::ExpectedIdentifier => "Expected identifier",
 
-                ParseError::InvalidEscape => "Invalid escape sequence",
+                ParseError::InvalidEscape(_) => "Invalid escape sequence",
 
                 ParseError::Utf8Error(ref e) => e.description(),
                 ParseError::TrailingCharacters => "Non-whitespace trailing characters",
