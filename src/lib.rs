@@ -67,3 +67,8 @@ pub mod ser;
 pub mod value;
 
 mod parse;
+
+// Export the following so dependent crates would be able to use this in
+// type constraints without depending directly on ron's version of serde.
+
+pub use serde::de::DeserializeOwned;
