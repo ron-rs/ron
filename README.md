@@ -87,6 +87,7 @@ Here are the general rules to parse the heterogeneous structures:
 
 There is a very basic, work in progress specification available on
 [the wiki page](https://github.com/ron-rs/ron/wiki/Specification).
+A more formal and complete grammar is available [here](docs/grammar.md).
 
 ### Appendix
 
