@@ -532,15 +532,14 @@ impl<'a> Bytes<'a> {
 
                         let _ = self.advance(bytes);
 
-                        println!("{}: {}", level, self.bytes.iter().map(|&b| b as char).take(2).collect::<String>());
-
                         // check whether / or * and take action
                         if self.consume("/*") {
                             level += 1;
                         } else if self.consume("*/") {
                             level -= 1;
                         } else {
-                            self.eat_byte()?;
+                            self.eat_byte()
+                                .map_err(|_| self.error(ParseError::UnclosedBlockComment))?;
                         }
                     }
                 }

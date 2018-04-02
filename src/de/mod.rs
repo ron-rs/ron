@@ -1,6 +1,7 @@
 /// Deserialization module.
 ///
 pub use self::error::{Error, ParseError, Result};
+pub use parse::Position;
 
 use std::borrow::Cow;
 use std::io;
