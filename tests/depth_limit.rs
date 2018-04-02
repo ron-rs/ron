@@ -55,7 +55,7 @@ fn depth_limit() {
         depth_limit: 2,
         separate_tuple_members: true,
         enumerate_arrays: true,
-        .. Default::default()
+        ..Default::default()
     };
     let s = ron::ser::to_string_pretty(&data, pretty);
 
