@@ -61,7 +61,10 @@ fn test_chars() {
     assert_eq!(to_string(&'ö').unwrap(), "'ö'");
     assert_eq!(to_string(&'ü').unwrap(), "'ü'");
     assert_eq!(to_string(&'\u{715}').unwrap(), "'\u{715}'");
-    assert_eq!(from_str::<char>("'\u{715}'").unwrap(), from_str("'\\u{715}'").unwrap());
+    assert_eq!(
+        from_str::<char>("'\u{715}'").unwrap(),
+        from_str("'\\u{715}'").unwrap()
+    );
 }
 
 #[test]

@@ -1,6 +1,7 @@
 /// Deserialization module.
 ///
 pub use self::error::{Error, ParseError, Result};
+pub use parse::Position;
 
 use std::borrow::Cow;
 use std::io;
@@ -81,7 +82,7 @@ impl<'de> Deserializer<'de> {
     /// Check if the remaining bytes are whitespace only,
     /// otherwise return an error.
     pub fn end(&mut self) -> Result<()> {
-        self.bytes.skip_ws();
+        self.bytes.skip_ws()?;
 
         if self.bytes.bytes().is_empty() {
             Ok(())
@@ -111,7 +112,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
 
         if self.bytes.identifier().is_ok() {
-            self.bytes.skip_ws();
+            self.bytes.skip_ws()?;
 
             return self.deserialize_struct("", &[], visitor);
         }
@@ -255,14 +256,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 visitor.visit_some(&mut *self)
             } else {
                 if self.bytes.consume("Some") && {
-                    self.bytes.skip_ws();
+                    self.bytes.skip_ws()?;
                     self.bytes.consume("(")
                 } {
-                    self.bytes.skip_ws();
+                    self.bytes.skip_ws()?;
 
                     let v = visitor.visit_some(&mut *self)?;
 
-                    self.bytes.skip_ws();
+                    self.bytes.skip_ws()?;
 
                     if self.bytes.consume(")") {
                         Ok(v)
@@ -309,11 +310,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         self.bytes.consume(name);
 
-        self.bytes.skip_ws();
+        self.bytes.skip_ws()?;
 
         if self.bytes.consume("(") {
             let value = visitor.visit_newtype_struct(&mut *self)?;
-            self.bytes.comma();
+            self.bytes.comma()?;
 
             if self.bytes.consume(")") {
                 Ok(value)
@@ -331,7 +332,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if self.bytes.consume("[") {
             let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
-            self.bytes.comma();
+            self.bytes.comma()?;
 
             if self.bytes.consume("]") {
                 Ok(value)
@@ -355,7 +356,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if self.bytes.consume("(") {
             let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
-            self.bytes.comma();
+            self.bytes.comma()?;
 
             if self.bytes.consume(")") {
                 Ok(value)
@@ -386,7 +387,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if self.bytes.consume("{") {
             let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
-            self.bytes.comma();
+            self.bytes.comma()?;
 
             if self.bytes.consume("}") {
                 Ok(value)
@@ -409,11 +410,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         self.bytes.consume(name);
 
-        self.bytes.skip_ws();
+        self.bytes.skip_ws()?;
 
         if self.bytes.consume("(") {
             let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
-            self.bytes.comma();
+            self.bytes.comma()?;
 
             if self.bytes.consume(")") {
                 Ok(value)
@@ -472,7 +473,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
     }
 
     fn has_element(&mut self) -> Result<bool> {
-        self.de.bytes.skip_ws();
+        self.de.bytes.skip_ws()?;
 
         Ok(self.had_comma && self.de.bytes.peek_or_eof()? != self.terminator)
     }
@@ -488,7 +489,7 @@ impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
         if self.has_element()? {
             let res = seed.deserialize(&mut *self.de)?;
 
-            self.had_comma = self.de.bytes.comma();
+            self.had_comma = self.de.bytes.comma()?;
 
             Ok(Some(res))
         } else {
@@ -520,14 +521,14 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     where
         V: DeserializeSeed<'de>,
     {
-        self.de.bytes.skip_ws();
+        self.de.bytes.skip_ws()?;
 
         if self.de.bytes.consume(":") {
-            self.de.bytes.skip_ws();
+            self.de.bytes.skip_ws()?;
 
             let res = seed.deserialize(&mut *self.de)?;
 
-            self.had_comma = self.de.bytes.comma();
+            self.had_comma = self.de.bytes.comma()?;
 
             Ok(res)
         } else {
@@ -571,12 +572,12 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     where
         T: DeserializeSeed<'de>,
     {
-        self.de.bytes.skip_ws();
+        self.de.bytes.skip_ws()?;
 
         if self.de.bytes.consume("(") {
             let val = seed.deserialize(&mut *self.de)?;
 
-            self.de.bytes.comma();
+            self.de.bytes.comma()?;
 
             if self.de.bytes.consume(")") {
                 Ok(val)
@@ -592,7 +593,7 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     where
         V: Visitor<'de>,
     {
-        self.de.bytes.skip_ws();
+        self.de.bytes.skip_ws()?;
 
         self.de.deserialize_tuple(len, visitor)
     }
@@ -601,7 +602,7 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     where
         V: Visitor<'de>,
     {
-        self.de.bytes.skip_ws();
+        self.de.bytes.skip_ws()?;
 
         self.de.deserialize_struct("", fields, visitor)
     }

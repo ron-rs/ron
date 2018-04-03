@@ -30,7 +30,7 @@ impl<'a> Bytes<'a> {
             line: 1,
         };
 
-        b.skip_ws();
+        b.skip_ws()?;
         // Loop over all extensions attributes
         loop {
             let attribute = b.extensions()?;
@@ -40,7 +40,7 @@ impl<'a> Bytes<'a> {
             }
 
             b.exts |= attribute;
-            b.skip_ws();
+            b.skip_ws()?;
         }
 
         Ok(b)
@@ -125,15 +125,15 @@ impl<'a> Bytes<'a> {
         Ok(c)
     }
 
-    pub fn comma(&mut self) -> bool {
-        self.skip_ws();
+    pub fn comma(&mut self) -> Result<bool> {
+        self.skip_ws()?;
 
         if self.consume(",") {
-            self.skip_ws();
+            self.skip_ws()?;
 
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 
@@ -172,18 +172,20 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    fn consume_all(&mut self, all: &[&str]) -> bool {
+    fn consume_all(&mut self, all: &[&str]) -> Result<bool> {
         all.iter()
             .map(|elem| {
                 if self.consume(elem) {
-                    self.skip_ws();
+                    self.skip_ws()?;
 
-                    true
+                    Ok(true)
                 } else {
-                    false
+                    Ok(false)
                 }
             })
-            .all(|b| b)
+            .fold(Ok(true), |acc, x| {
+                acc.and_then(|val| x.map(|x| x && val))
+            })
     }
 
     pub fn eat_byte(&mut self) -> Result<u8> {
@@ -220,11 +222,11 @@ impl<'a> Bytes<'a> {
             return Ok(Extensions::empty());
         }
 
-        if !self.consume_all(&["#", "!", "[", "enable", "("]) {
+        if !self.consume_all(&["#", "!", "[", "enable", "("])? {
             return self.err(ParseError::ExpectedAttribute);
         }
 
-        self.skip_ws();
+        self.skip_ws()?;
         let mut extensions = Extensions::empty();
 
         loop {
@@ -237,7 +239,7 @@ impl<'a> Bytes<'a> {
 
             extensions |= extension;
 
-            let comma = self.comma();
+            let comma = self.comma()?;
 
             // If we have no comma but another item, return an error
             if !comma && self.check_ident_char(0) {
@@ -252,9 +254,9 @@ impl<'a> Bytes<'a> {
             }
         }
 
-        self.skip_ws();
+        self.skip_ws()?;
 
-        match self.consume_all(&[")", "]"]) {
+        match self.consume_all(&[")", "]"])? {
             true => Ok(extensions),
             false => Err(self.error(ParseError::ExpectedAttributeEnd)),
         }
@@ -294,7 +296,7 @@ impl<'a> Bytes<'a> {
             .fold(0, |acc, _| acc + 1)
     }
 
-    pub fn skip_ws(&mut self) {
+    pub fn skip_ws(&mut self) -> Result<()> {
         while self.peek()
             .map(|c| WHITE_SPACE.contains(&c))
             .unwrap_or(false)
@@ -302,9 +304,11 @@ impl<'a> Bytes<'a> {
             let _ = self.advance_single();
         }
 
-        if self.skip_comment() {
-            self.skip_ws();
+        if self.skip_comment()? {
+            self.skip_ws()?;
         }
+
+        Ok(())
     }
 
     pub fn peek(&self) -> Option<u8> {
@@ -505,15 +509,46 @@ impl<'a> Bytes<'a> {
         Ok(c)
     }
 
-    fn skip_comment(&mut self) -> bool {
-        if self.consume("//") {
-            let bytes = self.bytes.iter().take_while(|&&b| b != b'\n').count();
+    fn skip_comment(&mut self) -> Result<bool> {
+        if self.consume("/") {
+            match self.eat_byte()? {
+                b'/' => {
+                    let bytes = self.bytes.iter().take_while(|&&b| b != b'\n').count();
 
-            let _ = self.advance(bytes);
+                    let _ = self.advance(bytes);
+                }
+                b'*' => {
+                    let mut level = 1;
 
-            true
+                    while level > 0 {
+                        let bytes = self.bytes
+                            .iter()
+                            .take_while(|&&b| b != b'/' && b != b'*')
+                            .count();
+
+                        if self.bytes.len() == 0 {
+                            return self.err(ParseError::UnclosedBlockComment);
+                        }
+
+                        let _ = self.advance(bytes);
+
+                        // check whether / or * and take action
+                        if self.consume("/*") {
+                            level += 1;
+                        } else if self.consume("*/") {
+                            level -= 1;
+                        } else {
+                            self.eat_byte()
+                                .map_err(|_| self.error(ParseError::UnclosedBlockComment))?;
+                        }
+                    }
+                }
+                b => return self.err(ParseError::UnexpectedByte(b as char)),
+            }
+
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 }

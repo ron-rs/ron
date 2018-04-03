@@ -69,7 +69,7 @@ fn roundtrip_pretty() {
 
     let pretty = ron::ser::PrettyConfig {
         enumerate_arrays: true,
-        .. Default::default()
+        ..Default::default()
     };
     let serial = ron::ser::to_string_pretty(&value, pretty).unwrap();
 

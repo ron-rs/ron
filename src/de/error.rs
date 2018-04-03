@@ -48,6 +48,7 @@ pub enum ParseError {
 
     NoSuchExtension(String),
 
+    UnclosedBlockComment,
     UnexpectedByte(char),
 
     Utf8Error(Utf8Error),
@@ -106,6 +107,8 @@ impl StdError for Error {
                 ParseError::InvalidEscape(_) => "Invalid escape sequence",
 
                 ParseError::Utf8Error(ref e) => e.description(),
+                ParseError::UnclosedBlockComment => "Unclosed block comment",
+                ParseError::UnexpectedByte(_) => "Unexpected byte",
                 ParseError::TrailingCharacters => "Non-whitespace trailing characters",
 
                 _ => unimplemented!(),
