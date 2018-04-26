@@ -39,7 +39,11 @@ pub struct ImGuiStyleSave {
     pub anti_aliased_shapes: bool,
     pub curve_tessellation_tol: f32,
     pub colors: ImColorsSave,
+    pub new_type: NewType,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct NewType(i32);
 
 const CONFIG: &str = "(
     alpha: 1.0,
@@ -66,6 +70,7 @@ const CONFIG: &str = "(
     anti_aliased_shapes: true,
     curve_tessellation_tol: 1.25,
     colors: (text: 4),
+    new_type: NewType(     1  ),
 
     ignored_field: \"Totally ignored, not causing a panic. Hopefully.\",
 )";

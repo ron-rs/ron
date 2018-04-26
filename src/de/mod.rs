@@ -313,6 +313,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.bytes.skip_ws()?;
 
         if self.bytes.consume("(") {
+            self.bytes.skip_ws()?;
             let value = visitor.visit_newtype_struct(&mut *self)?;
             self.bytes.comma()?;
 
