@@ -556,6 +556,8 @@ impl<'de, 'a> de::EnumAccess<'de> for Enum<'a, 'de> {
     where
         V: DeserializeSeed<'de>,
     {
+        self.de.bytes.skip_ws()?;
+
         let value = seed.deserialize(&mut *self.de)?;
 
         Ok((value, self))
