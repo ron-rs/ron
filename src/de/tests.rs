@@ -258,3 +258,8 @@ fn implicit_some() {
     // Not concise
     assert_eq!(de::<Option<Option<char>>>("None"), None);
 }
+
+#[test]
+fn ws_tuple_newtype_variant() {
+    assert_eq!(Ok(MyEnum::B(true)), from_str("B  ( \n true \n ) "));
+}
