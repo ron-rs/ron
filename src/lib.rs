@@ -59,6 +59,8 @@ Serializing / Deserializing is as simple as calling `to_string` / `from_str`.
 
 #![deny(unused_must_use)]
 
+extern crate base64;
+
 #[macro_use]
 extern crate bitflags;
 #[macro_use]

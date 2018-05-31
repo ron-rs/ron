@@ -2,6 +2,8 @@ use std::error::Error as StdError;
 use std::fmt::{Display, Formatter, Write, Result as FmtResult};
 use std::result::Result as StdResult;
 
+use base64;
+
 use serde::ser::{self, Serialize};
 
 mod value;
@@ -260,13 +262,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        use serde::ser::SerializeSeq;
-        //TODO: shorter version? e.g. base64 encoding in a single line
-        let mut seq = self.serialize_seq(Some(v.len()))?;
-        for byte in v {
-            seq.serialize_element(byte)?;
-        }
-        seq.end()
+        self.serialize_str(base64::encode(v).as_str())
     }
 
     fn serialize_none(self) -> Result<()> {
@@ -740,5 +736,23 @@ mod tests {
     #[test]
     fn test_escape() {
         assert_eq!(to_string(&r#""Quoted""#).unwrap(), r#""\"Quoted\"""#);
+    }
+
+    #[test]
+    fn test_byte_stream() {
+        extern crate serde_bytes;
+
+        let small: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+        assert_eq!(to_string(&small).unwrap(), "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,)");
+
+        let large = vec![255u8; 64];
+        let large = serde_bytes::Bytes::new(&large);
+        assert_eq!(
+            to_string(&large).unwrap(),
+            concat!(
+                "\"/////////////////////////////////////////",
+                "////////////////////////////////////////////w==\""
+            )
+        );
     }
 }

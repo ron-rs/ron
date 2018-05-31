@@ -1,3 +1,5 @@
+extern crate serde_bytes;
+
 use super::*;
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -18,6 +20,14 @@ enum MyEnum {
     B(bool),
     C(bool, f32),
     D { a: i32, b: i32 },
+}
+
+
+#[derive(Debug, Deserialize, PartialEq)]
+struct BytesStruct {
+    small: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    large: Vec<u8>,
 }
 
 #[test]
@@ -273,4 +283,12 @@ fn implicit_some() {
 #[test]
 fn ws_tuple_newtype_variant() {
     assert_eq!(Ok(MyEnum::B(true)), from_str("B  ( \n true \n ) "));
+}
+
+#[test]
+fn test_byte_stream() {
+    assert_eq!(
+        Ok(BytesStruct{ small: vec![1, 2], large: vec![1, 2, 3, 4] }),
+        from_str("BytesStruct( small:[1, 2], large:\"AQIDBA==\" )"),
+    );
 }

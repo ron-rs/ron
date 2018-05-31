@@ -7,6 +7,8 @@ use std::borrow::Cow;
 use std::io;
 use std::str;
 
+use base64;
+
 use serde::de::{self, DeserializeSeed, Deserializer as Deserializer_, Visitor};
 
 use self::id::IdDeserializer;
@@ -235,14 +237,28 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.deserialize_seq(visitor)
+        self.deserialize_byte_buf(visitor)
     }
 
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        self.deserialize_seq(visitor)
+        use parse::ParsedStr;
+
+        let res = {
+            let string = self.bytes.string()?;
+            let base64_str = match string {
+                ParsedStr::Allocated(ref s) => s.as_str(),
+                ParsedStr::Slice(ref s) => s,
+            };
+            base64::decode(base64_str)
+        };
+
+        match res {
+            Ok(byte_buf) => visitor.visit_byte_buf(byte_buf),
+            Err(err) => self.bytes.err(ParseError::Base64Error(err))
+        }
     }
 
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
@@ -443,7 +459,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_bytes(self.bytes.identifier()?)
+        visitor.visit_str(
+            str::from_utf8(self.bytes.identifier()?)
+                .map_err(|e| self.bytes.error(e.into()))?
+        )
     }
 
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
