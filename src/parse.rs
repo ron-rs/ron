@@ -413,9 +413,10 @@ impl<'a> Bytes<'a> {
             return self.err(ParseError::ExpectedString);
         }
 
+        let ending = [&[b'"'], hashes].concat();
         let i = self.bytes
             .windows(num_hashes + 1)
-            .position(|w| w == [&[b'"'], hashes].concat().as_slice())
+            .position(|window| window == ending.as_slice())
             .ok_or(self.error(ParseError::ExpectedStringEnd))?;
 
         let s = from_utf8(&self.bytes[..i]).map_err(|e| self.error(e.into()))?;
