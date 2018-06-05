@@ -93,8 +93,16 @@ fn test_map() {
 #[test]
 fn test_string() {
     let s: String = from_str("\"String\"").unwrap();
-
     assert_eq!("String", s);
+
+    let raw: String = from_str("r\"String\"").unwrap();
+    assert_eq!("String", raw);
+
+    let raw_hashes: String = from_str("r#\"String\"#").unwrap();
+    assert_eq!("String", raw_hashes);
+
+    let raw_hashes_quote: String = from_str("r##\"String with \"#\"##").unwrap();
+    assert_eq!("String with \"#", raw_hashes_quote);
 }
 
 #[test]
