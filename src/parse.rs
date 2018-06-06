@@ -277,9 +277,15 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&'a [u8]> {
-        if IDENT_FIRST.contains(&self.peek_or_eof()?) {
-            let bytes = self.next_bytes_contained_in(IDENT_CHAR);
+        let next = self.peek_or_eof()?;
+        if IDENT_FIRST.contains(&next) {
+            // If the next two bytes signify the start of a raw string literal,
+            // return an error.
+            if next == b'r' && (self.bytes[1] == b'"' || self.bytes[1] == b'#') {
+                return self.err(ParseError::ExpectedIdentifier);
+            }
 
+            let bytes = self.next_bytes_contained_in(IDENT_CHAR);
             let ident = &self.bytes[..bytes];
             let _ = self.advance(bytes);
 
