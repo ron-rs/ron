@@ -101,6 +101,9 @@ fn test_string() {
     let raw_hashes: String = from_str("r#\"String\"#").unwrap();
     assert_eq!("String", raw_hashes);
 
+    let raw_hashes_multiline: String = from_str("r#\"String with\nmultiple\nlines\n\"#").unwrap();
+    assert_eq!("String with\nmultiple\nlines\n", raw_hashes_multiline);
+
     let raw_hashes_quote: String = from_str("r##\"String with \"#\"##").unwrap();
     assert_eq!("String with \"#", raw_hashes_quote);
 }
