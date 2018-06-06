@@ -342,11 +342,17 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn string(&mut self) -> Result<ParsedStr> {
-        use std::iter::repeat;
-
-        if !self.consume("\"") {
-            return self.err(ParseError::ExpectedString);
+        if self.consume("\"") {
+            self.escaped_string()
+        } else if self.consume("r") {
+            self.raw_string()
+        } else {
+            self.err(ParseError::ExpectedString)
         }
+    }
+
+    fn escaped_string(&mut self) -> Result<ParsedStr> {
+        use std::iter::repeat;
 
         let (i, end_or_escape) = self.bytes
             .iter()
@@ -396,6 +402,30 @@ impl<'a> Bytes<'a> {
                 }
             }
         }
+    }
+
+    fn raw_string(&mut self) -> Result<ParsedStr> {
+        let num_hashes = self.bytes.iter().take_while(|&&b| b == b'#').count();
+        let hashes = &self.bytes[..num_hashes];
+        let _ = self.advance(num_hashes);
+
+        if !self.consume("\"") {
+            return self.err(ParseError::ExpectedString);
+        }
+
+        let ending = [&[b'"'], hashes].concat();
+        let i = self.bytes
+            .windows(num_hashes + 1)
+            .position(|window| window == ending.as_slice())
+            .ok_or(self.error(ParseError::ExpectedStringEnd))?;
+
+        let s = from_utf8(&self.bytes[..i]).map_err(|e| self.error(e.into()))?;
+
+        // Advance by the number of bytes of the string
+        // + `num_hashes` + 1 for the `"`.
+        let _ = self.advance(i + num_hashes + 1);
+
+        Ok(ParsedStr::Slice(s))
     }
 
     fn test_for(&self, s: &str) -> bool {
