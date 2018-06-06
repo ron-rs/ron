@@ -281,8 +281,11 @@ impl<'a> Bytes<'a> {
         if IDENT_FIRST.contains(&next) {
             // If the next two bytes signify the start of a raw string literal,
             // return an error.
-            if next == b'r' && (self.bytes[1] == b'"' || self.bytes[1] == b'#') {
-                return self.err(ParseError::ExpectedIdentifier);
+            if next == b'r' {
+                let second = self.bytes.get(1).ok_or(self.error(ParseError::Eof))?;
+                if *second == b'"' || *second == b'#' {
+                    return self.err(ParseError::ExpectedIdentifier);
+                }
             }
 
             let bytes = self.next_bytes_contained_in(IDENT_CHAR);
