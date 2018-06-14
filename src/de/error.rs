@@ -4,6 +4,8 @@ use std::io;
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
+use base64;
+
 use serde::de;
 
 use parse::Position;
@@ -20,6 +22,7 @@ pub enum Error {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParseError {
+    Base64Error(base64::DecodeError),
     Eof,
     ExpectedArray,
     ExpectedArrayEnd,
@@ -79,6 +82,7 @@ impl StdError for Error {
             Error::IoError(ref s) => s,
             Error::Message(ref e) => e,
             Error::Parser(ref kind, _) => match *kind {
+                ParseError::Base64Error(ref e) => e.description(),
                 ParseError::Eof => "Unexpected end of file",
                 ParseError::ExpectedArray => "Expected array",
                 ParseError::ExpectedArrayEnd => "Expected end of array",
