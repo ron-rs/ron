@@ -106,16 +106,19 @@ impl StdError for Error {
                 ParseError::ExpectedUnit => "Expected unit",
                 ParseError::ExpectedStructName => "Expected struct name",
                 ParseError::ExpectedString => "Expected string",
+                ParseError::ExpectedStringEnd => "Expected string end",
                 ParseError::ExpectedIdentifier => "Expected identifier",
 
                 ParseError::InvalidEscape(_) => "Invalid escape sequence",
+
+                ParseError::NoSuchExtension(_) => "No such RON extension",
 
                 ParseError::Utf8Error(ref e) => e.description(),
                 ParseError::UnclosedBlockComment => "Unclosed block comment",
                 ParseError::UnexpectedByte(_) => "Unexpected byte",
                 ParseError::TrailingCharacters => "Non-whitespace trailing characters",
 
-                _ => unimplemented!(),
+                ParseError::__NonExhaustive => unimplemented!(),
             },
         }
     }
