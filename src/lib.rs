@@ -69,5 +69,6 @@ extern crate serde;
 pub mod de;
 pub mod ser;
 pub mod value;
+pub use value::Value;
 
 mod parse;
