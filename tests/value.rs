@@ -75,11 +75,11 @@ fn unit() {
 }
 
 #[derive(Serialize)]
-struct Scene(Option<u32>);
+struct Scene(Option<(u32, u32)>);
 
 #[derive(Serialize)]
 struct Scene2 {
-    foo: Option<u32>,
+    foo: Option<(u32, u32)>,
 }
 
 #[test]
@@ -88,13 +88,13 @@ fn roundtrip() {
     use ron::de::from_str;
 
     {
-        let s = to_string(&Scene2 { foo: Some(122) }).unwrap();
+        let s = to_string(&Scene2 { foo: Some((122, 13)) }).unwrap();
         println!("{}", s);
         let scene: Value = from_str(&s).unwrap();
         println!("{:?}", scene);
     }
     {
-        let s = to_string(&Scene( Some(122) )).unwrap();
+        let s = to_string(&Scene( Some((13, 122)) )).unwrap();
         println!("{}", s);
         let scene: Value = from_str(&s).unwrap();
         println!("{:?}", scene);
