@@ -57,9 +57,21 @@ float_exp = ("e" | "E"), digit, {digit};
 ## String
 
 ```ebnf
-string = "\"", { no_double_quotation_marks | string_escape }, "\"";
+string = string_std | string_raw;
+string_std = "\"", { no_double_quotation_marks | string_escape }, "\"";
 string_escape = "\\", ("\"" | "\\" | "b" | "f" | "n" | "r" | "t" | ("u", unicode_hex));
+string_raw = ("r#", string_raw, "#") | "\"", { unicode_non_greedy }, "\"";
 ```
+
+> Note: Raw strings start with an `r`, followed by n `#` and a quotation mark
+  `"`. They may contain any characters or escapes (except the end sequence).
+  A raw string ends with a quotation mark (`"`), followed by n `#`.
+  Example:
+  ```rust
+r##"This is a "raw string". It can contain quotations or
+backslashes (\)!"##
+  ```
+  I don't know any sane way to write this out in EBNF, if you do, let me know.
 
 ## Char
 
