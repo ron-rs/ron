@@ -29,7 +29,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     type Value = Value;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "A RON value")
+        write!(f, "a RON value")
     }
 
     fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>

@@ -150,6 +150,19 @@ impl<'a> Bytes<'a> {
             .unwrap_or(false)
     }
 
+    /// Should only be used on a working copy
+    pub fn check_tuple_struct(mut self) -> Result<bool> {
+        if self.identifier().is_err() {
+            // if there's no field ident, this is a tuple struct
+            return Ok(true);
+        }
+
+        self.skip_ws()?;
+
+        // if there is no colon after the ident, this can only be a unit struct
+        self.eat_byte().map(|c| c != b':')
+    }
+
     /// Only returns true if the char after `ident` cannot belong
     /// to an identifier.
     pub fn consume_ident(&mut self, ident: &str) -> bool {
@@ -277,6 +290,14 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&'a [u8]> {
+        let bytes = self.identifier_len()?;
+        let ident = &self.bytes[..bytes];
+        let _ = self.advance(bytes);
+
+        Ok(ident)
+    }
+
+    pub fn identifier_len(&self) -> Result<usize> {
         let next = self.peek_or_eof()?;
         if IDENT_FIRST.contains(&next) {
             // If the next two bytes signify the start of a raw string literal,
@@ -289,10 +310,8 @@ impl<'a> Bytes<'a> {
             }
 
             let bytes = self.next_bytes_contained_in(IDENT_CHAR);
-            let ident = &self.bytes[..bytes];
-            let _ = self.advance(bytes);
 
-            Ok(ident)
+            Ok(bytes)
         } else {
             self.err(ParseError::ExpectedIdentifier)
         }

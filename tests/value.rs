@@ -1,4 +1,6 @@
 extern crate ron;
+#[macro_use]
+extern crate serde;
 
 use std::collections::BTreeMap;
 
@@ -61,5 +63,40 @@ fn seq() {
 
 #[test]
 fn unit() {
+    use ron::de::{Error, ParseError, Position};
+
     assert_eq!(Value::from_str("()"), Ok(Value::Unit));
+    assert_eq!(Value::from_str("Foo"), Ok(Value::Unit));
+
+    assert_eq!(Value::from_str(""), Err(Error::Parser(
+        ParseError::Eof,
+        Position { col: 1, line: 1 }
+    )));
+}
+
+#[derive(Serialize)]
+struct Scene(Option<u32>);
+
+#[derive(Serialize)]
+struct Scene2 {
+    foo: Option<u32>,
+}
+
+#[test]
+fn roundtrip() {
+    use ron::ser::to_string;
+    use ron::de::from_str;
+
+    {
+        let s = to_string(&Scene2 { foo: Some(122) }).unwrap();
+        println!("{}", s);
+        let scene: Value = from_str(&s).unwrap();
+        println!("{:?}", scene);
+    }
+    {
+        let s = to_string(&Scene( Some(122) )).unwrap();
+        println!("{}", s);
+        let scene: Value = from_str(&s).unwrap();
+        println!("{:?}", scene);
+    }
 }

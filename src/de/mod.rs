@@ -92,6 +92,32 @@ impl<'de> Deserializer<'de> {
             self.bytes.err(ParseError::TrailingCharacters)
         }
     }
+
+    /// Called from `deserialze_any` when a struct was detected. Decides if there is a
+    /// unit, tuple or usual struct and deserializes it accordingly.
+    ///
+    /// This method assumes there is no identifier left.
+    fn handle_any_struct<V>(&mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>
+    {
+        // Create a working copy
+        let mut bytes = self.bytes.clone();
+
+        match bytes.consume("(") {
+            true => {
+                bytes.skip_ws()?;
+
+                match bytes.check_tuple_struct()? {
+                    // first argument is technically incorrect, but ignored anyway
+                    true => self.deserialize_tuple(0, visitor),
+                    // first two arguments are technically incorrect, but ignored anyway
+                    false => self.deserialize_struct("", &[], visitor),
+                }
+            }
+            false => visitor.visit_unit(),
+        }
+    }
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
@@ -113,14 +139,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_unit();
         }
 
-        if self.bytes.identifier().is_ok() {
+        // `identifier` does not change state if it fails
+        let ident = self.bytes.identifier().ok();
+
+        if ident.is_some() {
             self.bytes.skip_ws()?;
 
-            return self.deserialize_struct("", &[], visitor);
+            return self.handle_any_struct(visitor);
         }
 
         match self.bytes.peek_or_eof()? {
-            b'(' => self.deserialize_struct("", &[], visitor),
+            b'(' => self.handle_any_struct(visitor),
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
             b'0'...b'9' | b'+' | b'-' | b'.' => self.deserialize_f64(visitor),
@@ -361,12 +390,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
     }
 
-    // Tuples look just like sequences in JSON. Some formats may be able to
-    // represent tuples more efficiently.
-    //
-    // As indicated by the length parameter, the `Deserialize` implementation
-    // for a tuple in the Serde data model is required to know the length of the
-    // tuple before even looking at the input data.
     fn deserialize_tuple<V>(mut self, _len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
