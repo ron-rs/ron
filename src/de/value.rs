@@ -10,7 +10,12 @@ use value::{Number, Value};
 impl Value {
     /// Creates a value from a string reference.
     pub fn from_str(s: &str) -> de::Result<Self> {
-        Value::deserialize(&mut super::Deserializer::from_str(s)?)
+        let mut de = super::Deserializer::from_str(s)?;
+
+        let val = Value::deserialize(&mut de)?;
+        de.end()?;
+
+        Ok(val)
     }
 }
 
@@ -29,7 +34,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     type Value = Value;
 
     fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "A RON value")
+        write!(f, "a RON value")
     }
 
     fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
@@ -174,6 +179,45 @@ mod tests {
         assert_eq!(
             eval("Some  (  () )"),
             Value::Option(Some(Box::new(Value::Unit)))
+        );
+    }
+
+    #[test]
+    fn test_tuples_basic() {
+        assert_eq!(
+            eval("(3, 4, 5)"),
+            Value::Seq(
+                vec![
+                    Value::Number(Number::new(3.0)),
+                    Value::Number(Number::new(4.0)),
+                    Value::Number(Number::new(5.0)),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn test_tuples_ident() {
+        assert_eq!(
+            eval("(true, 3, 4, 5)"),
+            Value::Seq(
+                vec![
+                    Value::Bool(true),
+                    Value::Number(Number::new(3.0)),
+                    Value::Number(Number::new(4.0)),
+                    Value::Number(Number::new(5.0)),
+                ],
+            ),
+        );
+    }
+
+    #[test]
+    fn test_tuples_error() {
+        use de::{Error, ParseError, Position};
+
+        assert_eq!(
+            Value::from_str("Foo:").unwrap_err(),
+            Error::Parser(ParseError::TrailingCharacters, Position { col: 4, line: 1 }),
         );
     }
 
