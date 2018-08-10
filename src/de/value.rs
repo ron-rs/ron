@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::{Deserialize, Deserializer};
-use serde::de::{Error, MapAccess, SeqAccess, Visitor};
+use serde::de::{Error, MapAccess, SeqAccess, Visitor, EnumAccess, VariantAccess};
 
 use de;
 use value::{Number, Value};
@@ -157,6 +157,18 @@ impl<'de> Visitor<'de> for ValueVisitor {
         }
 
         Ok(Value::Map(res))
+    }
+
+    fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+        where
+            A: EnumAccess<'de>,
+    {
+        let v = data.variant()?;
+        // We unconditionally call tuple_variant because we have no way
+        // of choosing between that and a struct variant. The implementation
+        // for ron's deserialize_any has the same behaviour for both
+        // tuple_variant and struct_variant
+        Ok(Value::Named(v.0, Box::new(v.1.tuple_variant(0, self)?)))
     }
 }
 

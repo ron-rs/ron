@@ -53,6 +53,7 @@ pub enum Value {
     Option(Option<Box<Value>>),
     String(String),
     Seq(Vec<Value>),
+    Named(String, Box<Value>),
     Unit,
 }
 
@@ -81,6 +82,7 @@ impl<'de> Deserializer<'de> for Value {
 
                 visitor.visit_seq(Seq { seq })
             }
+            Value::Named(_, val) => panic!(),//val.deserialize_any(),
             Value::Unit => visitor.visit_unit(),
         }
     }

@@ -17,6 +17,7 @@ impl Serialize for Value {
             Value::String(ref s) => serializer.serialize_str(s),
             Value::Seq(ref s) => Serialize::serialize(s, serializer),
             Value::Unit => serializer.serialize_unit(),
+            Value::Named(_, _) => panic!(),
         }
     }
 }

@@ -9,9 +9,10 @@ use std::str;
 
 use base64;
 
-use serde::de::{self, DeserializeSeed, Deserializer as Deserializer_, Visitor};
+use serde::de::{self, DeserializeSeed, Deserializer as Deserializer_, Visitor, EnumAccess, VariantAccess};
 
 use self::id::IdDeserializer;
+use serde::de::IntoDeserializer;
 use parse::{Bytes, Extensions};
 
 mod error;
@@ -80,6 +81,68 @@ where
     Ok(t)
 }
 
+enum VariantKind {
+    Unit,
+    Tuple,
+    Struct,
+}
+
+struct VariantDeserializer<'a, 'de: 'a > {
+    kind: VariantKind,
+    de: &'a mut Deserializer<'de>,
+}
+
+impl<'a, 'de> VariantAccess<'de> for VariantDeserializer<'a, 'de> {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<()> {
+        match self.kind {
+            VariantKind::Unit => Ok(()),
+            _ => Err(Error::Message("Wrong variant kind".to_owned()))
+        }
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
+        where
+            T: DeserializeSeed<'de>,
+    {
+        panic!()/*
+        match self.value {
+            Some(value) => seed.deserialize(value),
+            None => panic!()/*Err(serde::de::Error::invalid_type(
+                Unexpected::UnitVariant,
+                &"newtype variant",
+            )),*/
+        }*/
+    }
+
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
+        where
+            V: Visitor<'de>,
+    {
+        match self.kind {
+            VariantKind::Struct => self.de.deserialize_struct("", &[], visitor),
+            VariantKind::Tuple => self.de.deserialize_tuple(0, visitor),
+            VariantKind::Unit => visitor.visit_unit(),
+        }
+    }
+
+    fn struct_variant<V>(
+        self,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+        where
+            V: Visitor<'de>,
+    {
+        match self.kind {
+            VariantKind::Struct => self.de.deserialize_struct("", &[], visitor),
+            VariantKind::Tuple => self.de.deserialize_tuple(0, visitor),
+            VariantKind::Unit => visitor.visit_unit(),
+        }
+    }
+}
+
 impl<'de> Deserializer<'de> {
     /// Check if the remaining bytes are whitespace only,
     /// otherwise return an error.
@@ -97,27 +160,59 @@ impl<'de> Deserializer<'de> {
     /// unit, tuple or usual struct and deserializes it accordingly.
     ///
     /// This method assumes there is no identifier left.
-    fn handle_any_struct<V>(&mut self, visitor: V) -> Result<V::Value>
+    fn handle_any_struct<V>(&mut self, ident: Option<&'de [u8]>, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>
     {
         // Create a working copy
         let mut bytes = self.bytes.clone();
 
-        match bytes.consume("(") {
+        let kind = match bytes.consume("(") {
             true => {
                 bytes.skip_ws()?;
 
                 match bytes.check_tuple_struct()? {
                     // first argument is technically incorrect, but ignored anyway
-                    true => self.deserialize_tuple(0, visitor),
+                    true => VariantKind::Tuple,
                     // first two arguments are technically incorrect, but ignored anyway
-                    false => self.deserialize_struct("", &[], visitor),
+                    false => VariantKind::Struct,
                 }
             }
-            false => visitor.visit_unit(),
+            false => VariantKind::Unit,
+        };
+
+        struct EnumDeserializer<'a, 'de: 'a> {
+            variant: String,
+            kind: VariantKind,
+            de: &'a mut Deserializer<'de>,
+        }
+
+        impl<'a, 'de> EnumAccess<'de> for EnumDeserializer<'a, 'de> {
+            type Error = Error;
+            type Variant = VariantDeserializer<'a, 'de>;
+
+            fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
+                where
+                    V: DeserializeSeed<'de>,
+            {
+                let variant = self.variant.into_deserializer();
+                let visitor = VariantDeserializer { kind: self.kind, de: self.de };
+                seed.deserialize(variant).map(|v| (v, visitor))
+            }
+        }
+
+        match ident {
+            Some(ident) => { visitor.visit_enum(EnumDeserializer{variant: String::from_utf8(ident.to_vec()).unwrap(), kind, de: self})}
+            None => {
+                match kind {
+                    VariantKind::Struct => self.deserialize_struct("", &[], visitor),
+                    VariantKind::Tuple => self.deserialize_tuple(0, visitor),
+                    VariantKind::Unit => visitor.visit_unit(),
+                }
+            }
         }
     }
+
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
@@ -145,11 +240,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         if ident.is_some() {
             self.bytes.skip_ws()?;
 
-            return self.handle_any_struct(visitor);
+            return self.handle_any_struct(ident, visitor);
         }
 
         match self.bytes.peek_or_eof()? {
-            b'(' => self.handle_any_struct(visitor),
+            b'(' => self.handle_any_struct(ident, visitor),
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
             b'0'...b'9' | b'+' | b'-' | b'.' => self.deserialize_f64(visitor),
