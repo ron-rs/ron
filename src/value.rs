@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
 use serde::de::{DeserializeSeed, Deserializer, Error as SerdeErr, MapAccess, SeqAccess, Visitor};
+use serde::de::{EnumAccess, VariantAccess, IntoDeserializer};
 
 use de::{Error as RonError, Result};
 
@@ -57,6 +58,59 @@ pub enum Value {
     Unit,
 }
 
+
+struct ValueEnum {
+    name: String,
+    value: Box<Value>
+}
+
+impl<'de> EnumAccess<'de> for ValueEnum {
+    type Error = RonError;
+    type Variant = ValueEnum;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
+        where
+            V: DeserializeSeed<'de>,
+    {
+        let variant = self.name.clone().into_deserializer();
+        seed.deserialize(variant).map(|v| (v, self))
+    }
+}
+
+impl<'de> VariantAccess<'de> for ValueEnum {
+    type Error = RonError;
+
+    fn unit_variant(self) -> Result<()> {
+        Ok(())
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
+        where
+            T: DeserializeSeed<'de>,
+    {
+        match *self.value {
+            Value::Seq(seq) => {
+                seed.deserialize(seq[0].clone())
+            }
+            _ => { Err(RonError::custom(format!("Expected a seq, got {:?}", self.value))) }
+        }
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> Result<V::Value>
+        where
+            V: Visitor<'de>,
+    {
+        self.value.deserialize_any(visitor)
+    }
+
+    fn struct_variant<V>(self, fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+        where
+            V: Visitor<'de>,
+    {
+        self.value.deserialize_any(visitor)
+    }
+}
+
 /// Deserializer implementation for RON `Value`.
 /// This does not support enums (because `Value` doesn't store them).
 impl<'de> Deserializer<'de> for Value {
@@ -82,7 +136,7 @@ impl<'de> Deserializer<'de> for Value {
 
                 visitor.visit_seq(Seq { seq })
             }
-            Value::Named(_, val) => panic!(),//val.deserialize_any(),
+            Value::Named(name, val) => visitor.visit_enum(ValueEnum{name, value: val}),
             Value::Unit => visitor.visit_unit(),
         }
     }
