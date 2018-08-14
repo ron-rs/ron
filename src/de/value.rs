@@ -253,22 +253,24 @@ mod tests {
 ])"
             ),
             Value::Option(Some(Box::new(Value::Seq(vec![
-                Value::Map(
-                    vec![
-                        (
-                            Value::String("width".to_owned()),
-                            Value::Number(Number::new(20.0)),
-                        ),
-                        (
-                            Value::String("height".to_owned()),
-                            Value::Number(Number::new(5.0)),
-                        ),
-                        (
-                            Value::String("name".to_owned()),
-                            Value::String("The Room".to_owned()),
-                        ),
-                    ].into_iter()
-                        .collect(),
+                Value::Named("Room".to_owned(),
+                 Box::new(Value::Map(
+                        vec![
+                            (
+                                Value::String("width".to_owned()),
+                                Value::Number(Number::new(20.0)),
+                            ),
+                            (
+                                Value::String("height".to_owned()),
+                                Value::Number(Number::new(5.0)),
+                            ),
+                            (
+                                Value::String("name".to_owned()),
+                                Value::String("The Room".to_owned()),
+                            ),
+                        ].into_iter()
+                            .collect(),
+                    ))
                 ),
                 Value::Map(
                     vec![

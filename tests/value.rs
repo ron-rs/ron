@@ -66,7 +66,7 @@ fn unit() {
     use ron::de::{Error, ParseError, Position};
 
     assert_eq!(Value::from_str("()"), Ok(Value::Unit));
-    assert_eq!(Value::from_str("Foo"), Ok(Value::Unit));
+    assert_eq!(Value::from_str("Foo"), Ok(Value::Named("Foo".to_owned(), Box::new(Value::Unit))));
 
     assert_eq!(Value::from_str(""), Err(Error::Parser(
         ParseError::Eof,
