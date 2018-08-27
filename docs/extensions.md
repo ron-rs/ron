@@ -27,7 +27,7 @@ Without `unwrap_newtypes`, because the value `5` can not be saved into `NewType(
 )
 ```
 
-With the `unwrap_newtypes` extension, this coercion is done automatically. So `5` will be interpreted as `(5)`
+With the `unwrap_newtypes` extension, this coercion is done automatically. So `5` will be interpreted as `(5)`.
 
 ``` ron
 #![enable(unwrap_newtypes)]
@@ -58,7 +58,7 @@ Without this feature, you would have to write this RON document.
 )
 ```
 
-Enabling the feature would automatically infer `Some(x)` if `x` is given. In this case, RON automatically casts this `5` into a `Some(5)`
+Enabling the feature would automatically infer `Some(x)` if `x` is given. In this case, RON automatically casts this `5` into a `Some(5)`.
 
 ```ron
 (
