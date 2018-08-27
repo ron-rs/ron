@@ -19,7 +19,7 @@ struct Object {
 }
 ```
 
-Without `unwrap_newtypes`, your RON document would look like this:
+Without `unwrap_newtypes`, because the value `5` can not be saved into `NewType(u32)`, your RON document would look like this:
 
 ``` ron
 (
@@ -27,7 +27,8 @@ Without `unwrap_newtypes`, your RON document would look like this:
 )
 ```
 
-With the `unwrap_newtypes` extension, this coercion is done automatically. Because the value `5` can not be saved into `NewType(u32)`.
+With the `unwrap_newtypes` extension, this coercion is done automatically. So `5` will be interpreted as `(5)`
+
 ``` ron
 #![enable(unwrap_newtypes)]
 (
