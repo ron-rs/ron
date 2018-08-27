@@ -1,12 +1,12 @@
 ## RON extensions
 
-RON currently has 2 extensions. These extensions can be enabled by adding the following tag at the top of your RON document:
+RON has extensions that can be enabled by adding the following attribute at the top of your RON document:
 
 `#![enable(...)]`
 
 # unwrap_newtypes
 
-You can add this extension by adding the following tag at the top of your RON document:
+You can add this extension by adding the following attribute at the top of your RON document:
 
 `#![enable(unwrap_newtypes)]`
 
@@ -38,7 +38,7 @@ With the `unwrap_newtypes` extension, this coercion is done automatically. So `5
 
 # implicit_some
 
-You can add this extension by adding the following tag at the top of your RON document:
+You can add this extension by adding the following attribute at the top of your RON document:
 
 `#![enable(implicit_some)]`
 
