@@ -27,7 +27,7 @@ structs, enums, tuples, arrays, generic maps, and primitive values.
             "material": "metal"
         },
         {
-            "name": "moster",
+            "name": "monster",
             "material": "plastic"
         }
    ]
