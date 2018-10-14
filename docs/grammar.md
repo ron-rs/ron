@@ -46,7 +46,7 @@ value = unsigned | signed | float | string | char | bool | option | list | map |
 
 ```ebnf
 digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
-unsigned = ["0", ("x" | "b" | "o")], digit, { digit };
+unsigned = ["0", ("x" | "b" | "o")], digit, { digit | '_' };
 signed = ["+" | "-"], unsigned;
 float = float_std | float_frac;
 float_std = ["+" | "-"], digit, { digit }, ".", {digit}, [float_exp];

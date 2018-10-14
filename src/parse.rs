@@ -6,7 +6,7 @@ use std::str::{FromStr, from_utf8, from_utf8_unchecked};
 
 use de::{Error, ParseError, Result};
 
-const DIGITS: &[u8] = b"0123456789ABCDEFabcdef";
+const DIGITS: &[u8] = b"0123456789ABCDEFabcdef_";
 const FLOAT_CHARS: &[u8] = b"0123456789.+-eE";
 const IDENT_FIRST: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";
 const IDENT_CHAR: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789";
@@ -486,8 +486,20 @@ impl<'a> Bytes<'a> {
             return self.err(ParseError::ExpectedInteger);
         }
 
+        let tmp;
+        let mut s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
+
+        if s.as_bytes()[0] == b'_' {
+            return self.err(ParseError::UnderscoreAtBeginning);
+        }
+
+        if s.contains('_') {
+            tmp = s.replace('_', "");
+            s = &tmp;
+        }
+
         let res = Num::from_str(
-            unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) },
+            s,
             base,
         ).map_err(|_| self.error(ParseError::ExpectedInteger));
 

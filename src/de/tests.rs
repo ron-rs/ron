@@ -292,3 +292,11 @@ fn test_byte_stream() {
         from_str("BytesStruct( small:[1, 2], large:\"AQIDBA==\" )"),
     );
 }
+
+#[test]
+fn test_numbers() {
+    assert_eq!(
+        Ok(vec![1234, 12345, 123456, 1234567, 555_555]),
+        from_str("[1_234, 12_345, 1_2_3_4_5_6, 1_234_567, 5_55_55_5]"),
+    );
+}

@@ -52,6 +52,7 @@ pub enum ParseError {
     NoSuchExtension(String),
 
     UnclosedBlockComment,
+    UnderscoreAtBeginning,
     UnexpectedByte(char),
 
     Utf8Error(Utf8Error),
@@ -115,6 +116,7 @@ impl StdError for Error {
 
                 ParseError::Utf8Error(ref e) => e.description(),
                 ParseError::UnclosedBlockComment => "Unclosed block comment",
+                ParseError::UnderscoreAtBeginning => "Found underscore at the beginning",
                 ParseError::UnexpectedByte(_) => "Unexpected byte",
                 ParseError::TrailingCharacters => "Non-whitespace trailing characters",
 
