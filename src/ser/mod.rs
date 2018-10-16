@@ -11,7 +11,7 @@ mod value;
 /// Serializes `value` and returns it as string.
 ///
 /// This function does not generate any newlines or nice formatting;
-/// if you want that, you can use `pretty::to_string` instead.
+/// if you want that, you can use `to_string_pretty` instead.
 pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: Serialize,
