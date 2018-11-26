@@ -96,7 +96,7 @@ Why not XML?
   - unclear how to treat attributes vs contents
 
 Why not YAML?
-  - significant white-space 
+  - significant white-space
   - specification is too big
 
 Why not TOML?
@@ -105,6 +105,12 @@ Why not TOML?
 
 Why not XXX?
   - if you know a better format, tell me!
+
+## Tooling
+
+Sublime Text: https://packagecontrol.io/packages/RON
+
+Vim: https://github.com/ron-rs/ron.vim
 
 ## License
 
