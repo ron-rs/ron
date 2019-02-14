@@ -4,7 +4,7 @@ use std::cmp::{Eq, Ordering};
 use std::collections::BTreeMap;
 use std::hash::{Hash, Hasher};
 
-use serde::de::{DeserializeSeed, Deserializer, Error as SerdeErr, MapAccess, SeqAccess, Visitor};
+use serde::de::{DeserializeOwned, DeserializeSeed, Deserializer, Error as SerdeErr, MapAccess, SeqAccess, Visitor};
 
 use de::{Error as RonError, Result};
 
@@ -54,6 +54,16 @@ pub enum Value {
     String(String),
     Seq(Vec<Value>),
     Unit,
+}
+
+impl Value {
+    /// Tries to deserialize this `Value` into `T`.
+    pub fn into_rust<T>(self) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        T::deserialize(self)
+    }
 }
 
 /// Deserializer implementation for RON `Value`.
