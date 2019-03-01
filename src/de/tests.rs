@@ -197,6 +197,7 @@ fn untagged() {
     }
 
     assert_eq!(from_str::<Untagged>("true").unwrap(), Untagged::Bool(true));
+    assert_eq!(from_str::<Untagged>("8").unwrap(), Untagged::U8(8));
 }
 
 #[test]
