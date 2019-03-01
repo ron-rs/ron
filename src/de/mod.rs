@@ -152,7 +152,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'(' => self.handle_any_struct(visitor),
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
-            b'0'...b'9' | b'+' | b'-' | b'.' => self.deserialize_f64(visitor),
+            b'0'...b'9' | b'+' | b'-' => {
+                if self.bytes.next_bytes_is_float() {
+                    self.deserialize_f64(visitor)
+                } else {
+                    self.deserialize_i64(visitor)
+                }
+            }
+            b'.' => self.deserialize_f64(visitor),
             b'"' | b'r' => self.deserialize_string(visitor),
             b'\'' => self.deserialize_char(visitor),
             other => self.bytes.err(ParseError::UnexpectedByte(other as char)),

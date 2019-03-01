@@ -324,6 +324,28 @@ impl<'a> Bytes<'a> {
             .fold(0, |acc, _| acc + 1)
     }
 
+    pub fn next_bytes_is_float(&self) -> bool {
+        if let Some(byte) = self.peek() {
+            let skip = match byte {
+                b'+' | b'-' => 1,
+                _ => 0,
+            };
+            let flen = self.bytes
+                        .iter()
+                        .skip(skip)
+                        .take_while(|b| FLOAT_CHARS.contains(b))
+                        .count();
+            let ilen = self.bytes
+                        .iter()
+                        .skip(skip)
+                        .take_while(|b| DIGITS.contains(b))
+                        .count();
+            flen > ilen
+        } else {
+            false
+        }
+    }
+
     pub fn skip_ws(&mut self) -> Result<()> {
         while self.peek()
             .map(|c| WHITE_SPACE.contains(&c))
