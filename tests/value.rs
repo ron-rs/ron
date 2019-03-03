@@ -1,10 +1,6 @@
-extern crate ron;
-#[macro_use]
-extern crate serde;
-
-use std::collections::BTreeMap;
-
 use ron::value::{Number, Value};
+use serde::Serialize;
+use std::collections::BTreeMap;
 
 #[test]
 fn bool() {
@@ -28,7 +24,10 @@ fn map() {
 #[test]
 fn number() {
     assert_eq!(Value::from_str("42"), Ok(Value::Number(Number::new(42f64))));
-    assert_eq!(Value::from_str("3.1415"), Ok(Value::Number(Number::new(3.1415f64))));
+    assert_eq!(
+        Value::from_str("3.1415"),
+        Ok(Value::Number(Number::new(3.1415f64)))
+    );
 }
 
 #[test]
@@ -46,18 +45,30 @@ fn string() {
     assert_eq!(Value::from_str(raw), Ok(Value::String("Raw String".into())));
 
     let raw_hashes = "r#\"Raw String\"#";
-    assert_eq!(Value::from_str(raw_hashes), Ok(Value::String("Raw String".into())));
+    assert_eq!(
+        Value::from_str(raw_hashes),
+        Ok(Value::String("Raw String".into()))
+    );
 
     let raw_escaped = "r##\"Contains \"#\"##";
-    assert_eq!(Value::from_str(raw_escaped), Ok(Value::String("Contains \"#".into())));
+    assert_eq!(
+        Value::from_str(raw_escaped),
+        Ok(Value::String("Contains \"#".into()))
+    );
 
     let raw_multi_line = "r\"Multi\nLine\"";
-    assert_eq!(Value::from_str(raw_multi_line), Ok(Value::String("Multi\nLine".into())));
+    assert_eq!(
+        Value::from_str(raw_multi_line),
+        Ok(Value::String("Multi\nLine".into()))
+    );
 }
 
 #[test]
 fn seq() {
-    let seq = vec![Value::Number(Number::new(1f64)), Value::Number(Number::new(2f64))];
+    let seq = vec![
+        Value::Number(Number::new(1f64)),
+        Value::Number(Number::new(2f64)),
+    ];
     assert_eq!(Value::from_str("[1, 2]"), Ok(Value::Seq(seq)));
 }
 
@@ -68,10 +79,10 @@ fn unit() {
     assert_eq!(Value::from_str("()"), Ok(Value::Unit));
     assert_eq!(Value::from_str("Foo"), Ok(Value::Unit));
 
-    assert_eq!(Value::from_str(""), Err(Error::Parser(
-        ParseError::Eof,
-        Position { col: 1, line: 1 }
-    )));
+    assert_eq!(
+        Value::from_str(""),
+        Err(Error::Parser(ParseError::Eof, Position { col: 1, line: 1 }))
+    );
 }
 
 #[derive(Serialize)]
@@ -84,17 +95,19 @@ struct Scene2 {
 
 #[test]
 fn roundtrip() {
-    use ron::ser::to_string;
-    use ron::de::from_str;
+    use ron::{de::from_str, ser::to_string};
 
     {
-        let s = to_string(&Scene2 { foo: Some((122, 13)) }).unwrap();
+        let s = to_string(&Scene2 {
+            foo: Some((122, 13)),
+        })
+        .unwrap();
         println!("{}", s);
         let scene: Value = from_str(&s).unwrap();
         println!("{:?}", scene);
     }
     {
-        let s = to_string(&Scene( Some((13, 122)) )).unwrap();
+        let s = to_string(&Scene(Some((13, 122)))).unwrap();
         println!("{}", s);
         let scene: Value = from_str(&s).unwrap();
         println!("{:?}", scene);

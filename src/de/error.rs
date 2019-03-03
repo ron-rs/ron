@@ -1,17 +1,10 @@
-use std::error::Error as StdError;
-use std::fmt;
-use std::io;
-use std::str::Utf8Error;
-use std::string::FromUtf8Error;
-
-use base64;
-
 use serde::de;
+use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Error};
 
-use parse::Position;
+use crate::parse::Position;
 
 /// Deserialization result.
-pub type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
@@ -58,11 +51,12 @@ pub enum ParseError {
     Utf8Error(Utf8Error),
     TrailingCharacters,
 
-    #[doc(hidden)] __NonExhaustive,
+    #[doc(hidden)]
+    __NonExhaustive,
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Error::IoError(ref s) => write!(f, "{}", s),
             Error::Message(ref s) => write!(f, "{}", s),

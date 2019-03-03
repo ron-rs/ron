@@ -1,12 +1,6 @@
-extern crate ron;
-extern crate serde;
-
-use std::char::from_u32;
-use std::fmt::Debug;
-
-use ron::de::from_str;
-use ron::ser::to_string;
+use ron::{de::from_str, ser::to_string};
 use serde::{Deserialize, Serialize};
+use std::{char::from_u32, fmt::Debug};
 
 #[test]
 fn test_escape_basic() {

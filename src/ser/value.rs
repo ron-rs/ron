@@ -1,6 +1,6 @@
 use serde::ser::{Serialize, Serializer};
 
-use value::Value;
+use crate::value::Value;
 
 impl Serialize for Value {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

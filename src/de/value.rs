@@ -1,11 +1,14 @@
-use std::collections::BTreeMap;
-use std::fmt;
+use std::{collections::BTreeMap, fmt};
 
-use serde::{Deserialize, Deserializer};
-use serde::de::{Error, MapAccess, SeqAccess, Visitor};
+use serde::{
+    de::{Error, MapAccess, SeqAccess, Visitor},
+    Deserialize, Deserializer,
+};
 
-use de;
-use value::{Number, Value};
+use crate::{
+    de,
+    value::{Number, Value},
+};
 
 impl Value {
     /// Creates a value from a string reference.
@@ -33,7 +36,7 @@ struct ValueVisitor;
 impl<'de> Visitor<'de> for ValueVisitor {
     type Value = Value;
 
-    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "a RON value")
     }
 
@@ -111,9 +114,9 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         D: Deserializer<'de>,
     {
-        Ok(Value::Option(Some(
-            Box::new(deserializer.deserialize_any(ValueVisitor)?),
-        )))
+        Ok(Value::Option(Some(Box::new(
+            deserializer.deserialize_any(ValueVisitor)?,
+        ))))
     }
 
     fn visit_unit<E>(self) -> Result<Self::Value, E>
@@ -186,13 +189,11 @@ mod tests {
     fn test_tuples_basic() {
         assert_eq!(
             eval("(3, 4, 5)"),
-            Value::Seq(
-                vec![
-                    Value::Number(Number::new(3.0)),
-                    Value::Number(Number::new(4.0)),
-                    Value::Number(Number::new(5.0)),
-                ],
-            ),
+            Value::Seq(vec![
+                Value::Number(Number::new(3.0)),
+                Value::Number(Number::new(4.0)),
+                Value::Number(Number::new(5.0)),
+            ],),
         );
     }
 
@@ -200,20 +201,18 @@ mod tests {
     fn test_tuples_ident() {
         assert_eq!(
             eval("(true, 3, 4, 5)"),
-            Value::Seq(
-                vec![
-                    Value::Bool(true),
-                    Value::Number(Number::new(3.0)),
-                    Value::Number(Number::new(4.0)),
-                    Value::Number(Number::new(5.0)),
-                ],
-            ),
+            Value::Seq(vec![
+                Value::Bool(true),
+                Value::Number(Number::new(3.0)),
+                Value::Number(Number::new(4.0)),
+                Value::Number(Number::new(5.0)),
+            ]),
         );
     }
 
     #[test]
     fn test_tuples_error() {
-        use de::{Error, ParseError, Position};
+        use crate::de::{Error, ParseError, Position};
 
         assert_eq!(
             Value::from_str("Foo:").unwrap_err(),
@@ -255,8 +254,9 @@ mod tests {
                             Value::String("name".to_owned()),
                             Value::String("The Room".to_owned()),
                         ),
-                    ].into_iter()
-                        .collect(),
+                    ]
+                    .into_iter()
+                    .collect(),
                 ),
                 Value::Map(
                     vec![
@@ -288,12 +288,14 @@ mod tests {
                                         Value::String("Enemy3".to_owned()),
                                         Value::Number(Number::new(7.0)),
                                     ),
-                                ].into_iter()
-                                    .collect(),
+                                ]
+                                .into_iter()
+                                .collect(),
                             ),
                         ),
-                    ].into_iter()
-                        .collect(),
+                    ]
+                    .into_iter()
+                    .collect(),
                 ),
             ]))))
         );

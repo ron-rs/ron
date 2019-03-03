@@ -1,5 +1,3 @@
-extern crate ron;
-
 use ron::de::from_str;
 
 #[test]

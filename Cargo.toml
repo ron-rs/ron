@@ -7,6 +7,7 @@ authors = [
 	"Dzmitry Malyshau <kvarkus@gmail.com>",
 	"Thomas Schaller <torkleyy@gmail.com>",
 ]
+edition = "2018"
 description = "Rusty Object Notation"
 categories = ["encoding"]
 homepage = "https://github.com/ron-rs/ron"

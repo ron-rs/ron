@@ -1,10 +1,6 @@
-extern crate ron;
-#[macro_use]
-extern crate serde;
-
-use std::collections::HashMap;
-
 use ron::de::from_str;
+use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -61,7 +57,7 @@ fn main() {
         Err(e) => {
             println!("Failed to load config: {}", e);
 
-            ::std::process::exit(1);
+            std::process::exit(1);
         }
     };
 

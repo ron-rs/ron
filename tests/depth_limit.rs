@@ -1,7 +1,4 @@
-extern crate ron;
-#[macro_use]
-extern crate serde;
-
+use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Serialize)]
