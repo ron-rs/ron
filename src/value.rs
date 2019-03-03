@@ -1,12 +1,18 @@
 //! Value module.
 
-use std::cmp::{Eq, Ordering};
-use std::collections::BTreeMap;
-use std::hash::{Hash, Hasher};
+use serde::{
+    de::{
+        DeserializeOwned, DeserializeSeed, Deserializer, Error as _, MapAccess, SeqAccess, Visitor,
+    },
+    forward_to_deserialize_any,
+};
+use std::{
+    cmp::{Eq, Ordering},
+    collections::BTreeMap,
+    hash::{Hash, Hasher},
+};
 
-use serde::de::{DeserializeOwned, DeserializeSeed, Deserializer, Error as SerdeErr, MapAccess, SeqAccess, Visitor};
-
-use de::{Error as RonError, Result};
+use crate::de::{Error as RonError, Result};
 
 /// A wrapper for `f64` which guarantees that the inner value
 /// is finite and thus implements `Eq`, `Hash` and `Ord`.
@@ -25,7 +31,7 @@ impl Number {
     }
 
     /// Returns the wrapped float.
-    pub fn get(&self) -> f64 {
+    pub fn get(self) -> f64 {
         self.0
     }
 }
@@ -88,7 +94,6 @@ impl<'de> Deserializer<'de> for Value {
             Value::String(s) => visitor.visit_string(s),
             Value::Seq(mut seq) => {
                 seq.reverse();
-
                 visitor.visit_seq(Seq { seq })
             }
             Value::Unit => visitor.visit_unit(),
@@ -222,7 +227,7 @@ mod tests {
     where
         T: Debug + Deserialize<'de> + PartialEq,
     {
-        use de::from_str;
+        use crate::de::from_str;
 
         let direct: T = from_str(s).unwrap();
         let value: Value = from_str(s).unwrap();

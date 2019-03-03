@@ -1,11 +1,6 @@
-extern crate ron;
-#[macro_use]
-extern crate serde;
-
-use std::collections::HashMap;
-use std::default::Default;
-
 use ron::ser::{to_string_pretty, PrettyConfig};
+use serde::Serialize;
+use std::{collections::HashMap, iter::FromIterator};
 
 #[derive(Serialize)]
 struct Config {
@@ -32,8 +27,6 @@ struct Nested {
 }
 
 fn main() {
-    use std::iter::FromIterator;
-
     let data = Config {
         float: (2.18, -1.1),
         tuple: TupleStruct((), false),

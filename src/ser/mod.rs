@@ -1,10 +1,8 @@
-use std::error::Error as StdError;
-use std::fmt::{Display, Formatter, Write, Result as FmtResult};
-use std::result::Result as StdResult;
-
-use base64;
-
-use serde::ser::{self, Serialize};
+use serde::{ser, Deserialize, Serialize};
+use std::{
+    error::Error as StdError,
+    fmt::{Display, Formatter, Result as FmtResult, Write},
+};
 
 mod value;
 
@@ -32,7 +30,13 @@ where
 {
     let mut s = Serializer {
         output: String::new(),
-        pretty: Some((config, Pretty { indent: 0, sequence_index: Vec::new() })),
+        pretty: Some((
+            config,
+            Pretty {
+                indent: 0,
+                sequence_index: Vec::new(),
+            },
+        )),
         struct_names: false,
     };
     value.serialize(&mut s)?;
@@ -40,7 +44,7 @@ where
 }
 
 /// Serialization result.
-pub type Result<T> = StdResult<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// Serialization error.
 #[derive(Clone, Debug, PartialEq)]
@@ -50,7 +54,7 @@ pub enum Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match *self {
             Error::Message(ref e) => write!(f, "Custom message: {}", e),
         }
@@ -124,7 +128,15 @@ impl Serializer {
     pub fn new(config: Option<PrettyConfig>, struct_names: bool) -> Self {
         Serializer {
             output: String::new(),
-            pretty: config.map(|conf| (conf, Pretty { indent: 0, sequence_index: Vec::new() })),
+            pretty: config.map(|conf| {
+                (
+                    conf,
+                    Pretty {
+                        indent: 0,
+                        sequence_index: Vec::new(),
+                    },
+                )
+            }),
             struct_names,
         }
     }
@@ -144,8 +156,7 @@ impl Serializer {
     fn separate_tuple_members(&self) -> bool {
         self.pretty
             .as_ref()
-            .map(|&(ref config, _)| config.separate_tuple_members)
-            .unwrap_or(false)
+            .map_or(false, |&(ref config, _)| config.separate_tuple_members)
     }
 
     fn start_indent(&mut self) {
@@ -177,8 +188,9 @@ impl Serializer {
     }
 
     fn serialize_escaped_str(&mut self, value: &str) {
+        let value = value.chars().flat_map(|c| c.escape_debug());
         self.output += "\"";
-        self.output.extend(value.chars().flat_map(|c| c.escape_debug()));
+        self.output.extend(value);
         self.output += "\"";
     }
 }
@@ -740,10 +752,13 @@ mod tests {
 
     #[test]
     fn test_byte_stream() {
-        extern crate serde_bytes;
+        use serde_bytes;
 
         let small: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        assert_eq!(to_string(&small).unwrap(), "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,)");
+        assert_eq!(
+            to_string(&small).unwrap(),
+            "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,)"
+        );
 
         let large = vec![255u8; 64];
         let large = serde_bytes::Bytes::new(&large);

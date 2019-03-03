@@ -1,6 +1,4 @@
-extern crate ron;
-#[macro_use]
-extern crate serde;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct ImVec2 {

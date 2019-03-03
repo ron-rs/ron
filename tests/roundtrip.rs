@@ -1,7 +1,4 @@
-extern crate ron;
-#[macro_use]
-extern crate serde;
-
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
@@ -40,8 +37,9 @@ fn roundtrip() {
             (Key(6), Enum::Bool(false)),
             (Key(7), Enum::Bool(true)),
             (Key(9), Enum::Chars('x', "".to_string())),
-        ].into_iter()
-            .collect(),
+        ]
+        .into_iter()
+        .collect(),
     };
 
     let serial = ron::ser::to_string(&value).unwrap();
@@ -63,8 +61,9 @@ fn roundtrip_pretty() {
             (Key(6), Enum::Bool(false)),
             (Key(7), Enum::Bool(true)),
             (Key(9), Enum::Chars('x', "".to_string())),
-        ].into_iter()
-            .collect(),
+        ]
+        .into_iter()
+        .collect(),
     };
 
     let pretty = ron::ser::PrettyConfig {
@@ -102,15 +101,13 @@ fn roundtrip_sep_tuple_members() {
             (Key(6), Enum::Bool(false)),
             (Key(7), Enum::Bool(true)),
             (Key(9), Enum::Chars('x', "".to_string())),
-        ].into_iter()
-            .collect(),
+        ]
+        .into_iter()
+        .collect(),
     };
     let b = FileOrMem::File("foo".to_owned());
 
-    let value = Both {
-        a,
-        b,
-    };
+    let value = Both { a, b };
 
     let pretty = ron::ser::PrettyConfig {
         depth_limit: !0,

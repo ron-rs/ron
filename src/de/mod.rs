@@ -1,18 +1,13 @@
 /// Deserialization module.
 ///
 pub use self::error::{Error, ParseError, Result};
-pub use parse::Position;
+pub use crate::parse::Position;
 
-use std::borrow::Cow;
-use std::io;
-use std::str;
-
-use base64;
-
-use serde::de::{self, DeserializeSeed, Deserializer as Deserializer_, Visitor};
+use serde::de::{self, DeserializeSeed, Deserializer as _, Visitor};
+use std::{borrow::Cow, io, str};
 
 use self::id::IdDeserializer;
-use parse::{Bytes, Extensions};
+use crate::parse::{Bytes, Extensions, ParsedStr};
 
 mod error;
 mod id;
@@ -39,7 +34,7 @@ impl<'de> Deserializer<'de> {
         })
     }
 
-    pub fn remainder(&self) -> Cow<str> {
+    pub fn remainder(&self) -> Cow<'_, str> {
         String::from_utf8_lossy(&self.bytes.bytes())
     }
 }
@@ -99,10 +94,10 @@ impl<'de> Deserializer<'de> {
     /// This method assumes there is no identifier left.
     fn handle_any_struct<V>(&mut self, visitor: V) -> Result<V::Value>
     where
-        V: Visitor<'de>
+        V: Visitor<'de>,
     {
         // Create a working copy
-        let mut bytes = self.bytes.clone();
+        let mut bytes = self.bytes;
 
         match bytes.consume("(") {
             true => {
@@ -152,7 +147,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'(' => self.handle_any_struct(visitor),
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
-            b'0'...b'9' | b'+' | b'-' => {
+            b'0'..=b'9' | b'+' | b'-' => {
                 if self.bytes.next_bytes_is_float() {
                     self.deserialize_f64(visitor)
                 } else {
@@ -254,8 +249,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        use parse::ParsedStr;
-
         match self.bytes.string()? {
             ParsedStr::Allocated(s) => visitor.visit_string(s),
             ParsedStr::Slice(s) => visitor.visit_str(s),
@@ -280,8 +273,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        use parse::ParsedStr;
-
         let res = {
             let string = self.bytes.string()?;
             let base64_str = match string {
@@ -293,7 +284,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         match res {
             Ok(byte_buf) => visitor.visit_byte_buf(byte_buf),
-            Err(err) => self.bytes.err(ParseError::Base64Error(err))
+            Err(err) => self.bytes.err(ParseError::Base64Error(err)),
         }
     }
 
@@ -303,29 +294,25 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if self.bytes.consume("None") {
             visitor.visit_none()
-        } else {
-            if self.bytes.exts.contains(Extensions::IMPLICIT_SOME) {
-                visitor.visit_some(&mut *self)
+        } else if self.bytes.exts.contains(Extensions::IMPLICIT_SOME) {
+            visitor.visit_some(&mut *self)
+        } else if self.bytes.consume("Some") && {
+            self.bytes.skip_ws()?;
+            self.bytes.consume("(")
+        } {
+            self.bytes.skip_ws()?;
+
+            let v = visitor.visit_some(&mut *self)?;
+
+            self.bytes.skip_ws()?;
+
+            if self.bytes.consume(")") {
+                Ok(v)
             } else {
-                if self.bytes.consume("Some") && {
-                    self.bytes.skip_ws()?;
-                    self.bytes.consume("(")
-                } {
-                    self.bytes.skip_ws()?;
-
-                    let v = visitor.visit_some(&mut *self)?;
-
-                    self.bytes.skip_ws()?;
-
-                    if self.bytes.consume(")") {
-                        Ok(v)
-                    } else {
-                        self.bytes.err(ParseError::ExpectedOptionEnd)
-                    }
-                } else {
-                    self.bytes.err(ParseError::ExpectedOption)
-                }
+                self.bytes.err(ParseError::ExpectedOptionEnd)
             }
+        } else {
+            self.bytes.err(ParseError::ExpectedOption)
         }
     }
 
@@ -490,8 +477,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         visitor.visit_str(
-            str::from_utf8(self.bytes.identifier()?)
-                .map_err(|e| self.bytes.error(e.into()))?
+            str::from_utf8(self.bytes.identifier()?).map_err(|e| self.bytes.error(e.into()))?,
         )
     }
 

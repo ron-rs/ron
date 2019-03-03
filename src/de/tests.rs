@@ -1,4 +1,5 @@
-extern crate serde_bytes;
+use serde::Deserialize;
+use serde_bytes;
 
 use super::*;
 
@@ -21,7 +22,6 @@ enum MyEnum {
     C(bool, f32),
     D { a: i32, b: i32 },
 }
-
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct BytesStruct {
@@ -144,12 +144,13 @@ x: 1.0, // x is just 1
 // And y is indeed
 y: 2.0 // 2!
     )"
-        ).unwrap()
+        )
+        .unwrap()
     );
 }
 
 fn err<T>(kind: ParseError, line: usize, col: usize) -> Result<T> {
-    use parse::Position;
+    use crate::parse::Position;
 
     Err(Error::Parser(kind, Position { line, col }))
 }
@@ -289,7 +290,10 @@ fn ws_tuple_newtype_variant() {
 #[test]
 fn test_byte_stream() {
     assert_eq!(
-        Ok(BytesStruct{ small: vec![1, 2], large: vec![1, 2, 3, 4] }),
+        Ok(BytesStruct {
+            small: vec![1, 2],
+            large: vec![1, 2, 3, 4]
+        }),
         from_str("BytesStruct( small:[1, 2], large:\"AQIDBA==\" )"),
     );
 }
