@@ -167,10 +167,8 @@ impl Serializer {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             pretty.indent += 1;
             if pretty.indent < config.depth_limit {
-                let is_empty = match self.is_empty {
-                    Some(n) => n,
-                    None => false,
-                };
+                let is_empty = self.is_empty.unwrap_or(false);
+
                 if !is_empty {
                     self.output += &config.new_line;
                 }
@@ -190,10 +188,7 @@ impl Serializer {
     fn end_indent(&mut self) {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             if pretty.indent < config.depth_limit {
-                let is_empty = match self.is_empty {
-                    Some(n) => n,
-                    None => false,
-                };
+                let is_empty = self.is_empty.unwrap_or(false);
 
                 if !is_empty {
                     self.output
