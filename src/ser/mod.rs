@@ -18,6 +18,7 @@ where
         output: String::new(),
         pretty: None,
         struct_names: false,
+        is_empty: None,
     };
     value.serialize(&mut s)?;
     Ok(s.output)
@@ -38,6 +39,7 @@ where
             },
         )),
         struct_names: false,
+        is_empty: None,
     };
     value.serialize(&mut s)?;
     Ok(s.output)
@@ -119,6 +121,7 @@ pub struct Serializer {
     output: String,
     pretty: Option<(PrettyConfig, Pretty)>,
     struct_names: bool,
+    is_empty: Option<bool>,
 }
 
 impl Serializer {
@@ -138,6 +141,7 @@ impl Serializer {
                 )
             }),
             struct_names,
+            is_empty: None,
         }
     }
 
@@ -163,7 +167,11 @@ impl Serializer {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             pretty.indent += 1;
             if pretty.indent < config.depth_limit {
-                self.output += &config.new_line;
+                let is_empty = self.is_empty.unwrap_or(false);
+
+                if !is_empty {
+                    self.output += &config.new_line;
+                }
             }
         }
     }
@@ -180,10 +188,16 @@ impl Serializer {
     fn end_indent(&mut self) {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             if pretty.indent < config.depth_limit {
-                self.output
-                    .extend((1..pretty.indent).map(|_| config.indentor.as_str()));
+                let is_empty = self.is_empty.unwrap_or(false);
+
+                if !is_empty {
+                    self.output
+                        .extend((1..pretty.indent).map(|_| config.indentor.as_str()));
+                }
             }
             pretty.indent -= 1;
+
+            self.is_empty = None;
         }
     }
 
@@ -349,8 +363,12 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq> {
+    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.output += "[";
+
+        if let Some(len) = len {
+            self.is_empty = Some(len == 0);
+        }
 
         self.start_indent();
 
@@ -361,10 +379,12 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         Ok(self)
     }
 
-    fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple> {
+    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         self.output += "(";
 
         if self.separate_tuple_members() {
+            self.is_empty = Some(len == 0);
+
             self.start_indent();
         }
 
@@ -388,32 +408,39 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _: &'static str,
         _: u32,
         variant: &'static str,
-        _: usize,
+        len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         self.output += variant;
         self.output += "(";
 
         if self.separate_tuple_members() {
+            self.is_empty = Some(len == 0);
+
             self.start_indent();
         }
 
         Ok(self)
     }
 
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         self.output += "{";
+
+        if let Some(len) = len {
+            self.is_empty = Some(len == 0);
+        }
 
         self.start_indent();
 
         Ok(self)
     }
 
-    fn serialize_struct(self, name: &'static str, _: usize) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         if self.struct_names {
             self.output += name;
         }
         self.output += "(";
 
+        self.is_empty = Some(len == 0);
         self.start_indent();
 
         Ok(self)
@@ -424,11 +451,12 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         _: &'static str,
         _: u32,
         variant: &'static str,
-        _: usize,
+        len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         self.output += variant;
         self.output += "(";
 
+        self.is_empty = Some(len == 0);
         self.start_indent();
 
         Ok(self)
