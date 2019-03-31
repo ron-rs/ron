@@ -77,6 +77,12 @@ impl Value {
 impl<'de> Deserializer<'de> for Value {
     type Error = RonError;
 
+    forward_to_deserialize_any! {
+        bool f32 f64 char str string bytes
+        byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum identifier ignored_any
+    }
+
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -160,12 +166,6 @@ impl<'de> Deserializer<'de> for Value {
             Value::Number(n) => visitor.visit_u64(n.get() as u64),
             v => Err(RonError::custom(format!("Expected a number, got {:?}", v))),
         }
-    }
-
-    forward_to_deserialize_any! {
-        bool f32 f64 char str string bytes
-        byte_buf option unit unit_struct newtype_struct seq tuple
-        tuple_struct map struct enum identifier ignored_any
     }
 }
 

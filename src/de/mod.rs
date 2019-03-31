@@ -1,5 +1,4 @@
 /// Deserialization module.
-///
 pub use self::error::{Error, ParseError, Result};
 pub use crate::parse::Position;
 
@@ -88,8 +87,9 @@ impl<'de> Deserializer<'de> {
         }
     }
 
-    /// Called from `deserialze_any` when a struct was detected. Decides if there is a
-    /// unit, tuple or usual struct and deserializes it accordingly.
+    /// Called from `deserialze_any` when a struct was detected. Decides if
+    /// there is a unit, tuple or usual struct and deserializes it
+    /// accordingly.
     ///
     /// This method assumes there is no identifier left.
     fn handle_any_struct<V>(&mut self, visitor: V) -> Result<V::Value>

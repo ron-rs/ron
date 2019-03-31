@@ -34,17 +34,11 @@ fn empty_sets_arrays() {
     let value = Struct {
         tuple: ((), NewType(0.5), TupleStruct(UnitStruct, -5)),
         vec: vec![],
-        map: vec![]
-        .into_iter()
-        .collect(),
-        deep_vec: vec![
-            (Key(0), vec![]),
-        ]
-        .into_iter()
-        .collect(),
-        deep_map: vec![
-            (Key(0), vec![].into_iter().collect(),),
-        ].into_iter().collect(),
+        map: vec![].into_iter().collect(),
+        deep_vec: vec![(Key(0), vec![])].into_iter().collect(),
+        deep_map: vec![(Key(0), vec![].into_iter().collect())]
+            .into_iter()
+            .collect(),
     };
 
     let pretty = ron::ser::PrettyConfig {
@@ -55,7 +49,8 @@ fn empty_sets_arrays() {
 
     println!("Serialized: {}", serial);
 
-    assert_eq!("(
+    assert_eq!(
+        "(
     tuple: ((), (0.5), ((), -5)),
     vec: [],
     map: {},
@@ -65,7 +60,9 @@ fn empty_sets_arrays() {
     deep_map: {
         (0): {},
     },
-)", serial);
+)",
+        serial
+    );
 
     let deserial = ron::de::from_str(&serial);
 

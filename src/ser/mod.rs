@@ -210,16 +210,15 @@ impl Serializer {
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {
-    type Ok = ();
     type Error = Error;
-
+    type Ok = ();
+    type SerializeMap = Self;
     type SerializeSeq = Self;
+    type SerializeStruct = Self;
+    type SerializeStructVariant = Self;
     type SerializeTuple = Self;
     type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
-    type SerializeMap = Self;
-    type SerializeStruct = Self;
-    type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
         self.output += if v { "true" } else { "false" };
@@ -464,8 +463,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
 }
 
 impl<'a> ser::SerializeSeq for &'a mut Serializer {
-    type Ok = ();
     type Error = Error;
+    type Ok = ();
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
@@ -506,8 +505,8 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
 }
 
 impl<'a> ser::SerializeTuple for &'a mut Serializer {
-    type Ok = ();
     type Error = Error;
+    type Ok = ();
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
@@ -549,8 +548,8 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
 
 // Same thing but for tuple structs.
 impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
-    type Ok = ();
     type Error = Error;
+    type Ok = ();
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
@@ -565,8 +564,8 @@ impl<'a> ser::SerializeTupleStruct for &'a mut Serializer {
 }
 
 impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
-    type Ok = ();
     type Error = Error;
+    type Ok = ();
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
@@ -581,8 +580,8 @@ impl<'a> ser::SerializeTupleVariant for &'a mut Serializer {
 }
 
 impl<'a> ser::SerializeMap for &'a mut Serializer {
-    type Ok = ();
     type Error = Error;
+    type Ok = ();
 
     fn serialize_key<T>(&mut self, key: &T) -> Result<()>
     where
@@ -624,8 +623,8 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
 }
 
 impl<'a> ser::SerializeStruct for &'a mut Serializer {
-    type Ok = ();
     type Error = Error;
+    type Ok = ();
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
@@ -661,8 +660,8 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
 }
 
 impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
-    type Ok = ();
     type Error = Error;
+    type Ok = ();
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
