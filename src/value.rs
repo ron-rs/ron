@@ -2,7 +2,7 @@
 
 use serde::{
     de::{
-        DeserializeOwned, DeserializeSeed, Deserializer, Error as _, MapAccess, SeqAccess, Visitor,
+        DeserializeOwned, DeserializeSeed, Deserializer, Error as SerdeError, MapAccess, SeqAccess, Visitor,
     },
     forward_to_deserialize_any,
 };
