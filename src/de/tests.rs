@@ -305,3 +305,18 @@ fn test_numbers() {
         from_str("[1_234, 12_345, 1_2_3_4_5_6, 1_234_567, 5_55_55_5]"),
     );
 }
+
+fn de_any_number(s: &str) -> AnyNum {
+    let mut bytes = Bytes::new(s.as_bytes()).unwrap();
+
+    bytes.any_num().unwrap()
+}
+
+#[test]
+fn test_any_number_precision() {
+    assert_eq!(de_any_number("1"), AnyNum::U8(1));
+    assert_eq!(de_any_number("+1"), AnyNum::I8(1));
+    assert_eq!(de_any_number("-1"), AnyNum::I8(-1));
+    assert_eq!(de_any_number("-1.0"), AnyNum::F32(-1.0));
+    assert_eq!(de_any_number("0.3"), AnyNum::F64(0.3));
+}
