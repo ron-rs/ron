@@ -2,7 +2,7 @@
 pub use self::error::{Error, ParseError, Result};
 pub use crate::parse::Position;
 
-use serde::de::{self, DeserializeSeed, Deserializer as _, Visitor};
+use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 use std::{borrow::Cow, io, str};
 
 use self::id::IdDeserializer;
