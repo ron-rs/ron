@@ -150,8 +150,6 @@ y: 2.0 // 2!
 }
 
 fn err<T>(kind: ParseError, line: usize, col: usize) -> Result<T> {
-    use crate::parse::Position;
-
     Err(Error::Parser(kind, Position { line, col }))
 }
 
@@ -318,5 +316,7 @@ fn test_any_number_precision() {
     assert_eq!(de_any_number("+1"), AnyNum::I8(1));
     assert_eq!(de_any_number("-1"), AnyNum::I8(-1));
     assert_eq!(de_any_number("-1.0"), AnyNum::F32(-1.0));
+    assert_eq!(de_any_number("1."), AnyNum::F32(1.));
+    assert_eq!(de_any_number("-1."), AnyNum::F32(-1.));
     assert_eq!(de_any_number("0.3"), AnyNum::F64(0.3));
 }
