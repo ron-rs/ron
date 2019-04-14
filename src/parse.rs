@@ -15,6 +15,20 @@ const IDENT_FIRST: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy
 const IDENT_CHAR: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789";
 const WHITE_SPACE: &[u8] = b"\n\t\r ";
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum AnyNum {
+    F32(f32),
+    F64(f64),
+    I8(i8),
+    U8(u8),
+    I16(i16),
+    U16(u16),
+    I32(i32),
+    U32(u32),
+    I64(i64),
+    U64(u64),
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Bytes<'a> {
     /// Bits set according to `Extension` enum.
@@ -68,6 +82,79 @@ impl<'a> Bytes<'a> {
         self.bytes = &self.bytes[1..];
 
         Ok(())
+    }
+
+    pub fn any_num(&mut self) -> Result<AnyNum> {
+        fn any_float(f: f64) -> Result<AnyNum> {
+            if f == f as f32 as f64 {
+                Ok(AnyNum::F32(f as f32))
+            } else {
+                Ok(AnyNum::F64(f))
+            }
+        }
+
+        let bytes_backup = self.bytes;
+
+        let first_byte = self.peek_or_eof()?;
+        let is_signed = first_byte == b'-' || first_byte == b'+';
+        let is_float = self.next_bytes_is_float();
+
+        if is_float {
+            let f = self.float::<f64>()?;
+
+            any_float(f)
+        } else {
+            let max_u8 = std::u8::MAX as u64;
+            let max_u16 = std::u16::MAX as u64;
+            let max_u32 = std::u32::MAX as u64;
+
+            let min_i8 = std::i8::MIN as i64;
+            let max_i8 = std::i8::MAX as i64;
+            let min_i16 = std::i16::MIN as i64;
+            let max_i16 = std::i16::MAX as i64;
+            let min_i32 = std::i32::MIN as i64;
+            let max_i32 = std::i32::MAX as i64;
+
+            if is_signed {
+                match self.signed_integer::<i64>() {
+                    Ok(x) => {
+                        if x >= min_i8 && x <= max_i8 {
+                            Ok(AnyNum::I8(x as i8))
+                        } else if x >= min_i16 && x <= max_i16 {
+                            Ok(AnyNum::I16(x as i16))
+                        } else if x >= min_i32 && x <= max_i32 {
+                            Ok(AnyNum::I32(x as i32))
+                        } else {
+                            Ok(AnyNum::I64(x))
+                        }
+                    }
+                    Err(_) => {
+                        self.bytes = bytes_backup;
+
+                        any_float(self.float::<f64>()?)
+                    }
+                }
+            } else {
+                match self.unsigned_integer::<u64>() {
+                    Ok(x) => {
+                        if x <= max_u8 {
+                            Ok(AnyNum::U8(x as u8))
+                        } else if x <= max_u16 {
+                            Ok(AnyNum::U16(x as u16))
+                        } else if x <= max_u32 {
+                            Ok(AnyNum::U32(x as u32))
+                        } else {
+                            Ok(AnyNum::U64(x))
+                        }
+                    }
+                    Err(_) => {
+                        self.bytes = bytes_backup;
+
+                        any_float(self.float::<f64>()?)
+                    }
+                }
+            }
+        }
     }
 
     pub fn bool(&mut self) -> Result<bool> {

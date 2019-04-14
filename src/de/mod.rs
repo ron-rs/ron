@@ -6,7 +6,7 @@ use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 use std::{borrow::Cow, io, str};
 
 use self::id::IdDeserializer;
-use crate::parse::{Bytes, Extensions, ParsedStr};
+use crate::parse::{AnyNum, Bytes, Extensions, ParsedStr};
 
 mod error;
 mod id;
@@ -148,10 +148,19 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
             b'0'..=b'9' | b'+' | b'-' => {
-                if self.bytes.next_bytes_is_float() {
-                    self.deserialize_f64(visitor)
-                } else {
-                    self.deserialize_i64(visitor)
+                let any_num: AnyNum = self.bytes.any_num()?;
+
+                match any_num {
+                    AnyNum::F32(x) => visitor.visit_f32(x),
+                    AnyNum::F64(x) => visitor.visit_f64(x),
+                    AnyNum::I8(x) => visitor.visit_i8(x),
+                    AnyNum::U8(x) => visitor.visit_u8(x),
+                    AnyNum::I16(x) => visitor.visit_i16(x),
+                    AnyNum::U16(x) => visitor.visit_u16(x),
+                    AnyNum::I32(x) => visitor.visit_i32(x),
+                    AnyNum::U32(x) => visitor.visit_u32(x),
+                    AnyNum::I64(x) => visitor.visit_i64(x),
+                    AnyNum::U64(x) => visitor.visit_u64(x),
                 }
             }
             b'.' => self.deserialize_f64(visitor),
