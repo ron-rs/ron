@@ -132,6 +132,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_none();
         } else if self.bytes.consume("()") {
             return visitor.visit_unit();
+        } else if self.bytes.consume_ident("inf") {
+            return visitor.visit_f64(std::f64::INFINITY);
+        } else if self.bytes.consume_ident("-inf") {
+            return visitor.visit_f64(std::f64::NEG_INFINITY);
+        } else if self.bytes.consume_ident("NaN") {
+            return visitor.visit_f64(std::f64::NAN);
         }
 
         // `identifier` does not change state if it fails
