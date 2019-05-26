@@ -3,7 +3,6 @@ use std::{
     char::from_u32 as char_from_u32,
     fmt::{Display, Formatter, Result as FmtResult},
     ops::Neg,
-    result::Result as StdResult,
     str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
@@ -82,6 +81,78 @@ impl<'a> Bytes<'a> {
         self.bytes = &self.bytes[1..];
 
         Ok(())
+    }
+
+    fn any_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
+        let base = if self.peek() == Some(b'0') {
+            match self.bytes.get(1).cloned() {
+                Some(b'x') => 16,
+                Some(b'b') => 2,
+                Some(b'o') => 8,
+                _ => 10,
+            }
+        } else {
+            10
+        };
+
+        if base != 10 {
+            // If we have `0x45A` for example,
+            // cut it to `45A`.
+            let _ = self.advance(2);
+        }
+
+        let num_bytes = self.next_bytes_contained_in(DIGITS);
+
+        if num_bytes == 0 {
+            return self.err(ParseError::ExpectedInteger);
+        }
+
+        let s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
+
+        if s.as_bytes()[0] == b'_' {
+            return self.err(ParseError::UnderscoreAtBeginning);
+        }
+
+        fn calc_num<T: Num>(
+            bytes: &Bytes,
+            s: &str,
+            base: u8,
+            mut f: impl FnMut(&mut T, u8) -> bool,
+        ) -> Result<T> {
+            let mut num_acc = T::from_u8(0);
+
+            for &byte in s.as_bytes() {
+                if byte == b'_' {
+                    continue;
+                }
+
+                if num_acc.checked_mul_ext(base) {
+                    return bytes.err(ParseError::IntegerOutOfBounds);
+                }
+
+                let digit = bytes.decode_hex(byte)?;
+
+                if digit >= base {
+                    return bytes.err(ParseError::ExpectedInteger);
+                }
+
+                if f(&mut num_acc, digit) {
+                    return bytes.err(ParseError::IntegerOutOfBounds);
+                }
+            }
+
+            Ok(num_acc)
+        };
+
+        let res = if sign > 0 {
+            calc_num(&*self, s, base, T::checked_add_ext)
+        } else {
+            calc_num(&*self, s, base, T::checked_sub_ext)
+        };
+
+        let _ = self.advance(num_bytes);
+
+        res
     }
 
     pub fn any_num(&mut self) -> Result<AnyNum> {
@@ -474,14 +545,14 @@ impl<'a> Bytes<'a> {
             b'+' => {
                 let _ = self.advance_single();
 
-                self.unsigned_integer()
+                self.any_integer(1)
             }
             b'-' => {
                 let _ = self.advance_single();
 
-                self.unsigned_integer::<T>().map(Neg::neg)
+                self.any_integer(-1)
             }
-            _ => self.unsigned_integer(),
+            _ => self.any_integer(1),
         }
     }
 
@@ -582,46 +653,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn unsigned_integer<T: Num>(&mut self) -> Result<T> {
-        let base = if self.peek() == Some(b'0') {
-            match self.bytes.get(1).cloned() {
-                Some(b'x') => 16,
-                Some(b'b') => 2,
-                Some(b'o') => 8,
-                _ => 10,
-            }
-        } else {
-            10
-        };
-
-        if base != 10 {
-            // If we have `0x45A` for example,
-            // cut it to `45A`.
-            let _ = self.advance(2);
-        }
-
-        let num_bytes = self.next_bytes_contained_in(DIGITS);
-
-        if num_bytes == 0 {
-            return self.err(ParseError::ExpectedInteger);
-        }
-
-        let tmp;
-        let mut s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
-
-        if s.as_bytes()[0] == b'_' {
-            return self.err(ParseError::UnderscoreAtBeginning);
-        }
-
-        if s.contains('_') {
-            tmp = s.replace('_', "");
-            s = &tmp;
-        }
-
-        let res = Num::from_str(s, base).map_err(|_| self.error(ParseError::ExpectedInteger));
-
-        let _ = self.advance(num_bytes);
-
-        res
+        self.any_integer(1)
     }
 
     fn decode_ascii_escape(&mut self) -> Result<u8> {
@@ -636,6 +668,7 @@ impl<'a> Bytes<'a> {
         Ok(n)
     }
 
+    #[inline]
     fn decode_hex(&self, c: u8) -> Result<u8> {
         match c {
             c @ b'0'..=b'9' => Ok(c - b'0'),
@@ -758,15 +791,54 @@ impl Extensions {
     }
 }
 
-pub trait Num: Sized {
-    fn from_str(src: &str, radix: u32) -> StdResult<Self, ()>;
+pub trait Num {
+    fn from_u8(x: u8) -> Self;
+
+    /// Returns `true` on overflow
+    fn checked_mul_ext(&mut self, x: u8) -> bool;
+
+    /// Returns `true` on overflow
+    fn checked_add_ext(&mut self, x: u8) -> bool;
+
+    /// Returns `true` on overflow
+    fn checked_sub_ext(&mut self, x: u8) -> bool;
 }
 
 macro_rules! impl_num {
     ($ty:ident) => {
         impl Num for $ty {
-            fn from_str(src: &str, radix: u32) -> StdResult<Self, ()> {
-                $ty::from_str_radix(src, radix).map_err(|_| ())
+            fn from_u8(x: u8) -> Self {
+                x as $ty
+            }
+
+            fn checked_mul_ext(&mut self, x: u8) -> bool {
+                match self.checked_mul(Self::from_u8(x)) {
+                    Some(n) => {
+                        *self = n;
+                        false
+                    }
+                    None => true,
+                }
+            }
+
+            fn checked_add_ext(&mut self, x: u8) -> bool {
+                match self.checked_add(Self::from_u8(x)) {
+                    Some(n) => {
+                        *self = n;
+                        false
+                    }
+                    None => true,
+                }
+            }
+
+            fn checked_sub_ext(&mut self, x: u8) -> bool {
+                match self.checked_sub(Self::from_u8(x)) {
+                    Some(n) => {
+                        *self = n;
+                        false
+                    }
+                    None => true,
+                }
             }
         }
     };

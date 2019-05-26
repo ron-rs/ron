@@ -42,6 +42,8 @@ pub enum ParseError {
 
     InvalidEscape(&'static str),
 
+    IntegerOutOfBounds,
+
     NoSuchExtension(String),
 
     UnclosedBlockComment,
@@ -105,6 +107,8 @@ impl StdError for Error {
                 ParseError::ExpectedIdentifier => "Expected identifier",
 
                 ParseError::InvalidEscape(_) => "Invalid escape sequence",
+
+                ParseError::IntegerOutOfBounds => "Integer is out of bounds",
 
                 ParseError::NoSuchExtension(_) => "No such RON extension",
 

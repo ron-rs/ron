@@ -7,5 +7,8 @@ fn test_large_number() {
     let test_ser = ron::ser::to_string(&test_var).unwrap();
     let test_deser = ron::de::from_str::<Value>(&test_ser);
 
-    assert_eq!(test_deser.unwrap(), Value::Number(Number::new(10000000000000000000000.0)));
+    assert_eq!(
+        test_deser.unwrap(),
+        Value::Number(Number::new(10000000000000000000000.0))
+    );
 }
