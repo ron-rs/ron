@@ -5,6 +5,12 @@ use ron::ser::to_string;
 use ron::de::from_str;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+enum Inner {
+    Foo,
+    Bar,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum EnumStructExternally {
     VariantA { foo: u32, bar: u32, different: u32 },
     VariantB { foo: u32, bar: u32 },
@@ -20,7 +26,7 @@ enum EnumStructInternally {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
 enum EnumStructAdjacently {
-    VariantA { foo: u32, bar: u32, different: u32 },
+    VariantA { foo: u32, bar: u32, different: Inner },
     VariantB { foo: u32, bar: u32 },
 }
 
@@ -96,9 +102,9 @@ fn test_adjacently_a_ser() {
     let v = EnumStructAdjacently::VariantA {
         foo: 1,
         bar: 2,
-        different: 3,
+        different: Inner::Foo,
     };
-    let e = "(type:\"VariantA\",content:(foo:1,bar:2,different:3,),)";
+    let e = "(type:\"VariantA\",content:(foo:1,bar:2,different:Foo,),)";
     test_ser(&v, e);
 }
 
@@ -177,11 +183,11 @@ fn test_internally_b_de() {
 
 #[test]
 fn test_adjacently_a_de() {
-    let s = "(type:\"VariantA\",content:(foo:1,bar:2,different:3,),)";
+    let s = "(type:\"VariantA\",content:(foo:1,bar:2,different:Foo,),)";
     let e = EnumStructAdjacently::VariantA {
         foo: 1,
         bar: 2,
-        different: 3,
+        different: Inner::Foo,
     };
     test_de(s, e);
 }
@@ -260,7 +266,7 @@ fn test_adjacently_a_roundtrip() {
     let v = EnumStructAdjacently::VariantA {
         foo: 1,
         bar: 2,
-        different: 3,
+        different: Inner::Foo,
     };
     test_roundtrip(v);
 }
