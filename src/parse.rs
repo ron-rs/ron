@@ -435,6 +435,13 @@ impl<'a> Bytes<'a> {
     where
         T: FromStr,
     {
+        for literal in &["inf", "-inf", "NaN"] {
+            if self.consume_ident(literal) {
+                return FromStr::from_str(literal)
+                    .map_err(|_| unreachable!()); // must not fail
+            }
+        }
+
         let num_bytes = self.next_bytes_contained_in(FLOAT_CHARS);
 
         let s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };

@@ -17,17 +17,11 @@ use crate::de::{Error as RonError, Result};
 
 /// A wrapper for `f64` which guarantees that the inner value
 /// is finite and thus implements `Eq`, `Hash` and `Ord`.
-#[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct Number(f64);
 
 impl Number {
-    /// Panics if `v` is not a real number
-    /// (infinity, NaN, ..).
     pub fn new(v: f64) -> Self {
-        if !v.is_finite() {
-            panic!("Tried to create Number with a NaN / infinity");
-        }
-
         Number(v)
     }
 
@@ -37,6 +31,22 @@ impl Number {
     }
 }
 
+/// Partial equality comparison
+/// In order to be able to use `Number` as a mapping key, NaN floating values wrapped in `Number`
+/// are equals to each other. It is not the case for underlying `f64` values itself.
+impl PartialEq for Number {
+
+    fn eq(&self, other: &Self) -> bool {
+        if self.0.is_nan() && other.0.is_nan() {
+            return true;
+        }
+        return self.0 == other.0;
+    }
+}
+
+/// Equality comparison
+/// In order to be able to use `Number` as a mapping key, NaN floating values wrapped in `Number`
+/// are equals to each other. It is not the case for underlying `f64` values itself.
 impl Eq for Number {}
 
 impl Hash for Number {
@@ -45,6 +55,30 @@ impl Hash for Number {
     }
 }
 
+/// Partial ordering comparison
+/// In order to be able to use `Number` as a mapping key, NaN floating values wrapped in `Number`
+/// are equals to each other and are less then any other floating value.
+/// It is not the case for underlying `f64` values itself.
+/// ```
+/// use ron::value::Number;
+/// assert!(Number::new(std::f64::NAN) < Number::new(std::f64::NEG_INFINITY));
+/// assert_eq!(Number::new(std::f64::NAN), Number::new(std::f64::NAN));
+/// ```
+impl PartialOrd for Number {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self.0.is_nan(), other.0.is_nan()) {
+            (true, true) => Some(Ordering::Equal),
+            (true, false) => Some(Ordering::Less),
+            (false, true) => Some(Ordering::Greater),
+            _ => self.0.partial_cmp(&other.0)
+        }
+    }
+}
+
+/// Ordering comparison
+/// In order to be able to use `Number` as a mapping key, NaN floating values wrapped in `Number`
+/// are equals to each other and are less then any other floating value.
+/// It is not the case for underlying `f64` values itself. See the `PartialEq` implementation.
 impl Ord for Number {
     fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other).expect("Bug: Contract violation")

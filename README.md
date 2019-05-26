@@ -141,6 +141,8 @@ Why not XXX?
 
 ## Tooling
 
+VS Code: https://github.com/a5huynh/vscode-ron
+
 Sublime Text: https://packagecontrol.io/packages/RON
 
 Vim: https://github.com/ron-rs/ron.vim
