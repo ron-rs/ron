@@ -221,6 +221,18 @@ mod tests {
     }
 
     #[test]
+    fn test_floats() {
+        assert_eq!(
+            eval("(inf, -inf, NaN)"),
+            Value::Seq(vec![
+                Value::Number(Number::new(std::f64::INFINITY)),
+                Value::Number(Number::new(std::f64::NEG_INFINITY)),
+                Value::Number(Number::new(std::f64::NAN)),
+            ]),
+        );
+    }
+
+    #[test]
     fn test_complex() {
         assert_eq!(
             eval(
