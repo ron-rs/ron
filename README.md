@@ -145,6 +145,8 @@ VS Code: https://github.com/a5huynh/vscode-ron
 
 Sublime Text: https://packagecontrol.io/packages/RON
 
+Atom: https://atom.io/packages/language-ron
+
 Vim: https://github.com/ron-rs/ron.vim
 
 ## License
