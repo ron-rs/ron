@@ -22,6 +22,13 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
         self.d.deserialize_identifier(visitor)
     }
 
+    fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
+        where
+            V: Visitor<'b>,
+    {
+        self.deserialize_identifier(visitor)
+    }
+
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
@@ -107,13 +114,6 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
     }
 
     fn deserialize_char<V>(self, _: V) -> Result<V::Value>
-    where
-        V: Visitor<'b>,
-    {
-        unimplemented!("IdDeserializer may only be used for identifiers")
-    }
-
-    fn deserialize_str<V>(self, _: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {

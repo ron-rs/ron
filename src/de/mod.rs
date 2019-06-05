@@ -6,10 +6,12 @@ use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 use std::{borrow::Cow, io, str};
 
 use self::id::IdDeserializer;
+use self::tag::TagDeserializer;
 use crate::parse::{AnyNum, Bytes, Extensions, ParsedStr};
 
 mod error;
 mod id;
+mod tag;
 #[cfg(test)]
 mod tests;
 mod value;
@@ -577,7 +579,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         if self.de.bytes.consume(":") {
             self.de.bytes.skip_ws()?;
 
-            let res = seed.deserialize(&mut *self.de)?;
+            let res = seed.deserialize(&mut TagDeserializer::new(&mut *self.de))?;
 
             self.had_comma = self.de.bytes.comma()?;
 
