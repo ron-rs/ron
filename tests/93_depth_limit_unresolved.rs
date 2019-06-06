@@ -1,7 +1,7 @@
 // Addresses unresolved questions of PR #93
 // TODO(torkleyy): only question 1 is resolved, 2 is not yet resolved
 
-use ron::ser::{to_string, to_string_pretty, PrettyConfig};
+use ron::ser::to_string;
 
 #[test]
 fn omit_trailing_comma_non_pretty() {
