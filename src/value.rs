@@ -27,46 +27,57 @@ use std::iter::FromIterator;
 pub struct Map(MapInner);
 
 impl Map {
+    /// Creates a new, empty `Map`.
     pub fn new() -> Map {
         Default::default()
     }
 
+    /// Returns the number of elements in the map.
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    /// Returns `true` if `self.len() == 0`, `false` otherwise.
     pub fn is_empty(&self) -> usize {
         self.0.len()
     }
 
+    /// Inserts a new element, returning the previous element with this `key` if there was any.
     pub fn insert(&mut self, key: Value, value: Value) -> Option<Value> {
         self.0.insert(key, value)
     }
 
+    /// Removes an element by its `key`.
     pub fn remove(&mut self, key: &Value) -> Option<Value> {
         self.0.remove(key)
     }
 
+    /// Iterate all key-value pairs.
     pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> + DoubleEndedIterator {
         self.0.iter()
     }
 
+    /// Iterate all key-value pairs mutably.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Value, &mut Value)> + DoubleEndedIterator {
         self.0.iter_mut()
     }
 
+    /// Iterate all keys.
     pub fn keys(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
         self.0.keys()
     }
 
+    /// Iterate all values.
     pub fn values(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
         self.0.values()
     }
 
+    /// Iterate all values mutably.
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> + DoubleEndedIterator {
         self.0.values_mut()
     }
 
+    /// Can be used to retrieve the internal map representation.
     /// Will return `None` if `indexmap` is enabled.
     pub fn as_b_tree_map(&self) -> Option<&BTreeMap<Value, Value>> {
         #[cfg(not(feature = "indexmap"))]
@@ -77,6 +88,7 @@ impl Map {
         x
     }
 
+    /// Can be used to retrieve the internal map representation.
     /// Will return `None` if `indexmap` is enabled.
     pub fn as_b_tree_map_mut(&mut self) -> Option<&mut BTreeMap<Value, Value>> {
         #[cfg(not(feature = "indexmap"))]
@@ -87,6 +99,7 @@ impl Map {
         x
     }
 
+    /// Can be used to retrieve the internal map representation.
     /// Will return `None` if `indexmap` is disabled.
     pub fn as_index_map(&self) -> Option<&indexmap::IndexMap<Value, Value>> {
         #[cfg(feature = "indexmap")]
@@ -97,6 +110,7 @@ impl Map {
         x
     }
 
+    /// Can be used to retrieve the internal map representation.
     /// Will return `None` if `indexmap` is disabled.
     pub fn as_index_map_mut(&mut self) -> Option<&mut indexmap::IndexMap<Value, Value>> {
         #[cfg(feature = "indexmap")]
