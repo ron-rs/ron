@@ -9,3 +9,7 @@ branches:
     - staging
     - trying
     - master
+
+script:
+  - cargo test
+  - cargo test --all-features
