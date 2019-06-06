@@ -83,32 +83,131 @@ struct Pretty {
     sequence_index: Vec<usize>,
 }
 
-/// Pretty serializer configuration
+/// Pretty serializer configuration.
+///
+/// # Examples
+///
+/// ```
+/// use ron::ser::PrettyConfig;
+///
+/// let my_config = PrettyConfig::new()
+///     .with_depth_limit(4)
+///     // definitely superior (okay, just joking)
+///     .with_indentor("\t".to_owned());
+/// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PrettyConfig {
     /// Limit the pretty-ness up to the given depth.
+    #[serde(default = "default_depth_limit")]
     pub depth_limit: usize,
     /// New line string
+    #[serde(default = "default_new_line")]
     pub new_line: String,
     /// Indentation string
+    #[serde(default = "default_indentor")]
     pub indentor: String,
     /// Separate tuple members with indentation
+    #[serde(default = "default_separate_tuple_members")]
     pub separate_tuple_members: bool,
     /// Enumerate array items in comments
+    #[serde(default = "default_enumerate_arrays")]
     pub enumerate_arrays: bool,
+    /// Private field to ensure adding a field is non-breaking.
+    #[serde(skip)]
+    _future_proof: (),
+}
+
+impl PrettyConfig {
+    /// Creates a default `PrettyConfig`.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Limits the pretty-formatting based on the number of indentations.
+    /// I.e., with a depth limit of 5, starting with an element of depth (indentation level) 6,
+    /// everything will be put into the same line, without pretty formatting.
+    ///
+    /// Default: [std::usize::MAX]
+    pub fn with_depth_limit(mut self, depth_limit: usize) -> Self {
+        self.depth_limit = depth_limit;
+
+        self
+    }
+
+    /// Configures the newlines used for serialization.
+    ///
+    /// Default: `\r\n` on Windows, `\n` otherwise
+    pub fn with_new_line(mut self, new_line: String) -> Self {
+        self.new_line = new_line;
+
+        self
+    }
+
+    /// Configures the string sequence used for indentation.
+    ///
+    /// Default: 4 spaces
+    pub fn with_indentor(mut self, indentor: String) -> Self {
+        self.indentor = indentor;
+
+        self
+    }
+
+    /// Configures whether tuples are single- or multi-line.
+    /// If set to `true`, tuples will have their fields indented and in new lines.
+    /// If set to `false`, tuples will be serialized without any newlines or indentations.
+    ///
+    /// Default: `false`
+    pub fn with_separate_tuple_members(mut self, separate_tuple_members: bool) -> Self {
+        self.separate_tuple_members = separate_tuple_members;
+
+        self
+    }
+
+    /// Configures whether a comment shall be added to every array element, indicating
+    /// the index.
+    ///
+    /// Default: `false`
+    pub fn with_enumerate_arrays(mut self, enumerate_arrays: bool) -> Self {
+        self.enumerate_arrays = enumerate_arrays;
+
+        self
+    }
+}
+
+fn default_depth_limit() -> usize {
+    !0
+}
+
+fn default_new_line() -> String {
+    #[cfg(not(target_os = "windows"))]
+    let new_line = "\n".to_string();
+    #[cfg(target_os = "windows")]
+    let new_line = "\r\n".to_string();
+
+    new_line
+}
+
+fn default_indentor() -> String {
+    "    ".to_string()
+}
+
+fn default_separate_tuple_members() -> bool {
+    false
+}
+
+fn default_enumerate_arrays() -> bool {
+    false
 }
 
 impl Default for PrettyConfig {
     fn default() -> Self {
         PrettyConfig {
-            depth_limit: !0,
-            #[cfg(not(target_os = "windows"))]
-            new_line: "\n".to_string(),
-            #[cfg(target_os = "windows")]
-            new_line: "\r\n".to_string(),
-            indentor: "    ".to_string(),
-            separate_tuple_members: false,
-            enumerate_arrays: false,
+            depth_limit: default_depth_limit(),
+            new_line: default_new_line(),
+            indentor: default_indentor(),
+            separate_tuple_members: default_separate_tuple_members(),
+            enumerate_arrays: default_enumerate_arrays(),
+            _future_proof: (),
         }
     }
 }
