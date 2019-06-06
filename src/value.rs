@@ -1,6 +1,7 @@
 //! Value module.
 
 use serde::{
+    Deserialize, Serialize,
     de::{
         DeserializeOwned, DeserializeSeed, Deserializer, Error as SerdeError, MapAccess, SeqAccess,
         Visitor,
@@ -14,6 +15,137 @@ use std::{
 };
 
 use crate::de::{Error as RonError, Result};
+use std::iter::FromIterator;
+
+/// A `Value` to `Value` map.
+///
+/// This structure either uses a [BTreeMap](std::collections::BTreeMap) or the
+/// [IndexMap](indexmap::IndexMap) internally.
+/// The latter can be used by enabling the `indexmap` feature. This can be used to preserve the
+/// order of the parsed map.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Map(MapInner);
+
+impl Map {
+    pub fn new() -> Map {
+        Default::default()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn insert(&mut self, key: Value, value: Value) -> Option<Value> {
+        self.0.insert(key, value)
+    }
+
+    pub fn remove(&mut self, key: &Value) -> Option<Value> {
+        self.0.remove(key)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> + DoubleEndedIterator {
+        self.0.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Value, &mut Value)> + DoubleEndedIterator {
+        self.0.iter_mut()
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
+        self.0.keys()
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
+        self.0.values()
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> + DoubleEndedIterator {
+        self.0.values_mut()
+    }
+
+    /// Will return `None` if `indexmap` is enabled.
+    pub fn as_b_tree_map(&self) -> Option<&BTreeMap<Value, Value>> {
+        #[cfg(not(feature = "indexmap"))]
+        let x = Some(&self.0);
+        #[cfg(feature = "indexmap")]
+        let x = None;
+
+        x
+    }
+
+    /// Will return `None` if `indexmap` is enabled.
+    pub fn as_b_tree_map_mut(&mut self) -> Option<&mut BTreeMap<Value, Value>> {
+        #[cfg(not(feature = "indexmap"))]
+        let x = Some(&mut self.0);
+        #[cfg(feature = "indexmap")]
+        let x = None;
+
+        x
+    }
+
+    /// Will return `None` if `indexmap` is disabled.
+    pub fn as_index_map(&self) -> Option<&indexmap::IndexMap<Value, Value>> {
+        #[cfg(feature = "indexmap")]
+        let x = Some(&self.0);
+        #[cfg(not(feature = "indexmap"))]
+        let x = None;
+
+        x
+    }
+
+    /// Will return `None` if `indexmap` is disabled.
+    pub fn as_index_map_mut(&mut self) -> Option<&mut indexmap::IndexMap<Value, Value>> {
+        #[cfg(feature = "indexmap")]
+        let x = Some(&mut self.0);
+        #[cfg(not(feature = "indexmap"))]
+        let x = None;
+
+        x
+    }
+}
+
+impl FromIterator<(Value, Value)> for Map {
+    fn from_iter<T: IntoIterator<Item=(Value, Value)>>(iter: T) -> Self {
+        Map(MapInner::from_iter(iter))
+    }
+}
+
+/// Note: equality is only given if both values and order of values match
+impl Eq for Map {}
+
+impl Hash for Map {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.iter().for_each(|x| x.hash(state));
+    }
+}
+
+impl Ord for Map {
+    fn cmp(&self, other: &Map) -> Ordering {
+        self.iter().cmp(other.iter())
+    }
+}
+
+/// Note: equality is only given if both values and order of values match
+impl PartialEq for Map {
+    fn eq(&self, other: &Map) -> bool {
+        self.iter().zip(other.iter()).all(|(a, b)| a == b)
+    }
+}
+
+impl PartialOrd for Map {
+    fn partial_cmp(&self, other: &Map) -> Option<Ordering> {
+        self.iter().partial_cmp(other.iter())
+    }
+}
+
+#[cfg(not(feature = "indexmap"))]
+type MapInner = BTreeMap<Value, Value>;
+#[cfg(feature = "indexmap")]
+type MapInner = indexmap::IndexMap<Value, Value>;
 
 /// A wrapper for `f64` which guarantees that the inner value
 /// is finite and thus implements `Eq`, `Hash` and `Ord`.
@@ -89,7 +221,7 @@ impl Ord for Number {
 pub enum Value {
     Bool(bool),
     Char(char),
-    Map(BTreeMap<Value, Value>),
+    Map(Map),
     Number(Number),
     Option(Option<Box<Value>>),
     String(String),
@@ -125,7 +257,7 @@ impl<'de> Deserializer<'de> for Value {
         match self {
             Value::Bool(b) => visitor.visit_bool(b),
             Value::Char(c) => visitor.visit_char(c),
-            Value::Map(m) => visitor.visit_map(Map {
+            Value::Map(m) => visitor.visit_map(MapAccessor {
                 keys: m.keys().cloned().rev().collect(),
                 values: m.values().cloned().rev().collect(),
             }),
@@ -204,12 +336,12 @@ impl<'de> Deserializer<'de> for Value {
     }
 }
 
-struct Map {
+struct MapAccessor {
     keys: Vec<Value>,
     values: Vec<Value>,
 }
 
-impl<'de> MapAccess<'de> for Map {
+impl<'de> MapAccess<'de> for MapAccessor {
     type Error = RonError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
