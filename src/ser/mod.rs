@@ -176,9 +176,22 @@ impl Serializer {
         }
     }
 
+    fn indentation_enabled(&self) -> bool {
+        // TODO(torkleyy): consider changing this to <=
+        // TODO: (see https://github.com/ron-rs/ron/issues/174)
+        self.pretty.as_ref().map(|(config, pretty)| pretty.indent < config.depth_limit)
+            .unwrap_or(false)
+    }
+
+    fn pop_if_comma(&mut self) {
+        if self.output.as_bytes().last() == Some(&b',') {
+            self.output.pop();
+        }
+    }
+
     fn indent(&mut self) {
         if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+            if self.indentation_enabled() {
                 self.output
                     .extend((0..pretty.indent).map(|_| config.indentor.as_str()));
             }
@@ -186,6 +199,11 @@ impl Serializer {
     }
 
     fn end_indent(&mut self) {
+        // Remove trailing comma if no indentation is used
+        if !self.indentation_enabled() {
+            self.pop_if_comma();
+        }
+
         if let Some((ref config, ref mut pretty)) = self.pretty {
             if pretty.indent < config.depth_limit {
                 let is_empty = self.is_empty.unwrap_or(false);
@@ -475,8 +493,8 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if let Some((ref config, ref mut pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+        if self.indentation_enabled() {
+            if let Some((ref config, ref mut pretty)) = self.pretty {
                 if config.enumerate_arrays {
                     assert!(config.new_line.contains('\n'));
                     let index = pretty.sequence_index.last_mut().unwrap();
@@ -519,8 +537,8 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+        if let Some((ref config, _)) = self.pretty {
+            if self.indentation_enabled() {
                 self.output += if self.separate_tuple_members() {
                     &config.new_line
                 } else {
@@ -538,6 +556,9 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
         } else if self.is_pretty() {
             self.output.pop();
             self.output.pop();
+        } else {
+            // Remove trailing comma
+            self.pop_if_comma();
         }
 
         self.output += ")";
@@ -605,8 +626,8 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+        if let Some((ref config, _)) = self.pretty {
+            if self.indentation_enabled() {
                 self.output += &config.new_line;
             }
         }
@@ -642,8 +663,8 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         value.serialize(&mut **self)?;
         self.output += ",";
 
-        if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+        if let Some((ref config, _)) = self.pretty {
+            if self.indentation_enabled() {
                 self.output += &config.new_line;
             }
         }
@@ -709,7 +730,7 @@ mod tests {
     fn test_struct() {
         let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
-        assert_eq!(to_string(&my_struct).unwrap(), "(x:4,y:7,)");
+        assert_eq!(to_string(&my_struct).unwrap(), "(x:4,y:7)");
 
         #[derive(Serialize)]
         struct NewType(i32);
@@ -719,7 +740,7 @@ mod tests {
         #[derive(Serialize)]
         struct TupleStruct(f32, f32);
 
-        assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "(2,5,)");
+        assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "(2,5)");
     }
 
     #[test]
@@ -732,8 +753,8 @@ mod tests {
     fn test_enum() {
         assert_eq!(to_string(&MyEnum::A).unwrap(), "A");
         assert_eq!(to_string(&MyEnum::B(true)).unwrap(), "B(true)");
-        assert_eq!(to_string(&MyEnum::C(true, 3.5)).unwrap(), "C(true,3.5,)");
-        assert_eq!(to_string(&MyEnum::D { a: 2, b: 3 }).unwrap(), "D(a:2,b:3,)");
+        assert_eq!(to_string(&MyEnum::C(true, 3.5)).unwrap(), "C(true,3.5)");
+        assert_eq!(to_string(&MyEnum::D { a: 2, b: 3 }).unwrap(), "D(a:2,b:3)");
     }
 
     #[test]
@@ -743,8 +764,8 @@ mod tests {
         let empty_ref: &[i32] = &empty;
         assert_eq!(to_string(&empty_ref).unwrap(), "[]");
 
-        assert_eq!(to_string(&[2, 3, 4i32]).unwrap(), "(2,3,4,)");
-        assert_eq!(to_string(&(&[2, 3, 4i32] as &[i32])).unwrap(), "[2,3,4,]");
+        assert_eq!(to_string(&[2, 3, 4i32]).unwrap(), "(2,3,4)");
+        assert_eq!(to_string(&(&[2, 3, 4i32] as &[i32])).unwrap(), "[2,3,4]");
     }
 
     #[test]
@@ -784,7 +805,7 @@ mod tests {
         let small: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         assert_eq!(
             to_string(&small).unwrap(),
-            "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,)"
+            "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)"
         );
 
         let large = vec![255u8; 64];
