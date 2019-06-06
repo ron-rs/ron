@@ -150,13 +150,6 @@ impl Serializer {
         self.output
     }
 
-    fn is_pretty(&self) -> bool {
-        match self.pretty {
-            Some((ref config, ref pretty)) => pretty.indent < config.depth_limit,
-            None => false,
-        }
-    }
-
     fn separate_tuple_members(&self) -> bool {
         self.pretty
             .as_ref()
@@ -553,7 +546,7 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
     fn end(self) -> Result<()> {
         if self.separate_tuple_members() {
             self.end_indent();
-        } else if self.is_pretty() {
+        } else if self.indentation_enabled() {
             self.output.pop();
             self.output.pop();
         } else {
@@ -619,7 +612,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
     {
         self.output += ":";
 
-        if self.is_pretty() {
+        if self.indentation_enabled() {
             self.output += " ";
         }
 
@@ -656,7 +649,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         self.output += key;
         self.output += ":";
 
-        if self.is_pretty() {
+        if self.indentation_enabled() {
             self.output += " ";
         }
 
