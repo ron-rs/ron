@@ -1,28 +1,27 @@
 //! Value module.
 
 use serde::{
-    Deserialize, Serialize,
     de::{
         DeserializeOwned, DeserializeSeed, Deserializer, Error as SerdeError, MapAccess, SeqAccess,
         Visitor,
     },
-    forward_to_deserialize_any,
+    forward_to_deserialize_any, Deserialize, Serialize,
 };
 use std::{
     cmp::{Eq, Ordering},
-    collections::BTreeMap,
     hash::{Hash, Hasher},
+    iter::FromIterator,
+    ops::{Index, IndexMut},
 };
 
 use crate::de::{Error as RonError, Result};
-use std::iter::FromIterator;
 
 /// A `Value` to `Value` map.
 ///
 /// This structure either uses a [BTreeMap](std::collections::BTreeMap) or the
 /// [IndexMap](indexmap::IndexMap) internally.
-/// The latter can be used by enabling the `indexmap` feature. This can be used to preserve the
-/// order of the parsed map.
+/// The latter can be used by enabling the `indexmap` feature. This can be used
+/// to preserve the order of the parsed map.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Map(MapInner);
 
@@ -42,7 +41,8 @@ impl Map {
         self.0.len()
     }
 
-    /// Inserts a new element, returning the previous element with this `key` if there was any.
+    /// Inserts a new element, returning the previous element with this `key` if
+    /// there was any.
     pub fn insert(&mut self, key: Value, value: Value) -> Option<Value> {
         self.0.insert(key, value)
     }
@@ -76,54 +76,10 @@ impl Map {
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> + DoubleEndedIterator {
         self.0.values_mut()
     }
-
-    /// Can be used to retrieve the internal map representation.
-    /// Will return `None` if `indexmap` is enabled.
-    pub fn as_b_tree_map(&self) -> Option<&BTreeMap<Value, Value>> {
-        #[cfg(not(feature = "indexmap"))]
-        let x = Some(&self.0);
-        #[cfg(feature = "indexmap")]
-        let x = None;
-
-        x
-    }
-
-    /// Can be used to retrieve the internal map representation.
-    /// Will return `None` if `indexmap` is enabled.
-    pub fn as_b_tree_map_mut(&mut self) -> Option<&mut BTreeMap<Value, Value>> {
-        #[cfg(not(feature = "indexmap"))]
-        let x = Some(&mut self.0);
-        #[cfg(feature = "indexmap")]
-        let x = None;
-
-        x
-    }
-
-    /// Can be used to retrieve the internal map representation.
-    /// Will return `None` if `indexmap` is disabled.
-    pub fn as_index_map(&self) -> Option<&indexmap::IndexMap<Value, Value>> {
-        #[cfg(feature = "indexmap")]
-        let x = Some(&self.0);
-        #[cfg(not(feature = "indexmap"))]
-        let x = None;
-
-        x
-    }
-
-    /// Can be used to retrieve the internal map representation.
-    /// Will return `None` if `indexmap` is disabled.
-    pub fn as_index_map_mut(&mut self) -> Option<&mut indexmap::IndexMap<Value, Value>> {
-        #[cfg(feature = "indexmap")]
-        let x = Some(&mut self.0);
-        #[cfg(not(feature = "indexmap"))]
-        let x = None;
-
-        x
-    }
 }
 
 impl FromIterator<(Value, Value)> for Map {
-    fn from_iter<T: IntoIterator<Item=(Value, Value)>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item = (Value, Value)>>(iter: T) -> Self {
         Map(MapInner::from_iter(iter))
     }
 }
@@ -134,6 +90,20 @@ impl Eq for Map {}
 impl Hash for Map {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.iter().for_each(|x| x.hash(state));
+    }
+}
+
+impl Index<&Value> for Map {
+    type Output = Value;
+
+    fn index(&self, index: &Value) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<&Value> for Map {
+    fn index_mut(&mut self, index: &Value) -> &mut Self::Output {
+        self.0.get_mut(index).expect("no entry found for key")
     }
 }
 
@@ -157,7 +127,7 @@ impl PartialOrd for Map {
 }
 
 #[cfg(not(feature = "indexmap"))]
-type MapInner = BTreeMap<Value, Value>;
+type MapInner = std::collections::BTreeMap<Value, Value>;
 #[cfg(feature = "indexmap")]
 type MapInner = indexmap::IndexMap<Value, Value>;
 
@@ -178,10 +148,10 @@ impl Number {
 }
 
 /// Partial equality comparison
-/// In order to be able to use `Number` as a mapping key, NaN floating values wrapped in `Number`
-/// are equals to each other. It is not the case for underlying `f64` values itself.
+/// In order to be able to use `Number` as a mapping key, NaN floating values
+/// wrapped in `Number` are equals to each other. It is not the case for
+/// underlying `f64` values itself.
 impl PartialEq for Number {
-
     fn eq(&self, other: &Self) -> bool {
         if self.0.is_nan() && other.0.is_nan() {
             return true;
@@ -191,8 +161,9 @@ impl PartialEq for Number {
 }
 
 /// Equality comparison
-/// In order to be able to use `Number` as a mapping key, NaN floating values wrapped in `Number`
-/// are equals to each other. It is not the case for underlying `f64` values itself.
+/// In order to be able to use `Number` as a mapping key, NaN floating values
+/// wrapped in `Number` are equals to each other. It is not the case for
+/// underlying `f64` values itself.
 impl Eq for Number {}
 
 impl Hash for Number {
@@ -202,9 +173,9 @@ impl Hash for Number {
 }
 
 /// Partial ordering comparison
-/// In order to be able to use `Number` as a mapping key, NaN floating values wrapped in `Number`
-/// are equals to each other and are less then any other floating value.
-/// It is not the case for underlying `f64` values itself.
+/// In order to be able to use `Number` as a mapping key, NaN floating values
+/// wrapped in `Number` are equals to each other and are less then any other
+/// floating value. It is not the case for underlying `f64` values itself.
 /// ```
 /// use ron::value::Number;
 /// assert!(Number::new(std::f64::NAN) < Number::new(std::f64::NEG_INFINITY));
@@ -216,15 +187,16 @@ impl PartialOrd for Number {
             (true, true) => Some(Ordering::Equal),
             (true, false) => Some(Ordering::Less),
             (false, true) => Some(Ordering::Greater),
-            _ => self.0.partial_cmp(&other.0)
+            _ => self.0.partial_cmp(&other.0),
         }
     }
 }
 
 /// Ordering comparison
-/// In order to be able to use `Number` as a mapping key, NaN floating values wrapped in `Number`
-/// are equals to each other and are less then any other floating value.
-/// It is not the case for underlying `f64` values itself. See the `PartialEq` implementation.
+/// In order to be able to use `Number` as a mapping key, NaN floating values
+/// wrapped in `Number` are equals to each other and are less then any other
+/// floating value. It is not the case for underlying `f64` values itself. See
+/// the `PartialEq` implementation.
 impl Ord for Number {
     fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other).expect("Bug: Contract violation")
@@ -403,6 +375,7 @@ mod tests {
     use super::*;
     use serde::Deserialize;
     use std::fmt::Debug;
+    use std::collections::BTreeMap;
 
     fn assert_same<'de, T>(s: &'de str)
     where
