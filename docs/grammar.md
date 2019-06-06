@@ -71,7 +71,10 @@ string_raw = ("r#", string_raw, "#") | "\"", { unicode_non_greedy }, "\"";
 r##"This is a "raw string". It can contain quotations or
 backslashes (\)!"##
   ```
-  I don't know any sane way to write this out in EBNF, if you do, let me know.
+Raw strings cannot be written in EBNF, as they are context-sensitive.
+Also see [the Rust document] about context-sensitivity of raw strings.
+
+[the Rust document]: https://github.com/rust-lang/rust/blob/HEAD@%7B2019-05-26T21:45:17Z%7D/src/grammar/raw-string-literal-ambiguity.md
 
 ## Char
 
