@@ -1,6 +1,5 @@
 use ron::value::{Map, Number, Value};
 use serde::Serialize;
-use std::collections::BTreeMap;
 
 #[test]
 fn bool() {
