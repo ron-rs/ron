@@ -1,6 +1,5 @@
-use ron::value::{Number, Value};
+use ron::value::{Map, Number, Value};
 use serde::Serialize;
-use std::collections::BTreeMap;
 
 #[test]
 fn bool() {
@@ -15,7 +14,7 @@ fn char() {
 
 #[test]
 fn map() {
-    let mut map = BTreeMap::new();
+    let mut map = Map::new();
     map.insert(Value::Char('a'), Value::Number(Number::new(1f64)));
     map.insert(Value::Char('b'), Value::Number(Number::new(2f64)));
     assert_eq!(Value::from_str("{ 'a': 1, 'b': 2 }"), Ok(Value::Map(map)));

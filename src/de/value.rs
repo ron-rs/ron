@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt};
+use std::fmt;
 
 use serde::{
     de::{Error, MapAccess, SeqAccess, Visitor},
@@ -7,7 +7,7 @@ use serde::{
 
 use crate::{
     de,
-    value::{Number, Value},
+    value::{Map, Number, Value},
 };
 
 impl Value {
@@ -153,7 +153,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         A: MapAccess<'de>,
     {
-        let mut res: BTreeMap<Value, Value> = BTreeMap::new();
+        let mut res: Map = Map::new();
 
         while let Some(entry) = map.next_entry()? {
             res.insert(entry.0, entry.1);
