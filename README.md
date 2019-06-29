@@ -141,6 +141,8 @@ Why not XXX?
 
 ## Tooling
 
+IntelliJ: https://vultix.github.io/intellij-ron-plugin/
+
 VS Code: https://github.com/a5huynh/vscode-ron
 
 Sublime Text: https://packagecontrol.io/packages/RON
