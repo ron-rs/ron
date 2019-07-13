@@ -14,12 +14,7 @@ pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: Serialize,
 {
-    let mut s = Serializer {
-        output: String::new(),
-        pretty: None,
-        struct_names: false,
-        is_empty: None,
-    };
+    let mut s = Serializer::new(None, false);
     value.serialize(&mut s)?;
     Ok(s.output)
 }
@@ -29,18 +24,7 @@ pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 where
     T: Serialize,
 {
-    let mut s = Serializer {
-        output: String::new(),
-        pretty: Some((
-            config,
-            Pretty {
-                indent: 0,
-                sequence_index: Vec::new(),
-            },
-        )),
-        struct_names: false,
-        is_empty: None,
-    };
+    let mut s = Serializer::new(Some(config), false);
     value.serialize(&mut s)?;
     Ok(s.output)
 }
@@ -112,6 +96,8 @@ pub struct PrettyConfig {
     /// Enumerate array items in comments
     #[serde(default = "default_enumerate_arrays")]
     pub enumerate_arrays: bool,
+    /// Enable implicit_some extension
+    pub implicit_some: bool,
     /// Private field to ensure adding a field is non-breaking.
     #[serde(skip)]
     _future_proof: (),
@@ -172,6 +158,15 @@ impl PrettyConfig {
 
         self
     }
+
+    /// Configures whether the implicit_some extension will be enabled
+    ///
+    /// Default: `false`
+    pub fn with_implicit_some(mut self, implicit_some: bool) -> Self {
+        self.implicit_some = implicit_some;
+
+        self
+    }
 }
 
 fn default_depth_limit() -> usize {
@@ -199,6 +194,10 @@ fn default_enumerate_arrays() -> bool {
     false
 }
 
+fn default_implicit_some() -> bool {
+    false
+}
+
 impl Default for PrettyConfig {
     fn default() -> Self {
         PrettyConfig {
@@ -207,6 +206,7 @@ impl Default for PrettyConfig {
             indentor: default_indentor(),
             separate_tuple_members: default_separate_tuple_members(),
             enumerate_arrays: default_enumerate_arrays(),
+            implicit_some: default_implicit_some(),
             _future_proof: (),
         }
     }
@@ -228,8 +228,17 @@ impl Serializer {
     ///
     /// Most of the time you can just use `to_string` or `to_string_pretty`.
     pub fn new(config: Option<PrettyConfig>, struct_names: bool) -> Self {
+        let initial_output = if let Some(conf) = &config {
+            if conf.implicit_some {
+                "#![enable(implicit_some)]".to_string() + &conf.new_line
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
         Serializer {
-            output: String::new(),
+            output: initial_output,
             pretty: config.map(|conf| {
                 (
                     conf,
@@ -260,6 +269,12 @@ impl Serializer {
         self.pretty
             .as_ref()
             .map_or(false, |&(ref config, _)| config.separate_tuple_members)
+    }
+
+    fn implicit_some(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |&(ref config, _)| config.implicit_some)
     }
 
     fn start_indent(&mut self) {
@@ -399,9 +414,13 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        self.output += "Some(";
+        if !self.implicit_some() {
+            self.output += "Some(";
+        }
         value.serialize(&mut *self)?;
-        self.output += ")";
+        if !self.implicit_some() {
+            self.output += ")";
+        }
 
         Ok(())
     }
