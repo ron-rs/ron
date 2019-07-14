@@ -2,15 +2,27 @@ use serde::{ser, Deserialize, Serialize};
 use std::{
     error::Error as StdError,
     fmt::{Display, Formatter, Result as FmtResult, Write},
+    io,
 };
 
 mod value;
+
+/// A convenience function for writing data to a writer
+pub fn to_writer<W, T: ?Sized>(writer: W, value: &T) -> Result<()>
+where
+    W: io::Write,
+    T: Serialize,
+{
+    { writer }
+        .write_all(to_string(value)?.as_bytes())
+        .map_err(|err| err.into())
+}
 
 /// Serializes `value` and returns it as string.
 ///
 /// This function does not generate any newlines or nice formatting;
 /// if you want that, you can use `to_string_pretty` instead.
-pub fn to_string<T>(value: &T) -> Result<String>
+pub fn to_string<T: ?Sized>(value: &T) -> Result<String>
 where
     T: Serialize,
 {
@@ -51,6 +63,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Serialization error.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
+    /// io error from std::io
+    IoError(String),
     /// A custom error emitted by a serialized value.
     Message(String),
 }
@@ -59,6 +73,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match *self {
             Error::Message(ref e) => write!(f, "Custom message: {}", e),
+            Error::IoError(ref e) => write!(f, "IO Error: {}", e),
         }
     }
 }
@@ -73,7 +88,14 @@ impl StdError for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Message(ref e) => e,
+            Error::IoError(ref e) => e,
         }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
+        Error::IoError(e.description().to_string())
     }
 }
 
