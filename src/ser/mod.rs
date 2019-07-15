@@ -8,12 +8,12 @@ use std::{
 mod value;
 
 /// A convenience function for writing data to a writer
-pub fn to_writer<W, T: ?Sized>(writer: W, value: &T) -> Result<()>
+pub fn to_writer<W, T: ?Sized>(mut writer: W, value: &T) -> Result<()>
 where
     W: io::Write,
     T: Serialize,
 {
-    { writer }
+    writer
         .write_all(to_string(value)?.as_bytes())
         .map_err(|err| err.into())
 }
