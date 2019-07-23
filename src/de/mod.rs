@@ -290,13 +290,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        use radix64::STD as base64;
         let res = {
             let string = self.bytes.string()?;
             let base64_str = match string {
                 ParsedStr::Allocated(ref s) => s.as_str(),
                 ParsedStr::Slice(ref s) => s,
             };
-            base64::decode(base64_str)
+            base64.decode(base64_str)
         };
 
         match res {

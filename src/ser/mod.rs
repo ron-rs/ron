@@ -386,7 +386,8 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        self.serialize_str(base64::encode(v).as_str())
+        use radix64::STD as base64;
+        self.serialize_str(base64.encode(v).as_str())
     }
 
     fn serialize_none(self) -> Result<()> {
