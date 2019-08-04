@@ -7,7 +7,8 @@ use std::{borrow::Cow, io, str};
 
 use self::id::IdDeserializer;
 use self::tag::TagDeserializer;
-use crate::parse::{AnyNum, Bytes, Extensions, ParsedStr};
+use crate::extensions::Extensions;
+use crate::parse::{AnyNum, Bytes, ParsedStr};
 
 mod error;
 mod id;
