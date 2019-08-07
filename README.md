@@ -11,7 +11,7 @@ structs, enums, tuples, arrays, generic maps, and primitive values.
 
 ## Example
 
-```
+```rust
 GameConfig( // optional struct name
     window_size: (800, 600),
     window_title: "PAC-MAN",
