@@ -19,3 +19,9 @@ impl Extensions {
         }
     }
 }
+
+impl Default for Extensions {
+    fn default() -> Self {
+        Extensions::empty()
+    }
+}

@@ -196,10 +196,6 @@ fn default_enumerate_arrays() -> bool {
     false
 }
 
-fn default_extensions() -> Extensions {
-    Extensions::empty()
-}
-
 impl Default for PrettyConfig {
     fn default() -> Self {
         PrettyConfig {
@@ -208,7 +204,7 @@ impl Default for PrettyConfig {
             indentor: default_indentor(),
             separate_tuple_members: default_separate_tuple_members(),
             enumerate_arrays: default_enumerate_arrays(),
-            extensions: default_extensions(),
+            extensions: Extensions::default(),
             _future_proof: (),
         }
     }
