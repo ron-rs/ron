@@ -1,4 +1,3 @@
-use bitflags::bitflags;
 use std::{
     char::from_u32 as char_from_u32,
     fmt::{Display, Formatter, Result as FmtResult},
@@ -7,6 +6,7 @@ use std::{
 };
 
 use crate::de::{Error, ParseError, Result};
+use crate::extensions::Extensions;
 
 const DIGITS: &[u8] = b"0123456789ABCDEFabcdef_";
 const FLOAT_CHARS: &[u8] = b"0123456789.+-eE";
@@ -773,23 +773,6 @@ impl<'a> Bytes<'a> {
     }
 }
 
-bitflags! {
-    pub struct Extensions: usize {
-        const UNWRAP_NEWTYPES = 0x1;
-        const IMPLICIT_SOME = 0x2;
-    }
-}
-
-impl Extensions {
-    /// Creates an extension flag from an ident.
-    pub fn from_ident(ident: &[u8]) -> Option<Extensions> {
-        match ident {
-            b"unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
-            b"implicit_some" => Some(Extensions::IMPLICIT_SOME),
-            _ => None,
-        }
-    }
-}
 
 pub trait Num {
     fn from_u8(x: u8) -> Self;
