@@ -20,7 +20,7 @@ exclude = ["bors.toml", ".travis.yml"]
 name = "ron"
 
 [dependencies]
-base64 = "0.10"
+radix64 = "0.6"
 bitflags = "1"
 indexmap = { version = "1.0.2", features = ["serde-1"], optional = true }
 serde = { version = "1", features = ["serde_derive"] }

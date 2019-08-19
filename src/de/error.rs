@@ -15,7 +15,7 @@ pub enum Error {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParseError {
-    Base64Error(base64::DecodeError),
+    Base64Error(radix64::DecodeError),
     Eof,
     ExpectedArray,
     ExpectedArrayEnd,
