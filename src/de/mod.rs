@@ -90,7 +90,7 @@ impl<'de> Deserializer<'de> {
         }
     }
 
-    /// Called from `deserialze_any` when a struct was detected. Decides if
+    /// Called from `deserialize_any` when a struct was detected. Decides if
     /// there is a unit, tuple or usual struct and deserializes it
     /// accordingly.
     ///
