@@ -21,12 +21,37 @@ where
     Ok(s.output)
 }
 
+/// Serializes `value` and returns it as string with including the structure
+/// name.
+///
+/// This function does not generate any newlines or nice formatting;
+/// if you want that, you can use `to_string_pretty` instead.
+pub fn to_string_with_name<T>(value: &T) -> Result<String>
+where
+    T: Serialize,
+{
+    let mut s = Serializer::new(None, true);
+    value.serialize(&mut s)?;
+    Ok(s.output)
+}
+
 /// Serializes `value` in the recommended RON layout in a pretty way.
 pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 where
     T: Serialize,
 {
     let mut s = Serializer::new(Some(config), false);
+    value.serialize(&mut s)?;
+    Ok(s.output)
+}
+
+/// Serializes `value` in the recommended RON layout in a pretty way including
+/// the structure name.
+pub fn to_string_with_name_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
+where
+    T: Serialize,
+{
+    let mut s = Serializer::new(Some(config), true);
     value.serialize(&mut s)?;
     Ok(s.output)
 }
@@ -112,8 +137,9 @@ impl PrettyConfig {
     }
 
     /// Limits the pretty-formatting based on the number of indentations.
-    /// I.e., with a depth limit of 5, starting with an element of depth (indentation level) 6,
-    /// everything will be put into the same line, without pretty formatting.
+    /// I.e., with a depth limit of 5, starting with an element of depth
+    /// (indentation level) 6, everything will be put into the same line,
+    /// without pretty formatting.
     ///
     /// Default: [std::usize::MAX]
     pub fn with_depth_limit(mut self, depth_limit: usize) -> Self {
@@ -141,8 +167,9 @@ impl PrettyConfig {
     }
 
     /// Configures whether tuples are single- or multi-line.
-    /// If set to `true`, tuples will have their fields indented and in new lines.
-    /// If set to `false`, tuples will be serialized without any newlines or indentations.
+    /// If set to `true`, tuples will have their fields indented and in new
+    /// lines. If set to `false`, tuples will be serialized without any
+    /// newlines or indentations.
     ///
     /// Default: `false`
     pub fn with_separate_tuple_members(mut self, separate_tuple_members: bool) -> Self {
@@ -151,8 +178,8 @@ impl PrettyConfig {
         self
     }
 
-    /// Configures whether a comment shall be added to every array element, indicating
-    /// the index.
+    /// Configures whether a comment shall be added to every array element,
+    /// indicating the index.
     ///
     /// Default: `false`
     pub fn with_enumerate_arrays(mut self, enumerate_arrays: bool) -> Self {
@@ -373,12 +400,14 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
-        self.output += &v.to_string();
+        let mut buffer = ryu::Buffer::new();
+        self.output += buffer.format(v);
         Ok(())
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
-        self.output += &v.to_string();
+        let mut buffer = ryu::Buffer::new();
+        self.output += buffer.format(v);
         Ok(())
     }
 
