@@ -42,6 +42,8 @@ fn test_struct() {
 
     assert_eq!(Ok(my_struct), from_str("MyStruct(x:4,y:7,)"));
     assert_eq!(Ok(my_struct), from_str("(x:4,y:7)"));
+    assert_eq!(Ok(my_struct), from_bytes(b"(x:4,y:7)"));
+
 
     #[derive(Debug, PartialEq, Deserialize)]
     struct NewType(i32);
