@@ -1,7 +1,6 @@
 use std::{
     char::from_u32 as char_from_u32,
     fmt::{Display, Formatter, Result as FmtResult},
-    ops::Neg,
     str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
@@ -539,7 +538,7 @@ impl<'a> Bytes<'a> {
 
     pub fn signed_integer<T>(&mut self) -> Result<T>
     where
-        T: Neg<Output = T> + Num,
+        T: Num,
     {
         match self.peek_or_eof()? {
             b'+' => {
