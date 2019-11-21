@@ -2,15 +2,13 @@ use ron::ser::{to_string_pretty, PrettyConfig};
 use ron::de::from_str;
 use serde::Deserialize;
 use serde::Serialize;
-use std::{collections::HashMap, fs::File};
-use std::env;
-use std::fs;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Config {
     boolean: bool,
     float: f32,
-    map: HashMap<u8, char>,
+    map: BTreeMap<u8, char>,
     nested: Nested,
     tuple: (u32, u32),
 }
