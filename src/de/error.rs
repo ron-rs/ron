@@ -68,7 +68,7 @@ impl fmt::Display for Error {
                     write!(f, "{}", s)
                 }
             }
-            Error::Parser(_, pos) => write!(f, "{}: {}", pos, self),
+            Error::Parser(ref e, pos) => write!(f, "{}: {:?}", pos, e),
         }
     }
 }
