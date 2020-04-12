@@ -39,6 +39,13 @@ impl<'de> Deserializer<'de> {
     pub fn remainder(&self) -> Cow<'_, str> {
         String::from_utf8_lossy(&self.bytes.bytes())
     }
+
+    fn fix_position(&self, e: Error) -> Error {
+        match e {
+            Error::Message(s, p) => Error::Message(s, Some(p.unwrap_or(self.bytes.positon()))),
+            e => e,
+        }
+    }
 }
 
 /// A convenience function for reading data from a reader
@@ -126,21 +133,27 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume_ident("true") {
-            return visitor.visit_bool(true);
+            return visitor.visit_bool(true).map_err(|e| self.fix_position(e));
         } else if self.bytes.consume_ident("false") {
-            return visitor.visit_bool(false);
+            return visitor.visit_bool(false).map_err(|e| self.fix_position(e));
         } else if self.bytes.check_ident("Some") {
             return self.deserialize_option(visitor);
         } else if self.bytes.consume_ident("None") {
-            return visitor.visit_none();
+            return visitor.visit_none().map_err(|e| self.fix_position(e));
         } else if self.bytes.consume("()") {
-            return visitor.visit_unit();
+            return visitor.visit_unit().map_err(|e| self.fix_position(e));
         } else if self.bytes.consume_ident("inf") {
-            return visitor.visit_f64(std::f64::INFINITY);
+            return visitor
+                .visit_f64(std::f64::INFINITY)
+                .map_err(|e| self.fix_position(e));
         } else if self.bytes.consume_ident("-inf") {
-            return visitor.visit_f64(std::f64::NEG_INFINITY);
+            return visitor
+                .visit_f64(std::f64::NEG_INFINITY)
+                .map_err(|e| self.fix_position(e));
         } else if self.bytes.consume_ident("NaN") {
-            return visitor.visit_f64(std::f64::NAN);
+            return visitor
+                .visit_f64(std::f64::NAN)
+                .map_err(|e| self.fix_position(e));
         }
 
         // `identifier` does not change state if it fails
@@ -311,16 +324,20 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume("None") {
-            visitor.visit_none()
+            visitor.visit_none().map_err(|e| self.fix_position(e))
         } else if self.bytes.exts.contains(Extensions::IMPLICIT_SOME) {
-            visitor.visit_some(&mut *self)
+            visitor
+                .visit_some(&mut *self)
+                .map_err(|e| self.fix_position(e))
         } else if self.bytes.consume("Some") && {
             self.bytes.skip_ws()?;
             self.bytes.consume("(")
         } {
             self.bytes.skip_ws()?;
 
-            let v = visitor.visit_some(&mut *self)?;
+            let v = visitor
+                .visit_some(&mut *self)
+                .map_err(|e| self.fix_position(e))?;
 
             self.bytes.skip_ws()?;
 
@@ -340,7 +357,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume("()") {
-            visitor.visit_unit()
+            visitor.visit_unit().map_err(|e| self.fix_position(e))
         } else {
             self.bytes.err(ParseError::ExpectedUnit)
         }
@@ -351,7 +368,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume(name) {
-            visitor.visit_unit()
+            visitor.visit_unit().map_err(|e| self.fix_position(e))
         } else {
             self.deserialize_unit(visitor)
         }
@@ -371,7 +388,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         if self.bytes.consume("(") {
             self.bytes.skip_ws()?;
-            let value = visitor.visit_newtype_struct(&mut *self)?;
+            let value = visitor
+                .visit_newtype_struct(&mut *self)
+                .map_err(|e| self.fix_position(e))?;
             self.bytes.comma()?;
 
             if self.bytes.consume(")") {
@@ -389,7 +408,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume("[") {
-            let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
+            let value = visitor
+                .visit_seq(CommaSeparated::new(b']', &mut self))
+                .map_err(|e| self.fix_position(e))?;
             self.bytes.comma()?;
 
             if self.bytes.consume("]") {
@@ -407,7 +428,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume("(") {
-            let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
+            let value = visitor
+                .visit_seq(CommaSeparated::new(b')', &mut self))
+                .map_err(|e| self.fix_position(e))?;
             self.bytes.comma()?;
 
             if self.bytes.consume(")") {
@@ -438,7 +461,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume("{") {
-            let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
+            let value = visitor
+                .visit_map(CommaSeparated::new(b'}', &mut self))
+                .map_err(|e| self.fix_position(e))?;
             self.bytes.comma()?;
 
             if self.bytes.consume("}") {
@@ -465,7 +490,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.bytes.skip_ws()?;
 
         if self.bytes.consume("(") {
-            let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
+            let value = visitor
+                .visit_map(CommaSeparated::new(b')', &mut self))
+                .map_err(|e| self.fix_position(e))?;
             self.bytes.comma()?;
 
             if self.bytes.consume(")") {
@@ -487,16 +514,20 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_enum(Enum::new(self))
+        visitor
+            .visit_enum(Enum::new(self))
+            .map_err(|e| self.fix_position(e))
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_str(
-            str::from_utf8(self.bytes.identifier()?).map_err(|e| self.bytes.error(e.into()))?,
-        )
+        visitor
+            .visit_str(
+                str::from_utf8(self.bytes.identifier()?).map_err(|e| self.bytes.error(e.into()))?,
+            )
+            .map_err(|e| self.fix_position(e))
     }
 
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
@@ -504,6 +535,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         self.deserialize_any(visitor)
+            .map_err(|e| self.fix_position(e))
     }
 }
 
