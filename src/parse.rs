@@ -61,6 +61,13 @@ impl<'a> Bytes<'a> {
         Ok(b)
     }
 
+    pub fn positon(&self) -> Position {
+        Position {
+            line: self.line,
+            col: self.column,
+        }
+    }
+
     pub fn advance(&mut self, bytes: usize) -> Result<()> {
         for _ in 0..bytes {
             self.advance_single()?;
@@ -436,8 +443,7 @@ impl<'a> Bytes<'a> {
     {
         for literal in &["inf", "-inf", "NaN"] {
             if self.consume_ident(literal) {
-                return FromStr::from_str(literal)
-                    .map_err(|_| unreachable!()); // must not fail
+                return FromStr::from_str(literal).map_err(|_| unreachable!()); // must not fail
             }
         }
 
@@ -771,7 +777,6 @@ impl<'a> Bytes<'a> {
         }
     }
 }
-
 
 pub trait Num {
     fn from_u8(x: u8) -> Self;
