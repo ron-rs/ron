@@ -131,14 +131,22 @@ type MapInner = std::collections::BTreeMap<Value, Value>;
 #[cfg(feature = "indexmap")]
 type MapInner = indexmap::IndexMap<Value, Value>;
 
-/// A wrapper for `f64` which guarantees that the inner value
+/// A wrapper for a number, which can be either `f64` or `i64`.
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+pub enum Number {
+    Integer(i64),
+    Float(Float),
+}
+
+/// A wrapper for `f64`, which guarantees that the inner value
 /// is finite and thus implements `Eq`, `Hash` and `Ord`.
 #[derive(Copy, Clone, Debug)]
-pub struct Number(f64);
+pub struct Float(f64);
 
-impl Number {
+impl Float {
+    /// Construct a new `Float`.
     pub fn new(v: f64) -> Self {
-        Number(v)
+        Float(v)
     }
 
     /// Returns the wrapped float.
@@ -147,23 +155,129 @@ impl Number {
     }
 }
 
+impl Number {
+    /// Construct a new number.
+    pub fn new(v: impl Into<Number>) -> Self {
+        v.into()
+    }
+
+    /// Returns the `f64` representation of the number regardless of whether the number is stored
+    /// as a float or integer.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ron::value::Number;
+    /// let i = Number::new(5);
+    /// let f = Number::new(2.0);
+    /// assert_eq!(i.into_f64(), 5.0);
+    /// assert_eq!(f.into_f64(), 2.0);
+    /// ```
+    pub fn into_f64(self) -> f64 {
+        self.map_to(|i| i as f64, |f| f)
+    }
+
+    /// If the `Number` is a float, return it. Otherwise return `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ron::value::Number;
+    /// let i = Number::new(5);
+    /// let f = Number::new(2.0);
+    /// assert_eq!(i.as_f64(), None);
+    /// assert_eq!(f.as_f64(), Some(2.0));
+    /// ```
+    pub fn as_f64(self) -> Option<f64> {
+        self.map_to(|_| None, Some)
+    }
+
+    /// If the `Number` is an integer, return it. Otherwise return `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ron::value::Number;
+    /// let i = Number::new(5);
+    /// let f = Number::new(2.0);
+    /// assert_eq!(i.as_i64(), Some(5));
+    /// assert_eq!(f.as_i64(), None);
+    /// ```
+    pub fn as_i64(self) -> Option<i64> {
+        self.map_to(Some, |_| None)
+    }
+
+    /// Map this number to a single type using the appropriate closure.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ron::value::Number;
+    /// let i = Number::new(5);
+    /// let f = Number::new(2.0);
+    /// assert!(i.map_to(|i| i > 3, |f| f > 3.0));
+    /// assert!(!f.map_to(|i| i > 3, |f| f > 3.0));
+    /// ```
+    pub fn map_to<T>(
+        self,
+        integer_fn: impl FnOnce(i64) -> T,
+        float_fn: impl FnOnce(f64) -> T,
+    ) -> T {
+        match self {
+            Number::Integer(i) => integer_fn(i),
+            Number::Float(Float(f)) => float_fn(f),
+        }
+    }
+}
+
+impl From<f64> for Number {
+    fn from(f: f64) -> Number {
+        Number::Float(Float(f))
+    }
+}
+
+impl From<i64> for Number {
+    fn from(i: i64) -> Number {
+        Number::Integer(i)
+    }
+}
+
+impl From<i32> for Number {
+    fn from(i: i32) -> Number {
+        Number::Integer(i as i64)
+    }
+}
+
+// The following number conversion checks if the integer fits losslessly into an i64, before
+// constructing a Number::Integer variant. If not, the conversion defaults to float.
+
+impl From<u64> for Number {
+    fn from(i: u64) -> Number {
+        if i as i64 as u64 == i {
+            Number::Integer(i as i64)
+        } else {
+            Number::new(i as f64)
+        }
+    }
+}
+
 /// Partial equality comparison
 /// In order to be able to use `Number` as a mapping key, NaN floating values
-/// wrapped in `Number` are equals to each other. It is not the case for
+/// wrapped in `Float` are equals to each other. It is not the case for
 /// underlying `f64` values itself.
-impl PartialEq for Number {
+impl PartialEq for Float {
     fn eq(&self, other: &Self) -> bool {
         self.0.is_nan() && other.0.is_nan() || self.0 == other.0
     }
 }
 
 /// Equality comparison
-/// In order to be able to use `Number` as a mapping key, NaN floating values
-/// wrapped in `Number` are equals to each other. It is not the case for
+/// In order to be able to use `Float` as a mapping key, NaN floating values
+/// wrapped in `Float` are equals to each other. It is not the case for
 /// underlying `f64` values itself.
-impl Eq for Number {}
+impl Eq for Float {}
 
-impl Hash for Number {
+impl Hash for Float {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.0 as u64);
     }
@@ -172,13 +286,13 @@ impl Hash for Number {
 /// Partial ordering comparison
 /// In order to be able to use `Number` as a mapping key, NaN floating values
 /// wrapped in `Number` are equals to each other and are less then any other
-/// floating value. It is not the case for underlying `f64` values itself.
+/// floating value. It is not the case for the underlying `f64` values themselves.
 /// ```
 /// use ron::value::Number;
 /// assert!(Number::new(std::f64::NAN) < Number::new(std::f64::NEG_INFINITY));
 /// assert_eq!(Number::new(std::f64::NAN), Number::new(std::f64::NAN));
 /// ```
-impl PartialOrd for Number {
+impl PartialOrd for Float {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self.0.is_nan(), other.0.is_nan()) {
             (true, true) => Some(Ordering::Equal),
@@ -190,11 +304,11 @@ impl PartialOrd for Number {
 }
 
 /// Ordering comparison
-/// In order to be able to use `Number` as a mapping key, NaN floating values
-/// wrapped in `Number` are equals to each other and are less then any other
+/// In order to be able to use `Float` as a mapping key, NaN floating values
+/// wrapped in `Float` are equals to each other and are less then any other
 /// floating value. It is not the case for underlying `f64` values itself. See
 /// the `PartialEq` implementation.
-impl Ord for Number {
+impl Ord for Float {
     fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other).expect("Bug: Contract violation")
     }
@@ -244,7 +358,8 @@ impl<'de> Deserializer<'de> for Value {
                 keys: m.keys().cloned().rev().collect(),
                 values: m.values().cloned().rev().collect(),
             }),
-            Value::Number(n) => visitor.visit_f64(n.get()),
+            Value::Number(Number::Float(ref f)) => visitor.visit_f64(f.get()),
+            Value::Number(Number::Integer(i)) => visitor.visit_i64(i),
             Value::Option(Some(o)) => visitor.visit_some(*o),
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
@@ -282,7 +397,7 @@ impl<'de> Deserializer<'de> for Value {
         V: Visitor<'de>,
     {
         match self {
-            Value::Number(n) => visitor.visit_i64(n.get() as i64),
+            Value::Number(Number::Integer(i)) => visitor.visit_i64(i),
             v => Err(RonError::custom(format!("Expected a number, got {:?}", v))),
         }
     }
@@ -313,7 +428,7 @@ impl<'de> Deserializer<'de> for Value {
         V: Visitor<'de>,
     {
         match self {
-            Value::Number(n) => visitor.visit_u64(n.get() as u64),
+            Value::Number(Number::Integer(i)) => visitor.visit_u64(i as u64),
             v => Err(RonError::custom(format!("Expected a number, got {:?}", v))),
         }
     }
