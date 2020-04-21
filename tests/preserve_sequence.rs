@@ -19,11 +19,11 @@ struct Nested {
     b: char,
 }
 
-fn read_original(source: &str) -> (String) {
+fn read_original(source: &str) -> String {
     source.to_string()
 }
 
-fn make_roundtrip(source: &str) -> (String) {
+fn make_roundtrip(source: &str) -> String {
     let config: Config = match from_str(source) {
         Ok(x) => x,
         Err(e) => {
