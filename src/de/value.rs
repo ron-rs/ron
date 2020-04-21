@@ -168,9 +168,10 @@ impl<'de> Visitor<'de> for ValueVisitor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     fn eval(s: &str) -> Value {
-        Value::from_str(s).expect("Failed to parse")
+        s.parse().expect("Failed to parse")
     }
 
     #[test]
