@@ -1,8 +1,8 @@
-use std::fmt::Debug;
-use std::cmp::PartialEq;
-use serde::{Serialize, Deserialize};
-use ron::ser::to_string;
 use ron::de::from_str;
+use ron::ser::to_string;
+use serde::{Deserialize, Serialize};
+use std::cmp::PartialEq;
+use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum Inner {
@@ -26,8 +26,15 @@ enum EnumStructInternally {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
 enum EnumStructAdjacently {
-    VariantA { foo: u32, bar: u32, different: Inner },
-    VariantB { foo: u32, bar: u32 },
+    VariantA {
+        foo: u32,
+        bar: u32,
+        different: Inner,
+    },
+    VariantB {
+        foo: u32,
+        bar: u32,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,13 +50,17 @@ fn test_ser<T: Serialize>(value: &T, expected: &str) {
 }
 
 fn test_de<T>(s: &str, expected: T)
-    where T: for<'a> Deserialize<'a> + Debug + PartialEq {
+where
+    T: for<'a> Deserialize<'a> + Debug + PartialEq,
+{
     let actual: Result<T, _> = from_str(s);
     assert_eq!(actual, Ok(expected));
 }
 
 fn test_roundtrip<T>(value: T)
-    where T: Serialize + for<'a> Deserialize<'a> + Debug + PartialEq {
+where
+    T: Serialize + for<'a> Deserialize<'a> + Debug + PartialEq,
+{
     let s = to_string(&value).expect("Failed to serialize");
     let actual: Result<T, _> = from_str(&s);
     assert_eq!(actual, Ok(value));
@@ -68,10 +79,7 @@ fn test_externally_a_ser() {
 
 #[test]
 fn test_externally_b_ser() {
-    let v = EnumStructExternally::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let v = EnumStructExternally::VariantB { foo: 1, bar: 2 };
     let e = "VariantB(foo:1,bar:2,)";
     test_ser(&v, e);
 }
@@ -89,10 +97,7 @@ fn test_internally_a_ser() {
 
 #[test]
 fn test_internally_b_ser() {
-    let v = EnumStructInternally::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let v = EnumStructInternally::VariantB { foo: 1, bar: 2 };
     let e = "(type:\"VariantB\",foo:1,bar:2,)";
     test_ser(&v, e);
 }
@@ -110,10 +115,7 @@ fn test_adjacently_a_ser() {
 
 #[test]
 fn test_adjacently_b_ser() {
-    let v = EnumStructAdjacently::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let v = EnumStructAdjacently::VariantB { foo: 1, bar: 2 };
     let e = "(type:\"VariantB\",content:(foo:1,bar:2,),)";
     test_ser(&v, e);
 }
@@ -131,10 +133,7 @@ fn test_untagged_a_ser() {
 
 #[test]
 fn test_untagged_b_ser() {
-    let v = EnumStructUntagged::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let v = EnumStructUntagged::VariantB { foo: 1, bar: 2 };
     let e = "(foo:1,bar:2,)";
     test_ser(&v, e);
 }
@@ -153,10 +152,7 @@ fn test_externally_a_de() {
 #[test]
 fn test_externally_b_de() {
     let s = "VariantB(foo:1,bar:2,)";
-    let e = EnumStructExternally::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let e = EnumStructExternally::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }
 
@@ -174,10 +170,7 @@ fn test_internally_a_de() {
 #[test]
 fn test_internally_b_de() {
     let s = "(type:\"VariantB\",foo:1,bar:2,)";
-    let e = EnumStructInternally::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let e = EnumStructInternally::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }
 
@@ -195,10 +188,7 @@ fn test_adjacently_a_de() {
 #[test]
 fn test_adjacently_b_de() {
     let s = "(type:\"VariantB\",content:(foo:1,bar:2,),)";
-    let e = EnumStructAdjacently::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let e = EnumStructAdjacently::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }
 
@@ -216,10 +206,7 @@ fn test_untagged_a_de() {
 #[test]
 fn test_untagged_b_de() {
     let s = "(foo:1,bar:2,)";
-    let e = EnumStructUntagged::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let e = EnumStructUntagged::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }
 
@@ -235,10 +222,7 @@ fn test_externally_a_roundtrip() {
 
 #[test]
 fn test_externally_b_roundtrip() {
-    let v = EnumStructExternally::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let v = EnumStructExternally::VariantB { foo: 1, bar: 2 };
     test_roundtrip(v);
 }
 
@@ -254,10 +238,7 @@ fn test_internally_a_roundtrip() {
 
 #[test]
 fn test_internally_b_roundtrip() {
-    let v = EnumStructInternally::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let v = EnumStructInternally::VariantB { foo: 1, bar: 2 };
     test_roundtrip(v);
 }
 
@@ -273,10 +254,7 @@ fn test_adjacently_a_roundtrip() {
 
 #[test]
 fn test_adjacently_b_roundtrip() {
-    let v = EnumStructAdjacently::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let v = EnumStructAdjacently::VariantB { foo: 1, bar: 2 };
     test_roundtrip(v);
 }
 
@@ -292,9 +270,6 @@ fn test_untagged_a_roundtrip() {
 
 #[test]
 fn test_untagged_b_roundtrip() {
-    let v = EnumStructUntagged::VariantB {
-        foo: 1,
-        bar: 2,
-    };
+    let v = EnumStructUntagged::VariantB { foo: 1, bar: 2 };
     test_roundtrip(v);
 }

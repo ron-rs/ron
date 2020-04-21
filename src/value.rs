@@ -374,8 +374,8 @@ impl<'de> SeqAccess<'de> for Seq {
 mod tests {
     use super::*;
     use serde::Deserialize;
-    use std::fmt::Debug;
     use std::collections::BTreeMap;
+    use std::fmt::Debug;
 
     fn assert_same<'de, T>(s: &'de str)
     where

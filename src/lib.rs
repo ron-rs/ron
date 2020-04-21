@@ -58,9 +58,9 @@ Serializing / Deserializing is as simple as calling `to_string` / `from_str`.
 !*/
 
 pub mod de;
+pub mod extensions;
 pub mod ser;
 pub mod value;
-pub mod extensions;
 pub use crate::value::Value;
 
 mod parse;

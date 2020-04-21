@@ -23,8 +23,8 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
-        where
-            V: Visitor<'b>,
+    where
+        V: Visitor<'b>,
     {
         self.deserialize_identifier(visitor)
     }
