@@ -11,5 +11,6 @@ branches:
     - master
 
 script:
+  - cargo fmt -- --check
   - cargo test
   - cargo test --all-features
