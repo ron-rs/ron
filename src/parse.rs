@@ -381,7 +381,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn expect_byte(&mut self, byte: u8, error: ParseError) -> Result<()> {
-        self.eat_byte().and_then(|b| if b == byte { Ok(()) } else { self.err(error) })
+        self.eat_byte()
+            .and_then(|b| if b == byte { Ok(()) } else { self.err(error) })
     }
 
     /// Returns the extensions bit mask.

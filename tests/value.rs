@@ -23,10 +23,7 @@ fn map() {
 #[test]
 fn number() {
     assert_eq!("42".parse(), Ok(Value::Number(Number::new(42f64))));
-    assert_eq!(
-        "3.1415".parse(),
-        Ok(Value::Number(Number::new(3.1415f64)))
-    );
+    assert_eq!("3.1415".parse(), Ok(Value::Number(Number::new(3.1415f64))));
 }
 
 #[test]
@@ -44,10 +41,7 @@ fn string() {
     assert_eq!(raw.parse(), Ok(Value::String("Raw String".into())));
 
     let raw_hashes = "r#\"Raw String\"#";
-    assert_eq!(
-        raw_hashes.parse(),
-        Ok(Value::String("Raw String".into()))
-    );
+    assert_eq!(raw_hashes.parse(), Ok(Value::String("Raw String".into())));
 
     let raw_escaped = "r##\"Contains \"#\"##";
     assert_eq!(
