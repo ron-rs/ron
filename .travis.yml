@@ -22,3 +22,4 @@ cache: cargo
 script:
   - cargo test
   - cargo test --all-features
+

@@ -153,10 +153,7 @@ impl Number {
 /// underlying `f64` values itself.
 impl PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
-        if self.0.is_nan() && other.0.is_nan() {
-            return true;
-        }
-        return self.0 == other.0;
+        self.0.is_nan() && other.0.is_nan() || self.0 == other.0
     }
 }
 

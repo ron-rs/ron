@@ -155,6 +155,9 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn any_num(&mut self) -> Result<AnyNum> {
+        // We are not doing float comparisons here in the traditional sense.
+        // Instead, this code checks if a f64 fits inside an f32.
+        #[allow(clippy::float_cmp)]
         fn any_float(f: f64) -> Result<AnyNum> {
             if f == f as f32 as f64 {
                 Ok(AnyNum::F32(f as f32))
@@ -378,10 +381,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn expect_byte(&mut self, byte: u8, error: ParseError) -> Result<()> {
-        self.eat_byte().and_then(|b| match b == byte {
-            true => Ok(()),
-            false => self.err(error),
-        })
+        self.eat_byte().and_then(|b| if b == byte { Ok(()) } else { self.err(error) })
     }
 
     /// Returns the extensions bit mask.
@@ -424,9 +424,10 @@ impl<'a> Bytes<'a> {
 
         self.skip_ws()?;
 
-        match self.consume_all(&[")", "]"])? {
-            true => Ok(extensions),
-            false => Err(self.error(ParseError::ExpectedAttributeEnd)),
+        if self.consume_all(&[")", "]"])? {
+            Ok(extensions)
+        } else {
+            Err(self.error(ParseError::ExpectedAttributeEnd))
         }
     }
 
@@ -714,9 +715,8 @@ impl<'a> Bytes<'a> {
                 }
 
                 self.expect_byte(b'}', ParseError::InvalidEscape("No } at the end"))?;
-                let character = char_from_u32(bytes)
-                    .ok_or_else(|| self.error(ParseError::InvalidEscape("Not a valid char")))?;
-                character
+                char_from_u32(bytes)
+                    .ok_or_else(|| self.error(ParseError::InvalidEscape("Not a valid char")))?
             }
             _ => {
                 return self.err(ParseError::InvalidEscape("Unknown escape character"));

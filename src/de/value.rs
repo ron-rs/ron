@@ -10,9 +10,11 @@ use crate::{
     value::{Map, Number, Value},
 };
 
-impl Value {
+impl std::str::FromStr for Value {
+    type Err = de::Error;
+
     /// Creates a value from a string reference.
-    pub fn from_str(s: &str) -> de::Result<Self> {
+    fn from_str(s: &str) -> de::Result<Self> {
         let mut de = super::Deserializer::from_str(s)?;
 
         let val = Value::deserialize(&mut de)?;

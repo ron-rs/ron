@@ -26,6 +26,8 @@ pub struct Deserializer<'de> {
 }
 
 impl<'de> Deserializer<'de> {
+    // Cannot implement trait here since output is tied to input lifetime 'de.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(input: &'de str) -> Result<Self> {
         Deserializer::from_bytes(input.as_bytes())
     }
@@ -102,18 +104,18 @@ impl<'de> Deserializer<'de> {
         // Create a working copy
         let mut bytes = self.bytes;
 
-        match bytes.consume("(") {
-            true => {
-                bytes.skip_ws()?;
+        if bytes.consume("(") {
+            bytes.skip_ws()?;
 
-                match bytes.check_tuple_struct()? {
-                    // first argument is technically incorrect, but ignored anyway
-                    true => self.deserialize_tuple(0, visitor),
-                    // first two arguments are technically incorrect, but ignored anyway
-                    false => self.deserialize_struct("", &[], visitor),
-                }
+            if bytes.check_tuple_struct()? {
+                // first argument is technically incorrect, but ignored anyway
+                self.deserialize_tuple(0, visitor)
+            } else {
+                // first two arguments are technically incorrect, but ignored anyway
+                self.deserialize_struct("", &[], visitor)
             }
-            false => visitor.visit_unit(),
+        } else {
+            visitor.visit_unit()
         }
     }
 }
