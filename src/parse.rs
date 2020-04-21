@@ -436,8 +436,7 @@ impl<'a> Bytes<'a> {
     {
         for literal in &["inf", "-inf", "NaN"] {
             if self.consume_ident(literal) {
-                return FromStr::from_str(literal)
-                    .map_err(|_| unreachable!()); // must not fail
+                return FromStr::from_str(literal).map_err(|_| unreachable!()); // must not fail
             }
         }
 
@@ -771,7 +770,6 @@ impl<'a> Bytes<'a> {
         }
     }
 }
-
 
 pub trait Num {
     fn from_u8(x: u8) -> Self;

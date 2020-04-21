@@ -1,5 +1,5 @@
-use ron::ser::{to_string_pretty, PrettyConfig};
 use ron::de::from_str;
+use ron::ser::{to_string_pretty, PrettyConfig};
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -19,11 +19,11 @@ struct Nested {
     b: char,
 }
 
-fn read_original(source: &str) -> (String) {
+fn read_original(source: &str) -> String {
     source.to_string()
 }
 
-fn make_roundtrip(source: &str) -> (String) {
+fn make_roundtrip(source: &str) -> String {
     let config: Config = match from_str(source) {
         Ok(x) => x,
         Err(e) => {
@@ -39,21 +39,13 @@ fn make_roundtrip(source: &str) -> (String) {
 }
 
 #[test]
-fn test_sequence_ex1()
-{
+fn test_sequence_ex1() {
     let file = include_str!("preserve_sequence_ex1.ron");
-    assert_eq!(
-        read_original(file),
-        make_roundtrip(file)
-    );
+    assert_eq!(read_original(file), make_roundtrip(file));
 }
 
 #[test]
-fn test_sequence_ex2()
-{
+fn test_sequence_ex2() {
     let file = include_str!("preserve_sequence_ex2.ron");
-    assert_eq!(
-        read_original(file),
-        make_roundtrip(file)
-    );
+    assert_eq!(read_original(file), make_roundtrip(file));
 }
