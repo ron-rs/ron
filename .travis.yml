@@ -11,14 +11,23 @@ branches:
     - master
 
 matrix:
+  allow_failures:
+    - name: "Clippy: stable"
   include:
     - rust: stable
+      name: "Format: stable"
       script:
         - rustup component add rustfmt
         - cargo fmt -- --check
+    - rust: stable
+      name: "Clippy: stable"
+      script:
+        - rustup component add clippy
+        - cargo clippy
 
 cache: cargo
 
 script:
   - cargo test
   - cargo test --all-features
+
