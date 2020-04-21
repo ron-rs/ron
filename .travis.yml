@@ -10,7 +10,15 @@ branches:
     - trying
     - master
 
+matrix:
+  include:
+    - rust: stable
+      script:
+        - rustup component add rustfmt
+        - cargo fmt -- --check
+
+cache: cargo
+
 script:
-  - cargo fmt -- --check
   - cargo test
   - cargo test --all-features
