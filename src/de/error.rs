@@ -9,7 +9,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     IoError(String),
-    Message(String),
+    Message(String, Option<Position>),
     Parser(ParseError, Position),
 }
 
@@ -61,15 +61,21 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Error::IoError(ref s) => write!(f, "{}", s),
-            Error::Message(ref s) => write!(f, "{}", s),
-            Error::Parser(_, pos) => write!(f, "{}: {}", pos, self),
+            Error::Message(ref s, pos) => {
+                if let Some(pos) = pos {
+                    write!(f, "{}: {}", pos, s)
+                } else {
+                    write!(f, "{}", s)
+                }
+            }
+            Error::Parser(ref e, pos) => write!(f, "{}: {:?}", pos, e),
         }
     }
 }
 
 impl de::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        Error::Message(msg.to_string())
+        Error::Message(msg.to_string(), None)
     }
 }
 

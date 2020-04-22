@@ -61,6 +61,13 @@ impl<'a> Bytes<'a> {
         Ok(b)
     }
 
+    pub fn positon(&self) -> Position {
+        Position {
+            line: self.line,
+            col: self.column,
+        }
+    }
+
     pub fn advance(&mut self, bytes: usize) -> Result<()> {
         for _ in 0..bytes {
             self.advance_single()?;
