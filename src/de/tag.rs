@@ -71,6 +71,13 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut TagDeserializer<'a, 'b> {
         self.d.deserialize_i64(visitor)
     }
 
+    fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'b>,
+    {
+        self.d.deserialize_i128(visitor)
+    }
+
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
@@ -97,6 +104,13 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut TagDeserializer<'a, 'b> {
         V: Visitor<'b>,
     {
         self.d.deserialize_u64(visitor)
+    }
+
+    fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'b>,
+    {
+        self.d.deserialize_u128(visitor)
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>

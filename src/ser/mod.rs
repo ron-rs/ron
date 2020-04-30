@@ -338,36 +338,44 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
-        self.serialize_i64(v as i64)
+        self.serialize_i128(v as i128)
     }
 
     fn serialize_i16(self, v: i16) -> Result<()> {
-        self.serialize_i64(v as i64)
+        self.serialize_i128(v as i128)
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        self.serialize_i64(v as i64)
+        self.serialize_i128(v as i128)
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
+        self.serialize_i128(v as i128)
+    }
+
+    fn serialize_i128(self, v: i128) -> Result<()> {
         // TODO optimize
         self.output += &v.to_string();
         Ok(())
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
-        self.serialize_u64(v as u64)
+        self.serialize_u128(v as u128)
     }
 
     fn serialize_u16(self, v: u16) -> Result<()> {
-        self.serialize_u64(v as u64)
+        self.serialize_u128(v as u128)
     }
 
     fn serialize_u32(self, v: u32) -> Result<()> {
-        self.serialize_u64(v as u64)
+        self.serialize_u128(v as u128)
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
+        self.serialize_u128(v as u128)
+    }
+
+    fn serialize_u128(self, v: u128) -> Result<()> {
         self.output += &v.to_string();
         Ok(())
     }
