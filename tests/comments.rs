@@ -1,4 +1,4 @@
-use ron::de::{from_str, Error as RonErr, ParseError, Position};
+use ron::de::{from_str, Error as RonErr, ErrorCode, Position};
 
 #[test]
 fn test_simple() {
@@ -45,7 +45,7 @@ fn test_unclosed() {
 "
         ),
         Err(RonErr::Parser(
-            ParseError::UnclosedBlockComment,
+            ErrorCode::UnclosedBlockComment,
             Position { col: 1, line: 9 }
         ))
     );
