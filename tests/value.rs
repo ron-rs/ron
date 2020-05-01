@@ -74,7 +74,10 @@ fn unit() {
 
     assert_eq!(
         "".parse::<Value>(),
-        Err(Error::Parser(ErrorCode::Eof, Position { col: 1, line: 1 }))
+        Err(Error {
+            code: ErrorCode::Eof,
+            position: Position { col: 1, line: 1 }
+        })
     );
 }
 

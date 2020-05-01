@@ -44,9 +44,9 @@ fn test_unclosed() {
 \"THE VALUE (which is invalid)\"
 "
         ),
-        Err(RonErr::Parser(
-            ErrorCode::UnclosedBlockComment,
-            Position { col: 1, line: 9 }
-        ))
+        Err(RonErr {
+            code: ErrorCode::UnclosedBlockComment,
+            position: Position { col: 1, line: 9 }
+        })
     );
 }

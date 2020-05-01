@@ -1,5 +1,5 @@
 /// Deserialization module.
-pub use crate::error::{Error, Result};
+pub use crate::error::{Error, ErrorCode, Result};
 pub use crate::parse::Position;
 
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
@@ -7,7 +7,6 @@ use std::{borrow::Cow, io, str};
 
 use self::id::IdDeserializer;
 use self::tag::TagDeserializer;
-use crate::error::ErrorCode;
 use crate::extensions::Extensions;
 use crate::parse::{AnyNum, Bytes, ParsedStr};
 

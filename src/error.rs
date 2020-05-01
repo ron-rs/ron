@@ -1,7 +1,7 @@
 use serde::{de, ser};
 use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Error};
 
-use crate::parse::Position;
+pub use crate::parse::Position;
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
