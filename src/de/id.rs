@@ -71,6 +71,13 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
         unimplemented!("IdDeserializer may only be used for identifiers")
     }
 
+    fn deserialize_i128<V>(self, _: V) -> Result<V::Value>
+    where
+        V: Visitor<'b>,
+    {
+        unimplemented!("IdDeserializer may only be used for identifiers")
+    }
+
     fn deserialize_u8<V>(self, _: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
@@ -93,6 +100,13 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
     }
 
     fn deserialize_u64<V>(self, _: V) -> Result<V::Value>
+    where
+        V: Visitor<'b>,
+    {
+        unimplemented!("IdDeserializer may only be used for identifiers")
+    }
+
+    fn deserialize_u128<V>(self, _: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {

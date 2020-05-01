@@ -172,6 +172,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     AnyNum::U32(x) => visitor.visit_u32(x),
                     AnyNum::I64(x) => visitor.visit_i64(x),
                     AnyNum::U64(x) => visitor.visit_u64(x),
+                    AnyNum::I128(x) => visitor.visit_i128(x),
+                    AnyNum::U128(x) => visitor.visit_u128(x),
                 }
             }
             b'.' => self.deserialize_f64(visitor),
@@ -216,6 +218,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_i64(self.bytes.signed_integer()?)
     }
 
+    fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_i128(self.bytes.signed_integer()?)
+    }
+
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -242,6 +251,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         visitor.visit_u64(self.bytes.unsigned_integer()?)
+    }
+
+    fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_u128(self.bytes.unsigned_integer()?)
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
