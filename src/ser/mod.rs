@@ -1,9 +1,7 @@
 use serde::{ser, Deserialize, Serialize};
-use std::{
-    error::Error as StdError,
-    fmt::{Display, Formatter, Result as FmtResult, Write},
-};
+use std::fmt::Write;
 
+use crate::error::{Error, Result};
 use crate::extensions::Extensions;
 
 mod value;
@@ -29,38 +27,6 @@ where
     let mut s = Serializer::new(Some(config), false);
     value.serialize(&mut s)?;
     Ok(s.output)
-}
-
-/// Serialization result.
-pub type Result<T> = std::result::Result<T, Error>;
-
-/// Serialization error.
-#[derive(Clone, Debug, PartialEq)]
-pub enum Error {
-    /// A custom error emitted by a serialized value.
-    Message(String),
-}
-
-impl Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        match *self {
-            Error::Message(ref e) => write!(f, "Custom message: {}", e),
-        }
-    }
-}
-
-impl ser::Error for Error {
-    fn custom<T: Display>(msg: T) -> Self {
-        Error::Message(msg.to_string())
-    }
-}
-
-impl StdError for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Message(ref e) => e,
-        }
-    }
 }
 
 /// Pretty serializer state

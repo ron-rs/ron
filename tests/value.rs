@@ -67,14 +67,17 @@ fn seq() {
 
 #[test]
 fn unit() {
-    use ron::de::{Error, ParseError, Position};
+    use ron::error::{Error, ErrorCode, Position};
 
     assert_eq!("()".parse(), Ok(Value::Unit));
     assert_eq!("Foo".parse(), Ok(Value::Unit));
 
     assert_eq!(
         "".parse::<Value>(),
-        Err(Error::Parser(ParseError::Eof, Position { col: 1, line: 1 }))
+        Err(Error {
+            code: ErrorCode::Eof,
+            position: Position { col: 1, line: 1 }
+        })
     );
 }
 

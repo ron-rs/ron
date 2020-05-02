@@ -149,13 +149,16 @@ y: 2.0 // 2!
     );
 }
 
-fn err<T>(kind: ParseError, line: usize, col: usize) -> Result<T> {
-    Err(Error::Parser(kind, Position { line, col }))
+fn err<T>(kind: ErrorCode, line: usize, col: usize) -> Result<T> {
+    Err(Error {
+        code: kind,
+        position: Position { line, col },
+    })
 }
 
 #[test]
 fn test_err_wrong_value() {
-    use self::ParseError::*;
+    use self::ErrorCode::*;
     use std::collections::HashMap;
 
     assert_eq!(from_str::<f32>("'c'"), err(ExpectedFloat, 1, 1));
@@ -204,7 +207,10 @@ fn forgot_apostrophes() {
     let de: Result<(i32, String)> = from_str("(4, \"Hello)");
 
     assert!(match de {
-        Err(Error::Parser(ParseError::ExpectedStringEnd, _)) => true,
+        Err(Error {
+            code: ErrorCode::ExpectedStringEnd,
+            position: _,
+        }) => true,
         _ => false,
     });
 }
@@ -213,14 +219,14 @@ fn forgot_apostrophes() {
 fn expected_attribute() {
     let de: Result<String> = from_str("#\"Hello\"");
 
-    assert_eq!(de, err(ParseError::ExpectedAttribute, 1, 2));
+    assert_eq!(de, err(ErrorCode::ExpectedAttribute, 1, 2));
 }
 
 #[test]
 fn expected_attribute_end() {
     let de: Result<String> = from_str("#![enable(unwrap_newtypes) \"Hello\"");
 
-    assert_eq!(de, err(ParseError::ExpectedAttributeEnd, 1, 28));
+    assert_eq!(de, err(ErrorCode::ExpectedAttributeEnd, 1, 28));
 }
 
 #[test]
@@ -229,7 +235,7 @@ fn invalid_attribute() {
 
     assert_eq!(
         de,
-        err(ParseError::NoSuchExtension("invalid".to_string()), 1, 18)
+        err(ErrorCode::NoSuchExtension("invalid".to_string()), 1, 18)
     );
 }
 

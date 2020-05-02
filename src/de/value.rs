@@ -229,11 +229,14 @@ mod tests {
 
     #[test]
     fn test_tuples_error() {
-        use crate::de::{Error, ParseError, Position};
+        use crate::de::{Error, ErrorCode, Position};
 
         assert_eq!(
             Value::from_str("Foo:").unwrap_err(),
-            Error::Parser(ParseError::TrailingCharacters, Position { col: 4, line: 1 }),
+            Error {
+                code: ErrorCode::TrailingCharacters,
+                position: Position { col: 4, line: 1 }
+            },
         );
     }
 

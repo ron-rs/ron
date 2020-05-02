@@ -4,7 +4,7 @@ use std::{
     str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
-use crate::de::{Error, ParseError, Result};
+use crate::error::{Error, ErrorCode, Result};
 use crate::extensions::Extensions;
 
 const DIGITS: &[u8] = b"0123456789ABCDEFabcdef_";
@@ -105,13 +105,13 @@ impl<'a> Bytes<'a> {
         let num_bytes = self.next_bytes_contained_in(DIGITS);
 
         if num_bytes == 0 {
-            return self.err(ParseError::ExpectedInteger);
+            return self.err(ErrorCode::ExpectedInteger);
         }
 
         let s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
 
         if s.as_bytes()[0] == b'_' {
-            return self.err(ParseError::UnderscoreAtBeginning);
+            return self.err(ErrorCode::UnderscoreAtBeginning);
         }
 
         fn calc_num<T: Num>(
@@ -128,17 +128,17 @@ impl<'a> Bytes<'a> {
                 }
 
                 if num_acc.checked_mul_ext(base) {
-                    return bytes.err(ParseError::IntegerOutOfBounds);
+                    return bytes.err(ErrorCode::IntegerOutOfBounds);
                 }
 
                 let digit = bytes.decode_hex(byte)?;
 
                 if digit >= base {
-                    return bytes.err(ParseError::ExpectedInteger);
+                    return bytes.err(ErrorCode::ExpectedInteger);
                 }
 
                 if f(&mut num_acc, digit) {
-                    return bytes.err(ParseError::IntegerOutOfBounds);
+                    return bytes.err(ErrorCode::IntegerOutOfBounds);
                 }
             }
 
@@ -245,7 +245,7 @@ impl<'a> Bytes<'a> {
         } else if self.consume("false") {
             Ok(false)
         } else {
-            self.err(ParseError::ExpectedBoolean)
+            self.err(ErrorCode::ExpectedBoolean)
         }
     }
 
@@ -255,7 +255,7 @@ impl<'a> Bytes<'a> {
 
     pub fn char(&mut self) -> Result<char> {
         if !self.consume("'") {
-            return self.err(ParseError::ExpectedChar);
+            return self.err(ErrorCode::ExpectedChar);
         }
 
         let c = self.peek_or_eof()?;
@@ -272,15 +272,15 @@ impl<'a> Bytes<'a> {
             let pos: usize = self.bytes[..max]
                 .iter()
                 .position(|&x| x == b'\'')
-                .ok_or_else(|| self.error(ParseError::ExpectedChar))?;
+                .ok_or_else(|| self.error(ErrorCode::ExpectedChar))?;
             let s = from_utf8(&self.bytes[0..pos]).map_err(|e| self.error(e.into()))?;
             let mut chars = s.chars();
 
             let first = chars
                 .next()
-                .ok_or_else(|| self.error(ParseError::ExpectedChar))?;
+                .ok_or_else(|| self.error(ErrorCode::ExpectedChar))?;
             if chars.next().is_some() {
-                return self.err(ParseError::ExpectedChar);
+                return self.err(ErrorCode::ExpectedChar);
             }
 
             let _ = self.advance(pos);
@@ -289,7 +289,7 @@ impl<'a> Bytes<'a> {
         };
 
         if !self.consume("'") {
-            return self.err(ParseError::ExpectedChar);
+            return self.err(ErrorCode::ExpectedChar);
         }
 
         Ok(c)
@@ -375,21 +375,21 @@ impl<'a> Bytes<'a> {
         Ok(peek)
     }
 
-    pub fn err<T>(&self, kind: ParseError) -> Result<T> {
+    pub fn err<T>(&self, kind: ErrorCode) -> Result<T> {
         Err(self.error(kind))
     }
 
-    pub fn error(&self, kind: ParseError) -> Error {
-        Error::Parser(
-            kind,
-            Position {
+    pub fn error(&self, kind: ErrorCode) -> Error {
+        Error {
+            code: kind,
+            position: Position {
                 line: self.line,
                 col: self.column,
             },
-        )
+        }
     }
 
-    pub fn expect_byte(&mut self, byte: u8, error: ParseError) -> Result<()> {
+    pub fn expect_byte(&mut self, byte: u8, error: ErrorCode) -> Result<()> {
         self.eat_byte()
             .and_then(|b| if b == byte { Ok(()) } else { self.err(error) })
     }
@@ -401,7 +401,7 @@ impl<'a> Bytes<'a> {
         }
 
         if !self.consume_all(&["#", "!", "[", "enable", "("])? {
-            return self.err(ParseError::ExpectedAttribute);
+            return self.err(ErrorCode::ExpectedAttribute);
         }
 
         self.skip_ws()?;
@@ -410,7 +410,7 @@ impl<'a> Bytes<'a> {
         loop {
             let ident = self.identifier()?;
             let extension = Extensions::from_ident(ident).ok_or_else(|| {
-                self.error(ParseError::NoSuchExtension(
+                self.error(ErrorCode::NoSuchExtension(
                     from_utf8(ident).unwrap().to_owned(),
                 ))
             })?;
@@ -421,7 +421,7 @@ impl<'a> Bytes<'a> {
 
             // If we have no comma but another item, return an error
             if !comma && self.check_ident_char(0) {
-                return self.err(ParseError::ExpectedComma);
+                return self.err(ErrorCode::ExpectedComma);
             }
 
             // If there's no comma, assume the list ended.
@@ -437,7 +437,7 @@ impl<'a> Bytes<'a> {
         if self.consume_all(&[")", "]"])? {
             Ok(extensions)
         } else {
-            Err(self.error(ParseError::ExpectedAttributeEnd))
+            Err(self.error(ErrorCode::ExpectedAttributeEnd))
         }
     }
 
@@ -454,7 +454,7 @@ impl<'a> Bytes<'a> {
         let num_bytes = self.next_bytes_contained_in(FLOAT_CHARS);
 
         let s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
-        let res = FromStr::from_str(s).map_err(|_| self.error(ParseError::ExpectedFloat));
+        let res = FromStr::from_str(s).map_err(|_| self.error(ErrorCode::ExpectedFloat));
 
         let _ = self.advance(num_bytes);
 
@@ -478,9 +478,9 @@ impl<'a> Bytes<'a> {
                 let second = self
                     .bytes
                     .get(1)
-                    .ok_or_else(|| self.error(ParseError::Eof))?;
+                    .ok_or_else(|| self.error(ErrorCode::Eof))?;
                 if *second == b'"' || *second == b'#' {
-                    return self.err(ParseError::ExpectedIdentifier);
+                    return self.err(ErrorCode::ExpectedIdentifier);
                 }
             }
 
@@ -488,7 +488,7 @@ impl<'a> Bytes<'a> {
 
             Ok(bytes)
         } else {
-            self.err(ParseError::ExpectedIdentifier)
+            self.err(ErrorCode::ExpectedIdentifier)
         }
     }
 
@@ -543,7 +543,7 @@ impl<'a> Bytes<'a> {
         self.bytes
             .get(0)
             .cloned()
-            .ok_or_else(|| self.error(ParseError::Eof))
+            .ok_or_else(|| self.error(ErrorCode::Eof))
     }
 
     pub fn signed_integer<T>(&mut self) -> Result<T>
@@ -571,7 +571,7 @@ impl<'a> Bytes<'a> {
         } else if self.consume("r") {
             self.raw_string()
         } else {
-            self.err(ParseError::ExpectedString)
+            self.err(ErrorCode::ExpectedString)
         }
     }
 
@@ -583,7 +583,7 @@ impl<'a> Bytes<'a> {
             .iter()
             .enumerate()
             .find(|&(_, &b)| b == b'\\' || b == b'"')
-            .ok_or_else(|| self.error(ParseError::ExpectedStringEnd))?;
+            .ok_or_else(|| self.error(ErrorCode::ExpectedStringEnd))?;
 
         if *end_or_escape == b'"' {
             let s = from_utf8(&self.bytes[..i]).map_err(|e| self.error(e.into()))?;
@@ -614,7 +614,7 @@ impl<'a> Bytes<'a> {
                     .iter()
                     .enumerate()
                     .find(|&(_, &b)| b == b'\\' || b == b'"')
-                    .ok_or(ParseError::Eof)
+                    .ok_or(ErrorCode::Eof)
                     .map_err(|e| self.error(e))?;
 
                 i = new_i;
@@ -636,7 +636,7 @@ impl<'a> Bytes<'a> {
         let _ = self.advance(num_hashes);
 
         if !self.consume("\"") {
-            return self.err(ParseError::ExpectedString);
+            return self.err(ErrorCode::ExpectedString);
         }
 
         let ending = [&[b'"'], hashes].concat();
@@ -644,7 +644,7 @@ impl<'a> Bytes<'a> {
             .bytes
             .windows(num_hashes + 1)
             .position(|window| window == ending.as_slice())
-            .ok_or_else(|| self.error(ParseError::ExpectedStringEnd))?;
+            .ok_or_else(|| self.error(ErrorCode::ExpectedStringEnd))?;
 
         let s = from_utf8(&self.bytes[..i]).map_err(|e| self.error(e.into()))?;
 
@@ -683,7 +683,7 @@ impl<'a> Bytes<'a> {
             c @ b'0'..=b'9' => Ok(c - b'0'),
             c @ b'a'..=b'f' => Ok(10 + c - b'a'),
             c @ b'A'..=b'F' => Ok(10 + c - b'A'),
-            _ => self.err(ParseError::InvalidEscape("Non-hex digit found")),
+            _ => self.err(ErrorCode::InvalidEscape("Non-hex digit found")),
         }
     }
 
@@ -697,7 +697,7 @@ impl<'a> Bytes<'a> {
             b't' => '\t',
             b'x' => self.decode_ascii_escape()? as char,
             b'u' => {
-                self.expect_byte(b'{', ParseError::InvalidEscape("Missing {"))?;
+                self.expect_byte(b'{', ErrorCode::InvalidEscape("Missing {"))?;
 
                 let mut bytes: u32 = 0;
                 let mut num_digits = 0;
@@ -719,17 +719,17 @@ impl<'a> Bytes<'a> {
                 }
 
                 if num_digits == 0 {
-                    return self.err(ParseError::InvalidEscape(
+                    return self.err(ErrorCode::InvalidEscape(
                         "Expected 1-6 digits, got 0 digits",
                     ));
                 }
 
-                self.expect_byte(b'}', ParseError::InvalidEscape("No } at the end"))?;
+                self.expect_byte(b'}', ErrorCode::InvalidEscape("No } at the end"))?;
                 char_from_u32(bytes)
-                    .ok_or_else(|| self.error(ParseError::InvalidEscape("Not a valid char")))?
+                    .ok_or_else(|| self.error(ErrorCode::InvalidEscape("Not a valid char")))?
             }
             _ => {
-                return self.err(ParseError::InvalidEscape("Unknown escape character"));
+                return self.err(ErrorCode::InvalidEscape("Unknown escape character"));
             }
         };
 
@@ -755,7 +755,7 @@ impl<'a> Bytes<'a> {
                             .count();
 
                         if self.bytes.is_empty() {
-                            return self.err(ParseError::UnclosedBlockComment);
+                            return self.err(ErrorCode::UnclosedBlockComment);
                         }
 
                         let _ = self.advance(bytes);
@@ -767,11 +767,11 @@ impl<'a> Bytes<'a> {
                             level -= 1;
                         } else {
                             self.eat_byte()
-                                .map_err(|_| self.error(ParseError::UnclosedBlockComment))?;
+                                .map_err(|_| self.error(ErrorCode::UnclosedBlockComment))?;
                         }
                     }
                 }
-                b => return self.err(ParseError::UnexpectedByte(b as char)),
+                b => return self.err(ErrorCode::UnexpectedByte(b as char)),
             }
 
             Ok(true)

@@ -1,5 +1,5 @@
 /// Deserialization module.
-pub use self::error::{Error, ParseError, Result};
+pub use crate::error::{Error, ErrorCode, Result};
 pub use crate::parse::Position;
 
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
@@ -10,7 +10,6 @@ use self::tag::TagDeserializer;
 use crate::extensions::Extensions;
 use crate::parse::{AnyNum, Bytes, ParsedStr};
 
-mod error;
 mod id;
 mod tag;
 #[cfg(test)]
@@ -88,7 +87,7 @@ impl<'de> Deserializer<'de> {
         if self.bytes.bytes().is_empty() {
             Ok(())
         } else {
-            self.bytes.err(ParseError::TrailingCharacters)
+            self.bytes.err(ErrorCode::TrailingCharacters)
         }
     }
 
@@ -179,7 +178,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'.' => self.deserialize_f64(visitor),
             b'"' | b'r' => self.deserialize_string(visitor),
             b'\'' => self.deserialize_char(visitor),
-            other => self.bytes.err(ParseError::UnexpectedByte(other as char)),
+            other => self.bytes.err(ErrorCode::UnexpectedByte(other as char)),
         }
     }
 
@@ -320,7 +319,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         match res {
             Ok(byte_buf) => visitor.visit_byte_buf(byte_buf),
-            Err(err) => self.bytes.err(ParseError::Base64Error(err)),
+            Err(err) => self.bytes.err(ErrorCode::Base64Error(err)),
         }
     }
 
@@ -345,10 +344,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(v)
             } else {
-                self.bytes.err(ParseError::ExpectedOptionEnd)
+                self.bytes.err(ErrorCode::ExpectedOptionEnd)
             }
         } else {
-            self.bytes.err(ParseError::ExpectedOption)
+            self.bytes.err(ErrorCode::ExpectedOption)
         }
     }
 
@@ -360,7 +359,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         if self.bytes.consume("()") {
             visitor.visit_unit()
         } else {
-            self.bytes.err(ParseError::ExpectedUnit)
+            self.bytes.err(ErrorCode::ExpectedUnit)
         }
     }
 
@@ -395,10 +394,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(value)
             } else {
-                self.bytes.err(ParseError::ExpectedStructEnd)
+                self.bytes.err(ErrorCode::ExpectedStructEnd)
             }
         } else {
-            self.bytes.err(ParseError::ExpectedStruct)
+            self.bytes.err(ErrorCode::ExpectedStruct)
         }
     }
 
@@ -413,10 +412,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume("]") {
                 Ok(value)
             } else {
-                self.bytes.err(ParseError::ExpectedArrayEnd)
+                self.bytes.err(ErrorCode::ExpectedArrayEnd)
             }
         } else {
-            self.bytes.err(ParseError::ExpectedArray)
+            self.bytes.err(ErrorCode::ExpectedArray)
         }
     }
 
@@ -431,10 +430,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(value)
             } else {
-                self.bytes.err(ParseError::ExpectedArrayEnd)
+                self.bytes.err(ErrorCode::ExpectedArrayEnd)
             }
         } else {
-            self.bytes.err(ParseError::ExpectedArray)
+            self.bytes.err(ErrorCode::ExpectedArray)
         }
     }
 
@@ -462,10 +461,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume("}") {
                 Ok(value)
             } else {
-                self.bytes.err(ParseError::ExpectedMapEnd)
+                self.bytes.err(ErrorCode::ExpectedMapEnd)
             }
         } else {
-            self.bytes.err(ParseError::ExpectedMap)
+            self.bytes.err(ErrorCode::ExpectedMap)
         }
     }
 
@@ -489,10 +488,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(value)
             } else {
-                self.bytes.err(ParseError::ExpectedStructEnd)
+                self.bytes.err(ErrorCode::ExpectedStructEnd)
             }
         } else {
-            self.bytes.err(ParseError::ExpectedStruct)
+            self.bytes.err(ErrorCode::ExpectedStruct)
         }
     }
 
@@ -540,7 +539,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
         }
     }
 
-    fn err<T>(&self, kind: ParseError) -> Result<T> {
+    fn err<T>(&self, kind: ErrorCode) -> Result<T> {
         self.de.bytes.err(kind)
     }
 
@@ -604,7 +603,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
 
             Ok(res)
         } else {
-            self.err(ParseError::ExpectedMapColon)
+            self.err(ErrorCode::ExpectedMapColon)
         }
     }
 }
@@ -658,10 +657,10 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
             if self.de.bytes.consume(")") {
                 Ok(val)
             } else {
-                self.de.bytes.err(ParseError::ExpectedStructEnd)
+                self.de.bytes.err(ErrorCode::ExpectedStructEnd)
             }
         } else {
-            self.de.bytes.err(ParseError::ExpectedStruct)
+            self.de.bytes.err(ErrorCode::ExpectedStruct)
         }
     }
 

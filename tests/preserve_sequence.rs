@@ -20,7 +20,7 @@ struct Nested {
 }
 
 fn read_original(source: &str) -> String {
-    source.to_string()
+    source.to_string().replace("\r\n", "\n")
 }
 
 fn make_roundtrip(source: &str) -> String {
@@ -34,7 +34,8 @@ fn make_roundtrip(source: &str) -> String {
     let pretty = PrettyConfig::new()
         .with_depth_limit(3)
         .with_separate_tuple_members(true)
-        .with_enumerate_arrays(true);
+        .with_enumerate_arrays(true)
+        .with_new_line("\n".into());
     to_string_pretty(&config, pretty).expect("Serialization failed")
 }
 
