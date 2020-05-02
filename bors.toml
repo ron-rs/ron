@@ -1,5 +1,6 @@
 status = [
-  "Tests",
+  "Tests (stable)",
+  "Tests (nightly)",
   "Format: stable",
 ]
 
