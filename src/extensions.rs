@@ -1,7 +1,6 @@
-use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
-bitflags! {
+bitflags::bitflags! {
     #[derive(Serialize, Deserialize)]
     pub struct Extensions: usize {
         const UNWRAP_NEWTYPES = 0x1;

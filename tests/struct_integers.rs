@@ -17,16 +17,16 @@ struct S {
 #[test]
 fn roundtrip() {
     let s = S {
-        a: i8::MIN,
-        b: i16::MIN,
-        c: i32::MIN,
-        d: i64::MIN,
-        e: i128::MIN,
-        f: u8::MAX,
-        g: u16::MAX,
-        h: u32::MAX,
-        i: u64::MAX,
-        j: u128::MAX,
+        a: std::i8::MIN,
+        b: std::i16::MIN,
+        c: std::i32::MIN,
+        d: std::i64::MIN,
+        e: std::i128::MIN,
+        f: std::u8::MAX,
+        g: std::u16::MAX,
+        h: std::u32::MAX,
+        i: std::u64::MAX,
+        j: std::u128::MAX,
     };
     let serialized = ron::ser::to_string(&s).unwrap();
     dbg!(&serialized);
