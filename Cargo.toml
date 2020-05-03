@@ -4,6 +4,7 @@ version = "0.5.2"
 license = "MIT/Apache-2.0"
 keywords = ["parser", "serde", "serialization"]
 authors = [
+	"Christopher Durham <cad97@cad97.com>",
 	"Dzmitry Malyshau <kvarkus@gmail.com>",
 	"Thomas Schaller <torkleyy@gmail.com>",
 ]
@@ -21,9 +22,9 @@ name = "ron"
 
 [dependencies]
 base64 = "0.12"
-bitflags = "1"
+bitflags = "1.0.4"
 indexmap = { version = "1.0.2", features = ["serde-1"], optional = true }
-serde = { version = "1", features = ["serde_derive"] }
+serde = { version = "1.0.60", features = ["serde_derive"] }
 
 [dev-dependencies]
 serde_bytes = "0.11"
