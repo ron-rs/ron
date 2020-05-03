@@ -49,7 +49,7 @@ fn depth_limit() {
     };
 
     let pretty = ron::ser::PrettyConfig::new()
-        .with_depth_limit(2)
+        .with_depth_limit(1)
         .with_separate_tuple_members(true)
         .with_enumerate_arrays(true)
         .with_new_line("\n".to_string());

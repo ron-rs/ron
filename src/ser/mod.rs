@@ -224,7 +224,7 @@ impl Serializer {
 
     fn is_pretty(&self) -> bool {
         match self.pretty {
-            Some((ref config, ref pretty)) => pretty.indent < config.depth_limit,
+            Some((ref config, ref pretty)) => pretty.indent <= config.depth_limit,
             None => false,
         }
     }
@@ -244,7 +244,7 @@ impl Serializer {
     fn start_indent(&mut self) {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             pretty.indent += 1;
-            if pretty.indent < config.depth_limit {
+            if pretty.indent <= config.depth_limit {
                 let is_empty = self.is_empty.unwrap_or(false);
 
                 if !is_empty {
@@ -256,7 +256,7 @@ impl Serializer {
 
     fn indent(&mut self) {
         if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+            if pretty.indent <= config.depth_limit {
                 self.output
                     .extend((0..pretty.indent).map(|_| config.indentor.as_str()));
             }
@@ -265,7 +265,7 @@ impl Serializer {
 
     fn end_indent(&mut self) {
         if let Some((ref config, ref mut pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+            if pretty.indent <= config.depth_limit {
                 let is_empty = self.is_empty.unwrap_or(false);
 
                 if !is_empty {
@@ -567,7 +567,7 @@ impl<'a> ser::SerializeSeq for &'a mut Serializer {
         self.output += ",";
 
         if let Some((ref config, ref mut pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+            if pretty.indent <= config.depth_limit {
                 if config.enumerate_arrays {
                     assert!(config.new_line.contains('\n'));
                     let index = pretty.sequence_index.last_mut().unwrap();
@@ -611,7 +611,7 @@ impl<'a> ser::SerializeTuple for &'a mut Serializer {
         self.output += ",";
 
         if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+            if pretty.indent <= config.depth_limit {
                 self.output += if self.separate_tuple_members() {
                     &config.new_line
                 } else {
@@ -697,7 +697,7 @@ impl<'a> ser::SerializeMap for &'a mut Serializer {
         self.output += ",";
 
         if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+            if pretty.indent <= config.depth_limit {
                 self.output += &config.new_line;
             }
         }
@@ -734,7 +734,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
         self.output += ",";
 
         if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent < config.depth_limit {
+            if pretty.indent <= config.depth_limit {
                 self.output += &config.new_line;
             }
         }
