@@ -1,10 +1,5 @@
 name: CI
-on:
-  push:
-    branches:
-      - staging
-      - trying
-      - master
+on: [push, pull_request]
 
 jobs:
 
