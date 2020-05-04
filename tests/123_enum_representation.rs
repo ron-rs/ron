@@ -1,8 +1,6 @@
-use ron::de::from_str;
-use ron::ser::to_string;
+use ron::{de::from_str, ser::to_string};
 use serde::{Deserialize, Serialize};
-use std::cmp::PartialEq;
-use std::fmt::Debug;
+use std::{cmp::PartialEq, fmt::Debug};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum Inner {
@@ -73,14 +71,14 @@ fn test_externally_a_ser() {
         bar: 2,
         different: 3,
     };
-    let e = "VariantA(foo:1,bar:2,different:3,)";
+    let e = "VariantA(foo:1,bar:2,different:3)";
     test_ser(&v, e);
 }
 
 #[test]
 fn test_externally_b_ser() {
     let v = EnumStructExternally::VariantB { foo: 1, bar: 2 };
-    let e = "VariantB(foo:1,bar:2,)";
+    let e = "VariantB(foo:1,bar:2)";
     test_ser(&v, e);
 }
 
@@ -91,14 +89,14 @@ fn test_internally_a_ser() {
         bar: 2,
         different: 3,
     };
-    let e = "(type:\"VariantA\",foo:1,bar:2,different:3,)";
+    let e = "(type:\"VariantA\",foo:1,bar:2,different:3)";
     test_ser(&v, e);
 }
 
 #[test]
 fn test_internally_b_ser() {
     let v = EnumStructInternally::VariantB { foo: 1, bar: 2 };
-    let e = "(type:\"VariantB\",foo:1,bar:2,)";
+    let e = "(type:\"VariantB\",foo:1,bar:2)";
     test_ser(&v, e);
 }
 
@@ -109,14 +107,14 @@ fn test_adjacently_a_ser() {
         bar: 2,
         different: Inner::Foo,
     };
-    let e = "(type:\"VariantA\",content:(foo:1,bar:2,different:Foo,),)";
+    let e = "(type:\"VariantA\",content:(foo:1,bar:2,different:Foo))";
     test_ser(&v, e);
 }
 
 #[test]
 fn test_adjacently_b_ser() {
     let v = EnumStructAdjacently::VariantB { foo: 1, bar: 2 };
-    let e = "(type:\"VariantB\",content:(foo:1,bar:2,),)";
+    let e = "(type:\"VariantB\",content:(foo:1,bar:2))";
     test_ser(&v, e);
 }
 
@@ -127,20 +125,20 @@ fn test_untagged_a_ser() {
         bar: 2,
         different: 3,
     };
-    let e = "(foo:1,bar:2,different:3,)";
+    let e = "(foo:1,bar:2,different:3)";
     test_ser(&v, e);
 }
 
 #[test]
 fn test_untagged_b_ser() {
     let v = EnumStructUntagged::VariantB { foo: 1, bar: 2 };
-    let e = "(foo:1,bar:2,)";
+    let e = "(foo:1,bar:2)";
     test_ser(&v, e);
 }
 
 #[test]
 fn test_externally_a_de() {
-    let s = "VariantA(foo:1,bar:2,different:3,)";
+    let s = "VariantA(foo:1,bar:2,different:3)";
     let e = EnumStructExternally::VariantA {
         foo: 1,
         bar: 2,
@@ -151,14 +149,14 @@ fn test_externally_a_de() {
 
 #[test]
 fn test_externally_b_de() {
-    let s = "VariantB(foo:1,bar:2,)";
+    let s = "VariantB(foo:1,bar:2)";
     let e = EnumStructExternally::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }
 
 #[test]
 fn test_internally_a_de() {
-    let s = "(type:\"VariantA\",foo:1,bar:2,different:3,)";
+    let s = "(type:\"VariantA\",foo:1,bar:2,different:3)";
     let e = EnumStructInternally::VariantA {
         foo: 1,
         bar: 2,
@@ -169,14 +167,14 @@ fn test_internally_a_de() {
 
 #[test]
 fn test_internally_b_de() {
-    let s = "(type:\"VariantB\",foo:1,bar:2,)";
+    let s = "(type:\"VariantB\",foo:1,bar:2)";
     let e = EnumStructInternally::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }
 
 #[test]
 fn test_adjacently_a_de() {
-    let s = "(type:\"VariantA\",content:(foo:1,bar:2,different:Foo,),)";
+    let s = "(type:\"VariantA\",content:(foo:1,bar:2,different:Foo))";
     let e = EnumStructAdjacently::VariantA {
         foo: 1,
         bar: 2,
@@ -187,14 +185,14 @@ fn test_adjacently_a_de() {
 
 #[test]
 fn test_adjacently_b_de() {
-    let s = "(type:\"VariantB\",content:(foo:1,bar:2,),)";
+    let s = "(type:\"VariantB\",content:(foo:1,bar:2))";
     let e = EnumStructAdjacently::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }
 
 #[test]
 fn test_untagged_a_de() {
-    let s = "(foo:1,bar:2,different:3,)";
+    let s = "(foo:1,bar:2,different:3)";
     let e = EnumStructUntagged::VariantA {
         foo: 1,
         bar: 2,
@@ -205,7 +203,7 @@ fn test_untagged_a_de() {
 
 #[test]
 fn test_untagged_b_de() {
-    let s = "(foo:1,bar:2,)";
+    let s = "(foo:1,bar:2)";
     let e = EnumStructUntagged::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }

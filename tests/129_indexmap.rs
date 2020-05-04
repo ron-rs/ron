@@ -15,9 +15,9 @@ tasks: {
         "-l",
         "-h",
       ]),
-      ch_dir: Some("/")
+      ch_dir: Some("/"),
     ),
-}
+},
 )
 "#;
 

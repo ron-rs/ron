@@ -54,6 +54,6 @@ enum Foo {
 fn test_vessd_case() {
     let foo_vec = vec![Foo::Bar(0); 5];
     let foo_str = to_string(&foo_vec).unwrap();
-    assert_eq!(foo_str.as_str(), "[0,0,0,0,0,]");
+    assert_eq!(foo_str.as_str(), "[0,0,0,0,0]");
     assert_eq!(from_str::<Vec<Foo>>(&foo_str).unwrap(), foo_vec);
 }

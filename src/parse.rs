@@ -4,8 +4,10 @@ use std::{
     str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
-use crate::error::{Error, ErrorCode, Result};
-use crate::extensions::Extensions;
+use crate::{
+    error::{Error, ErrorCode, Result},
+    extensions::Extensions,
+};
 
 const DIGITS: &[u8] = b"0123456789ABCDEFabcdef_";
 const FLOAT_CHARS: &[u8] = b"0123456789.+-eE";

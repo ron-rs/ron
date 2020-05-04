@@ -5,10 +5,11 @@ pub use crate::parse::Position;
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 use std::{borrow::Cow, io, str};
 
-use self::id::IdDeserializer;
-use self::tag::TagDeserializer;
-use crate::extensions::Extensions;
-use crate::parse::{AnyNum, Bytes, ParsedStr};
+use self::{id::IdDeserializer, tag::TagDeserializer};
+use crate::{
+    extensions::Extensions,
+    parse::{AnyNum, Bytes, ParsedStr},
+};
 
 mod id;
 mod tag;
