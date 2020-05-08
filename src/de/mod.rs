@@ -271,7 +271,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.bytes.string()? {
             ParsedStr::Allocated(s) => visitor.visit_string(s),
-            ParsedStr::Slice(s) => visitor.visit_str(s),
+            ParsedStr::Slice(s) => visitor.visit_borrowed_str(s),
         }
     }
 
