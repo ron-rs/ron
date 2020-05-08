@@ -567,7 +567,7 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    pub fn string(&mut self) -> Result<ParsedStr<'_>> {
+    pub fn string(&mut self) -> Result<ParsedStr<'a>> {
         if self.consume("\"") {
             self.escaped_string()
         } else if self.consume("r") {
@@ -577,7 +577,7 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    fn escaped_string(&mut self) -> Result<ParsedStr<'_>> {
+    fn escaped_string(&mut self) -> Result<ParsedStr<'a>> {
         use std::iter::repeat;
 
         let (i, end_or_escape) = self
@@ -632,7 +632,7 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    fn raw_string(&mut self) -> Result<ParsedStr<'_>> {
+    fn raw_string(&mut self) -> Result<ParsedStr<'a>> {
         let num_hashes = self.bytes.iter().take_while(|&&b| b == b'#').count();
         let hashes = &self.bytes[..num_hashes];
         let _ = self.advance(num_hashes);
