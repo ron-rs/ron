@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Next
+
+## [0.6.0] - 2020-05-21
 ### Additions
 - Implement integer support in Numbers ([#210](https://github.com/ron-rs/ron/pull/210))
 - Port `ser::Serializer` to `io::Write` ([#206](https://github.com/ron-rs/ron/pull/206))
