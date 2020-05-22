@@ -60,12 +60,14 @@ float_exp = ("e" | "E"), digit, {digit};
 string = string_std | string_raw;
 string_std = "\"", { no_double_quotation_marks | string_escape }, "\"";
 string_escape = "\\", ("\"" | "\\" | "b" | "f" | "n" | "r" | "t" | ("u", unicode_hex));
-string_raw = ("r#", string_raw, "#") | "\"", { unicode_non_greedy }, "\"";
+string_raw = "r" string_raw_content;
+string_raw_content = ("#", string_raw_content, "#") | "\"", { unicode_non_greedy }, "\"";
 ```
 
-> Note: Raw strings start with an `r`, followed by n `#` and a quotation mark
+> Note: Raw strings start with an `r`, followed by n `#`s and a quotation mark
   `"`. They may contain any characters or escapes (except the end sequence).
-  A raw string ends with a quotation mark (`"`), followed by n `#`.
+  A raw string ends with a quotation mark (`"`), followed by n `#`s. n may be
+  any number, including zero.
   Example:
   ```rust
 r##"This is a "raw string". It can contain quotations or
@@ -74,7 +76,7 @@ backslashes (\)!"##
 Raw strings cannot be written in EBNF, as they are context-sensitive.
 Also see [the Rust document] about context-sensitivity of raw strings.
 
-[the Rust document]: https://github.com/rust-lang/rust/blob/HEAD@%7B2019-05-26T21:45:17Z%7D/src/grammar/raw-string-literal-ambiguity.md
+[the Rust document]: https://github.com/rust-lang/rust/blob/d046ffddc4bd50e04ffc3ff9f766e2ac71f74d50/src/grammar/raw-string-literal-ambiguity.md
 
 ## Char
 
