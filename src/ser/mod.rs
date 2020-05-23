@@ -76,6 +76,9 @@ pub struct PrettyConfig {
     /// Enumerate array items in comments
     #[serde(default = "default_enumerate_arrays")]
     pub enumerate_arrays: bool,
+    /// Always include the decimal in floats
+    #[serde(default = "default_decimal_floats")]
+    pub decimal_floats: bool,
     /// Enable extensions. Only configures 'implicit_some' for now.
     pub extensions: Extensions,
     /// Private field to ensure adding a field is non-breaking.
@@ -141,6 +144,17 @@ impl PrettyConfig {
         self
     }
 
+    /// Configures whether floats should always include a decimal.
+    /// When false `1.0` will serialize as `1`
+    /// When true `1.0` will serialize as `1.0`
+    ///
+    /// Default: `false`
+    pub fn with_decimal_floats(mut self, decimal_floats: bool) -> Self {
+        self.decimal_floats = decimal_floats;
+
+        self
+    }
+
     /// Configures extensions
     ///
     /// Default: Extensions::empty()
@@ -164,6 +178,10 @@ fn default_new_line() -> String {
     new_line
 }
 
+fn default_decimal_floats() -> bool {
+    false
+}
+
 fn default_indentor() -> String {
     "    ".to_string()
 }
@@ -185,6 +203,7 @@ impl Default for PrettyConfig {
             separate_tuple_members: default_separate_tuple_members(),
             enumerate_arrays: default_enumerate_arrays(),
             extensions: Extensions::default(),
+            decimal_floats: default_decimal_floats(),
             _future_proof: (),
         }
     }
@@ -239,6 +258,12 @@ impl<W: io::Write> Serializer<W> {
         self.pretty
             .as_ref()
             .map_or(false, |&(ref config, _)| config.separate_tuple_members)
+    }
+
+    fn decimal_floats(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |&(ref config, _)| config.decimal_floats)
     }
 
     fn extensions(&self) -> Extensions {
@@ -363,11 +388,21 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_f32(self, v: f32) -> Result<()> {
         write!(self.output, "{}", v)?;
+        // TODO: use f32::EPSILON when minimum supported rust version is 1.43
+        pub const EPSILON: f32 = 1.19209290e-07_f32;
+        if self.decimal_floats() && (v - v.floor()).abs() < EPSILON {
+            write!(self.output, ".0")?;
+        }
         Ok(())
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
         write!(self.output, "{}", v)?;
+        // TODO: use f64::EPSILON when minimum supported rust version is 1.43
+        pub const EPSILON: f64 = 2.2204460492503131e-16_f64;
+        if self.decimal_floats() && (v - v.floor()).abs() < EPSILON {
+            write!(self.output, ".0")?;
+        }
         Ok(())
     }
 
