@@ -361,3 +361,40 @@ fn test_any_number_precision() {
     assert_eq!(de_any_number("-1."), AnyNum::F32(-1.));
     assert_eq!(de_any_number("0.3"), AnyNum::F64(0.3));
 }
+
+#[test]
+fn test_untagged_enum() {
+    #[derive(Debug, PartialEq, Deserialize)]
+    pub enum UnitType {
+        Explorer,
+    }
+    use UnitType::*;
+
+    #[derive(Debug, PartialEq, Deserialize)]
+    pub enum CardTextNumber {
+        Range(u8),
+        CountUnit(Vec<UnitType>),
+        PowerCardsPlayed,
+    }
+    use CardTextNumber::*;
+
+    #[derive(Debug, PartialEq, Deserialize)]
+    #[serde(untagged)]
+    enum CardTextNumberFlat {
+        JustNum(u8),
+        Fancy(CardTextNumber),
+    }
+    use CardTextNumberFlat::*;
+
+    assert_eq!(from_str("1"), Ok(JustNum(1)));
+    assert_eq!(from_str("Range(1)"), Ok(Fancy(Range(1))));
+    assert_eq!(
+        from_str("CountUnit([Explorer])"),
+        Ok(Fancy(CountUnit(vec![Explorer])))
+    );
+    assert_eq!(
+        from_str("CountUnit([Explorer, Explorer])"),
+        Ok(Fancy(CountUnit(vec![Explorer, Explorer])))
+    );
+    assert_eq!(from_str("PowerCardsPlayed"), Ok(Fancy(PowerCardsPlayed)));
+}

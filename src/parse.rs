@@ -423,19 +423,6 @@ impl<'a> Bytes<'a> {
             .map_or(false, |&b| is_ident_other_char(b))
     }
 
-    /// Should only be used on a working copy
-    pub fn check_tuple_struct(mut self) -> Result<bool> {
-        if self.identifier().is_err() {
-            // if there's no field ident, this is a tuple struct
-            return Ok(true);
-        }
-
-        self.skip_ws()?;
-
-        // if there is no colon after the ident, this can only be a unit struct
-        self.eat_byte().map(|c| c != b':')
-    }
-
     /// Only returns true if the char after `ident` cannot belong
     /// to an identifier.
     pub fn consume_ident(&mut self, ident: &str) -> bool {
