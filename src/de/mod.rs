@@ -104,19 +104,84 @@ impl<'de> Deserializer<'de> {
         // Create a working copy
         let mut bytes = self.bytes;
 
-        if bytes.consume("(") {
-            bytes.skip_ws()?;
+        // The caller checks for a brace before calling this
+        if !bytes.consume("(") {
+            unreachable!();
+        }
 
-            if bytes.check_tuple_struct()? {
-                // first argument is technically incorrect, but ignored anyway
+        bytes.skip_ws()?;
+
+        let id = bytes.identifier();
+        bytes.skip_ws()?;
+
+        if id.is_ok() && bytes.peek() == Some(b':') {
+            // first two arguments are technically incorrect, but ignored anyway
+            self.deserialize_struct("", &[], visitor)
+        } else {
+            let mut braces = 1;
+            let mut comma = false;
+            while braces > 0 {
+                let c = bytes.eat_byte()?;
+                if c == b'(' || c == b'[' || c == b'{' {
+                    braces += 1;
+                } else if c == b')' || c == b']' || c == b'}' {
+                    braces -= 1;
+                } else if c == b',' && braces == 1 {
+                    comma = true;
+                    break;
+                }
+            }
+
+            if comma {
+                // first argument is ignored
                 self.deserialize_tuple(0, visitor)
             } else {
-                // first two arguments are technically incorrect, but ignored anyway
-                self.deserialize_struct("", &[], visitor)
+                self.bytes.consume("(");
+                self.bytes.skip_ws()?;
+                let res = self.deserialize_any(visitor);
+                self.bytes.skip_ws()?;
+                self.bytes.consume(")");
+
+                res
             }
-        } else {
-            visitor.visit_unit()
         }
+    }
+}
+struct SingletonMap<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+    key: Option<&'a [u8]>,
+}
+
+impl<'de, 'a> de::MapAccess<'de> for SingletonMap<'a, 'de> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        use serde::de::{value::StrDeserializer, IntoDeserializer};
+
+        let res = self
+            .key
+            .map(|key| {
+                let deserializer: StrDeserializer<Error> =
+                    std::str::from_utf8(key)?.into_deserializer();
+                seed.deserialize(deserializer)
+            })
+            .transpose();
+
+        self.key = None;
+        res
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        self.de.bytes.skip_ws()?;
+
+        let res = seed.deserialize(&mut *self.de)?;
+        Ok(res)
     }
 }
 
@@ -148,10 +213,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         // `identifier` does not change state if it fails
         let ident = self.bytes.identifier().ok();
 
-        if ident.is_some() {
+        if let Some(ident) = ident {
             self.bytes.skip_ws()?;
 
-            return self.handle_any_struct(visitor);
+            return if self.bytes.peek() == Some(b'(') {
+                visitor.visit_map(SingletonMap {
+                    de: self,
+                    key: Some(ident),
+                })
+            } else {
+                visitor.visit_str(std::str::from_utf8(ident)?)
+            };
         }
 
         match self.bytes.peek_or_eof()? {
