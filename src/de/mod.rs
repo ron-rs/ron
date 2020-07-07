@@ -118,9 +118,7 @@ impl<'de> Deserializer<'de> {
         let mut bytes = self.bytes;
 
         // The caller checks for a brace before calling this
-        if !bytes.consume("(") {
-            unreachable!();
-        }
+        bytes.advance_single()?;
 
         bytes.skip_ws()?;
 
