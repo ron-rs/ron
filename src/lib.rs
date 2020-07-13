@@ -69,7 +69,7 @@ pub mod extensions;
 
 pub use de::{from_bytes, from_reader, from_str, Deserializer};
 pub use error::{Error, Result};
-pub use ser::{to_string, Serializer};
+pub use ser::{to_string, to_string_pretty, to_writer, Serializer};
 pub use value::{Map, Number, Value};
 
 mod parse;
