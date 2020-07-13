@@ -67,7 +67,7 @@ pub mod value;
 
 pub mod extensions;
 
-pub use de::{from_str, Deserializer};
+pub use de::{from_bytes, from_reader, from_str, Deserializer};
 pub use error::{Error, Result};
 pub use ser::{to_string, Serializer};
 pub use value::{Map, Number, Value};
