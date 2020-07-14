@@ -55,9 +55,9 @@ struct Pretty {
 /// use ron::ser::PrettyConfig;
 ///
 /// let my_config = PrettyConfig::new()
-///     .with_depth_limit(4)
+///     .depth_limit(4)
 ///     // definitely superior (okay, just joking)
-///     .with_indentor("\t".to_owned());
+///     .indentor("\t".to_owned());
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PrettyConfig {
@@ -98,7 +98,7 @@ impl PrettyConfig {
     /// without pretty formatting.
     ///
     /// Default: [std::usize::MAX]
-    pub fn with_depth_limit(mut self, depth_limit: usize) -> Self {
+    pub fn depth_limit(mut self, depth_limit: usize) -> Self {
         self.depth_limit = depth_limit;
 
         self
@@ -107,7 +107,7 @@ impl PrettyConfig {
     /// Configures the newlines used for serialization.
     ///
     /// Default: `\r\n` on Windows, `\n` otherwise
-    pub fn with_new_line(mut self, new_line: String) -> Self {
+    pub fn new_line(mut self, new_line: String) -> Self {
         self.new_line = new_line;
 
         self
@@ -116,7 +116,7 @@ impl PrettyConfig {
     /// Configures the string sequence used for indentation.
     ///
     /// Default: 4 spaces
-    pub fn with_indentor(mut self, indentor: String) -> Self {
+    pub fn indentor(mut self, indentor: String) -> Self {
         self.indentor = indentor;
 
         self
@@ -128,7 +128,7 @@ impl PrettyConfig {
     /// newlines or indentations.
     ///
     /// Default: `false`
-    pub fn with_separate_tuple_members(mut self, separate_tuple_members: bool) -> Self {
+    pub fn separate_tuple_members(mut self, separate_tuple_members: bool) -> Self {
         self.separate_tuple_members = separate_tuple_members;
 
         self
@@ -138,7 +138,7 @@ impl PrettyConfig {
     /// indicating the index.
     ///
     /// Default: `false`
-    pub fn with_enumerate_arrays(mut self, enumerate_arrays: bool) -> Self {
+    pub fn enumerate_arrays(mut self, enumerate_arrays: bool) -> Self {
         self.enumerate_arrays = enumerate_arrays;
 
         self
@@ -149,7 +149,7 @@ impl PrettyConfig {
     /// When true `1.0` will serialize as `1.0`
     ///
     /// Default: `false`
-    pub fn with_decimal_floats(mut self, decimal_floats: bool) -> Self {
+    pub fn decimal_floats(mut self, decimal_floats: bool) -> Self {
         self.decimal_floats = decimal_floats;
 
         self
@@ -158,7 +158,7 @@ impl PrettyConfig {
     /// Configures extensions
     ///
     /// Default: Extensions::empty()
-    pub fn with_extensions(mut self, extensions: Extensions) -> Self {
+    pub fn extensions(mut self, extensions: Extensions) -> Self {
         self.extensions = extensions;
 
         self
