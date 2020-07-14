@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Next
 
+## [0.6.1] - 2020-07-14
+
+### Fixes
+- Fix array formatting regression ([#260](https://github.com/ron-rs/ron/pull/260))
+
 ## [0.6.0] - 2020-05-21
 ### Additions
 - Implement integer support in Numbers ([#210](https://github.com/ron-rs/ron/pull/210))
