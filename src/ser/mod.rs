@@ -87,9 +87,26 @@ pub struct PrettyConfig {
 }
 
 impl PrettyConfig {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn build() -> PrettyConfigBuilder {
+        PrettyConfigBuilder::new()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct PrettyConfigBuilder {
+    inner: PrettyConfig,
+}
+
+impl PrettyConfigBuilder {
     /// Creates a default `PrettyConfig`.
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            inner: PrettyConfig::new(),
+        }
     }
 
     /// Limits the pretty-formatting based on the number of indentations.
@@ -98,8 +115,8 @@ impl PrettyConfig {
     /// without pretty formatting.
     ///
     /// Default: [std::usize::MAX]
-    pub fn depth_limit(mut self, depth_limit: usize) -> Self {
-        self.depth_limit = depth_limit;
+    pub fn depth_limit(&mut self, depth_limit: usize) -> &mut Self {
+        self.inner.depth_limit = depth_limit;
 
         self
     }
@@ -107,8 +124,8 @@ impl PrettyConfig {
     /// Configures the newlines used for serialization.
     ///
     /// Default: `\r\n` on Windows, `\n` otherwise
-    pub fn new_line(mut self, new_line: String) -> Self {
-        self.new_line = new_line;
+    pub fn new_line(&mut self, new_line: String) -> &mut Self {
+        self.inner.new_line = new_line;
 
         self
     }
@@ -116,8 +133,8 @@ impl PrettyConfig {
     /// Configures the string sequence used for indentation.
     ///
     /// Default: 4 spaces
-    pub fn indentor(mut self, indentor: String) -> Self {
-        self.indentor = indentor;
+    pub fn indentor(&mut self, indentor: String) -> &mut Self {
+        self.inner.indentor = indentor;
 
         self
     }
@@ -128,8 +145,8 @@ impl PrettyConfig {
     /// newlines or indentations.
     ///
     /// Default: `false`
-    pub fn separate_tuple_members(mut self, separate_tuple_members: bool) -> Self {
-        self.separate_tuple_members = separate_tuple_members;
+    pub fn separate_tuple_members(&mut self, separate_tuple_members: bool) -> &mut Self {
+        self.inner.separate_tuple_members = separate_tuple_members;
 
         self
     }
@@ -138,8 +155,8 @@ impl PrettyConfig {
     /// indicating the index.
     ///
     /// Default: `false`
-    pub fn enumerate_arrays(mut self, enumerate_arrays: bool) -> Self {
-        self.enumerate_arrays = enumerate_arrays;
+    pub fn enumerate_arrays(&mut self, enumerate_arrays: bool) -> &mut Self {
+        self.inner.enumerate_arrays = enumerate_arrays;
 
         self
     }
@@ -149,8 +166,8 @@ impl PrettyConfig {
     /// When true `1.0` will serialize as `1.0`
     ///
     /// Default: `false`
-    pub fn decimal_floats(mut self, decimal_floats: bool) -> Self {
-        self.decimal_floats = decimal_floats;
+    pub fn decimal_floats(&mut self, decimal_floats: bool) -> &mut Self {
+        self.inner.decimal_floats = decimal_floats;
 
         self
     }
@@ -158,10 +175,15 @@ impl PrettyConfig {
     /// Configures extensions
     ///
     /// Default: Extensions::empty()
-    pub fn extensions(mut self, extensions: Extensions) -> Self {
-        self.extensions = extensions;
+    pub fn extensions(&mut self, extensions: Extensions) -> &mut Self {
+        self.inner.extensions = extensions;
 
         self
+    }
+
+    /// Returns the build `PrettyConfig`.
+    pub fn build(self) -> PrettyConfig {
+        self.inner
     }
 }
 
