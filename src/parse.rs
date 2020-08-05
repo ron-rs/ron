@@ -849,8 +849,8 @@ pub enum ParsedStr<'a> {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Position {
-    pub col: usize,
     pub line: usize,
+    pub col: usize,
 }
 
 impl Display for Position {
