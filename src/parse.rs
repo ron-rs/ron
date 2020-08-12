@@ -4,6 +4,8 @@ use std::{
     str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
+use std::{cell::RefCell, collections::HashMap};
+
 use crate::{
     error::{Error, ErrorCode, Result},
     extensions::Extensions,
@@ -31,7 +33,12 @@ pub enum AnyNum {
     U128(u128),
 }
 
-#[derive(Clone, Copy, Debug)]
+thread_local! {
+   static ENUM_REPR_TYPE_MAP: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
+   static ENUM_REPR_VARIANT_MAP: RefCell<HashMap<String, Vec<u8>>> = RefCell::new(HashMap::new());
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct Bytes<'a> {
     /// Bits set according to `Extension` enum.
     pub exts: Extensions,
@@ -69,10 +76,15 @@ impl<'a> Bytes<'a> {
         Ok(b)
     }
 
-    pub fn parse_enum_decls(&mut self) -> Result<()> {
-        let repr;
+    #[cfg(not(feature = "enum-repr-extension"))]
+    fn parse_enum_decls(&mut self) -> Result<()> {
+        self.err(ErrorCode::NoSuchExtension("enum_repr".to_string()))
+    }
+    #[cfg(feature = "enum-repr-extension")]
+    fn parse_enum_decls(&mut self) -> Result<()> {
+        let repr: String;
         if self.consume_all(&["#", "[", "repr", "("])? {
-            repr = self.identifier()?;
+            repr = from_utf8(self.identifier()?)?.to_string();
             self.consume_all(&[")", "]"])?;
         } else {
             return Ok(());
@@ -81,20 +93,44 @@ impl<'a> Bytes<'a> {
         if self.consume("enum") {
             self.skip_ws()?;
             let res = ();
-            let enum_name = self.identifier()?;
+            let enum_name = from_utf8(self.identifier()?)?.to_string();
             self.skip_ws()?;
+
+            if ENUM_REPR_TYPE_MAP
+                .with(|type_map| type_map.borrow_mut().insert(enum_name, repr.clone()))
+                != None
+            {
+                return self.err(ErrorCode::DuplicateEnum);
+            }
 
             if !self.punct("{")? {
                 return self.err(ErrorCode::ExpectedBrace);
             };
 
-            loop {
-                let id = self.identifier()?;
-                self.skip_ws()?;
-                if !self.comma()? && self.punct("}")? {
-                    return Ok(res);
+            let mut discriminant = 0;
+            ENUM_REPR_VARIANT_MAP.with(|variant_map| {
+                let mut variant_map = variant_map.borrow_mut();
+                loop {
+                    let variant_bytes = match repr.as_ref() {
+                        "u8" => (discriminant as u8).to_ne_bytes().to_vec(),
+                        "u16" => (discriminant as u16).to_ne_bytes().to_vec(),
+                        "u32" => (discriminant as u32).to_ne_bytes().to_vec(),
+                        "u64" => (discriminant as u64).to_ne_bytes().to_vec(),
+                        "u128" => (discriminant as u128).to_ne_bytes().to_vec(),
+                        _ => return self.err(ErrorCode::UnknownType),
+                    };
+                    let id = from_utf8(self.identifier()?)?.to_string();
+
+                    self.skip_ws()?;
+                    if variant_map.insert(id, variant_bytes.to_vec()) != None {
+                        return self.err(ErrorCode::DuplicateEnumVariant);
+                    }
+                    if !self.comma()? && self.punct("}")? {
+                        return Ok(res);
+                    }
+                    discriminant += 1;
                 }
-            }
+            })?;
         }
         Ok(())
     }
@@ -122,11 +158,19 @@ impl<'a> Bytes<'a> {
 
     fn any_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
         if let Ok(id) = self.identifier() {
-            return Ok(match id {
-                b"Foo" => T::from_u8(5),
-                b"Bar" => T::from_u8(9),
-                b"Baz" => T::from_u8(7),
-                _ => return self.err(ErrorCode::ExpectedIdentifier),
+            let id = from_utf8(id)?.to_string();
+            return ENUM_REPR_VARIANT_MAP.with(|variant_map| {
+                match variant_map.borrow().get(&id).clone() {
+                    Some(variant) => {
+                        let res = variant.iter().fold(T::from_u8(0), |mut acc, foo| {
+                            acc.checked_mul_ext(10);
+                            acc.checked_add_ext(*foo);
+                            acc
+                        });
+                        Ok(res)
+                    }
+                    None => self.err(ErrorCode::NoSuchEnumVariant),
+                }
             });
         }
 

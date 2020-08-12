@@ -80,7 +80,10 @@ fn implicit_some() {
     println!("implicit_some: {:#?}", d);
 }
 
-const CONFIG_E_R: &str = r##"
+#[cfg(feature = "enum-repr-extension")]
+mod enum_repr {
+    use super::*;
+    const CONFIG_E_R: &str = r##"
 #![enable(enum_repr)]
 
 #[repr(u8)]
@@ -106,21 +109,24 @@ GraphData(
 )
 "##;
 
-#[derive(Debug, Deserialize)]
-struct GraphData {
-    nodes: HashMap<u8, String>,
-    edges: HashMap<String, (u8, u8)>,
-}
+    #[derive(Debug, Deserialize)]
+    struct GraphData {
+        nodes: HashMap<u8, String>,
+        edges: HashMap<String, (u8, u8)>,
+    }
 
-#[test]
-fn enum_repr_deserialize() {
-    let d: GraphData = ron::de::from_str(&CONFIG_E_R).expect("Failed to deserialize");
-    println!("enum_repr {:#?}", d);
-}
+    #[test]
+    fn enum_repr_deserialize() {
+        let d: GraphData = ron::de::from_str(&CONFIG_E_R).expect("Failed to deserialize");
+        println!("enum_repr {:#?}", d);
+    }
 
-#[test]
-fn enum_repr_deserialize_correctly() {
-    let d: GraphData = ron::de::from_str(&CONFIG_E_R).expect("Failed to deserialize");
-    assert_eq!(d.nodes[&0], "foo");
-    assert_eq!(d.edges["foo -> bar"], (0, 1));
+    #[test]
+    fn enum_repr_deserialize_correctly() {
+        let d: GraphData = ron::de::from_str(&CONFIG_E_R).expect("Failed to deserialize");
+        assert_eq!(d.nodes[&0], "foo");
+        assert_eq!(d.edges["foo -> bar"], (0, 1));
+        assert_eq!(d.edges["bar -> baz"], (1, 2));
+        assert_eq!(d.edges["baz -> foo"], (2, 0));
+    }
 }

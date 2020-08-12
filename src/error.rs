@@ -43,6 +43,10 @@ pub enum ErrorCode {
     ExpectedStringEnd,
     ExpectedIdentifier,
 
+    DuplicateEnum,
+    DuplicateEnumVariant,
+    NoSuchEnumVariant,
+
     InvalidEscape(&'static str),
 
     IntegerOutOfBounds,
@@ -52,6 +56,7 @@ pub enum ErrorCode {
     UnclosedBlockComment,
     UnderscoreAtBeginning,
     UnexpectedByte(char),
+    UnknownType,
 
     Utf8Error(Utf8Error),
     TrailingCharacters,
@@ -102,6 +107,8 @@ impl fmt::Display for ErrorCode {
             ErrorCode::ExpectedString => f.write_str("Expected string"),
             ErrorCode::ExpectedStringEnd => f.write_str("Expected string end"),
             ErrorCode::ExpectedIdentifier => f.write_str("Expected identifier"),
+            ErrorCode::DuplicateEnum => f.write_str("Duplicated enum name"),
+            ErrorCode::DuplicateEnumVariant => f.write_str("Duplicated enum variant"),
             ErrorCode::InvalidEscape(_) => f.write_str("Invalid escape sequence"),
             ErrorCode::IntegerOutOfBounds => f.write_str("Integer is out of bounds"),
             ErrorCode::NoSuchExtension(_) => f.write_str("No such RON extension"),
@@ -109,6 +116,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::UnclosedBlockComment => f.write_str("Unclosed block comment"),
             ErrorCode::UnderscoreAtBeginning => f.write_str("Found underscore at the beginning"),
             ErrorCode::UnexpectedByte(_) => f.write_str("Unexpected byte"),
+            ErrorCode::UnknownType => f.write_str("Unknown type"),
             ErrorCode::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
             _ => f.write_str("Unknown ErrorCode"),
         }
