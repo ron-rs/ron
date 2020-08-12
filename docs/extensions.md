@@ -65,3 +65,52 @@ Enabling the feature would automatically infer `Some(x)` if `x` is given. In thi
     value: 5,
 )
 ```
+
+# enum_repr
+
+You can add this extension by adding the following attribute at the top of your RON document:
+
+`#![enable(enum_repr)]`
+
+This feature enables RON to declare unitary enums with numerical representations,
+There are a number of limitations to this feature:
+
+```ron
+#[repr(u8)]
+enum Utensils {
+  Bowl,
+  Whisk
+}
+
+#[repr(u64)]
+enum Ingredients {
+  Sugar,
+  EggWhites
+}
+
+Recipe("meringue": [([Whisk, Bowl], [EggWhites, Sugar])])
+```
+
+```rust
+struct Recipe<String, Vec<(Vec<u8>, Vec<u64>)>>;
+```
+
+Known limitations (Not expected to change):
+
+1. Enum declarations must *only* contain unitary variants.
+  enums with variants such as `Foo(String)` can not be converted into a primitive representation.
+2. Declarations are only supported at the top of the file between enabling of the extension, and values.
+ Once a value has been defined, declaring an enum is a parse error.
+ As such this extension may not be useful for some streaming
+3. Deserialization does not perform type checking between 2 enums of the same representation, or numeric literals[1].
+ This however does not preclude having an external type checker in the future.
+
+WIP/TODO:
+
+- [x] Proof of concept
+- [ ] Parsing
+- [ ] [Custom discriminant](https://doc.rust-lang.org/reference/items/enumerations.html#custom-discriminant-values-for-fieldless-enumerations)
+- [ ] Deserialization
+- [ ] Feature gate?
+ It seems wise to feature gate this, as otherwise it may impact numerical deserialization even with the extension disabled.
+- [ ] Serialization?
