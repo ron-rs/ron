@@ -24,6 +24,7 @@ pub enum ErrorCode {
     ExpectedAttribute,
     ExpectedAttributeEnd,
     ExpectedBoolean,
+    ExpectedBrace,
     ExpectedComma,
     // ExpectedEnum,
     ExpectedChar,
@@ -83,6 +84,7 @@ impl fmt::Display for ErrorCode {
                 f.write_str("Expected closing `)` and `]` after the attribute")
             }
             ErrorCode::ExpectedBoolean => f.write_str("Expected boolean"),
+            ErrorCode::ExpectedBrace => f.write_str("Expected brace"),
             ErrorCode::ExpectedComma => f.write_str("Expected comma"),
             // ErrorCode::ExpectedEnum => f.write_str("Expected enum"),
             ErrorCode::ExpectedChar => f.write_str("Expected char"),

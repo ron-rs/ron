@@ -62,7 +62,41 @@ impl<'a> Bytes<'a> {
             b.skip_ws()?;
         }
 
+        if b.exts.contains(Extensions::ENUM_REPR) {
+            b.parse_enum_decls()?
+        }
+
         Ok(b)
+    }
+
+    pub fn parse_enum_decls(&mut self) -> Result<()> {
+        let repr;
+        if self.consume_all(&["#", "[", "repr", "("])? {
+            repr = self.identifier()?;
+            self.consume_all(&[")", "]"])?;
+        } else {
+            return Ok(());
+        }
+
+        if self.consume("enum") {
+            self.skip_ws()?;
+            let res = ();
+            let enum_name = self.identifier()?;
+            self.skip_ws()?;
+
+            if !self.punct("{")? {
+                return self.err(ErrorCode::ExpectedBrace);
+            };
+
+            loop {
+                let id = self.identifier()?;
+                self.skip_ws()?;
+                if !self.comma()? && self.punct("}")? {
+                    return Ok(res);
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn advance(&mut self, bytes: usize) -> Result<()> {
@@ -87,6 +121,15 @@ impl<'a> Bytes<'a> {
     }
 
     fn any_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
+        if let Ok(id) = self.identifier() {
+            return Ok(match id {
+                b"Foo" => T::from_u8(5),
+                b"Bar" => T::from_u8(9),
+                b"Baz" => T::from_u8(7),
+                _ => return self.err(ErrorCode::ExpectedIdentifier),
+            });
+        }
+
         let base = if self.peek() == Some(b'0') {
             match self.bytes.get(1).cloned() {
                 Some(b'x') => 16,
@@ -297,16 +340,21 @@ impl<'a> Bytes<'a> {
         Ok(c)
     }
 
-    pub fn comma(&mut self) -> Result<bool> {
+    /// a punctuation mark with whitespace skipped before and after
+    fn punct(&mut self, punct: &str) -> Result<bool> {
         self.skip_ws()?;
 
-        if self.consume(",") {
+        if self.consume(punct) {
             self.skip_ws()?;
 
             Ok(true)
         } else {
             Ok(false)
         }
+    }
+
+    pub fn comma(&mut self) -> Result<bool> {
+        self.punct(",")
     }
 
     /// Only returns true if the char after `ident` cannot belong
@@ -398,7 +446,7 @@ impl<'a> Bytes<'a> {
 
     /// Returns the extensions bit mask.
     fn extensions(&mut self) -> Result<Extensions> {
-        if self.peek() != Some(b'#') {
+        if self.peek() != Some(b'#') || self.test_for("#[") {
             return Ok(Extensions::empty());
         }
 
