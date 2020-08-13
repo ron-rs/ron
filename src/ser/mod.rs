@@ -16,6 +16,16 @@ where
     value.serialize(&mut s)
 }
 
+/// Serializes `value` into `writer` in a pretty way.
+pub fn to_writer_pretty<W, T>(writer: W, value: &T, config: PrettyConfig) -> Result<()>
+where
+    W: io::Write,
+    T: Serialize,
+{
+    let mut s = Serializer::new(writer, Some(config), false)?;
+    value.serialize(&mut s)
+}
+
 /// Serializes `value` and returns it as string.
 ///
 /// This function does not generate any newlines or nice formatting;
