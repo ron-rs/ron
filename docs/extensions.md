@@ -108,9 +108,8 @@ Known limitations (Not expected to change):
 WIP/TODO:
 
 - [x] Proof of concept
-- [ ] Parsing
+- [x] Parsing
 - [ ] [Custom discriminant](https://doc.rust-lang.org/reference/items/enumerations.html#custom-discriminant-values-for-fieldless-enumerations)
-- [ ] Deserialization
-- [ ] Feature gate?
- It seems wise to feature gate this, as otherwise it may impact numerical deserialization even with the extension disabled.
+- [x] Deserialization
+- [x] Feature gate (enum-repr-extension)
 - [ ] Serialization?

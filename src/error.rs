@@ -46,6 +46,7 @@ pub enum ErrorCode {
     DuplicateEnum,
     DuplicateEnumVariant,
     NoSuchEnumVariant,
+    UnsupportedEnumRepr,
 
     InvalidEscape(&'static str),
 
@@ -56,7 +57,6 @@ pub enum ErrorCode {
     UnclosedBlockComment,
     UnderscoreAtBeginning,
     UnexpectedByte(char),
-    UnknownType,
 
     Utf8Error(Utf8Error),
     TrailingCharacters,
@@ -116,7 +116,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::UnclosedBlockComment => f.write_str("Unclosed block comment"),
             ErrorCode::UnderscoreAtBeginning => f.write_str("Found underscore at the beginning"),
             ErrorCode::UnexpectedByte(_) => f.write_str("Unexpected byte"),
-            ErrorCode::UnknownType => f.write_str("Unknown type"),
+            ErrorCode::UnsupportedEnumRepr => f.write_str("Unsupported enum repr"),
             ErrorCode::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
             _ => f.write_str("Unknown ErrorCode"),
         }

@@ -4,7 +4,13 @@ use std::{
     str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
-use std::{cell::RefCell, collections::HashMap};
+#[cfg(feature = "enum-repr-extension")]
+use std::{
+    any::{Any as _, TypeId},
+    cell::RefCell,
+    collections::HashMap,
+    collections::HashSet,
+};
 
 use crate::{
     error::{Error, ErrorCode, Result},
@@ -33,9 +39,13 @@ pub enum AnyNum {
     U128(u128),
 }
 
+#[cfg(feature = "enum-repr-extension")]
 thread_local! {
-   static ENUM_REPR_TYPE_MAP: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
-   static ENUM_REPR_VARIANT_MAP: RefCell<HashMap<String, Vec<u8>>> = RefCell::new(HashMap::new());
+   // TypeID being the repr, String being the variant name, and a Vector of u8s being the
+   // discriminant for the variant.
+   static ENUM_REPR_TYPEID_MAP: RefCell<HashMap<TypeId, HashMap<String, Vec<u8>>>> = RefCell::new(HashMap::new());
+   // To ensure we don't have duplicate enum types.
+   static ENUM_DECL_NAMES: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -96,20 +106,27 @@ impl<'a> Bytes<'a> {
             let enum_name = from_utf8(self.identifier()?)?.to_string();
             self.skip_ws()?;
 
-            if ENUM_REPR_TYPE_MAP
-                .with(|type_map| type_map.borrow_mut().insert(enum_name, repr.clone()))
-                != None
-            {
-                return self.err(ErrorCode::DuplicateEnum);
-            }
-
-            if !self.punct("{")? {
-                return self.err(ErrorCode::ExpectedBrace);
+            let type_id = match repr.as_ref() {
+                "u8" => (0 as u8).type_id(),
+                "u16" => (0 as u16).type_id(),
+                "u32" => (0 as u32).type_id(),
+                "u64" => (0 as u64).type_id(),
+                "u128" => (0 as u128).type_id(),
+                _ => return self.err(ErrorCode::UnsupportedEnumRepr),
             };
 
-            let mut discriminant = 0;
-            ENUM_REPR_VARIANT_MAP.with(|variant_map| {
-                let mut variant_map = variant_map.borrow_mut();
+            ENUM_REPR_TYPEID_MAP.with(|typeid_map| {
+                if !ENUM_DECL_NAMES.with(|enum_names| enum_names.borrow_mut().insert(enum_name)) {
+                    return self.err(ErrorCode::DuplicateEnum);
+                }
+
+                if !self.punct("{")? {
+                    return self.err(ErrorCode::ExpectedBrace);
+                };
+
+                let mut typeid_map = typeid_map.borrow_mut();
+                let inner_map = typeid_map.entry(type_id).or_insert_with(|| HashMap::new());
+                let mut discriminant = 0;
                 loop {
                     let variant_bytes = match repr.as_ref() {
                         "u8" => (discriminant as u8).to_ne_bytes().to_vec(),
@@ -117,12 +134,12 @@ impl<'a> Bytes<'a> {
                         "u32" => (discriminant as u32).to_ne_bytes().to_vec(),
                         "u64" => (discriminant as u64).to_ne_bytes().to_vec(),
                         "u128" => (discriminant as u128).to_ne_bytes().to_vec(),
-                        _ => return self.err(ErrorCode::UnknownType),
+                        _ => return self.err(ErrorCode::UnsupportedEnumRepr),
                     };
                     let id = from_utf8(self.identifier()?)?.to_string();
 
                     self.skip_ws()?;
-                    if variant_map.insert(id, variant_bytes.to_vec()) != None {
+                    if inner_map.insert(id, variant_bytes.to_vec()) != None {
                         return self.err(ErrorCode::DuplicateEnumVariant);
                     }
                     if !self.comma()? && self.punct("}")? {
@@ -156,13 +173,30 @@ impl<'a> Bytes<'a> {
         Ok(())
     }
 
-    fn any_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
+    #[cfg(not(feature = "enum-repr-extension"))]
+    fn any_integer<T: Num + 'static>(&mut self, sign: i8) -> Result<T> {
+        self.any_integer_base(sign)
+    }
+    #[cfg(feature = "enum-repr-extension")]
+    fn any_integer<T: Num + 'static>(&mut self, sign: i8) -> Result<T> {
+        if self.peek().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            self.any_integer_base(sign)
+        } else {
+            self.integer_ident()
+        }
+    }
+
+    #[cfg(feature = "enum-repr-extension")]
+    fn integer_ident<T: Num + 'static>(&mut self) -> Result<T> {
         if let Ok(id) = self.identifier() {
+            let initial_t = T::from_u8(0);
+            let type_id = initial_t.type_id();
             let id = from_utf8(id)?.to_string();
-            return ENUM_REPR_VARIANT_MAP.with(|variant_map| {
-                match variant_map.borrow().get(&id).clone() {
+
+            ENUM_REPR_TYPEID_MAP.with(|typeid_map| match typeid_map.borrow().get(&type_id) {
+                Some(variant_map) => match variant_map.get(&id).clone() {
                     Some(variant) => {
-                        let res = variant.iter().fold(T::from_u8(0), |mut acc, foo| {
+                        let res = variant.iter().fold(initial_t, |mut acc, foo| {
                             acc.checked_mul_ext(10);
                             acc.checked_add_ext(*foo);
                             acc
@@ -170,10 +204,16 @@ impl<'a> Bytes<'a> {
                         Ok(res)
                     }
                     None => self.err(ErrorCode::NoSuchEnumVariant),
-                }
-            });
-        }
+                },
 
+                None => self.err(ErrorCode::UnsupportedEnumRepr),
+            })
+        } else {
+            self.err(ErrorCode::ExpectedInteger)
+        }
+    }
+
+    fn any_integer_base<T: Num + 'static>(&mut self, sign: i8) -> Result<T> {
         let base = if self.peek() == Some(b'0') {
             match self.bytes.get(1).cloned() {
                 Some(b'x') => 16,
@@ -642,7 +682,7 @@ impl<'a> Bytes<'a> {
 
     pub fn signed_integer<T>(&mut self) -> Result<T>
     where
-        T: Num,
+        T: Num + 'static,
     {
         match self.peek_or_eof()? {
             b'+' => {
@@ -755,7 +795,7 @@ impl<'a> Bytes<'a> {
             .all(|(i, b)| self.bytes.get(i).map_or(false, |t| *t == b))
     }
 
-    pub fn unsigned_integer<T: Num>(&mut self) -> Result<T> {
+    pub fn unsigned_integer<T: Num + 'static>(&mut self) -> Result<T> {
         self.any_integer(1)
     }
 
