@@ -148,7 +148,6 @@ pub mod type_env {
             Ok(self)
         }
     }
-
 }
 
 use type_env::TypeEnv;
