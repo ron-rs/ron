@@ -66,6 +66,7 @@ pub mod error;
 pub mod value;
 
 pub mod extensions;
+pub use parse::type_env;
 
 pub use de::{from_str, Deserializer};
 pub use error::{Error, Result};

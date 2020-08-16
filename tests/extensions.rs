@@ -83,15 +83,26 @@ fn implicit_some() {
 #[cfg(feature = "enum-repr-extension")]
 mod enum_repr {
     use super::*;
-    const CONFIG_E_R: &str = r##"
-#![enable(enum_repr)]
+    use ron::error::Result;
 
+    #[derive(Debug, Deserialize)]
+    struct GraphData {
+        nodes: HashMap<u8, String>,
+        edges: HashMap<String, (u8, u8)>,
+    }
+
+    const CONFIG_E_R: &str = r##"
+// chaining the parsers.
+// First we parse the type environment.
 #[repr(u8)]
 enum Vertices {
     Foo,
     Bar,
     Baz
 }
+// It should hit this (invalid rust since it isn't at the beginning of a file or block).
+// then we parse the remained.
+#![enable(enum_repr)]
 
 GraphData(
     nodes: {
@@ -109,24 +120,61 @@ GraphData(
 )
 "##;
 
-    #[derive(Debug, Deserialize)]
-    struct GraphData {
-        nodes: HashMap<u8, String>,
-        edges: HashMap<String, (u8, u8)>,
+    const TYPE_ENV_E_R_2: &str = r##"
+#[repr(u8)]
+enum Vertices {
+    Foo,
+    Bar,
+    Baz
+}"##;
+
+    const CONFIG_E_R_2: &str = r##"#![enable(enum_repr)]
+GraphData(
+    nodes: {
+        Foo: "foo",
+        Bar: "bar",
+        Baz: "baz",
+    },
+
+    edges: {
+        "foo -> bar": (Foo, Bar),
+        "bar -> baz": (Bar, Baz),
+        "baz -> foo": (Baz, Foo),
+
+    }
+)"##;
+
+    #[test]
+    fn enum_repr_deserialize_combined() -> Result<()> {
+        let mut tenv = ron::type_env::TypeParser::new(CONFIG_E_R.as_bytes()).parse_enum_decls()?;
+        let (tenv, remainder) = tenv.finish();
+        let d: GraphData = ron::de::with_type_env(tenv, remainder).expect("Failed to deserialize");
+        Ok(println!("enum_repr {:#?}", d))
     }
 
     #[test]
-    fn enum_repr_deserialize() {
-        let d: GraphData = ron::de::from_str(&CONFIG_E_R).expect("Failed to deserialize");
-        println!("enum_repr {:#?}", d);
-    }
-
-    #[test]
-    fn enum_repr_deserialize_correctly() {
-        let d: GraphData = ron::de::from_str(&CONFIG_E_R).expect("Failed to deserialize");
+    fn enum_repr_deserialize_combined_correctly() -> Result<()> {
+        let mut tenv = ron::type_env::TypeParser::new(CONFIG_E_R.as_bytes()).parse_enum_decls()?;
+        let (tenv, remainder) = tenv.finish();
+        let d: GraphData = ron::de::with_type_env(tenv, remainder).expect("Failed to deserialize");
         assert_eq!(d.nodes[&0], "foo");
         assert_eq!(d.edges["foo -> bar"], (0, 1));
         assert_eq!(d.edges["bar -> baz"], (1, 2));
         assert_eq!(d.edges["baz -> foo"], (2, 0));
+        Ok(())
+    }
+
+    #[test]
+    fn enum_repr_deserialize_split_correctly() -> Result<()> {
+        let mut tenv =
+            ron::type_env::TypeParser::new(TYPE_ENV_E_R_2.as_bytes()).parse_enum_decls()?;
+        let (tenv, _) = tenv.finish();
+        let d: GraphData =
+            ron::de::with_type_env(tenv, CONFIG_E_R_2.as_bytes()).expect("Failed to deserialize");
+        assert_eq!(d.nodes[&0], "foo");
+        assert_eq!(d.edges["foo -> bar"], (0, 1));
+        assert_eq!(d.edges["bar -> baz"], (1, 2));
+        assert_eq!(d.edges["baz -> foo"], (2, 0));
+        Ok(())
     }
 }

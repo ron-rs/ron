@@ -1,15 +1,12 @@
+#[cfg(feature = "enum-repr-extension")]
+use std::{
+    any::{Any, TypeId},
+    collections::{HashMap, HashSet},
+};
 use std::{
     char::from_u32 as char_from_u32,
     fmt::{Display, Formatter, Result as FmtResult},
     str::{from_utf8, from_utf8_unchecked, FromStr},
-};
-
-#[cfg(feature = "enum-repr-extension")]
-use std::{
-    any::{Any as _, TypeId},
-    cell::RefCell,
-    collections::HashMap,
-    collections::HashSet,
 };
 
 use crate::{
@@ -39,93 +36,93 @@ pub enum AnyNum {
     U128(u128),
 }
 
-#[cfg(feature = "enum-repr-extension")]
-thread_local! {
-   // TypeID being the repr, String being the variant name, and a Vector of u8s being the
-   // discriminant for the variant.
-   static ENUM_REPR_TYPEID_MAP: RefCell<HashMap<TypeId, HashMap<String, Vec<u8>>>> = RefCell::new(HashMap::new());
-   // To ensure we don't have duplicate enum types.
-   static ENUM_DECL_NAMES: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
-}
-
 #[derive(Copy, Clone, Debug)]
 pub struct Bytes<'a> {
     /// Bits set according to `Extension` enum.
-    pub exts: Extensions,
     bytes: &'a [u8],
     column: usize,
     line: usize,
 }
 
-impl<'a> Bytes<'a> {
-    pub fn new(bytes: &'a [u8]) -> Result<Self> {
-        let mut b = Bytes {
-            bytes,
-            column: 1,
-            exts: Extensions::empty(),
-            line: 1,
-        };
+pub mod type_env {
+    #[cfg(feature = "enum-repr-extension")]
+    use super::*;
 
-        b.skip_ws()?;
-        // Loop over all extensions attributes
-        loop {
-            let attribute = b.extensions()?;
+    #[derive(Debug)]
+    #[cfg(feature = "enum-repr-extension")]
+    pub struct TypeEnv(pub HashMap<TypeId, HashMap<String, Vec<u8>>>);
 
-            if attribute.is_empty() {
-                break;
+    #[derive(Debug)]
+    #[cfg(not(feature = "enum-repr-extension"))]
+    pub struct TypeEnv();
+
+    #[cfg(feature = "enum-repr-extension")]
+    pub struct TypeParser<'a> {
+        pub type_env: TypeEnv,
+        pub bytes: Bytes<'a>,
+        types_seen: HashSet<String>,
+    }
+
+    #[cfg(feature = "enum-repr-extension")]
+    impl<'a> TypeParser<'a> {
+        pub fn new(bytes: &'a [u8]) -> Self {
+            TypeParser {
+                bytes: Bytes::new(bytes),
+                type_env: TypeEnv(HashMap::new()),
+                types_seen: HashSet::new(),
+            }
+        }
+
+        pub fn finish(&'a mut self) -> (&'a mut TypeEnv, &'a [u8]) {
+            (&mut self.type_env, &mut self.bytes.bytes())
+        }
+
+        #[cfg(not(feature = "enum-repr-extension"))]
+        pub fn parse_enum_decls(&'a mut self) -> Result<Self> {
+            self.bytes
+                .err(ErrorCode::NoSuchExtension("enum_repr".to_string()))
+        }
+
+        #[cfg(feature = "enum-repr-extension")]
+        pub fn parse_enum_decls(mut self) -> Result<Self> {
+            let repr: String;
+
+            self.bytes.skip_ws()?;
+
+            if self.bytes.consume_all(&["#", "[", "repr", "("])? {
+                repr = from_utf8(self.bytes.identifier()?)?.to_string();
+                self.bytes.consume_all(&[")", "]"])?;
+            } else {
+                return Ok(self);
             }
 
-            b.exts |= attribute;
-            b.skip_ws()?;
-        }
+            if self.bytes.consume("enum") {
+                self.bytes.skip_ws()?;
+                let enum_name = from_utf8(self.bytes.identifier()?)?.to_string();
+                self.bytes.skip_ws()?;
 
-        if b.exts.contains(Extensions::ENUM_REPR) {
-            b.parse_enum_decls()?
-        }
-
-        Ok(b)
-    }
-
-    #[cfg(not(feature = "enum-repr-extension"))]
-    fn parse_enum_decls(&mut self) -> Result<()> {
-        self.err(ErrorCode::NoSuchExtension("enum_repr".to_string()))
-    }
-    #[cfg(feature = "enum-repr-extension")]
-    fn parse_enum_decls(&mut self) -> Result<()> {
-        let repr: String;
-        if self.consume_all(&["#", "[", "repr", "("])? {
-            repr = from_utf8(self.identifier()?)?.to_string();
-            self.consume_all(&[")", "]"])?;
-        } else {
-            return Ok(());
-        }
-
-        if self.consume("enum") {
-            self.skip_ws()?;
-            let res = ();
-            let enum_name = from_utf8(self.identifier()?)?.to_string();
-            self.skip_ws()?;
-
-            let type_id = match repr.as_ref() {
-                "u8" => (0 as u8).type_id(),
-                "u16" => (0 as u16).type_id(),
-                "u32" => (0 as u32).type_id(),
-                "u64" => (0 as u64).type_id(),
-                "u128" => (0 as u128).type_id(),
-                _ => return self.err(ErrorCode::UnsupportedEnumRepr),
-            };
-
-            ENUM_REPR_TYPEID_MAP.with(|typeid_map| {
-                if !ENUM_DECL_NAMES.with(|enum_names| enum_names.borrow_mut().insert(enum_name)) {
-                    return self.err(ErrorCode::DuplicateEnum);
-                }
-
-                if !self.punct("{")? {
-                    return self.err(ErrorCode::ExpectedBrace);
+                let type_id = match repr.as_ref() {
+                    "u8" => (0 as u8).type_id(),
+                    "u16" => (0 as u16).type_id(),
+                    "u32" => (0 as u32).type_id(),
+                    "u64" => (0 as u64).type_id(),
+                    "u128" => (0 as u128).type_id(),
+                    _ => return self.bytes.err(ErrorCode::UnsupportedEnumRepr),
                 };
 
-                let mut typeid_map = typeid_map.borrow_mut();
-                let inner_map = typeid_map.entry(type_id).or_insert_with(|| HashMap::new());
+                if !self.types_seen.insert(enum_name) {
+                    return self.bytes.err(ErrorCode::DuplicateEnum);
+                }
+
+                if !self.bytes.punct("{")? {
+                    return self.bytes.err(ErrorCode::ExpectedBrace);
+                };
+
+                let inner_map = self
+                    .type_env
+                    .0
+                    .entry(type_id)
+                    .or_insert_with(|| HashMap::new());
                 let mut discriminant = 0;
                 loop {
                     let variant_bytes = match repr.as_ref() {
@@ -134,22 +131,220 @@ impl<'a> Bytes<'a> {
                         "u32" => (discriminant as u32).to_ne_bytes().to_vec(),
                         "u64" => (discriminant as u64).to_ne_bytes().to_vec(),
                         "u128" => (discriminant as u128).to_ne_bytes().to_vec(),
-                        _ => return self.err(ErrorCode::UnsupportedEnumRepr),
+                        _ => return self.bytes.err(ErrorCode::UnsupportedEnumRepr),
                     };
-                    let id = from_utf8(self.identifier()?)?.to_string();
+                    let id = from_utf8(self.bytes.identifier()?)?.to_string();
 
-                    self.skip_ws()?;
+                    self.bytes.skip_ws()?;
                     if inner_map.insert(id, variant_bytes.to_vec()) != None {
-                        return self.err(ErrorCode::DuplicateEnumVariant);
+                        return self.bytes.err(ErrorCode::DuplicateEnumVariant);
                     }
-                    if !self.comma()? && self.punct("}")? {
-                        return Ok(res);
+                    if !self.bytes.comma()? && self.bytes.punct("}")? {
+                        return Ok(self);
                     }
                     discriminant += 1;
                 }
-            })?;
+            };
+            Ok(self)
         }
-        Ok(())
+    }
+
+}
+
+use type_env::TypeEnv;
+
+#[derive(Copy, Clone, Debug)]
+pub struct RonParser<'a> {
+    pub exts: Extensions,
+    type_env: Option<&'a TypeEnv>,
+    pub bytes: Bytes<'a>,
+}
+
+impl<'a> RonParser<'a> {
+    pub fn new(bytes: &'a [u8], type_env: Option<&'a TypeEnv>) -> Result<Self> {
+        let mut ron = RonParser {
+            bytes: Bytes::new(bytes),
+            type_env,
+            exts: Extensions::empty(),
+        };
+
+        ron.bytes.skip_ws()?;
+        // Loop over all extensions attributes
+        loop {
+            let attribute = ron.bytes.extensions()?;
+
+            if attribute.is_empty() {
+                break;
+            }
+
+            ron.exts |= attribute;
+            ron.bytes.skip_ws()?;
+        }
+
+        Ok(ron)
+    }
+    pub fn signed_integer<T>(&mut self) -> Result<T>
+    where
+        T: Num + 'static,
+    {
+        match self.bytes.peek_or_eof()? {
+            b'+' => {
+                let _ = self.bytes.advance_single();
+
+                self.any_integer(1)
+            }
+            b'-' => {
+                let _ = self.bytes.advance_single();
+
+                self.any_integer(-1)
+            }
+            _ => self.any_integer(1),
+        }
+    }
+
+    pub fn unsigned_integer<T: Num + 'static>(&mut self) -> Result<T> {
+        self.any_integer(1)
+    }
+
+    #[cfg(not(feature = "enum-repr-extension"))]
+    fn any_integer<T: Num + 'static>(&mut self, sign: i8) -> Result<T> {
+        self.bytes.any_integer_base(sign)
+    }
+
+    #[cfg(feature = "enum-repr-extension")]
+    fn any_integer<T: Num + 'static>(&mut self, sign: i8) -> Result<T> {
+        if self
+            .bytes
+            .peek()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(false)
+        {
+            self.bytes.any_integer_base(sign)
+        } else {
+            self.integer_ident()
+        }
+    }
+
+    #[cfg(feature = "enum-repr-extension")]
+    fn integer_ident<T: Num + 'static>(&mut self) -> Result<T> {
+        if let Ok(id) = self.bytes.identifier() {
+            let initial_t = T::from_u8(0);
+            let type_id = initial_t.type_id();
+            let id = from_utf8(id)?.to_string();
+
+            match self.type_env {
+                Some(type_env) => match type_env.0.get(&type_id) {
+                    Some(variant_map) => match variant_map.get(&id).clone() {
+                        Some(variant) => {
+                            let res = variant.iter().fold(initial_t, |mut acc, foo| {
+                                acc.checked_mul_ext(10);
+                                acc.checked_add_ext(*foo);
+                                acc
+                            });
+                            Ok(res)
+                        }
+                        None => self.bytes.err(ErrorCode::NoSuchEnumVariant),
+                    },
+
+                    None => self.bytes.err(ErrorCode::UnsupportedEnumRepr),
+                },
+                None => self.bytes.err(ErrorCode::NoSuchEnumVariant),
+            }
+        } else {
+            self.bytes.err(ErrorCode::ExpectedInteger)
+        }
+    }
+    pub fn any_num(&mut self) -> Result<AnyNum> {
+        // We are not doing float comparisons here in the traditional sense.
+        // Instead, this code checks if a f64 fits inside an f32.
+        #[allow(clippy::float_cmp)]
+        fn any_float(f: f64) -> Result<AnyNum> {
+            if f == f as f32 as f64 {
+                Ok(AnyNum::F32(f as f32))
+            } else {
+                Ok(AnyNum::F64(f))
+            }
+        }
+
+        let bytes_backup = self.bytes.bytes;
+
+        let first_byte = self.bytes.peek_or_eof()?;
+        let is_signed = first_byte == b'-' || first_byte == b'+';
+        let is_float = self.bytes.next_bytes_is_float();
+
+        if is_float {
+            let f = self.bytes.float::<f64>()?;
+
+            any_float(f)
+        } else {
+            let max_u8 = std::u8::MAX as u128;
+            let max_u16 = std::u16::MAX as u128;
+            let max_u32 = std::u32::MAX as u128;
+            let max_u64 = std::u64::MAX as u128;
+
+            let min_i8 = std::i8::MIN as i128;
+            let max_i8 = std::i8::MAX as i128;
+            let min_i16 = std::i16::MIN as i128;
+            let max_i16 = std::i16::MAX as i128;
+            let min_i32 = std::i32::MIN as i128;
+            let max_i32 = std::i32::MAX as i128;
+            let min_i64 = std::i64::MIN as i128;
+            let max_i64 = std::i64::MAX as i128;
+
+            if is_signed {
+                match self.signed_integer::<i128>() {
+                    Ok(x) => {
+                        if x >= min_i8 && x <= max_i8 {
+                            Ok(AnyNum::I8(x as i8))
+                        } else if x >= min_i16 && x <= max_i16 {
+                            Ok(AnyNum::I16(x as i16))
+                        } else if x >= min_i32 && x <= max_i32 {
+                            Ok(AnyNum::I32(x as i32))
+                        } else if x >= min_i64 && x <= max_i64 {
+                            Ok(AnyNum::I64(x as i64))
+                        } else {
+                            Ok(AnyNum::I128(x))
+                        }
+                    }
+                    Err(_) => {
+                        self.bytes.bytes = bytes_backup;
+
+                        any_float(self.bytes.float::<f64>()?)
+                    }
+                }
+            } else {
+                match self.unsigned_integer::<u128>() {
+                    Ok(x) => {
+                        if x <= max_u8 {
+                            Ok(AnyNum::U8(x as u8))
+                        } else if x <= max_u16 {
+                            Ok(AnyNum::U16(x as u16))
+                        } else if x <= max_u32 {
+                            Ok(AnyNum::U32(x as u32))
+                        } else if x <= max_u64 {
+                            Ok(AnyNum::U64(x as u64))
+                        } else {
+                            Ok(AnyNum::U128(x))
+                        }
+                    }
+                    Err(_) => {
+                        self.bytes.bytes = bytes_backup;
+
+                        any_float(self.bytes.float::<f64>()?)
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl<'a> Bytes<'a> {
+    pub fn new(bytes: &'a [u8]) -> Self {
+        Bytes {
+            bytes,
+            column: 1,
+            line: 1,
+        }
     }
 
     pub fn advance(&mut self, bytes: usize) -> Result<()> {
@@ -171,46 +366,6 @@ impl<'a> Bytes<'a> {
         self.bytes = &self.bytes[1..];
 
         Ok(())
-    }
-
-    #[cfg(not(feature = "enum-repr-extension"))]
-    fn any_integer<T: Num + 'static>(&mut self, sign: i8) -> Result<T> {
-        self.any_integer_base(sign)
-    }
-    #[cfg(feature = "enum-repr-extension")]
-    fn any_integer<T: Num + 'static>(&mut self, sign: i8) -> Result<T> {
-        if self.peek().map(|c| c.is_ascii_digit()).unwrap_or(false) {
-            self.any_integer_base(sign)
-        } else {
-            self.integer_ident()
-        }
-    }
-
-    #[cfg(feature = "enum-repr-extension")]
-    fn integer_ident<T: Num + 'static>(&mut self) -> Result<T> {
-        if let Ok(id) = self.identifier() {
-            let initial_t = T::from_u8(0);
-            let type_id = initial_t.type_id();
-            let id = from_utf8(id)?.to_string();
-
-            ENUM_REPR_TYPEID_MAP.with(|typeid_map| match typeid_map.borrow().get(&type_id) {
-                Some(variant_map) => match variant_map.get(&id).clone() {
-                    Some(variant) => {
-                        let res = variant.iter().fold(initial_t, |mut acc, foo| {
-                            acc.checked_mul_ext(10);
-                            acc.checked_add_ext(*foo);
-                            acc
-                        });
-                        Ok(res)
-                    }
-                    None => self.err(ErrorCode::NoSuchEnumVariant),
-                },
-
-                None => self.err(ErrorCode::UnsupportedEnumRepr),
-            })
-        } else {
-            self.err(ErrorCode::ExpectedInteger)
-        }
     }
 
     fn any_integer_base<T: Num + 'static>(&mut self, sign: i8) -> Result<T> {
@@ -285,89 +440,6 @@ impl<'a> Bytes<'a> {
         res
     }
 
-    pub fn any_num(&mut self) -> Result<AnyNum> {
-        // We are not doing float comparisons here in the traditional sense.
-        // Instead, this code checks if a f64 fits inside an f32.
-        #[allow(clippy::float_cmp)]
-        fn any_float(f: f64) -> Result<AnyNum> {
-            if f == f as f32 as f64 {
-                Ok(AnyNum::F32(f as f32))
-            } else {
-                Ok(AnyNum::F64(f))
-            }
-        }
-
-        let bytes_backup = self.bytes;
-
-        let first_byte = self.peek_or_eof()?;
-        let is_signed = first_byte == b'-' || first_byte == b'+';
-        let is_float = self.next_bytes_is_float();
-
-        if is_float {
-            let f = self.float::<f64>()?;
-
-            any_float(f)
-        } else {
-            let max_u8 = std::u8::MAX as u128;
-            let max_u16 = std::u16::MAX as u128;
-            let max_u32 = std::u32::MAX as u128;
-            let max_u64 = std::u64::MAX as u128;
-
-            let min_i8 = std::i8::MIN as i128;
-            let max_i8 = std::i8::MAX as i128;
-            let min_i16 = std::i16::MIN as i128;
-            let max_i16 = std::i16::MAX as i128;
-            let min_i32 = std::i32::MIN as i128;
-            let max_i32 = std::i32::MAX as i128;
-            let min_i64 = std::i64::MIN as i128;
-            let max_i64 = std::i64::MAX as i128;
-
-            if is_signed {
-                match self.signed_integer::<i128>() {
-                    Ok(x) => {
-                        if x >= min_i8 && x <= max_i8 {
-                            Ok(AnyNum::I8(x as i8))
-                        } else if x >= min_i16 && x <= max_i16 {
-                            Ok(AnyNum::I16(x as i16))
-                        } else if x >= min_i32 && x <= max_i32 {
-                            Ok(AnyNum::I32(x as i32))
-                        } else if x >= min_i64 && x <= max_i64 {
-                            Ok(AnyNum::I64(x as i64))
-                        } else {
-                            Ok(AnyNum::I128(x))
-                        }
-                    }
-                    Err(_) => {
-                        self.bytes = bytes_backup;
-
-                        any_float(self.float::<f64>()?)
-                    }
-                }
-            } else {
-                match self.unsigned_integer::<u128>() {
-                    Ok(x) => {
-                        if x <= max_u8 {
-                            Ok(AnyNum::U8(x as u8))
-                        } else if x <= max_u16 {
-                            Ok(AnyNum::U16(x as u16))
-                        } else if x <= max_u32 {
-                            Ok(AnyNum::U32(x as u32))
-                        } else if x <= max_u64 {
-                            Ok(AnyNum::U64(x as u64))
-                        } else {
-                            Ok(AnyNum::U128(x))
-                        }
-                    }
-                    Err(_) => {
-                        self.bytes = bytes_backup;
-
-                        any_float(self.float::<f64>()?)
-                    }
-                }
-            }
-        }
-    }
-
     pub fn bool(&mut self) -> Result<bool> {
         if self.consume("true") {
             Ok(true)
@@ -424,11 +496,10 @@ impl<'a> Bytes<'a> {
         Ok(c)
     }
 
-    /// a punctuation mark with whitespace skipped before and after
-    fn punct(&mut self, punct: &str) -> Result<bool> {
+    pub fn punct(&mut self, mark: &str) -> Result<bool> {
         self.skip_ws()?;
 
-        if self.consume(punct) {
+        if self.consume(mark) {
             self.skip_ws()?;
 
             Ok(true)
@@ -680,25 +751,6 @@ impl<'a> Bytes<'a> {
             .ok_or_else(|| self.error(ErrorCode::Eof))
     }
 
-    pub fn signed_integer<T>(&mut self) -> Result<T>
-    where
-        T: Num + 'static,
-    {
-        match self.peek_or_eof()? {
-            b'+' => {
-                let _ = self.advance_single();
-
-                self.any_integer(1)
-            }
-            b'-' => {
-                let _ = self.advance_single();
-
-                self.any_integer(-1)
-            }
-            _ => self.any_integer(1),
-        }
-    }
-
     pub fn string(&mut self) -> Result<ParsedStr<'a>> {
         if self.consume("\"") {
             self.escaped_string()
@@ -793,10 +845,6 @@ impl<'a> Bytes<'a> {
         s.bytes()
             .enumerate()
             .all(|(i, b)| self.bytes.get(i).map_or(false, |t| *t == b))
-    }
-
-    pub fn unsigned_integer<T: Num + 'static>(&mut self) -> Result<T> {
-        self.any_integer(1)
     }
 
     fn decode_ascii_escape(&mut self) -> Result<u8> {
@@ -997,7 +1045,7 @@ mod tests {
 
     #[test]
     fn decode_x10() {
-        let mut bytes = Bytes::new(b"10").unwrap();
-        assert_eq!(bytes.decode_ascii_escape(), Ok(0x10));
+        let mut parser = RonParser::new(b"10", None).unwrap();
+        assert_eq!(parser.bytes.decode_ascii_escape(), Ok(0x10));
     }
 }

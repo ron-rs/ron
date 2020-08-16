@@ -311,7 +311,7 @@ fn test_numbers() {
 }
 
 fn de_any_number(s: &str) -> AnyNum {
-    let mut bytes = Bytes::new(s.as_bytes()).unwrap();
+    let mut bytes = RonParser::new(s.as_bytes(), None).unwrap();
 
     bytes.any_num().unwrap()
 }
