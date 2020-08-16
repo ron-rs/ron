@@ -75,7 +75,7 @@ You can add this extension by adding the following attribute at the top of your 
 This feature enables RON to declare unitary enums with numerical representations,
 There are a number of limitations to this feature:
 
-```ron
+```rust
 #[repr(u8)]
 enum Utensils {
   Bowl,
@@ -87,13 +87,23 @@ enum Ingredients {
   Sugar,
   EggWhites
 }
+```
 
+Where the rust portion gets passed to `ron::parse::TypeEnv`
+
+```ron
 Recipe("meringue": [([Whisk, Bowl], [EggWhites, Sugar])])
 ```
+
+From there when you pass the TypeEnv parsed above to `ron::de::with_type_env`.
+You can decode the RON above using the compiled rust:
 
 ```rust
 struct Recipe<String, Vec<(Vec<u8>, Vec<u64>)>>;
 ```
+
+There is some support for prepending the rust code block to the RON code block,
+parsing both from the same string.
 
 Known limitations (Not expected to change):
 
