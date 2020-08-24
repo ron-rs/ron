@@ -143,7 +143,7 @@ Why not XXX?
 ## Tooling
 
 IntelliJ:
-  - https://github.com/JonahHenriksson/RONLangPlugin (free)
+  - https://github.com/ron-rs/intellij-ron (free)
   - https://vultix.github.io/intellij-ron-plugin/ (paid)
 
 VS Code: https://github.com/a5huynh/vscode-ron
