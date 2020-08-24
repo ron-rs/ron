@@ -142,9 +142,7 @@ Why not XXX?
 
 ## Tooling
 
-IntelliJ:
-  - https://github.com/ron-rs/intellij-ron (free)
-  - https://vultix.github.io/intellij-ron-plugin/ (paid)
+IntelliJ: https://github.com/ron-rs/intellij-ron
 
 VS Code: https://github.com/a5huynh/vscode-ron
 
