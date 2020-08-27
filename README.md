@@ -152,6 +152,8 @@ Atom: https://atom.io/packages/language-ron
 
 Vim: https://github.com/ron-rs/ron.vim
 
+EMACS: https://chiselapp.com/user/Hutzdog/repository/ron-mode/home
+
 ## License
 
 RON is dual-licensed under Apache-2.0 and MIT.
