@@ -9,11 +9,75 @@ use crate::{
     extensions::Extensions,
 };
 
-const DIGITS: &[u8] = b"0123456789ABCDEFabcdef_";
-const FLOAT_CHARS: &[u8] = b"0123456789.+-eE";
-const IDENT_FIRST: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";
-const IDENT_CHAR: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789";
-const WHITE_SPACE: &[u8] = b"\n\t\r ";
+// We have the following char categories.
+const INT_CHAR: u8 = 1 << 0; // [0-9A-Fa-f_]
+const FLOAT_CHAR: u8 = 1 << 1; // [0-9\.Ee+-]
+const IDENT_FIRST_CHAR: u8 = 1 << 2; // [A-Za-z_]
+const IDENT_OTHER_CHAR: u8 = 1 << 3; // [A-Za-z_0-9]
+const WHITESPACE_CHAR: u8 = 1 << 4; // [\n\t\r ]
+
+// We encode each char as belonging to some number of these categories.
+const DIGIT: u8 = INT_CHAR | FLOAT_CHAR | IDENT_OTHER_CHAR; // [0-9]
+const ABCDF: u8 = INT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR; // [ABCDFabcdf]
+const UNDER: u8 = INT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR; // [_]
+const E____: u8 = INT_CHAR | FLOAT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR; // [Ee]
+const G2Z__: u8 = IDENT_FIRST_CHAR | IDENT_OTHER_CHAR; // [G-Zg-z]
+const PUNCT: u8 = FLOAT_CHAR; // [\.+-]
+const WS___: u8 = WHITESPACE_CHAR; // [\t\n\r ]
+const _____: u8 = 0; // everything else
+
+// Table of encodings, for fast predicates. (Non-ASCII and special chars are
+// shown with '·' in the comment.)
+#[rustfmt::skip]
+const ENCODINGS: [u8; 256] = [
+/*                     0      1      2      3      4      5      6      7      8      9    */
+/*   0+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, WS___,
+/*  10+: ·········· */ WS___, _____, _____, WS___, _____, _____, _____, _____, _____, _____,
+/*  20+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/*  30+: ·· !"#$%&' */ _____, _____, WS___, _____, _____, _____, _____, _____, _____, _____,
+/*  40+: ()*+,-./01 */ _____, _____, _____, PUNCT, _____, PUNCT, PUNCT, _____, DIGIT, DIGIT,
+/*  50+: 23456789:; */ DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, _____, _____,
+/*  60+: <=>?@ABCDE */ _____, _____, _____, _____, _____, ABCDF, ABCDF, ABCDF, ABCDF, E____,
+/*  70+: FGHIJKLMNO */ ABCDF, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__,
+/*  80+: PQRSTUVWZY */ G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__,
+/*  90+: Z[\]^_`abc */ G2Z__, _____, _____, _____, _____, UNDER, _____, ABCDF, ABCDF, ABCDF,
+/* 100+: defghijklm */ ABCDF, E____, ABCDF, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__,
+/* 110+: nopqrstuvw */ G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__,
+/* 120+: xyz{|}~··· */ G2Z__, G2Z__, G2Z__, _____, _____, _____, _____, _____, _____, _____,
+/* 130+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 140+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 150+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 160+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 170+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 180+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 190+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 200+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 210+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 220+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 230+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 240+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 250+: ·········· */ _____, _____, _____, _____, _____, _____
+];
+
+const fn is_int_char(c: u8) -> bool {
+    ENCODINGS[c as usize] & INT_CHAR != 0
+}
+
+const fn is_float_char(c: u8) -> bool {
+    ENCODINGS[c as usize] & FLOAT_CHAR != 0
+}
+
+const fn is_ident_first_char(c: u8) -> bool {
+    ENCODINGS[c as usize] & IDENT_FIRST_CHAR != 0
+}
+
+const fn is_ident_other_char(c: u8) -> bool {
+    ENCODINGS[c as usize] & IDENT_OTHER_CHAR != 0
+}
+
+const fn is_whitespace_char(c: u8) -> bool {
+    ENCODINGS[c as usize] & WHITESPACE_CHAR != 0
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AnyNum {
@@ -104,7 +168,7 @@ impl<'a> Bytes<'a> {
             let _ = self.advance(2);
         }
 
-        let num_bytes = self.next_bytes_contained_in(DIGITS);
+        let num_bytes = self.next_bytes_contained_in(is_int_char);
 
         if num_bytes == 0 {
             return self.err(ErrorCode::ExpectedInteger);
@@ -312,13 +376,13 @@ impl<'a> Bytes<'a> {
     /// Only returns true if the char after `ident` cannot belong
     /// to an identifier.
     pub fn check_ident(&mut self, ident: &str) -> bool {
-        self.test_for(ident) && !self.check_ident_char(ident.len())
+        self.test_for(ident) && !self.check_ident_other_char(ident.len())
     }
 
-    fn check_ident_char(&self, index: usize) -> bool {
+    fn check_ident_other_char(&self, index: usize) -> bool {
         self.bytes
             .get(index)
-            .map_or(false, |b| IDENT_CHAR.contains(b))
+            .map_or(false, |&b| is_ident_other_char(b))
     }
 
     /// Should only be used on a working copy
@@ -422,14 +486,14 @@ impl<'a> Bytes<'a> {
             let comma = self.comma()?;
 
             // If we have no comma but another item, return an error
-            if !comma && self.check_ident_char(0) {
+            if !comma && self.check_ident_other_char(0) {
                 return self.err(ErrorCode::ExpectedComma);
             }
 
             // If there's no comma, assume the list ended.
             // If there is, it might be a trailing one, thus we only
             // continue the loop if we get an ident char.
-            if !comma || !self.check_ident_char(0) {
+            if !comma || !self.check_ident_other_char(0) {
                 break;
             }
         }
@@ -453,7 +517,7 @@ impl<'a> Bytes<'a> {
             }
         }
 
-        let num_bytes = self.next_bytes_contained_in(FLOAT_CHARS);
+        let num_bytes = self.next_bytes_contained_in(is_float_char);
 
         let s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
         let res = FromStr::from_str(s).map_err(|_| self.error(ErrorCode::ExpectedFloat));
@@ -473,7 +537,7 @@ impl<'a> Bytes<'a> {
 
     pub fn identifier_len(&self) -> Result<usize> {
         let next = self.peek_or_eof()?;
-        if IDENT_FIRST.contains(&next) {
+        if is_ident_first_char(next) {
             // If the next two bytes signify the start of a raw string literal,
             // return an error.
             if next == b'r' {
@@ -486,7 +550,7 @@ impl<'a> Bytes<'a> {
                 }
             }
 
-            let bytes = self.next_bytes_contained_in(IDENT_CHAR);
+            let bytes = self.next_bytes_contained_in(is_ident_other_char);
 
             Ok(bytes)
         } else {
@@ -494,11 +558,8 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    pub fn next_bytes_contained_in(&self, allowed: &[u8]) -> usize {
-        self.bytes
-            .iter()
-            .take_while(|b| allowed.contains(b))
-            .count()
+    pub fn next_bytes_contained_in(&self, allowed: fn(u8) -> bool) -> usize {
+        self.bytes.iter().take_while(|&&b| allowed(b)).count()
     }
 
     pub fn next_bytes_is_float(&self) -> bool {
@@ -511,13 +572,13 @@ impl<'a> Bytes<'a> {
                 .bytes
                 .iter()
                 .skip(skip)
-                .take_while(|b| FLOAT_CHARS.contains(b))
+                .take_while(|&&b| is_float_char(b))
                 .count();
             let ilen = self
                 .bytes
                 .iter()
                 .skip(skip)
-                .take_while(|b| DIGITS.contains(b))
+                .take_while(|&&b| is_int_char(b))
                 .count();
             flen > ilen
         } else {
@@ -526,7 +587,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
-        while self.peek().map_or(false, |c| WHITE_SPACE.contains(&c)) {
+        while self.peek().map_or(false, |c| is_whitespace_char(c)) {
             let _ = self.advance_single();
         }
 
