@@ -4,8 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Next
+## [0.6.2] - 2020-09-09
 - Added `decimal_floats` PrettyConfig option, which always includes decimals in floats (`1.0` vs `1`) ([#237](https://github.com/ron-rs/ron/pull/237))
+- Fixed EBNF grammar for raw strings ([#236](https://github.com/ron-rs/ron/pull/236), unsigned integers ([#248](https://github.com/ron-rs/ron/pull/248)), and nested comments ([#272](https://github.com/ron-rs/ron/pull/272))
+- Added `ser::to_writer_pretty` ([#269](https://github.com/ron-rs/ron/pull/269))
+- Sped up parsing using table predicates ([#276](https://github.com/ron-rs/ron/pull/276))
 
 ## [0.6.1] - 2020-07-14
 
