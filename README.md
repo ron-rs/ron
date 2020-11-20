@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ron-rs/ron.svg?branch=master)](https://travis-ci.org/ron-rs/ron)
 [![Crates.io](https://img.shields.io/crates/v/ron.svg)](https://crates.io/crates/ron)
-[![MSRV](https://img.shields.io/badge/MSRV-1.34.0-orange)](https://github.com/ron-rs/ron)
+[![MSRV](https://img.shields.io/badge/MSRV-1.36.0-orange)](https://github.com/ron-rs/ron)
 [![Docs](https://docs.rs/ron/badge.svg)](https://docs.rs/ron)
 [![Gitter](https://badges.gitter.im/ron-rs/ron.svg)](https://gitter.im/ron-rs/ron)
 

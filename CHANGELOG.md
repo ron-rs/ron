@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Next
 - Added `decimal_floats` PrettyConfig option, which always includes decimals in floats (`1.0` vs `1`) ([#237](https://github.com/ron-rs/ron/pull/237))
+- Change MSRV to 1.36
 
 ## [0.6.0] - 2020-05-21
 ### Additions
