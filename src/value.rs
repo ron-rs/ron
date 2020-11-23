@@ -248,12 +248,12 @@ impl From<i32> for Number {
     }
 }
 
-// The following number conversion checks if the integer fits losslessly into an i64, before
+// The following number conversion checks if the integer fits into an i64, before
 // constructing a Number::Integer variant. If not, the conversion defaults to float.
 
 impl From<u64> for Number {
     fn from(i: u64) -> Number {
-        if i as i64 as u64 == i {
+        if i <= std::i64::MAX as u64 {
             Number::Integer(i as i64)
         } else {
             Number::new(i as f64)
@@ -494,6 +494,8 @@ mod tests {
     {
         use crate::de::from_str;
 
+        dbg!(s);
+
         let direct: T = from_str(s).unwrap();
         let value: Value = from_str(s).unwrap();
         let value = T::deserialize(value).unwrap();
@@ -549,5 +551,11 @@ mod tests {
     #[test]
     fn unit() {
         assert_same::<()>("()");
+    }
+
+    #[test]
+    fn big_u64() {
+        let bigu64: u64 = 0x8FFFFFFFFFFFFFF0;
+        assert_same::<f64>(&crate::to_string(&Value::Number(Number::from(bigu64))).unwrap());
     }
 }
