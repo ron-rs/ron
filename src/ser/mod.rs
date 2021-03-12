@@ -92,7 +92,7 @@ pub struct PrettyConfig {
     /// Enable extensions. Only configures 'implicit_some' for now.
     pub extensions: Extensions,
     /// Enable compact arrays
-    pub compact_arrays:bool,
+    pub compact_arrays: bool,
     /// Private field to ensure adding a field is non-breaking.
     #[serde(skip)]
     _future_proof: (),
@@ -169,11 +169,12 @@ impl PrettyConfig {
 
     /// Configures whether every array should be a single line (true) or a multi line one (false)
     /// When false `["a","b"]` (as well as any array) will serialize to
-    /// ```
+    /// `
     /// [
     ///   "a",
     ///   "b",
     /// ]
+    /// `
     /// When true `["a","b"]` (as well as any array) will serialize to `["a","b"]`
     ///
     /// Default: `false`
@@ -222,7 +223,9 @@ fn default_enumerate_arrays() -> bool {
     false
 }
 
-fn default_compact_arrays()->bool{false}
+fn default_compact_arrays() -> bool {
+    false
+}
 
 impl Default for PrettyConfig {
     fn default() -> Self {
@@ -546,7 +549,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             if pretty.indent <= config.depth_limit {
                 let is_empty = self.is_empty.unwrap_or(false);
 
-                if !is_empty && !config.compact_arrays  {
+                if !is_empty && !config.compact_arrays {
                     self.output.write_all(config.new_line.as_bytes())?;
                 }
             }
@@ -692,7 +695,7 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
                             write!(ser.output, "// [{}]", index).unwrap();
                             *index += 1;
                         }
-                        if !config.compact_arrays{
+                        if !config.compact_arrays {
                             ser.output.write_all(config.new_line.as_bytes())?;
                         }
                     }
@@ -702,10 +705,10 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
         };
 
         if let Some((ref config, ref mut pretty)) = ser.pretty {
-            if !config.compact_arrays{
+            if !config.compact_arrays {
                 ser.indent()?;
             }
-        }else{
+        } else {
             ser.indent()?;
         }
 
@@ -721,7 +724,7 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
                 state: State::Rest,
             } => {
                 if let Some((ref config, ref mut pretty)) = ser.pretty {
-                    if pretty.indent <= config.depth_limit && !config.compact_arrays{
+                    if pretty.indent <= config.depth_limit && !config.compact_arrays {
                         ser.output.write_all(b",")?;
                         ser.output.write_all(config.new_line.as_bytes())?;
                     }
