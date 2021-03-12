@@ -704,7 +704,7 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
             }
         };
 
-        if let Some((ref config, ref mut pretty)) = ser.pretty {
+        if let Some((ref config, _)) = ser.pretty {
             if !config.compact_arrays {
                 ser.indent()?;
             }
