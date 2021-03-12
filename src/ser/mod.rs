@@ -733,7 +733,21 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
             }
             Compound::Map { ser, .. } => ser,
         };
-        ser.end_indent()?;
+
+        if let Some((ref config, ref mut pretty)) = ser.pretty {
+            if pretty.indent <= config.depth_limit {
+                let is_empty = ser.is_empty.unwrap_or(false);
+
+                if !is_empty && !config.compact_arrays {
+                    for _ in 1..pretty.indent {
+                        ser.output.write_all(config.indentor.as_bytes())?;
+                    }
+                }
+            }
+            pretty.indent -= 1;
+
+            ser.is_empty = None;
+        }
 
         if let Some((_, ref mut pretty)) = ser.pretty {
             pretty.sequence_index.pop();
