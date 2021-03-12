@@ -91,6 +91,8 @@ pub struct PrettyConfig {
     pub decimal_floats: bool,
     /// Enable extensions. Only configures 'implicit_some' for now.
     pub extensions: Extensions,
+    /// Enable compact arrays
+    pub compact_arrays:bool,
     /// Private field to ensure adding a field is non-breaking.
     #[serde(skip)]
     _future_proof: (),
@@ -165,6 +167,22 @@ impl PrettyConfig {
         self
     }
 
+    /// Configures whether every array should be a single line (true) or a multi line one (false)
+    /// When false `["a","b"]` (as well as any array) will serialize to
+    /// ```
+    /// [
+    ///   "a",
+    ///   "b",
+    /// ]
+    /// When true `["a","b"]` (as well as any array) will serialize to `["a","b"]`
+    ///
+    /// Default: `false`
+    pub fn with_compact_arrays(mut self, compact_arrays: bool) -> Self {
+        self.compact_arrays = compact_arrays;
+
+        self
+    }
+
     /// Configures extensions
     ///
     /// Default: Extensions::empty()
@@ -204,6 +222,8 @@ fn default_enumerate_arrays() -> bool {
     false
 }
 
+fn default_compact_arrays()->bool{false}
+
 impl Default for PrettyConfig {
     fn default() -> Self {
         PrettyConfig {
@@ -214,6 +234,7 @@ impl Default for PrettyConfig {
             enumerate_arrays: default_enumerate_arrays(),
             extensions: Extensions::default(),
             decimal_floats: default_decimal_floats(),
+            compact_arrays: default_compact_arrays(),
             _future_proof: (),
         }
     }
@@ -520,7 +541,16 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.is_empty = Some(len == 0);
         }
 
-        self.start_indent()?;
+        if let Some((ref config, ref mut pretty)) = self.pretty {
+            pretty.indent += 1;
+            if pretty.indent <= config.depth_limit {
+                let is_empty = self.is_empty.unwrap_or(false);
+
+                if !is_empty && !config.compact_arrays  {
+                    self.output.write_all(config.new_line.as_bytes())?;
+                }
+            }
+        }
 
         if let Some((_, ref mut pretty)) = self.pretty {
             pretty.sequence_index.push(0);
@@ -662,13 +692,22 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
                             write!(ser.output, "// [{}]", index).unwrap();
                             *index += 1;
                         }
-                        ser.output.write_all(config.new_line.as_bytes())?;
+                        if !config.compact_arrays{
+                            ser.output.write_all(config.new_line.as_bytes())?;
+                        }
                     }
                 }
                 ser
             }
         };
-        ser.indent()?;
+
+        if let Some((ref config, ref mut pretty)) = ser.pretty {
+            if !config.compact_arrays{
+                ser.indent()?;
+            }
+        }else{
+            ser.indent()?;
+        }
 
         value.serialize(&mut **ser)?;
 
@@ -682,7 +721,7 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
                 state: State::Rest,
             } => {
                 if let Some((ref config, ref mut pretty)) = ser.pretty {
-                    if pretty.indent <= config.depth_limit {
+                    if pretty.indent <= config.depth_limit && !config.compact_arrays{
                         ser.output.write_all(b",")?;
                         ser.output.write_all(config.new_line.as_bytes())?;
                     }
