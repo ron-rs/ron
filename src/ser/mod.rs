@@ -307,12 +307,16 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn start_indent(&mut self) -> Result<()> {
+        self.start_indent_if(|_| true)
+    }
+
+    fn start_indent_if(&mut self, condition: impl Fn(&PrettyConfig) -> bool) -> Result<()> {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             pretty.indent += 1;
             if pretty.indent <= config.depth_limit {
                 let is_empty = self.is_empty.unwrap_or(false);
 
-                if !is_empty {
+                if !is_empty && condition(config) {
                     self.output.write_all(config.new_line.as_bytes())?;
                 }
             }
@@ -332,11 +336,15 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn end_indent(&mut self) -> io::Result<()> {
+        self.end_indent_if(|_| true)
+    }
+
+    fn end_indent_if(&mut self, condition: impl Fn(&PrettyConfig) -> bool) -> io::Result<()> {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             if pretty.indent <= config.depth_limit {
                 let is_empty = self.is_empty.unwrap_or(false);
 
-                if !is_empty {
+                if !is_empty && condition(config) {
                     for _ in 1..pretty.indent {
                         self.output.write_all(config.indentor.as_bytes())?;
                     }
@@ -544,16 +552,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.is_empty = Some(len == 0);
         }
 
-        if let Some((ref config, ref mut pretty)) = self.pretty {
-            pretty.indent += 1;
-            if pretty.indent <= config.depth_limit {
-                let is_empty = self.is_empty.unwrap_or(false);
-
-                if !is_empty && !config.compact_arrays {
-                    self.output.write_all(config.new_line.as_bytes())?;
-                }
-            }
-        }
+        self.start_indent_if(|config| !config.compact_arrays)?;
 
         if let Some((_, ref mut pretty)) = self.pretty {
             pretty.sequence_index.push(0);
@@ -734,20 +733,7 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
             Compound::Map { ser, .. } => ser,
         };
 
-        if let Some((ref config, ref mut pretty)) = ser.pretty {
-            if pretty.indent <= config.depth_limit {
-                let is_empty = ser.is_empty.unwrap_or(false);
-
-                if !is_empty && !config.compact_arrays {
-                    for _ in 1..pretty.indent {
-                        ser.output.write_all(config.indentor.as_bytes())?;
-                    }
-                }
-            }
-            pretty.indent -= 1;
-
-            ser.is_empty = None;
-        }
+        ser.end_indent_if(|config| !config.compact_arrays)?;
 
         if let Some((_, ref mut pretty)) = ser.pretty {
             pretty.sequence_index.pop();
