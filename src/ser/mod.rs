@@ -325,8 +325,12 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn indent(&mut self) -> io::Result<()> {
+        self.indent_if(|_| true)
+    }
+
+    fn indent_if(&mut self, condition: impl Fn(&PrettyConfig) -> bool) -> io::Result<()> {
         if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent <= config.depth_limit {
+            if pretty.indent <= config.depth_limit && condition(config) {
                 for _ in 0..pretty.indent {
                     self.output.write_all(config.indentor.as_bytes())?;
                 }
@@ -703,13 +707,7 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
             }
         };
 
-        if let Some((ref config, _)) = ser.pretty {
-            if !config.compact_arrays {
-                ser.indent()?;
-            }
-        } else {
-            ser.indent()?;
-        }
+        ser.indent_if(|config| !config.compact_arrays)?;
 
         value.serialize(&mut **ser)?;
 
