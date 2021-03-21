@@ -1,15 +1,18 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore: [staging.tmp]
+  pull_request:
+    branches-ignore: [staging.tmp]
 
 jobs:
-
   tests:
     name: Tests
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        rust: [1.34.0, stable, nightly]
+        rust: [1.36.0, stable, nightly]
 
     steps:
       - uses: actions/checkout@v2

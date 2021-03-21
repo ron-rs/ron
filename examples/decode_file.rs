@@ -9,6 +9,7 @@ struct Config {
     map: HashMap<u8, char>,
     nested: Nested,
     tuple: (u32, u32),
+    vec: Vec<Nested>,
 }
 
 #[derive(Debug, Deserialize)]

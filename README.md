@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ron-rs/ron.svg?branch=master)](https://travis-ci.org/ron-rs/ron)
 [![Crates.io](https://img.shields.io/crates/v/ron.svg)](https://crates.io/crates/ron)
+[![MSRV](https://img.shields.io/badge/MSRV-1.36.0-orange)](https://github.com/ron-rs/ron)
 [![Docs](https://docs.rs/ron/badge.svg)](https://docs.rs/ron)
 [![Gitter](https://badges.gitter.im/ron-rs/ron.svg)](https://gitter.im/ron-rs/ron)
 
@@ -69,12 +70,12 @@ GameConfig( // optional struct name
 
 Notice these issues:
   1. Struct and maps are the same
-    - random order of exported fields
-      - annoying and inconvenient for reading
-      - doesn't work well with version control
-    - quoted field names
-      - too verbose
-    - no support for enums
+     - random order of exported fields
+       - annoying and inconvenient for reading
+       - doesn't work well with version control
+     - quoted field names
+       - too verbose
+     - no support for enums
   2. No trailing comma allowed
   3. No comments allowed
 
@@ -141,7 +142,7 @@ Why not XXX?
 
 ## Tooling
 
-IntelliJ: https://vultix.github.io/intellij-ron-plugin/
+IntelliJ: https://github.com/ron-rs/intellij-ron
 
 VS Code: https://github.com/a5huynh/vscode-ron
 
@@ -150,6 +151,8 @@ Sublime Text: https://packagecontrol.io/packages/RON
 Atom: https://atom.io/packages/language-ron
 
 Vim: https://github.com/ron-rs/ron.vim
+
+EMACS: https://chiselapp.com/user/Hutzdog/repository/ron-mode/home
 
 ## License
 

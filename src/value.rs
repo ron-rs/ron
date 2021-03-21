@@ -253,7 +253,7 @@ impl From<i32> for Number {
 
 impl From<u64> for Number {
     fn from(i: u64) -> Number {
-        if i as i64 as u64 == i {
+        if i <= std::i64::MAX as u64 {
             Number::Integer(i as i64)
         } else {
             Number::new(i as f64)

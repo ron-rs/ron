@@ -18,7 +18,7 @@ RON = [extensions], ws, value, ws;
 ```ebnf
 ws = { ws_single, comment };
 ws_single = "\n" | "\t" | "\r" | " ";
-comment = ["//", { no_newline }, "\n"];
+comment = ["//", { no_newline }, "\n"] | ["/*", { ? any character ? }, "*/"];
 ```
 
 ## Commas

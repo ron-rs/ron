@@ -1,5 +1,7 @@
 status = [
-  "Tests",
+  "Tests (1.36.0)",
+  "Tests (stable)",
+  "Tests (nightly)",
   "Clippy: stable",
   "Format: stable",
 ]
