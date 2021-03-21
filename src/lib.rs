@@ -59,8 +59,8 @@ Serializing / Deserializing is as simple as calling `to_string` / `from_str`.
 
 #![doc(html_root_url = "https://docs.rs/ron/0.6.0")]
 
-pub mod de;
-pub mod ser;
+mod de;
+mod ser;
 
 pub mod error;
 pub mod value;
@@ -69,7 +69,7 @@ pub mod extensions;
 
 pub use de::{from_bytes, from_reader, from_str, Deserializer};
 pub use error::{Error, Result};
-pub use ser::{to_string, to_string_pretty, to_writer, Serializer};
+pub use ser::{to_string, to_string_pretty, to_writer, to_writer_pretty, PrettyConfig, Serializer};
 pub use value::{Map, Number, Value};
 
 mod parse;
