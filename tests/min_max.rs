@@ -1,4 +1,4 @@
-use ron::{de::*, ser::*};
+use ron::*;
 
 #[test]
 fn test_i32_min() {

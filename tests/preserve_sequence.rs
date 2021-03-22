@@ -1,6 +1,6 @@
 use ron::{
-    de::from_str,
-    ser::{to_string_pretty, PrettyConfig},
+    from_str,
+    to_string_pretty, PrettyConfig,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
