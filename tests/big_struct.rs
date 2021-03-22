@@ -75,5 +75,5 @@ const CONFIG: &str = "(
 
 #[test]
 fn deserialize_big_struct() {
-    ron::de::from_str::<ImGuiStyleSave>(CONFIG).unwrap();
+    ron::from_str::<ImGuiStyleSave>(CONFIG).unwrap();
 }

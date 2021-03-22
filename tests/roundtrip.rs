@@ -44,11 +44,11 @@ fn roundtrip() {
         .collect(),
     };
 
-    let serial = ron::ser::to_string(&value).unwrap();
+    let serial = ron::to_string(&value).unwrap();
 
     println!("Serialized: {}", serial);
 
-    let deserial = ron::de::from_str(&serial);
+    let deserial = ron::from_str(&serial);
 
     assert_eq!(Ok(value), deserial);
 }
@@ -68,14 +68,14 @@ fn roundtrip_pretty() {
         .collect(),
     };
 
-    let pretty = ron::ser::PrettyConfig::new()
+    let pretty = ron::PrettyConfig::new()
         .enumerate_arrays(true)
         .extensions(Extensions::IMPLICIT_SOME);
-    let serial = ron::ser::to_string_pretty(&value, pretty).unwrap();
+    let serial = ron::to_string_pretty(&value, pretty).unwrap();
 
     println!("Serialized: {}", serial);
 
-    let deserial = ron::de::from_str(&serial);
+    let deserial = ron::from_str(&serial);
 
     assert_eq!(Ok(value), deserial);
 }
@@ -110,12 +110,12 @@ fn roundtrip_sep_tuple_members() {
 
     let value = Both { a, b };
 
-    let pretty = ron::ser::PrettyConfig::new().separate_tuple_members(true);
-    let serial = ron::ser::to_string_pretty(&value, pretty).unwrap();
+    let pretty = ron::PrettyConfig::new().separate_tuple_members(true);
+    let serial = ron::to_string_pretty(&value, pretty).unwrap();
 
     println!("Serialized: {}", serial);
 
-    let deserial = ron::de::from_str(&serial);
+    let deserial = ron::from_str(&serial);
 
     assert_eq!(Ok(value), deserial);
 }

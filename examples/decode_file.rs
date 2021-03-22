@@ -1,4 +1,4 @@
-use ron::de::from_reader;
+use ron::from_reader;
 use serde::Deserialize;
 use std::{collections::HashMap, fs::File};
 

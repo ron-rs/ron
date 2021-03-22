@@ -47,7 +47,7 @@ const CONFIG_U_NT: &str = "
 
 #[test]
 fn unwrap_newtypes() {
-    let d: Struct = ron::de::from_str(&CONFIG_U_NT).expect("Failed to deserialize");
+    let d: Struct = ron::from_str(&CONFIG_U_NT).expect("Failed to deserialize");
 
     println!("unwrap_newtypes: {:#?}", d);
 }
@@ -75,7 +75,7 @@ const CONFIG_I_S: &str = "
 
 #[test]
 fn implicit_some() {
-    let d: Struct = ron::de::from_str(&CONFIG_I_S).expect("Failed to deserialize");
+    let d: Struct = ron::from_str(&CONFIG_I_S).expect("Failed to deserialize");
 
     println!("implicit_some: {:#?}", d);
 }

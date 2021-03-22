@@ -1,4 +1,4 @@
-use ron::ser::{to_string_pretty, PrettyConfig};
+use ron::{to_string_pretty, PrettyConfig};
 use serde::Serialize;
 use std::{collections::HashMap, iter::FromIterator};
 
