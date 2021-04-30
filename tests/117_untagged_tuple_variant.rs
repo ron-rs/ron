@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use ron::{de::from_str, ser::to_string};
+use ron::{from_str, to_string};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]

@@ -91,7 +91,7 @@ struct Scene2 {
 
 #[test]
 fn roundtrip() {
-    use ron::{de::from_str, ser::to_string};
+    use ron::{from_str, to_string};
 
     {
         let s = to_string(&Scene2 {

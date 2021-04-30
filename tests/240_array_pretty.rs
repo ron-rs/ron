@@ -1,4 +1,4 @@
-use ron::ser::{to_string_pretty, PrettyConfig};
+use ron::{to_string_pretty, PrettyConfig};
 
 #[test]
 fn small_array() {

@@ -41,10 +41,10 @@ fn empty_sets_arrays() {
             .collect(),
     };
 
-    let pretty = ron::ser::PrettyConfig::new()
+    let pretty = ron::PrettyConfig::new()
         .enumerate_arrays(true)
         .new_line("\n".to_string());
-    let serial = ron::ser::to_string_pretty(&value, pretty).unwrap();
+    let serial = ron::to_string_pretty(&value, pretty).unwrap();
 
     println!("Serialized: {}", serial);
 
@@ -63,7 +63,7 @@ fn empty_sets_arrays() {
         serial
     );
 
-    let deserial = ron::de::from_str(&serial);
+    let deserial = ron::from_str(&serial);
 
     assert_eq!(Ok(value), deserial);
 }
