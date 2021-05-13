@@ -91,7 +91,9 @@ pub enum AnyNum {
     U32(u32),
     I64(i64),
     U64(u64),
+    #[cfg(features = "integer128")]
     I128(i128),
+    #[cfg(features = "integer128")]
     U128(u128),
 }
 
@@ -209,7 +211,7 @@ impl<'a> Bytes<'a> {
             }
 
             Ok(num_acc)
-        };
+        }
 
         let res = if sign > 0 {
             calc_num(&*self, s, base, T::checked_add_ext)
@@ -245,22 +247,30 @@ impl<'a> Bytes<'a> {
 
             any_float(f)
         } else {
-            let max_u8 = std::u8::MAX as u128;
-            let max_u16 = std::u16::MAX as u128;
-            let max_u32 = std::u32::MAX as u128;
-            let max_u64 = std::u64::MAX as u128;
+            #[cfg(features = "integer128")]
+            type Uint = u128;
+            #[cfg(features = "integer128")]
+            type Int = i128;
+            #[cfg(not(features = "integer128"))]
+            type Uint = u64;
+            #[cfg(not(features = "integer128"))]
+            type Int = i64;
+            let max_u8 = std::u8::MAX as Uint;
+            let max_u16 = std::u16::MAX as Uint;
+            let max_u32 = std::u32::MAX as Uint;
+            let max_u64 = std::u64::MAX as Uint;
 
-            let min_i8 = std::i8::MIN as i128;
-            let max_i8 = std::i8::MAX as i128;
-            let min_i16 = std::i16::MIN as i128;
-            let max_i16 = std::i16::MAX as i128;
-            let min_i32 = std::i32::MIN as i128;
-            let max_i32 = std::i32::MAX as i128;
-            let min_i64 = std::i64::MIN as i128;
-            let max_i64 = std::i64::MAX as i128;
+            let min_i8 = std::i8::MIN as Int;
+            let max_i8 = std::i8::MAX as Int;
+            let min_i16 = std::i16::MIN as Int;
+            let max_i16 = std::i16::MAX as Int;
+            let min_i32 = std::i32::MIN as Int;
+            let max_i32 = std::i32::MAX as Int;
+            let min_i64 = std::i64::MIN as Int;
+            let max_i64 = std::i64::MAX as Int;
 
             if is_signed {
-                match self.signed_integer::<i128>() {
+                match self.signed_integer::<Int>() {
                     Ok(x) => {
                         if x >= min_i8 && x <= max_i8 {
                             Ok(AnyNum::I8(x as i8))
@@ -271,6 +281,9 @@ impl<'a> Bytes<'a> {
                         } else if x >= min_i64 && x <= max_i64 {
                             Ok(AnyNum::I64(x as i64))
                         } else {
+                            #[cfg(not(features = "integer128"))]
+                            unreachable!("int must less than i64::MAX");
+                            #[cfg(features = "integer128")]
                             Ok(AnyNum::I128(x))
                         }
                     }
@@ -281,7 +294,7 @@ impl<'a> Bytes<'a> {
                     }
                 }
             } else {
-                match self.unsigned_integer::<u128>() {
+                match self.unsigned_integer::<Uint>() {
                     Ok(x) => {
                         if x <= max_u8 {
                             Ok(AnyNum::U8(x as u8))
@@ -292,6 +305,9 @@ impl<'a> Bytes<'a> {
                         } else if x <= max_u64 {
                             Ok(AnyNum::U64(x as u64))
                         } else {
+                            #[cfg(not(features = "integer128"))]
+                            unreachable!("uint must less than u64::MAX");
+                            #[cfg(features = "integer128")]
                             Ok(AnyNum::U128(x))
                         }
                     }
@@ -900,7 +916,9 @@ macro_rules! impl_num {
     };
 }
 
-impl_num!(u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
+impl_num!(u8 u16 u32 u64 i8 i16 i32 i64);
+#[cfg(features = "integer128")]
+impl_num!(u128 i128);
 
 #[derive(Clone, Debug)]
 pub enum ParsedStr<'a> {
