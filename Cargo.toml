@@ -30,3 +30,7 @@ serde = { version = "1.0.60", features = ["serde_derive"] }
 [dev-dependencies]
 serde_bytes = "0.11"
 serde_json = "1"
+
+[features]
+default = [ "integer128" ]
+integer128 = []

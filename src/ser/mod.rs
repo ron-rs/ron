@@ -3,6 +3,7 @@ use std::io;
 
 use crate::error::{Error, Result};
 use crate::extensions::Extensions;
+use crate::parse::{Int, Uint};
 
 mod value;
 
@@ -335,6 +336,18 @@ impl<W: io::Write> Serializer<W> {
         self.output.write_all(b"\"")?;
         Ok(())
     }
+
+    fn serialize_int(&mut self, v: Int) -> Result<()> {
+        // TODO optimize
+        write!(self.output, "{}", v)?;
+        Ok(())
+    }
+
+    fn serialize_uint(&mut self, v: Uint) -> Result<()> {
+        // TODO optimize
+        write!(self.output, "{}", v)?;
+        Ok(())
+    }
 }
 
 impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
@@ -354,46 +367,45 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
-        self.serialize_i128(v as i128)
+        self.serialize_int(v as Int)
     }
 
     fn serialize_i16(self, v: i16) -> Result<()> {
-        self.serialize_i128(v as i128)
+        self.serialize_int(v as Int)
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        self.serialize_i128(v as i128)
+        self.serialize_int(v as Int)
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.serialize_i128(v as i128)
+        self.serialize_int(v as Int)
     }
 
+    #[cfg(features = "integer128")]
     fn serialize_i128(self, v: i128) -> Result<()> {
-        // TODO optimize
-        write!(self.output, "{}", v)?;
-        Ok(())
+        self.serialize_int(v as Int)
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
-        self.serialize_u128(v as u128)
+        self.serialize_uint(v as Uint)
     }
 
     fn serialize_u16(self, v: u16) -> Result<()> {
-        self.serialize_u128(v as u128)
+        self.serialize_uint(v as Uint)
     }
 
     fn serialize_u32(self, v: u32) -> Result<()> {
-        self.serialize_u128(v as u128)
+        self.serialize_uint(v as Uint)
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.serialize_u128(v as u128)
+        self.serialize_uint(v as Uint)
     }
 
+    #[cfg(features = "integer128")]
     fn serialize_u128(self, v: u128) -> Result<()> {
-        write!(self.output, "{}", v)?;
-        Ok(())
+        self.serialize_uint(v as Uint)
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
