@@ -9,6 +9,15 @@ use crate::{
     extensions::Extensions,
 };
 
+#[cfg(features = "integer128")]
+pub type Uint = u128;
+#[cfg(features = "integer128")]
+pub type Int = i128;
+#[cfg(not(features = "integer128"))]
+pub type Uint = u64;
+#[cfg(not(features = "integer128"))]
+pub type Int = i64;
+
 // We have the following char categories.
 const INT_CHAR: u8 = 1 << 0; // [0-9A-Fa-f_]
 const FLOAT_CHAR: u8 = 1 << 1; // [0-9\.Ee+-]
@@ -247,14 +256,6 @@ impl<'a> Bytes<'a> {
 
             any_float(f)
         } else {
-            #[cfg(features = "integer128")]
-            type Uint = u128;
-            #[cfg(features = "integer128")]
-            type Int = i128;
-            #[cfg(not(features = "integer128"))]
-            type Uint = u64;
-            #[cfg(not(features = "integer128"))]
-            type Int = i64;
             let max_u8 = std::u8::MAX as Uint;
             let max_u16 = std::u16::MAX as Uint;
             let max_u32 = std::u32::MAX as Uint;
