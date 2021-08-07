@@ -65,3 +65,37 @@ Enabling the feature would automatically infer `Some(x)` if `x` is given. In thi
     value: 5,
 )
 ```
+
+# implicit_outmost_struct
+
+You can add this extension by adding the following attribute at the top of your RON document:
+
+`#![enable(implicit_outmost_struct)]`
+
+This feature enables RON to ignore the parentheses of the outmost structure.
+
+```rust
+struct Rgb(pub f64, pub f64, pub f64);
+struct ImageConfig {
+    pub size: (usize, usize),
+    pub background: Rgb,
+}
+```
+
+Without this feature, you would have to write this RON document.
+
+```ron
+(
+    size: (1920, 1080),
+    background: Rgb(1.0, 0.0, 0.0),
+)
+```
+
+With the `unwrap_newtypes` extension, you are allowed to write it without the outmost parentheses.
+
+```ron
+#![enable(implicit_outmost_struct)]
+
+size: (1920, 1080),
+background: Rgb(1.0, 0.0, 0.0),
+```

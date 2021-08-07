@@ -483,6 +483,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.bytes.skip_ws()?;
 
         if self.bytes.consume("(") {
+            if self.bytes.exts.contains(Extensions::IMPLICIT_OUTMOST_STRUCT) {
+                return self.bytes.err(ErrorCode::UnexpectedStruct)
+            }
             let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
             self.bytes.comma()?;
 
@@ -491,6 +494,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             } else {
                 self.bytes.err(ErrorCode::ExpectedStructEnd)
             }
+        } else if self.bytes.exts.contains(Extensions::IMPLICIT_OUTMOST_STRUCT) {
+            self.bytes.exts ^= Extensions::IMPLICIT_OUTMOST_STRUCT;
+            
+            let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
+            self.bytes.comma()?;
+            
+            Ok(value)
         } else {
             self.bytes.err(ErrorCode::ExpectedStruct)
         }

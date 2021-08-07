@@ -47,6 +47,7 @@ pub enum ErrorCode {
     IntegerOutOfBounds,
 
     NoSuchExtension(String),
+    UnexpectedStruct,
 
     UnclosedBlockComment,
     UnderscoreAtBeginning,
@@ -108,6 +109,7 @@ impl fmt::Display for ErrorCode {
             ErrorCode::UnderscoreAtBeginning => f.write_str("Found underscore at the beginning"),
             ErrorCode::UnexpectedByte(_) => f.write_str("Unexpected byte"),
             ErrorCode::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
+            ErrorCode::UnexpectedStruct => f.write_str("Unexpected struct"),
             _ => f.write_str("Unknown ErrorCode"),
         }
     }

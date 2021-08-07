@@ -79,3 +79,26 @@ fn implicit_some() {
 
     println!("implicit_some: {:#?}", d);
 }
+
+const CONFIG_N_OP: &str = "
+#![enable(implicit_outmost_struct)]
+
+tuple: ((), (1.5), ((), -5)),
+vec: [
+    Some(()),
+    None,
+],
+map: {
+    (7): Bool(true),
+    (9): Chars('x', \"\"),
+    (6): Bool(false),
+    (5): Unit,
+}
+";
+
+#[test]
+fn implicit_outmost_struct() {
+    let d: Struct = ron::de::from_str(&CONFIG_N_OP).expect("Failed to deserialize");
+
+    println!("implicit_outmost_struct: {:#?}", d);
+}
