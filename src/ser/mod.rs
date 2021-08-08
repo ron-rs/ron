@@ -412,8 +412,8 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_f32(self, v: f32) -> Result<()> {
         write!(self.output, "{}", v)?;
-        // TODO: use f32::EPSILON when minimum supported rust version is 1.43
-        pub const EPSILON: f32 = 1.192_092_9e-7;
+        #[allow(clippy::excessive_precision)]
+        pub const EPSILON: f32 = 1.192_092_90e-07_f32;
         if self.decimal_floats() && (v - v.floor()).abs() < EPSILON {
             write!(self.output, ".0")?;
         }
@@ -423,7 +423,8 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_f64(self, v: f64) -> Result<()> {
         write!(self.output, "{}", v)?;
         // TODO: use f64::EPSILON when minimum supported rust version is 1.43
-        pub const EPSILON: f64 = 2.220_446_049_250_313e-16;
+        #[allow(clippy::excessive_precision)]
+        pub const EPSILON: f64 = 2.220_446_049_250_313e-16_f64;
         if self.decimal_floats() && (v - v.floor()).abs() < EPSILON {
             write!(self.output, ".0")?;
         }
