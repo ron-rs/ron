@@ -39,7 +39,7 @@ impl<'de> Deserializer<'de> {
     }
 
     pub fn remainder(&self) -> Cow<'_, str> {
-        String::from_utf8_lossy(&self.bytes.bytes())
+        String::from_utf8_lossy(self.bytes.bytes())
     }
 }
 
@@ -313,7 +313,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             let string = self.bytes.string()?;
             let base64_str = match string {
                 ParsedStr::Allocated(ref s) => s.as_str(),
-                ParsedStr::Slice(ref s) => s,
+                ParsedStr::Slice(s) => s,
             };
             base64::decode(base64_str)
         };

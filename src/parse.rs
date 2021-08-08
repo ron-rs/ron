@@ -209,7 +209,7 @@ impl<'a> Bytes<'a> {
             }
 
             Ok(num_acc)
-        };
+        }
 
         let res = if sign > 0 {
             calc_num(&*self, s, base, T::checked_add_ext)
@@ -316,7 +316,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn bytes(&self) -> &[u8] {
-        &self.bytes
+        self.bytes
     }
 
     pub fn char(&mut self) -> Result<char> {
@@ -587,7 +587,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
-        while self.peek().map_or(false, |c| is_whitespace_char(c)) {
+        while self.peek().map_or(false, is_whitespace_char) {
             let _ = self.advance_single();
         }
 
