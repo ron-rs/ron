@@ -15,7 +15,7 @@ mod value;
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: io::Write,
-    T: Serialize,
+    T: ?Sized + Serialize,
 {
     let mut s = Serializer::new(writer, None, false)?;
     value.serialize(&mut s)
@@ -25,7 +25,7 @@ where
 pub fn to_writer_pretty<W, T>(writer: W, value: &T, config: PrettyConfig) -> Result<()>
 where
     W: io::Write,
-    T: Serialize,
+    T: ?Sized + Serialize,
 {
     let mut s = Serializer::new(writer, Some(config), false)?;
     value.serialize(&mut s)
@@ -37,7 +37,7 @@ where
 /// if you want that, you can use `to_string_pretty` instead.
 pub fn to_string<T>(value: &T) -> Result<String>
 where
-    T: Serialize,
+    T: ?Sized + Serialize,
 {
     let buf = Vec::new();
     let mut s = Serializer::new(buf, None, false)?;
@@ -48,7 +48,7 @@ where
 /// Serializes `value` in the recommended RON layout in a pretty way.
 pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 where
-    T: Serialize,
+    T: ?Sized + Serialize,
 {
     let buf = Vec::new();
     let mut s = Serializer::new(buf, Some(config), false)?;
