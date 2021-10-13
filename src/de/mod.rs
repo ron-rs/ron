@@ -23,6 +23,7 @@ mod value;
 /// you can use the `from_str` convenience function.
 pub struct Deserializer<'de> {
     bytes: Bytes<'de>,
+    newtype_variant: bool,
 }
 
 impl<'de> Deserializer<'de> {
@@ -35,6 +36,7 @@ impl<'de> Deserializer<'de> {
     pub fn from_bytes(input: &'de [u8]) -> Result<Self> {
         Ok(Deserializer {
             bytes: Bytes::new(input)?,
+            newtype_variant: false,
         })
     }
 
@@ -357,7 +359,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.bytes.consume("()") {
+        if self.newtype_variant || self.bytes.consume("()") {
             visitor.visit_unit()
         } else {
             self.bytes.err(ErrorCode::ExpectedUnit)
@@ -383,16 +385,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_newtype_struct(&mut *self);
         }
 
-        self.bytes.consume(name);
+        if self.bytes.consume(name) {
+            self.newtype_variant = false;
+        }
 
         self.bytes.skip_ws()?;
 
-        if self.bytes.consume("(") {
+        if self.newtype_variant || self.bytes.consume("(") {
+            let old_newtype_variant = self.newtype_variant;
+            self.newtype_variant = false;
+
             self.bytes.skip_ws()?;
             let value = visitor.visit_newtype_struct(&mut *self)?;
             self.bytes.comma()?;
 
-            if self.bytes.consume(")") {
+            if old_newtype_variant || self.bytes.consume(")") {
                 Ok(value)
             } else {
                 self.bytes.err(ErrorCode::ExpectedStructEnd)
@@ -424,11 +431,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.bytes.consume("(") {
+        if self.newtype_variant || self.bytes.consume("(") {
+            let old_newtype_variant = self.newtype_variant;
+            self.newtype_variant = false;
+
             let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
             self.bytes.comma()?;
 
-            if self.bytes.consume(")") {
+            if old_newtype_variant || self.bytes.consume(")") {
                 Ok(value)
             } else {
                 self.bytes.err(ErrorCode::ExpectedArrayEnd)
@@ -447,7 +457,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.bytes.consume(name);
+        if self.bytes.consume(name) {
+            self.newtype_variant = false;
+        }
+
         self.deserialize_tuple(len, visitor)
     }
 
@@ -478,15 +491,20 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.bytes.consume(name);
+        if self.bytes.consume(name) {
+            self.newtype_variant = false;
+        }
 
         self.bytes.skip_ws()?;
 
-        if self.bytes.consume("(") {
+        if self.newtype_variant || self.bytes.consume("(") {
+            let old_newtype_variant = self.newtype_variant;
+            self.newtype_variant = false;
+
             let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
             self.bytes.comma()?;
 
-            if self.bytes.consume(")") {
+            if old_newtype_variant || self.bytes.consume(")") {
                 Ok(value)
             } else {
                 self.bytes.err(ErrorCode::ExpectedStructEnd)
@@ -651,7 +669,16 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
         if self.de.bytes.consume("(") {
             self.de.bytes.skip_ws()?;
 
+            let old_newtype_variant = self.de.newtype_variant;
+            self.de.newtype_variant = self
+                .de
+                .bytes
+                .exts
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
+
             let val = seed.deserialize(&mut *self.de)?;
+
+            self.de.newtype_variant = old_newtype_variant;
 
             self.de.bytes.comma()?;
 
