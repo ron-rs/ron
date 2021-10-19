@@ -1,4 +1,4 @@
-use ron::de::from_str;
+use ron::{de::from_str, error::ErrorCode};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
@@ -65,8 +65,15 @@ fn test_deserialise_non_newtypes() {
 fn test_deserialise_tuple_newtypes() {
     assert_eq!(
         from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeUnit(Unit)"#)
-            .unwrap(),
-        TestEnum::TupleNewtypeUnit(Unit),
+            .unwrap_err()
+            .code,
+        ErrorCode::ExpectedStructEnd,
+    );
+    assert_eq!(
+        from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeUnit(())"#)
+            .unwrap_err()
+            .code,
+        ErrorCode::ExpectedStructEnd,
     );
     assert_eq!(
         from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeUnit()"#).unwrap(),
@@ -77,8 +84,15 @@ fn test_deserialise_tuple_newtypes() {
         from_str::<TestEnum>(
             r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeNewtype(Newtype(4))"#
         )
-        .unwrap(),
-        TestEnum::TupleNewtypeNewtype(Newtype(4)),
+        .unwrap_err()
+        .code,
+        ErrorCode::ExpectedInteger,
+    );
+    assert_eq!(
+        from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeNewtype((4))"#)
+            .unwrap_err()
+            .code,
+        ErrorCode::ExpectedInteger,
     );
     assert_eq!(
         from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeNewtype(4)"#)
@@ -86,10 +100,22 @@ fn test_deserialise_tuple_newtypes() {
         TestEnum::TupleNewtypeNewtype(Newtype(4)),
     );
     assert_eq!(
+        from_str::<TestEnum>(r#"#![enable(unwrap_newtypes)] TupleNewtypeNewtype(4)"#).unwrap(),
+        TestEnum::TupleNewtypeNewtype(Newtype(4)),
+    );
+    assert_eq!(
         from_str::<TestEnum>(r#"#![enable(unwrap_newtypes)] #![enable(unwrap_variant_newtypes)] TupleNewtypeNewtype(4)"#).unwrap(),
         TestEnum::TupleNewtypeNewtype(Newtype(4)),
     );
 
+    assert_eq!(
+        from_str::<TestEnum>(
+            r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeTuple((4, false))"#
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::ExpectedInteger,
+    );
     assert_eq!(
         from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeTuple(4, false)"#)
             .unwrap(),
@@ -100,8 +126,17 @@ fn test_deserialise_tuple_newtypes() {
         from_str::<TestEnum>(
             r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeTupleStruct(TupleStruct(4, false))"#
         )
-        .unwrap(),
-        TestEnum::TupleNewtypeTupleStruct(TupleStruct(4, false)),
+        .unwrap_err()
+        .code,
+        ErrorCode::ExpectedInteger,
+    );
+    assert_eq!(
+        from_str::<TestEnum>(
+            r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeTupleStruct((4, false))"#
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::ExpectedInteger,
     );
     assert_eq!(
         from_str::<TestEnum>(
@@ -115,8 +150,17 @@ fn test_deserialise_tuple_newtypes() {
         from_str::<TestEnum>(
             r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeStruct(Struct(a: 4, b: false))"#
         )
-        .unwrap(),
-        TestEnum::TupleNewtypeStruct(Struct { a: 4, b: false }),
+        .unwrap_err()
+        .code,
+        ErrorCode::ExpectedMapColon,
+    );
+    assert_eq!(
+        from_str::<TestEnum>(
+            r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeStruct((a: 4, b: false))"#
+        )
+        .unwrap_err()
+        .code,
+        ErrorCode::ExpectedIdentifier,
     );
     assert_eq!(
         from_str::<TestEnum>(
