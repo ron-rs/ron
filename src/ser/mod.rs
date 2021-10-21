@@ -928,7 +928,7 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
             }
         };
         ser.indent()?;
-        ser.output.write_all(key.as_bytes())?;
+        ser.write_identifier(key)?;
         ser.output.write_all(b":")?;
 
         if ser.is_pretty() {
