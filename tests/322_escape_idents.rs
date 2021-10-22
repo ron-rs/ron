@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]

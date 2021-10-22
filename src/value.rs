@@ -244,7 +244,7 @@ impl From<i64> for Number {
 
 impl From<i32> for Number {
     fn from(i: i32) -> Number {
-        Number::Integer(i as i64)
+        Number::Integer(i64::from(i))
     }
 }
 
