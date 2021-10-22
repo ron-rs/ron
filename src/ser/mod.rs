@@ -368,19 +368,19 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
-        self.serialize_i128(v as i128)
+        self.serialize_i128(i128::from(v))
     }
 
     fn serialize_i16(self, v: i16) -> Result<()> {
-        self.serialize_i128(v as i128)
+        self.serialize_i128(i128::from(v))
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        self.serialize_i128(v as i128)
+        self.serialize_i128(i128::from(v))
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.serialize_i128(v as i128)
+        self.serialize_i128(i128::from(v))
     }
 
     fn serialize_i128(self, v: i128) -> Result<()> {
@@ -390,19 +390,19 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
-        self.serialize_u128(v as u128)
+        self.serialize_u128(u128::from(v))
     }
 
     fn serialize_u16(self, v: u16) -> Result<()> {
-        self.serialize_u128(v as u128)
+        self.serialize_u128(u128::from(v))
     }
 
     fn serialize_u32(self, v: u32) -> Result<()> {
-        self.serialize_u128(v as u128)
+        self.serialize_u128(u128::from(v))
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.serialize_u128(v as u128)
+        self.serialize_u128(u128::from(v))
     }
 
     fn serialize_u128(self, v: u128) -> Result<()> {
@@ -413,7 +413,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_f32(self, v: f32) -> Result<()> {
         write!(self.output, "{}", v)?;
         // TODO: use f32::EPSILON when minimum supported rust version is 1.43
-        pub const EPSILON: f32 = 1.19209290e-07_f32;
+        pub const EPSILON: f32 = 1.192_092_9e-7;
         if self.decimal_floats() && (v - v.floor()).abs() < EPSILON {
             write!(self.output, ".0")?;
         }
@@ -423,7 +423,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_f64(self, v: f64) -> Result<()> {
         write!(self.output, "{}", v)?;
         // TODO: use f64::EPSILON when minimum supported rust version is 1.43
-        pub const EPSILON: f64 = 2.2204460492503131e-16_f64;
+        pub const EPSILON: f64 = 2.220_446_049_250_313e-16;
         if self.decimal_floats() && (v - v.floor()).abs() < EPSILON {
             write!(self.output, ".0")?;
         }
