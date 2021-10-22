@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.6] - 2020-10-21
 
 - Fix serialization of raw identifiers ([#323](https://github.com/ron-rs/ron/pull/323))
-- Add `unwrap_variant_newtypes` extension ([#319](https://github.com/ron-rs/ron/pull/319))
 
 ## [0.6.5] - 2021-09-09
 - support serde renames that start with a digit
