@@ -5,6 +5,7 @@ use serde::{
     Deserialize, Deserializer,
 };
 
+use crate::value::Struct;
 use crate::{
     de,
     value::{Map, Number, Value},
@@ -169,13 +170,32 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         A: MapAccess<'de>,
     {
-        let mut res: Map = Map::new();
-
-        while let Some(entry) = map.next_entry()? {
-            res.insert(entry.0, entry.1);
+        let mut struct_name: Option<Vec<u8>> = None;
+        while let Some(byte) = map.size_hint() {
+            struct_name.get_or_insert_with(Vec::new).push(byte as u8);
         }
-
-        Ok(Value::Map(res))
+        match struct_name {
+            Some(mut bytes) => {
+                let name = if bytes.len() > 1 {
+                    bytes.pop();
+                    Some(String::from_utf8(bytes).unwrap())
+                } else {
+                    None
+                };
+                let mut res: Struct = Struct::new(name);
+                while let Some((Value::String(field), value)) = map.next_entry()? {
+                    res.insert(field, value);
+                }
+                Ok(Value::Struct(res))
+            }
+            None => {
+                let mut res: Map = Map::new();
+                while let Some(entry) = map.next_entry()? {
+                    res.insert(entry.0, entry.1);
+                }
+                Ok(Value::Map(res))
+            }
+        }
     }
 }
 
@@ -272,40 +292,23 @@ mod tests {
 ])"
             ),
             Value::Option(Some(Box::new(Value::Seq(vec![
-                Value::Map(
-                    vec![
-                        (
-                            Value::String("width".to_owned()),
-                            Value::Number(Number::new(20)),
-                        ),
-                        (
-                            Value::String("height".to_owned()),
-                            Value::Number(Number::new(5)),
-                        ),
-                        (
-                            Value::String("name".to_owned()),
-                            Value::String("The Room".to_owned()),
-                        ),
+                Value::Struct(Struct {
+                    name: Some("Room".to_string()),
+                    fields: vec![
+                        ("width".to_owned(), Value::Number(Number::new(20)),),
+                        ("height".to_owned(), Value::Number(Number::new(5)),),
+                        ("name".to_owned(), Value::String("The Room".to_owned()),),
                     ]
                     .into_iter()
                     .collect(),
-                ),
-                Value::Map(
+                }),
+                Value::Struct(
                     vec![
+                        ("width".to_owned(), Value::Number(Number::new(10.0)),),
+                        ("height".to_owned(), Value::Number(Number::new(10.0)),),
+                        ("name".to_owned(), Value::String("Another room".to_owned()),),
                         (
-                            Value::String("width".to_owned()),
-                            Value::Number(Number::new(10.0)),
-                        ),
-                        (
-                            Value::String("height".to_owned()),
-                            Value::Number(Number::new(10.0)),
-                        ),
-                        (
-                            Value::String("name".to_owned()),
-                            Value::String("Another room".to_owned()),
-                        ),
-                        (
-                            Value::String("enemy_levels".to_owned()),
+                            "enemy_levels".to_owned(),
                             Value::Map(
                                 vec![
                                     (

@@ -22,6 +22,7 @@ fn map() {
 }
 
 #[test]
+#[allow(clippy::approx_constant)]
 fn number() {
     assert_eq!("42".parse(), Ok(Value::Number(Number::new(42))));
     assert_eq!(

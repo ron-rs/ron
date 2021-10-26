@@ -11,6 +11,7 @@ impl Serialize for Value {
             Value::Bool(b) => serializer.serialize_bool(b),
             Value::Char(c) => serializer.serialize_char(c),
             Value::Map(ref m) => Serialize::serialize(m, serializer),
+            Value::Struct(ref s) => Serialize::serialize(s, serializer),
             Value::Number(Number::Float(ref f)) => serializer.serialize_f64(f.get()),
             Value::Number(Number::Integer(i)) => serializer.serialize_i64(i),
             Value::Option(Some(ref o)) => serializer.serialize_some(o.as_ref()),

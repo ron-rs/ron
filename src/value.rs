@@ -138,6 +138,130 @@ pub enum Number {
     Float(Float),
 }
 
+/// A `Struct` to `Value` map.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct Struct {
+    pub name: Option<String>,
+    pub fields: StructInner,
+}
+
+impl Struct {
+    /// Creates a new, empty `Struct`.
+    pub fn new(name: Option<String>) -> Struct {
+        Struct {
+            name,
+            fields: Default::default(),
+        }
+    }
+
+    /// Returns the number of elements in the map.
+    pub fn len(&self) -> usize {
+        self.fields.len()
+    }
+
+    /// Returns `true` if `self.len() == 0`, `false` otherwise.
+    pub fn is_empty(&self) -> usize {
+        self.fields.len()
+    }
+
+    /// Inserts a new element, returning the previous element with this `key` if
+    /// there was any.
+    pub fn insert(&mut self, key: String, value: Value) -> Option<Value> {
+        self.fields.insert(key, value)
+    }
+
+    /// Removes an element by its `key`.
+    pub fn remove(&mut self, key: &str) -> Option<Value> {
+        self.fields.remove(key)
+    }
+
+    /// Iterate all key-value pairs.
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &Value)> + DoubleEndedIterator {
+        self.fields.iter()
+    }
+
+    /// Iterate all key-value pairs mutably.
+    pub fn iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&String, &mut Value)> + DoubleEndedIterator {
+        self.fields.iter_mut()
+    }
+
+    /// Iterate all keys.
+    pub fn keys(&self) -> impl Iterator<Item = &String> + DoubleEndedIterator {
+        self.fields.keys()
+    }
+
+    /// Iterate all values.
+    pub fn values(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
+        self.fields.values()
+    }
+
+    /// Iterate all values mutably.
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> + DoubleEndedIterator {
+        self.fields.values_mut()
+    }
+}
+
+impl FromIterator<(String, Value)> for Struct {
+    fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
+        Struct {
+            name: None,
+            fields: StructInner::from_iter(iter),
+        }
+    }
+}
+
+/// Note: equality is only given if both values and order of values match
+impl Eq for Struct {}
+
+impl Hash for Struct {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.iter().for_each(|x| x.hash(state));
+    }
+}
+
+impl Index<&str> for Struct {
+    type Output = Value;
+
+    fn index(&self, index: &str) -> &Self::Output {
+        &self.fields[index]
+    }
+}
+
+impl IndexMut<&str> for Struct {
+    fn index_mut(&mut self, index: &str) -> &mut Self::Output {
+        self.fields.get_mut(index).expect("no entry found for key")
+    }
+}
+
+impl Ord for Struct {
+    fn cmp(&self, other: &Struct) -> Ordering {
+        self.iter().cmp(other.iter())
+    }
+}
+
+/// Note: equality is only given if both values and order of values match
+impl PartialEq for Struct {
+    fn eq(&self, other: &Struct) -> bool {
+        self.iter().zip(other.iter()).all(|(a, b)| a == b) && self.name == other.name
+    }
+}
+
+impl PartialOrd for Struct {
+    fn partial_cmp(&self, other: &Struct) -> Option<Ordering> {
+        match self.name.cmp(&other.name) {
+            Ordering::Equal => self.iter().partial_cmp(other.iter()),
+            o => Some(o),
+        }
+    }
+}
+
+#[cfg(not(feature = "indexmap"))]
+type StructInner = std::collections::BTreeMap<String, Value>;
+#[cfg(feature = "indexmap")]
+type StructInner = indexmap::IndexMap<String, Value>;
+
 /// A wrapper for `f64`, which guarantees that the inner value
 /// is finite and thus implements `Eq`, `Hash` and `Ord`.
 #[derive(Copy, Clone, Debug)]
@@ -319,6 +443,7 @@ pub enum Value {
     Bool(bool),
     Char(char),
     Map(Map),
+    Struct(Struct),
     Number(Number),
     Option(Option<Box<Value>>),
     String(String),
@@ -357,6 +482,10 @@ impl<'de> Deserializer<'de> for Value {
             Value::Map(m) => visitor.visit_map(MapAccessor {
                 keys: m.keys().cloned().rev().collect(),
                 values: m.values().cloned().rev().collect(),
+            }),
+            Value::Struct(s) => visitor.visit_map(StructAccessor {
+                fields: s.keys().cloned().rev().collect(),
+                values: s.values().cloned().rev().collect(),
             }),
             Value::Number(Number::Float(ref f)) => visitor.visit_f64(f.get()),
             Value::Number(Number::Integer(i)) => visitor.visit_i64(i),
@@ -450,6 +579,36 @@ impl<'de> MapAccess<'de> for MapAccessor {
         self.keys
             .pop()
             .map_or(Ok(None), |v| seed.deserialize(v).map(Some))
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        // The `Vec` is reversed, so we can pop to get the originally first element
+        self.values
+            .pop()
+            .map(|v| seed.deserialize(v))
+            .expect("Contract violation")
+    }
+}
+
+struct StructAccessor {
+    fields: Vec<String>,
+    values: Vec<Value>,
+}
+
+impl<'de> MapAccess<'de> for StructAccessor {
+    type Error = RonError;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        // The `Vec` is reversed, so we can pop to get the originally first element
+        self.fields
+            .pop()
+            .map_or(Ok(None), |v| seed.deserialize(Value::String(v)).map(Some))
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
