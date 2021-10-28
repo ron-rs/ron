@@ -17,7 +17,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    let mut s = Serializer::new(writer, None, false)?;
+    let mut s = Serializer::new(writer, None)?;
     value.serialize(&mut s)
 }
 
@@ -27,7 +27,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    let mut s = Serializer::new(writer, Some(config), false)?;
+    let mut s = Serializer::new(writer, Some(config))?;
     value.serialize(&mut s)
 }
 
@@ -40,7 +40,7 @@ where
     T: ?Sized + Serialize,
 {
     let buf = Vec::new();
-    let mut s = Serializer::new(buf, None, false)?;
+    let mut s = Serializer::new(buf, None)?;
     value.serialize(&mut s)?;
     Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
 }
@@ -51,7 +51,7 @@ where
     T: ?Sized + Serialize,
 {
     let buf = Vec::new();
-    let mut s = Serializer::new(buf, Some(config), false)?;
+    let mut s = Serializer::new(buf, Some(config))?;
     value.serialize(&mut s)?;
     Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
 }
@@ -75,6 +75,7 @@ struct Pretty {
 ///     .indentor("\t".to_owned());
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct PrettyConfig {
     /// Limit the pretty-ness up to the given depth.
     #[serde(default = "default_depth_limit")]
@@ -85,6 +86,9 @@ pub struct PrettyConfig {
     /// Indentation string
     #[serde(default = "default_indentor")]
     pub indentor: String,
+    // Whether to emit struct names
+    #[serde(default = "default_struct_names")]
+    pub struct_names: bool,
     /// Separate tuple members with indentation
     #[serde(default = "default_separate_tuple_members")]
     pub separate_tuple_members: bool,
@@ -96,9 +100,6 @@ pub struct PrettyConfig {
     pub decimal_floats: bool,
     /// Enable extensions. Only configures 'implicit_some' for now.
     pub extensions: Extensions,
-    /// Private field to ensure adding a field is non-breaking.
-    #[serde(skip)]
-    _future_proof: (),
 }
 
 impl PrettyConfig {
@@ -133,6 +134,15 @@ impl PrettyConfig {
     /// Default: 4 spaces
     pub fn indentor(mut self, indentor: String) -> Self {
         self.indentor = indentor;
+
+        self
+    }
+
+    /// Configures whether to emit struct names.
+    ///
+    /// Default: `false`
+    pub fn struct_names(mut self, struct_names: bool) -> Self {
+        self.struct_names = struct_names;
 
         self
     }
@@ -201,6 +211,10 @@ fn default_indentor() -> String {
     "    ".to_string()
 }
 
+fn default_struct_names() -> bool {
+    false
+}
+
 fn default_separate_tuple_members() -> bool {
     false
 }
@@ -215,11 +229,11 @@ impl Default for PrettyConfig {
             depth_limit: default_depth_limit(),
             new_line: default_new_line(),
             indentor: default_indentor(),
+            struct_names: default_struct_names(),
             separate_tuple_members: default_separate_tuple_members(),
             enumerate_arrays: default_enumerate_arrays(),
             extensions: Extensions::default(),
             decimal_floats: default_decimal_floats(),
-            _future_proof: (),
         }
     }
 }
@@ -231,7 +245,6 @@ impl Default for PrettyConfig {
 pub struct Serializer<W: io::Write> {
     output: W,
     pretty: Option<(PrettyConfig, Pretty)>,
-    struct_names: bool,
     is_empty: Option<bool>,
 }
 
@@ -239,7 +252,7 @@ impl<W: io::Write> Serializer<W> {
     /// Creates a new `Serializer`.
     ///
     /// Most of the time you can just use `to_string` or `to_string_pretty`.
-    pub fn new(mut writer: W, config: Option<PrettyConfig>, struct_names: bool) -> Result<Self> {
+    pub fn new(mut writer: W, config: Option<PrettyConfig>) -> Result<Self> {
         if let Some(conf) = &config {
             if conf.extensions.contains(Extensions::IMPLICIT_SOME) {
                 writer.write_all(b"#![enable(implicit_some)]")?;
@@ -257,7 +270,6 @@ impl<W: io::Write> Serializer<W> {
                     },
                 )
             }),
-            struct_names,
             is_empty: None,
         })
     }
@@ -348,6 +360,13 @@ impl<W: io::Write> Serializer<W> {
         }
         self.output.write_all(name.as_bytes())?;
         Ok(())
+    }
+
+    fn struct_names(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map(|(pc, _)| pc.struct_names)
+            .unwrap_or(false)
     }
 }
 
@@ -479,7 +498,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_unit_struct(self, name: &'static str) -> Result<()> {
-        if self.struct_names {
+        if self.struct_names() {
             self.write_identifier(name)?;
 
             Ok(())
@@ -498,7 +517,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
-        if self.struct_names {
+        if self.struct_names() {
             self.write_identifier(name)?;
         }
 
@@ -566,7 +585,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        if self.struct_names {
+        if self.struct_names() {
             self.write_identifier(name)?;
         }
 
@@ -611,7 +630,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        if self.struct_names {
+        if self.struct_names() {
             self.write_identifier(name)?;
         }
         self.output.write_all(b"(")?;
