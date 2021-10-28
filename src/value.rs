@@ -37,8 +37,8 @@ impl Map {
     }
 
     /// Returns `true` if `self.len() == 0`, `false` otherwise.
-    pub fn is_empty(&self) -> usize {
-        self.0.len()
+    pub fn is_empty(&self) -> bool {
+        self.0.len() == 0
     }
 
     /// Inserts a new element, returning the previous element with this `key` if
