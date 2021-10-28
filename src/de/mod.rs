@@ -3,6 +3,7 @@ pub use crate::error::{Error, ErrorCode, Result};
 pub use crate::parse::Position;
 
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
+use std::cell::RefCell;
 use std::{borrow::Cow, io, str};
 
 use self::{id::IdDeserializer, tag::TagDeserializer};
@@ -24,6 +25,7 @@ mod value;
 pub struct Deserializer<'de> {
     bytes: Bytes<'de>,
     newtype_variant: bool,
+    struct_name: Option<String>,
 }
 
 impl<'de> Deserializer<'de> {
@@ -37,6 +39,7 @@ impl<'de> Deserializer<'de> {
         Ok(Deserializer {
             bytes: Bytes::new(input)?,
             newtype_variant: false,
+            struct_name: None,
         })
     }
 
@@ -150,14 +153,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         // `identifier` does not change state if it fails
         let ident = self.bytes.identifier().ok();
 
-        if ident.is_some() {
+        if let Some(ident) = ident {
             self.bytes.skip_ws()?;
-
+            self.struct_name = Some(String::from_utf8(ident.to_vec()).unwrap());
             return self.handle_any_struct(visitor);
         }
 
         match self.bytes.peek_or_eof()? {
-            b'(' => self.handle_any_struct(visitor),
+            b'(' => {
+                self.struct_name = None;
+                self.handle_any_struct(visitor)
+            }
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
             b'0'..=b'9' | b'+' | b'-' => {
@@ -415,7 +421,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume("[") {
-            let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
+            let value = visitor.visit_seq(CommaSeparated::new(b']', None, &mut self))?;
             self.bytes.comma()?;
 
             if self.bytes.consume("]") {
@@ -436,7 +442,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
-            let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
+            let value = visitor.visit_seq(CommaSeparated::new(b')', None, &mut self))?;
             self.bytes.comma()?;
 
             if old_newtype_variant || self.bytes.consume(")") {
@@ -470,7 +476,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.bytes.consume("{") {
-            let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
+            let value = visitor.visit_map(CommaSeparated::new(b'}', None, &mut self))?;
             self.bytes.comma()?;
 
             if self.bytes.consume("}") {
@@ -502,7 +508,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
-            let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
+            let value = visitor.visit_map(CommaSeparated::new(
+                b')',
+                Some((
+                    self.struct_name
+                        .as_ref()
+                        .map(|s| s.as_bytes().into())
+                        .unwrap_or_default(),
+                    RefCell::new(0),
+                )),
+                &mut self,
+            ))?;
             self.bytes.comma()?;
 
             if old_newtype_variant || self.bytes.consume(")") {
@@ -546,14 +562,26 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 struct CommaSeparated<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
+    // If we are parsing a struct, this is set to the name of the struct and a counter
+    // that indicates how many bytes of the name have been read by the ValueVisitor
+    // constructing the Map/Struct.
+    // Serde does not provide a way to distinguish between structs and maps. However,
+    // we can abuse multiple calls to the `size_hint` method to access this information
+    // one byte at a time.
+    struct_name: Option<(Vec<u8>, RefCell<usize>)>,
     terminator: u8,
     had_comma: bool,
 }
 
 impl<'a, 'de> CommaSeparated<'a, 'de> {
-    fn new(terminator: u8, de: &'a mut Deserializer<'de>) -> Self {
+    fn new(
+        terminator: u8,
+        struct_name: Option<(Vec<u8>, RefCell<usize>)>,
+        de: &'a mut Deserializer<'de>,
+    ) -> Self {
         CommaSeparated {
             de,
+            struct_name,
             terminator,
             had_comma: true,
         }
@@ -624,6 +652,22 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
             Ok(res)
         } else {
             self.err(ErrorCode::ExpectedMapColon)
+        }
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        // trolololololol
+        match &self.struct_name {
+            Some((bytes, offset)) if *offset.borrow() <= bytes.len() => {
+                let i = *offset.borrow();
+                *offset.borrow_mut() += 1;
+                if bytes.len() == i {
+                    Some(0)
+                } else {
+                    Some(bytes[i] as usize)
+                }
+            }
+            _ => None,
         }
     }
 }
