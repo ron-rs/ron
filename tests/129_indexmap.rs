@@ -30,7 +30,7 @@ tasks: {
                     Value::String("debug message".to_string())
                 );
                 assert_eq!(
-                    *map.keys().skip(1).next().unwrap(),
+                    *map.keys().nth(1).unwrap(),
                     Value::String("shell command".to_string())
                 );
             }
@@ -65,7 +65,7 @@ tasks: {
                     Value::String("shell command".to_string())
                 );
                 assert_eq!(
-                    *map.keys().skip(1).next().unwrap(),
+                    *map.keys().nth(1).unwrap(),
                     Value::String("debug message".to_string())
                 );
             }

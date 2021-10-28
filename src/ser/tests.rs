@@ -89,10 +89,10 @@ fn test_map() {
     map.insert((false, false), 123);
 
     let s = to_string(&map).unwrap();
-    s.starts_with("{");
+    s.starts_with('{');
     s.contains("(true,false):4");
     s.contains("(false,false):123");
-    s.ends_with("}");
+    s.ends_with('}');
 }
 
 #[test]
