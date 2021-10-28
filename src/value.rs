@@ -23,7 +23,7 @@ use crate::de::{Error as RonError, Result};
 /// The latter can be used by enabling the `indexmap` feature. This can be used
 /// to preserve the order of the parsed map.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Map(MapInner);
+pub struct Map(pub MapInner);
 
 impl Map {
     /// Creates a new, empty `Map`.
@@ -160,8 +160,8 @@ impl Struct {
     }
 
     /// Returns `true` if `self.len() == 0`, `false` otherwise.
-    pub fn is_empty(&self) -> usize {
-        self.fields.len()
+    pub fn is_empty(&self) -> bool {
+        self.fields.is_empty()
     }
 
     /// Inserts a new element, returning the previous element with this `key` if

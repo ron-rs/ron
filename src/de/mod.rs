@@ -1,7 +1,6 @@
 /// Deserialization module.
 pub use crate::error::{Error, ErrorCode, Result};
 pub use crate::parse::Position;
-use crate::{Map, Value};
 
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 use std::cell::RefCell;

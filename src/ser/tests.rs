@@ -1,4 +1,7 @@
 use super::to_string;
+use crate::ser::PrettyConfig;
+use crate::value::Struct;
+use crate::{Map, Number, Value};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -143,4 +146,68 @@ fn rename() {
 
     assert_eq!(to_string(&Foo::D2).unwrap(), "r#2d");
     assert_eq!(to_string(&Foo::TriangleList).unwrap(), "r#triangle-list");
+}
+
+#[test]
+fn test_value_to_string() {
+    assert_eq!(
+        Value::Struct(Struct {
+            name: Some("Point".to_owned()),
+            fields: [
+                ("x".to_owned(), Value::Number(Number::from(16.3))),
+                ("y".to_owned(), Value::Number(Number::from(3.3))),
+            ]
+            .iter()
+            .cloned()
+            .collect()
+        })
+        .to_string_pretty(PrettyConfig::default().struct_names(true)),
+        Ok("Point(\n    x: 16.3,\n    y: 3.3,\n)".to_string())
+    )
+}
+
+#[test]
+fn test_nested_value_to_string() {
+    assert_eq!(
+        Value::Struct(Struct {
+            name: Some("Point".to_owned()),
+            fields: [
+                (
+                    "x".to_owned(),
+                    Value::Seq(vec![Value::Map(Map(vec![(
+                        Value::String("a".to_owned()),
+                        Value::Struct(Struct {
+                            name: Some("InnerStruct".to_owned()),
+                            fields: [
+                                ("x".to_owned(), Value::Number(Number::from(16.3))),
+                                ("y".to_owned(), Value::Number(Number::from(3.3))),
+                            ]
+                            .iter()
+                            .cloned()
+                            .collect()
+                        })
+                    ),]
+                    .into_iter()
+                    .collect()))])
+                ),
+                ("y".to_owned(), Value::Number(Number::from(3.3))),
+            ]
+            .iter()
+            .cloned()
+            .collect()
+        })
+        .to_string_pretty(PrettyConfig::default().struct_names(true)),
+        Ok("Point(
+    x: [
+        {
+            \"a\": InnerStruct(
+                x: 16.3,
+                y: 3.3,
+            ),
+        },
+    ],
+    y: 3.3,
+)"
+        .to_string())
+    );
 }

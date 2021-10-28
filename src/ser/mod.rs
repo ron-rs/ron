@@ -1,6 +1,7 @@
 use serde::{ser, Deserialize, Serialize};
 use std::io;
 
+use crate::Value;
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
@@ -56,6 +57,22 @@ where
     Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
 }
 
+impl Value {
+    pub fn to_string(&self) -> Result<String> {
+        let buf = Vec::new();
+        let mut s = Serializer::new(buf, None)?;
+        self.enhanced_serialize(&mut s)?;
+        Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
+    }
+
+    pub fn to_string_pretty(&self, config: PrettyConfig) -> Result<String> {
+        let buf = Vec::new();
+        let mut s = Serializer::new(buf, Some(config))?;
+        self.enhanced_serialize(&mut s)?;
+        Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
+    }
+}
+
 /// Pretty serializer state
 struct Pretty {
     indent: usize,
@@ -86,7 +103,7 @@ pub struct PrettyConfig {
     /// Indentation string
     #[serde(default = "default_indentor")]
     pub indentor: String,
-    // Whether to emit struct names
+    /// Whether to emit struct names
     #[serde(default = "default_struct_names")]
     pub struct_names: bool,
     /// Separate tuple members with indentation
@@ -368,6 +385,21 @@ impl<W: io::Write> Serializer<W> {
             .map(|(pc, _)| pc.struct_names)
             .unwrap_or(false)
     }
+
+    fn serialize_struct_dyn<'b>(&mut self, name: &'b str, len: usize) -> Result<Compound<W>> {
+        if self.struct_names() {
+            self.write_identifier(name)?;
+        }
+        self.output.write_all(b"(")?;
+
+        self.is_empty = Some(len == 0);
+        self.start_indent()?;
+
+        Ok(Compound {
+            ser: self,
+            state: State::First,
+        })
+    }
 }
 
 impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
@@ -631,18 +663,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        if self.struct_names() {
-            self.write_identifier(name)?;
-        }
-        self.output.write_all(b"(")?;
-
-        self.is_empty = Some(len == 0);
-        self.start_indent()?;
-
-        Ok(Compound {
-            ser: self,
-            state: State::First,
-        })
+        self.serialize_struct_dyn(name, len)
     }
 
     fn serialize_struct_variant(
@@ -862,6 +883,87 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
         }
         self.ser.end_indent()?;
         self.ser.output.write_all(b"}")?;
+        Ok(())
+    }
+}
+
+impl<'a, W: io::Write> Compound<'a, W> {
+    fn serialize_field_dyn(&mut self, key: &str, value: &Value) -> Result<()> {
+        if let State::First = self.state {
+            self.state = State::Rest;
+        } else {
+            self.ser.output.write_all(b",")?;
+
+            if let Some((ref config, ref pretty)) = self.ser.pretty {
+                if pretty.indent <= config.depth_limit {
+                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                }
+            }
+        }
+        self.ser.indent()?;
+        self.ser.write_identifier(key)?;
+        self.ser.output.write_all(b":")?;
+
+        if self.ser.is_pretty() {
+            self.ser.output.write_all(b" ")?;
+        }
+
+        value.enhanced_serialize(&mut *self.ser)?;
+
+        Ok(())
+    }
+
+    fn serialize_element_dyn(&mut self, value: &Value) -> Result<()> {
+        if let State::First = self.state {
+            self.state = State::Rest;
+        } else {
+            self.ser.output.write_all(b",")?;
+            if let Some((ref config, ref mut pretty)) = self.ser.pretty {
+                if pretty.indent <= config.depth_limit {
+                    if config.enumerate_arrays {
+                        assert!(config.new_line.contains('\n'));
+                        let index = pretty.sequence_index.last_mut().unwrap();
+                        //TODO: when /**/ comments are supported, prepend the index
+                        // to an element instead of appending it.
+                        write!(self.ser.output, "// [{}]", index).unwrap();
+                        *index += 1;
+                    }
+                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                }
+            }
+        }
+        self.ser.indent()?;
+
+        value.enhanced_serialize(&mut *self.ser)?;
+
+        Ok(())
+    }
+
+    fn serialize_key_dyn(&mut self, key: &Value) -> Result<()> {
+        if let State::First = self.state {
+            self.state = State::Rest;
+        } else {
+            self.ser.output.write_all(b",")?;
+
+            if let Some((ref config, ref pretty)) = self.ser.pretty {
+                if pretty.indent <= config.depth_limit {
+                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                }
+            }
+        }
+        self.ser.indent()?;
+        key.enhanced_serialize(&mut *self.ser)
+    }
+
+    fn serialize_value_dyn(&mut self, value: &Value) -> Result<()> {
+        self.ser.output.write_all(b":")?;
+
+        if self.ser.is_pretty() {
+            self.ser.output.write_all(b" ")?;
+        }
+
+        value.enhanced_serialize(&mut *self.ser)?;
+
         Ok(())
     }
 }

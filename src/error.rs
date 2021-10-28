@@ -106,7 +106,6 @@ impl fmt::Display for ErrorCode {
             ErrorCode::UnderscoreAtBeginning => f.write_str("Found underscore at the beginning"),
             ErrorCode::UnexpectedByte(_) => f.write_str("Unexpected byte"),
             ErrorCode::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
-            _ => f.write_str("Unknown ErrorCode"),
         }
     }
 }
