@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 - Add `struct_names` option to `PrettyConfig`
+- Fix newtype variant unwrapping around enum, seq and map ([#331](https://github.com/ron-rs/ron/pull/331))
 
 ## [0.7.0] - 2021-10-22
 
