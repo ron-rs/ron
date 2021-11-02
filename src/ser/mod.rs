@@ -261,6 +261,10 @@ impl<W: io::Write> Serializer<W> {
                 writer.write_all(b"#![enable(implicit_some)]")?;
                 writer.write_all(conf.new_line.as_bytes())?;
             };
+            if conf.extensions.contains(Extensions::UNWRAP_NEWTYPES) {
+                writer.write_all(b"#![enable(unwrap_newtypes)]")?;
+                writer.write_all(conf.new_line.as_bytes())?;
+            };
         };
         Ok(Serializer {
             output: writer,
@@ -521,6 +525,10 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
+        if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) {
+            return value.serialize(&mut *self);
+        }
+
         if self.struct_names() {
             self.write_identifier(name)?;
         }
