@@ -129,6 +129,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        // Newtype variants can only be unwrapped if we receive information
+        //  about the wrapped type - with `deserialize_any` we don't
+        self.newtype_variant = false;
+
         if self.bytes.consume_ident("true") {
             return visitor.visit_bool(true);
         } else if self.bytes.consume_ident("false") {
@@ -414,6 +418,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        self.newtype_variant = false;
+
         if self.bytes.consume("[") {
             let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
             self.bytes.comma()?;
@@ -469,6 +475,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        self.newtype_variant = false;
+
         if self.bytes.consume("{") {
             let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
             self.bytes.comma()?;
@@ -524,6 +532,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        self.newtype_variant = false;
+
         visitor.visit_enum(Enum::new(self))
     }
 
