@@ -100,6 +100,8 @@ pub struct PrettyConfig {
     /// Enable extensions. Only configures 'implicit_some',
     ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
     pub extensions: Extensions,
+    #[serde(default = "default_output_extensions")]
+    pub output_extensions: bool,
     /// Private field to ensure adding a field is non-breaking.
     #[serde(skip)]
     _future_proof: (),
@@ -191,6 +193,16 @@ impl PrettyConfig {
 
         self
     }
+
+    /// Configures whether the extensions are included in the output as
+    ///  `#![enable(..)]` attributes
+    ///
+    /// Default: `true`
+    pub fn output_extensions(mut self, output_extensions: bool) -> Self {
+        self.output_extensions = output_extensions;
+
+        self
+    }
 }
 
 fn default_depth_limit() -> usize {
@@ -226,6 +238,10 @@ fn default_enumerate_arrays() -> bool {
     false
 }
 
+fn default_output_extensions() -> bool {
+    true
+}
+
 impl Default for PrettyConfig {
     fn default() -> Self {
         PrettyConfig {
@@ -237,6 +253,7 @@ impl Default for PrettyConfig {
             enumerate_arrays: default_enumerate_arrays(),
             extensions: Extensions::default(),
             decimal_floats: default_decimal_floats(),
+            output_extensions: default_output_extensions(),
             _future_proof: (),
         }
     }
@@ -259,21 +276,23 @@ impl<W: io::Write> Serializer<W> {
     /// Most of the time you can just use `to_string` or `to_string_pretty`.
     pub fn new(mut writer: W, config: Option<PrettyConfig>) -> Result<Self> {
         if let Some(conf) = &config {
-            if conf.extensions.contains(Extensions::IMPLICIT_SOME) {
-                writer.write_all(b"#![enable(implicit_some)]")?;
-                writer.write_all(conf.new_line.as_bytes())?;
-            };
-            if conf.extensions.contains(Extensions::UNWRAP_NEWTYPES) {
-                writer.write_all(b"#![enable(unwrap_newtypes)]")?;
-                writer.write_all(conf.new_line.as_bytes())?;
-            };
-            if conf
-                .extensions
-                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
-            {
-                writer.write_all(b"#![enable(unwrap_variant_newtypes)]")?;
-                writer.write_all(conf.new_line.as_bytes())?;
-            };
+            if conf.output_extensions {
+                if conf.extensions.contains(Extensions::IMPLICIT_SOME) {
+                    writer.write_all(b"#![enable(implicit_some)]")?;
+                    writer.write_all(conf.new_line.as_bytes())?;
+                };
+                if conf.extensions.contains(Extensions::UNWRAP_NEWTYPES) {
+                    writer.write_all(b"#![enable(unwrap_newtypes)]")?;
+                    writer.write_all(conf.new_line.as_bytes())?;
+                };
+                if conf
+                    .extensions
+                    .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
+                {
+                    writer.write_all(b"#![enable(unwrap_variant_newtypes)]")?;
+                    writer.write_all(conf.new_line.as_bytes())?;
+                };
+            }
         };
         Ok(Serializer {
             output: writer,
