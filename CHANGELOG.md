@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 - Fix newtype variant unwrapping around enum, seq and map ([#331](https://github.com/ron-rs/ron/pull/331))
+- Added `to_{string,writer}_advanced` functions
 
 ## [0.7.0] - 2021-10-22
 
