@@ -17,8 +17,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    let mut s = Serializer::new(writer, None, false)?;
-    value.serialize(&mut s)
+    to_writer_advanced(writer, value, None, false)
 }
 
 /// Serializes `value` into `writer` in a pretty way.
@@ -27,7 +26,21 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    let mut s = Serializer::new(writer, Some(config), false)?;
+    to_writer_advanced(writer, value, Some(config), false)
+}
+
+/// Serializes `value` into `writer` with the given options.
+pub fn to_writer_advanced<W, T>(
+    writer: W,
+    value: &T,
+    pretty_config: Option<PrettyConfig>,
+    struct_names: bool,
+) -> Result<()>
+where
+    W: io::Write,
+    T: ?Sized + Serialize,
+{
+    let mut s = Serializer::new(writer, pretty_config, struct_names)?;
     value.serialize(&mut s)
 }
 
@@ -39,10 +52,7 @@ pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    let buf = Vec::new();
-    let mut s = Serializer::new(buf, None, false)?;
-    value.serialize(&mut s)?;
-    Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
+    to_string_advanced(value, None, false)
 }
 
 /// Serializes `value` in the recommended RON layout in a pretty way.
@@ -50,10 +60,22 @@ pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
+    to_string_advanced(value, Some(config), false)
+}
+
+/// Serializes `value` with the given options and returns it as a string.
+pub fn to_string_advanced<T>(
+    value: &T,
+    pretty_config: Option<PrettyConfig>,
+    struct_names: bool,
+) -> Result<String>
+where
+    T: ?Sized + Serialize,
+{
     let buf = Vec::new();
-    let mut s = Serializer::new(buf, Some(config), false)?;
+    let mut s = Serializer::new(buf, pretty_config, struct_names)?;
     value.serialize(&mut s)?;
-    Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
+    Ok(String::from_utf8(s.output).expect("RON should be UTF-8"))
 }
 
 /// Pretty serializer state
