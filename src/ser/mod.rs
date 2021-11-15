@@ -94,7 +94,8 @@ pub struct PrettyConfig {
     /// Always include the decimal in floats
     #[serde(default = "default_decimal_floats")]
     pub decimal_floats: bool,
-    /// Enable extensions. Only configures 'implicit_some' for now.
+    /// Enable extensions. Only configures 'implicit_some'
+    ///  and 'unwrap_newtypes' for now.
     pub extensions: Extensions,
     /// Private field to ensure adding a field is non-breaking.
     #[serde(skip)]
@@ -243,6 +244,10 @@ impl<W: io::Write> Serializer<W> {
         if let Some(conf) = &config {
             if conf.extensions.contains(Extensions::IMPLICIT_SOME) {
                 writer.write_all(b"#![enable(implicit_some)]")?;
+                writer.write_all(conf.new_line.as_bytes())?;
+            };
+            if conf.extensions.contains(Extensions::UNWRAP_NEWTYPES) {
+                writer.write_all(b"#![enable(unwrap_newtypes)]")?;
                 writer.write_all(conf.new_line.as_bytes())?;
             };
         };
@@ -499,6 +504,10 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
+        if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) {
+            return value.serialize(&mut *self);
+        }
+
         if self.struct_names {
             self.write_identifier(name)?;
         }
