@@ -97,8 +97,8 @@ pub struct PrettyConfig {
     /// Always include the decimal in floats
     #[serde(default = "default_decimal_floats")]
     pub decimal_floats: bool,
-    /// Enable extensions. Only configures 'implicit_some'
-    ///  and 'unwrap_newtypes' for now.
+    /// Enable extensions. Only configures 'implicit_some',
+    ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
     pub extensions: Extensions,
     /// Private field to ensure adding a field is non-breaking.
     #[serde(skip)]
