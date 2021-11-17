@@ -97,8 +97,8 @@ pub struct PrettyConfig {
     /// Always include the decimal in floats
     #[serde(default = "default_decimal_floats")]
     pub decimal_floats: bool,
-    /// Enable extensions. Only configures 'implicit_some'
-    ///  and 'unwrap_newtypes' for now.
+    /// Enable extensions. Only configures 'implicit_some',
+    ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
     pub extensions: Extensions,
     /// Private field to ensure adding a field is non-breaking.
     #[serde(skip)]
@@ -250,6 +250,7 @@ pub struct Serializer<W: io::Write> {
     output: W,
     pretty: Option<(PrettyConfig, Pretty)>,
     is_empty: Option<bool>,
+    newtype_variant: bool,
 }
 
 impl<W: io::Write> Serializer<W> {
@@ -266,6 +267,13 @@ impl<W: io::Write> Serializer<W> {
                 writer.write_all(b"#![enable(unwrap_newtypes)]")?;
                 writer.write_all(conf.new_line.as_bytes())?;
             };
+            if conf
+                .extensions
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
+            {
+                writer.write_all(b"#![enable(unwrap_variant_newtypes)]")?;
+                writer.write_all(conf.new_line.as_bytes())?;
+            };
         };
         Ok(Serializer {
             output: writer,
@@ -279,6 +287,7 @@ impl<W: io::Write> Serializer<W> {
                 )
             }),
             is_empty: None,
+            newtype_variant: false,
         })
     }
 
@@ -501,13 +510,17 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_unit(self) -> Result<()> {
-        self.output.write_all(b"()")?;
+        if !self.newtype_variant {
+            self.output.write_all(b"()")?;
+        }
+
+        self.newtype_variant = false;
 
         Ok(())
     }
 
     fn serialize_unit_struct(self, name: &'static str) -> Result<()> {
-        if self.struct_names() {
+        if self.struct_names() && !self.newtype_variant {
             self.write_identifier(name)?;
 
             Ok(())
@@ -526,7 +539,9 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
-        if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) {
+        if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) || self.newtype_variant {
+            self.newtype_variant = false;
+
             return value.serialize(&mut *self);
         }
 
@@ -553,13 +568,21 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
+        self.newtype_variant = self
+            .extensions()
+            .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
+
         value.serialize(&mut *self)?;
+
+        self.newtype_variant = false;
 
         self.output.write_all(b")")?;
         Ok(())
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
+        self.newtype_variant = false;
+
         self.output.write_all(b"[")?;
 
         if let Some(len) = len {
@@ -575,11 +598,17 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         Ok(Compound {
             ser: self,
             state: State::First,
+            newtype_variant: false,
         })
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
-        self.output.write_all(b"(")?;
+        let old_newtype_variant = self.newtype_variant;
+        self.newtype_variant = false;
+
+        if !old_newtype_variant {
+            self.output.write_all(b"(")?;
+        }
 
         if self.separate_tuple_members() {
             self.is_empty = Some(len == 0);
@@ -590,6 +619,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         Ok(Compound {
             ser: self,
             state: State::First,
+            newtype_variant: old_newtype_variant,
         })
     }
 
@@ -598,7 +628,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        if self.struct_names() {
+        if self.struct_names() && !self.newtype_variant {
             self.write_identifier(name)?;
         }
 
@@ -612,6 +642,8 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
+        self.newtype_variant = false;
+
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
@@ -624,10 +656,13 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         Ok(Compound {
             ser: self,
             state: State::First,
+            newtype_variant: false,
         })
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+        self.newtype_variant = false;
+
         self.output.write_all(b"{")?;
 
         if let Some(len) = len {
@@ -639,14 +674,20 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         Ok(Compound {
             ser: self,
             state: State::First,
+            newtype_variant: false,
         })
     }
 
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        if self.struct_names() {
-            self.write_identifier(name)?;
+        let old_newtype_variant = self.newtype_variant;
+        self.newtype_variant = false;
+
+        if !old_newtype_variant {
+            if self.struct_names() {
+                self.write_identifier(name)?;
+            }
+            self.output.write_all(b"(")?;
         }
-        self.output.write_all(b"(")?;
 
         self.is_empty = Some(len == 0);
         self.start_indent()?;
@@ -654,6 +695,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         Ok(Compound {
             ser: self,
             state: State::First,
+            newtype_variant: old_newtype_variant,
         })
     }
 
@@ -664,6 +706,8 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
+        self.newtype_variant = false;
+
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
@@ -673,6 +717,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         Ok(Compound {
             ser: self,
             state: State::First,
+            newtype_variant: false,
         })
     }
 }
@@ -684,6 +729,7 @@ pub enum State {
 pub struct Compound<'a, W: io::Write> {
     ser: &'a mut Serializer<W>,
     state: State,
+    newtype_variant: bool,
 }
 
 impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
@@ -734,6 +780,7 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
             pretty.sequence_index.pop();
         }
 
+        // seq always disables `self.newtype_variant`
         self.ser.output.write_all(b"]")?;
         Ok(())
     }
@@ -786,7 +833,9 @@ impl<'a, W: io::Write> ser::SerializeTuple for Compound<'a, W> {
             self.ser.end_indent()?;
         }
 
-        self.ser.output.write_all(b")")?;
+        if !self.newtype_variant {
+            self.ser.output.write_all(b")")?;
+        }
 
         Ok(())
     }
@@ -873,6 +922,7 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
             }
         }
         self.ser.end_indent()?;
+        // map always disables `self.newtype_variant`
         self.ser.output.write_all(b"}")?;
         Ok(())
     }
@@ -920,7 +970,9 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
             }
         }
         self.ser.end_indent()?;
-        self.ser.output.write_all(b")")?;
+        if !self.newtype_variant {
+            self.ser.output.write_all(b")")?;
+        }
         Ok(())
     }
 }

@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 
-use ron::{de::from_str, error::ErrorCode};
-use serde::Deserialize;
+use ron::{
+    de::from_str, error::ErrorCode, extensions::Extensions, ser::to_string_pretty,
+    ser::PrettyConfig,
+};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 enum TestEnum {
     Unit,
     PrimitiveNewtype(String),
@@ -20,22 +23,22 @@ enum TestEnum {
     TupleNewtypeMap(HashMap<u32, Struct>),
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 struct Unit;
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 struct Newtype(i32);
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 struct TupleStruct(u32, bool);
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 struct Struct {
     a: u32,
     b: bool,
 }
 
-#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 enum Enum {
     A,
     B(Struct),
@@ -278,5 +281,128 @@ fn test_deserialise_tuple_newtypes() {
         )
         .unwrap(),
         TestEnum::TupleNewtypeMap(vec![(8, Struct { a: 4, b: false })].into_iter().collect()),
+    );
+}
+
+#[test]
+fn test_serialise_non_newtypes() {
+    assert_eq_serialize_roundtrip(TestEnum::Unit, Extensions::UNWRAP_VARIANT_NEWTYPES);
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::PrimitiveNewtype(String::from("hi")),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::Tuple(4, false),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::Struct { a: 4, b: false },
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+}
+
+#[test]
+fn test_serialise_tuple_newtypes() {
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeUnit(Unit),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeNewtype(Newtype(4)),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeNewtype(Newtype(4)),
+        Extensions::UNWRAP_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeNewtype(Newtype(4)),
+        Extensions::UNWRAP_VARIANT_NEWTYPES | Extensions::UNWRAP_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeTuple((4, false)),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeTupleStruct(TupleStruct(4, false)),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeStruct(Struct { a: 4, b: false }),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeEnum(Enum::A),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeEnum(Enum::B(Struct { a: 4, b: false })),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeEnum(Enum::C(4, false)),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeEnum(Enum::D { a: 4, b: false }),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeOption(None),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeOption(Some(Struct { a: 4, b: false })),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeOption(Some(Struct { a: 4, b: false })),
+        Extensions::IMPLICIT_SOME,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeOption(Some(Struct { a: 4, b: false })),
+        Extensions::UNWRAP_VARIANT_NEWTYPES | Extensions::IMPLICIT_SOME,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeSeq(vec![]),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeSeq(vec![Struct { a: 4, b: false }]),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeMap(vec![].into_iter().collect()),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+    assert_eq_serialize_roundtrip(
+        TestEnum::TupleNewtypeMap(vec![(2, Struct { a: 4, b: false })].into_iter().collect()),
+        Extensions::UNWRAP_VARIANT_NEWTYPES,
+    );
+}
+
+fn assert_eq_serialize_roundtrip<
+    S: Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
+>(
+    value: S,
+    extensions: Extensions,
+) {
+    assert_eq!(
+        from_str::<S>(
+            &to_string_pretty(&value, PrettyConfig::default().extensions(extensions)).unwrap()
+        )
+        .unwrap(),
+        value,
     );
 }
