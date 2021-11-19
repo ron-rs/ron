@@ -8,6 +8,7 @@ use std::{borrow::Cow, io, str};
 use self::{id::IdDeserializer, tag::TagDeserializer};
 use crate::{
     extensions::Extensions,
+    options::Options,
     parse::{AnyNum, Bytes, ParsedStr},
 };
 
@@ -40,6 +41,12 @@ impl<'de> Deserializer<'de> {
         })
     }
 
+    #[must_use]
+    pub fn with_default_extensions(mut self, default_extensions: Extensions) -> Self {
+        self.bytes.exts |= default_extensions;
+        self
+    }
+
     pub fn remainder(&self) -> Cow<'_, str> {
         String::from_utf8_lossy(self.bytes.bytes())
     }
@@ -47,15 +54,12 @@ impl<'de> Deserializer<'de> {
 
 /// A convenience function for reading data from a reader
 /// and feeding into a deserializer.
-pub fn from_reader<R, T>(mut rdr: R) -> Result<T>
+pub fn from_reader<R, T>(rdr: R) -> Result<T>
 where
     R: io::Read,
     T: de::DeserializeOwned,
 {
-    let mut bytes = Vec::new();
-    rdr.read_to_end(&mut bytes)?;
-
-    from_bytes(&bytes)
+    Options::build().from_reader(rdr)
 }
 
 /// A convenience function for building a deserializer
@@ -64,7 +68,7 @@ pub fn from_str<'a, T>(s: &'a str) -> Result<T>
 where
     T: de::Deserialize<'a>,
 {
-    from_bytes(s.as_bytes())
+    Options::build().from_str(s)
 }
 
 /// A convenience function for building a deserializer
@@ -73,12 +77,7 @@ pub fn from_bytes<'a, T>(s: &'a [u8]) -> Result<T>
 where
     T: de::Deserialize<'a>,
 {
-    let mut deserializer = Deserializer::from_bytes(s)?;
-    let t = T::deserialize(&mut deserializer)?;
-
-    deserializer.end()?;
-
-    Ok(t)
+    Options::build().from_bytes(s)
 }
 
 impl<'de> Deserializer<'de> {

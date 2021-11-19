@@ -4,6 +4,7 @@ use std::io;
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
+    options::Options,
     parse::{is_ident_first_char, is_ident_other_char},
 };
 
@@ -17,8 +18,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    let mut s = Serializer::new(writer, None)?;
-    value.serialize(&mut s)
+    Options::build().to_writer(writer, value)
 }
 
 /// Serializes `value` into `writer` in a pretty way.
@@ -27,8 +27,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    let mut s = Serializer::new(writer, Some(config))?;
-    value.serialize(&mut s)
+    Options::build().to_writer_pretty(writer, value, config)
 }
 
 /// Serializes `value` and returns it as string.
@@ -39,10 +38,7 @@ pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    let buf = Vec::new();
-    let mut s = Serializer::new(buf, None)?;
-    value.serialize(&mut s)?;
-    Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
+    Options::build().to_string(value)
 }
 
 /// Serializes `value` in the recommended RON layout in a pretty way.
@@ -50,10 +46,7 @@ pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    let buf = Vec::new();
-    let mut s = Serializer::new(buf, Some(config))?;
-    value.serialize(&mut s)?;
-    Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
+    Options::build().to_string_pretty(value, config)
 }
 
 /// Pretty serializer state
@@ -249,6 +242,7 @@ impl Default for PrettyConfig {
 pub struct Serializer<W: io::Write> {
     output: W,
     pretty: Option<(PrettyConfig, Pretty)>,
+    default_extensions: Extensions,
     is_empty: Option<bool>,
     newtype_variant: bool,
 }
@@ -257,18 +251,30 @@ impl<W: io::Write> Serializer<W> {
     /// Creates a new `Serializer`.
     ///
     /// Most of the time you can just use `to_string` or `to_string_pretty`.
-    pub fn new(mut writer: W, config: Option<PrettyConfig>) -> Result<Self> {
+    pub fn new(writer: W, config: Option<PrettyConfig>) -> Result<Self> {
+        Self::new_with_default_extensions(writer, config, Extensions::empty())
+    }
+
+    /// Creates a new `Serializer`.
+    ///
+    /// Most of the time you can just use `to_string` or `to_string_pretty`.
+    pub fn new_with_default_extensions(
+        mut writer: W,
+        config: Option<PrettyConfig>,
+        default_extensions: Extensions,
+    ) -> Result<Self> {
         if let Some(conf) = &config {
-            if conf.extensions.contains(Extensions::IMPLICIT_SOME) {
+            let non_default_extensions = !default_extensions;
+
+            if (non_default_extensions & conf.extensions).contains(Extensions::IMPLICIT_SOME) {
                 writer.write_all(b"#![enable(implicit_some)]")?;
                 writer.write_all(conf.new_line.as_bytes())?;
             };
-            if conf.extensions.contains(Extensions::UNWRAP_NEWTYPES) {
+            if (non_default_extensions & conf.extensions).contains(Extensions::UNWRAP_NEWTYPES) {
                 writer.write_all(b"#![enable(unwrap_newtypes)]")?;
                 writer.write_all(conf.new_line.as_bytes())?;
             };
-            if conf
-                .extensions
+            if (non_default_extensions & conf.extensions)
                 .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
             {
                 writer.write_all(b"#![enable(unwrap_variant_newtypes)]")?;
@@ -286,6 +292,7 @@ impl<W: io::Write> Serializer<W> {
                     },
                 )
             }),
+            default_extensions,
             is_empty: None,
             newtype_variant: false,
         })
@@ -311,9 +318,11 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn extensions(&self) -> Extensions {
-        self.pretty
-            .as_ref()
-            .map_or(Extensions::empty(), |&(ref config, _)| config.extensions)
+        self.default_extensions
+            | self
+                .pretty
+                .as_ref()
+                .map_or(Extensions::empty(), |&(ref config, _)| config.extensions)
     }
 
     fn start_indent(&mut self) -> Result<()> {
