@@ -23,6 +23,7 @@ use crate::de::{Error as RonError, Result};
 /// The latter can be used by enabling the `indexmap` feature. This can be used
 /// to preserve the order of the parsed map.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(transparent)]
 pub struct Map(MapInner);
 
 impl Map {
