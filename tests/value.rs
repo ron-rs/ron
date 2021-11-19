@@ -113,3 +113,19 @@ fn roundtrip() {
         println!("{:?}", scene);
     }
 }
+
+#[test]
+fn map_roundtrip_338() {
+    // https://github.com/ron-rs/ron/issues/338
+
+    let v: Value = ron::from_str("{}").unwrap();
+    println!("{:?}", v);
+
+    let ser = ron::to_string(&v).unwrap();
+    println!("{:?}", ser);
+
+    let roundtrip = ron::from_str(&ser).unwrap();
+    println!("{:?}", roundtrip);
+
+    assert_eq!(v, roundtrip);
+}
