@@ -97,7 +97,9 @@ pub enum AnyNum {
     U32(u32),
     I64(i64),
     U64(u64),
+    #[cfg(feature = "integer128")]
     I128(i128),
+    #[cfg(feature = "integer128")]
     U128(u128),
 }
 
@@ -251,22 +253,34 @@ impl<'a> Bytes<'a> {
 
             any_float(f)
         } else {
-            let max_u8 = u128::from(std::u8::MAX);
-            let max_u16 = u128::from(std::u16::MAX);
-            let max_u32 = u128::from(std::u32::MAX);
-            let max_u64 = u128::from(std::u64::MAX);
+            #[cfg(feature = "integer128")]
+            type UInt = u128;
+            #[cfg(not(feature = "integer128"))]
+            type UInt = u64;
+            #[cfg(feature = "integer128")]
+            type SInt = i128;
+            #[cfg(not(feature = "integer128"))]
+            type SInt = i64;
 
-            let min_i8 = i128::from(std::i8::MIN);
-            let max_i8 = i128::from(std::i8::MAX);
-            let min_i16 = i128::from(std::i16::MIN);
-            let max_i16 = i128::from(std::i16::MAX);
-            let min_i32 = i128::from(std::i32::MIN);
-            let max_i32 = i128::from(std::i32::MAX);
-            let min_i64 = i128::from(std::i64::MIN);
-            let max_i64 = i128::from(std::i64::MAX);
+            let max_u8 = UInt::from(std::u8::MAX);
+            let max_u16 = UInt::from(std::u16::MAX);
+            let max_u32 = UInt::from(std::u32::MAX);
+            #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
+            let max_u64 = UInt::from(std::u64::MAX);
+
+            let min_i8 = SInt::from(std::i8::MIN);
+            let max_i8 = SInt::from(std::i8::MAX);
+            let min_i16 = SInt::from(std::i16::MIN);
+            let max_i16 = SInt::from(std::i16::MAX);
+            let min_i32 = SInt::from(std::i32::MIN);
+            let max_i32 = SInt::from(std::i32::MAX);
+            #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
+            let min_i64 = SInt::from(std::i64::MIN);
+            #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
+            let max_i64 = SInt::from(std::i64::MAX);
 
             if is_signed {
-                match self.signed_integer::<i128>() {
+                match self.signed_integer::<SInt>() {
                     Ok(x) => {
                         if x >= min_i8 && x <= max_i8 {
                             Ok(AnyNum::I8(x as i8))
@@ -277,7 +291,14 @@ impl<'a> Bytes<'a> {
                         } else if x >= min_i64 && x <= max_i64 {
                             Ok(AnyNum::I64(x as i64))
                         } else {
-                            Ok(AnyNum::I128(x))
+                            #[cfg(feature = "integer128")]
+                            {
+                                Ok(AnyNum::I128(x))
+                            }
+                            #[cfg(not(feature = "integer128"))]
+                            {
+                                Ok(AnyNum::I64(x))
+                            }
                         }
                     }
                     Err(_) => {
@@ -287,7 +308,7 @@ impl<'a> Bytes<'a> {
                     }
                 }
             } else {
-                match self.unsigned_integer::<u128>() {
+                match self.unsigned_integer::<UInt>() {
                     Ok(x) => {
                         if x <= max_u8 {
                             Ok(AnyNum::U8(x as u8))
@@ -298,7 +319,14 @@ impl<'a> Bytes<'a> {
                         } else if x <= max_u64 {
                             Ok(AnyNum::U64(x as u64))
                         } else {
-                            Ok(AnyNum::U128(x))
+                            #[cfg(feature = "integer128")]
+                            {
+                                Ok(AnyNum::U128(x))
+                            }
+                            #[cfg(not(feature = "integer128"))]
+                            {
+                                Ok(AnyNum::U64(x))
+                            }
                         }
                     }
                     Err(_) => {
@@ -913,7 +941,10 @@ macro_rules! impl_num {
     };
 }
 
+#[cfg(feature = "integer128")]
 impl_num!(u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
+#[cfg(not(feature = "integer128"))]
+impl_num!(u8 u16 u32 u64 i8 i16 i32 i64);
 
 #[derive(Clone, Debug)]
 pub enum ParsedStr<'a> {

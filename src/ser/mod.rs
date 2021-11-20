@@ -409,46 +409,103 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
-        self.serialize_i128(i128::from(v))
+        #[cfg(feature = "integer128")]
+        {
+            self.serialize_i128(i128::from(v))
+        }
+        #[cfg(not(feature = "integer128"))]
+        {
+            self.serialize_i64(i64::from(v))
+        }
     }
 
     fn serialize_i16(self, v: i16) -> Result<()> {
-        self.serialize_i128(i128::from(v))
+        #[cfg(feature = "integer128")]
+        {
+            self.serialize_i128(i128::from(v))
+        }
+        #[cfg(not(feature = "integer128"))]
+        {
+            self.serialize_i64(i64::from(v))
+        }
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        self.serialize_i128(i128::from(v))
+        #[cfg(feature = "integer128")]
+        {
+            self.serialize_i128(i128::from(v))
+        }
+        #[cfg(not(feature = "integer128"))]
+        {
+            self.serialize_i64(i64::from(v))
+        }
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.serialize_i128(i128::from(v))
+        #[cfg(feature = "integer128")]
+        {
+            self.serialize_i128(i128::from(v))
+        }
+        #[cfg(not(feature = "integer128"))]
+        {
+            write!(self.output, "{}", v).map_err(From::from)
+        }
     }
 
+    #[cfg(feature = "integer128")]
     fn serialize_i128(self, v: i128) -> Result<()> {
         // TODO optimize
-        write!(self.output, "{}", v)?;
-        Ok(())
+        write!(self.output, "{}", v).map_err(From::from)
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
-        self.serialize_u128(u128::from(v))
+        #[cfg(feature = "integer128")]
+        {
+            self.serialize_u128(u128::from(v))
+        }
+        #[cfg(not(feature = "integer128"))]
+        {
+            self.serialize_u64(u64::from(v))
+        }
     }
 
     fn serialize_u16(self, v: u16) -> Result<()> {
-        self.serialize_u128(u128::from(v))
+        #[cfg(feature = "integer128")]
+        {
+            self.serialize_u128(u128::from(v))
+        }
+        #[cfg(not(feature = "integer128"))]
+        {
+            self.serialize_u64(u64::from(v))
+        }
     }
 
     fn serialize_u32(self, v: u32) -> Result<()> {
-        self.serialize_u128(u128::from(v))
+        #[cfg(feature = "integer128")]
+        {
+            self.serialize_u128(u128::from(v))
+        }
+        #[cfg(not(feature = "integer128"))]
+        {
+            self.serialize_u64(u64::from(v))
+        }
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.serialize_u128(u128::from(v))
+        #[cfg(feature = "integer128")]
+        {
+            self.serialize_u128(u128::from(v))
+        }
+        #[cfg(not(feature = "integer128"))]
+        {
+            write!(self.output, "{}", v).map_err(From::from)
+        }
     }
 
+    #[cfg(feature = "integer128")]
     fn serialize_u128(self, v: u128) -> Result<()> {
-        write!(self.output, "{}", v)?;
-        Ok(())
+        // TODO optimize
+        write!(self.output, "{}", v).map_err(From::from)
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
