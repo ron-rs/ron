@@ -678,19 +678,19 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
             self.ser.output.write_all(b",")?;
             if let Some((ref config, ref mut pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit {
-                    if config.enumerate_arrays {
-                        assert!(config.new_line.contains('\n'));
-                        let index = pretty.sequence_index.last_mut().unwrap();
-                        //TODO: when /**/ comments are supported, prepend the index
-                        // to an element instead of appending it.
-                        write!(self.ser.output, "// [{}]", index).unwrap();
-                        *index += 1;
-                    }
                     self.ser.output.write_all(config.new_line.as_bytes())?;
                 }
             }
         }
         self.ser.indent()?;
+
+        if let Some((ref mut config, ref mut pretty)) = self.ser.pretty {
+            if pretty.indent <= config.depth_limit && config.enumerate_arrays {
+                let index = pretty.sequence_index.last_mut().unwrap();
+                write!(self.ser.output, "/*[{}]*/ ", index)?;
+                *index += 1;
+            }
+        }
 
         value.serialize(&mut *self.ser)?;
 
