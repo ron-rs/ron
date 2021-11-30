@@ -409,8 +409,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             } else {
                 self.bytes.err(ErrorCode::ExpectedStructEnd)
             }
-        } else {
+        } else if name.is_empty() {
             self.bytes.err(ErrorCode::ExpectedStruct)
+        } else {
+            self.bytes.err(ErrorCode::ExpectedNamedStruct(name))
         }
     }
 
@@ -518,8 +520,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             } else {
                 self.bytes.err(ErrorCode::ExpectedStructEnd)
             }
-        } else {
+        } else if name.is_empty() {
             self.bytes.err(ErrorCode::ExpectedStruct)
+        } else {
+            self.bytes.err(ErrorCode::ExpectedNamedStruct(name))
         }
     }
 
