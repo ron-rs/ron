@@ -2,12 +2,11 @@
 
 use std::{
     char::from_u32 as char_from_u32,
-    fmt::{Display, Formatter, Result as FmtResult},
     str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
 use crate::{
-    error::{Error, ErrorCode, Result},
+    error::{Error, ErrorCode, Position, Result},
     extensions::Extensions,
 };
 
@@ -950,18 +949,6 @@ impl_num!(u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 pub enum ParsedStr<'a> {
     Allocated(String),
     Slice(&'a str),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Position {
-    pub line: usize,
-    pub col: usize,
-}
-
-impl Display for Position {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{}:{}", self.line, self.col)
-    }
 }
 
 #[cfg(test)]

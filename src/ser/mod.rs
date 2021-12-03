@@ -4,6 +4,7 @@ use std::io;
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
+    options::Options,
     parse::{is_ident_first_char, is_ident_other_char},
 };
 
@@ -17,8 +18,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    let mut s = Serializer::new(writer, None)?;
-    value.serialize(&mut s)
+    Options::default().to_writer(writer, value)
 }
 
 /// Serializes `value` into `writer` in a pretty way.
@@ -27,8 +27,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    let mut s = Serializer::new(writer, Some(config))?;
-    value.serialize(&mut s)
+    Options::default().to_writer_pretty(writer, value, config)
 }
 
 /// Serializes `value` and returns it as string.
@@ -39,10 +38,7 @@ pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    let buf = Vec::new();
-    let mut s = Serializer::new(buf, None)?;
-    value.serialize(&mut s)?;
-    Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
+    Options::default().to_string(value)
 }
 
 /// Serializes `value` in the recommended RON layout in a pretty way.
@@ -50,10 +46,7 @@ pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    let buf = Vec::new();
-    let mut s = Serializer::new(buf, Some(config))?;
-    value.serialize(&mut s)?;
-    Ok(String::from_utf8(s.output).expect("Ron should be utf-8"))
+    Options::default().to_string_pretty(value, config)
 }
 
 /// Pretty serializer state
@@ -75,30 +68,24 @@ struct Pretty {
 ///     .indentor("\t".to_owned());
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct PrettyConfig {
     /// Limit the pretty-ness up to the given depth.
-    #[serde(default = "default_depth_limit")]
     pub depth_limit: usize,
     /// New line string
-    #[serde(default = "default_new_line")]
     pub new_line: String,
     /// Indentation string
-    #[serde(default = "default_indentor")]
     pub indentor: String,
     /// Separator string
     #[serde(default = "default_separator")]
     pub separator: String,
     // Whether to emit struct names
-    #[serde(default = "default_struct_names")]
     pub struct_names: bool,
     /// Separate tuple members with indentation
-    #[serde(default = "default_separate_tuple_members")]
     pub separate_tuple_members: bool,
     /// Enumerate array items in comments
-    #[serde(default = "default_enumerate_arrays")]
     pub enumerate_arrays: bool,
     /// Always include the decimal in floats
-    #[serde(default = "default_decimal_floats")]
     pub decimal_floats: bool,
     /// Enable extensions. Only configures 'implicit_some'
     ///  and 'unwrap_newtypes' for now.
@@ -286,6 +273,7 @@ impl Default for PrettyConfig {
 pub struct Serializer<W: io::Write> {
     output: W,
     pretty: Option<(PrettyConfig, Pretty)>,
+    default_extensions: Extensions,
     is_empty: Option<bool>,
 }
 
@@ -293,14 +281,33 @@ impl<W: io::Write> Serializer<W> {
     /// Creates a new `Serializer`.
     ///
     /// Most of the time you can just use `to_string` or `to_string_pretty`.
-    pub fn new(mut writer: W, config: Option<PrettyConfig>) -> Result<Self> {
+    pub fn new(writer: W, config: Option<PrettyConfig>) -> Result<Self> {
+        Self::with_options(writer, config, Options::default())
+    }
+
+    /// Creates a new `Serializer`.
+    ///
+    /// Most of the time you can just use `to_string` or `to_string_pretty`.
+    pub fn with_options(
+        mut writer: W,
+        config: Option<PrettyConfig>,
+        options: Options,
+    ) -> Result<Self> {
         if let Some(conf) = &config {
-            if conf.extensions.contains(Extensions::IMPLICIT_SOME) {
+            let non_default_extensions = !options.default_extensions;
+
+            if (non_default_extensions & conf.extensions).contains(Extensions::IMPLICIT_SOME) {
                 writer.write_all(b"#![enable(implicit_some)]")?;
                 writer.write_all(conf.new_line.as_bytes())?;
             };
-            if conf.extensions.contains(Extensions::UNWRAP_NEWTYPES) {
+            if (non_default_extensions & conf.extensions).contains(Extensions::UNWRAP_NEWTYPES) {
                 writer.write_all(b"#![enable(unwrap_newtypes)]")?;
+                writer.write_all(conf.new_line.as_bytes())?;
+            };
+            if (non_default_extensions & conf.extensions)
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
+            {
+                writer.write_all(b"#![enable(unwrap_variant_newtypes)]")?;
                 writer.write_all(conf.new_line.as_bytes())?;
             };
         };
@@ -315,6 +322,7 @@ impl<W: io::Write> Serializer<W> {
                     },
                 )
             }),
+            default_extensions: options.default_extensions,
             is_empty: None,
         })
     }
@@ -338,9 +346,11 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn extensions(&self) -> Extensions {
-        self.pretty
-            .as_ref()
-            .map_or(Extensions::empty(), |&(ref config, _)| config.extensions)
+        self.default_extensions
+            | self
+                .pretty
+                .as_ref()
+                .map_or(Extensions::empty(), |&(ref config, _)| config.extensions)
     }
 
     fn start_indent(&mut self) -> Result<()> {
@@ -716,10 +726,12 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 }
 
-pub enum State {
+enum State {
     First,
     Rest,
 }
+
+#[doc(hidden)]
 pub struct Compound<'a, W: io::Write> {
     ser: &'a mut Serializer<W>,
     state: State,
