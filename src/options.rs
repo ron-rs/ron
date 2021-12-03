@@ -35,12 +35,16 @@ pub struct Options {
     ///  activation is NOT included in the output RON.
     /// No extensions are enabled by default.
     pub default_extensions: Extensions,
+    /// Private field to ensure adding a field is non-breaking.
+    #[serde(skip)]
+    _future_proof: (),
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
             default_extensions: Extensions::empty(),
+            _future_proof: (),
         }
     }
 }

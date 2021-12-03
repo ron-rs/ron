@@ -68,6 +68,7 @@ struct Pretty {
 ///     .indentor("\t".to_owned());
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct PrettyConfig {
     /// Limit the pretty-ness up to the given depth.
     pub depth_limit: usize,
