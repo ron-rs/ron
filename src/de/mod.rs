@@ -1,6 +1,5 @@
 /// Deserialization module.
-pub use crate::error::{Error, ErrorCode, Result};
-pub use crate::parse::Position;
+pub use crate::error::{Error, ErrorCode, Position, Result};
 
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 use std::{borrow::Cow, io, str};
@@ -8,6 +7,7 @@ use std::{borrow::Cow, io, str};
 use self::{id::IdDeserializer, tag::TagDeserializer};
 use crate::{
     extensions::Extensions,
+    options::Options,
     parse::{AnyNum, Bytes, ParsedStr},
 };
 
@@ -30,14 +30,26 @@ impl<'de> Deserializer<'de> {
     // Cannot implement trait here since output is tied to input lifetime 'de.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(input: &'de str) -> Result<Self> {
-        Deserializer::from_bytes(input.as_bytes())
+        Self::from_str_with_options(input, Options::default())
     }
 
     pub fn from_bytes(input: &'de [u8]) -> Result<Self> {
-        Ok(Deserializer {
+        Self::from_bytes_with_options(input, Options::default())
+    }
+
+    pub fn from_str_with_options(input: &'de str, options: Options) -> Result<Self> {
+        Self::from_bytes_with_options(input.as_bytes(), options)
+    }
+
+    pub fn from_bytes_with_options(input: &'de [u8], options: Options) -> Result<Self> {
+        let mut deserializer = Deserializer {
             bytes: Bytes::new(input)?,
             newtype_variant: false,
-        })
+        };
+
+        deserializer.bytes.exts |= options.default_extensions;
+
+        Ok(deserializer)
     }
 
     pub fn remainder(&self) -> Cow<'_, str> {
@@ -47,15 +59,12 @@ impl<'de> Deserializer<'de> {
 
 /// A convenience function for reading data from a reader
 /// and feeding into a deserializer.
-pub fn from_reader<R, T>(mut rdr: R) -> Result<T>
+pub fn from_reader<R, T>(rdr: R) -> Result<T>
 where
     R: io::Read,
     T: de::DeserializeOwned,
 {
-    let mut bytes = Vec::new();
-    rdr.read_to_end(&mut bytes)?;
-
-    from_bytes(&bytes)
+    Options::default().from_reader(rdr)
 }
 
 /// A convenience function for building a deserializer
@@ -64,7 +73,7 @@ pub fn from_str<'a, T>(s: &'a str) -> Result<T>
 where
     T: de::Deserialize<'a>,
 {
-    from_bytes(s.as_bytes())
+    Options::default().from_str(s)
 }
 
 /// A convenience function for building a deserializer
@@ -73,12 +82,7 @@ pub fn from_bytes<'a, T>(s: &'a [u8]) -> Result<T>
 where
     T: de::Deserialize<'a>,
 {
-    let mut deserializer = Deserializer::from_bytes(s)?;
-    let t = T::deserialize(&mut deserializer)?;
-
-    deserializer.end()?;
-
-    Ok(t)
+    Options::default().from_bytes(s)
 }
 
 impl<'de> Deserializer<'de> {
