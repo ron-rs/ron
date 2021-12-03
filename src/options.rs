@@ -1,31 +1,60 @@
+//! Roundtrip serde Options module.
+
 use std::io;
 
-use serde::{de, ser};
+use serde::{de, ser, Deserialize, Serialize};
 
 use crate::de::Deserializer;
 use crate::error::Result;
 use crate::extensions::Extensions;
 use crate::ser::{PrettyConfig, Serializer};
 
+/// Roundtrip serde options.
+///
+/// # Examples
+///
+/// ```
+/// use ron::{Options, extensions::Extensions};
+///
+/// let ron = Options::default()
+///     .with_default_extension(Extensions::IMPLICIT_SOME);
+///
+/// let de: Option<i32> = ron.from_str("42").unwrap();
+/// let ser = ron.to_string(&de).unwrap();
+///
+/// assert_eq!(ser, "42");
+/// ```
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Options {
-    default_extensions: Extensions,
+    /// Extensions that are enabled by default during serialization and
+    ///  deserialization.
+    /// During serialization, these extensions do NOT have to be explicitly
+    ///  enabled in the parsed RON.
+    /// During deserialization, these extensions are used, but their explicit
+    ///  activation is NOT included in the output RON.
+    /// No extensions are enabled by default.
+    pub default_extensions: Extensions,
 }
 
-impl Options {
-    #[must_use]
-    pub fn build() -> Self {
+impl Default for Options {
+    fn default() -> Self {
         Self {
             default_extensions: Extensions::empty(),
         }
     }
+}
 
+impl Options {
     #[must_use]
+    /// Enable `default_extension` by default during serialization and deserialization.
     pub fn with_default_extension(mut self, default_extension: Extensions) -> Self {
         self.default_extensions |= default_extension;
         self
     }
 
     #[must_use]
+    /// Do NOT enable `default_extension` by default during serialization and deserialization.
     pub fn without_default_extension(mut self, default_extension: Extensions) -> Self {
         self.default_extensions &= !default_extension;
         self
@@ -61,13 +90,13 @@ impl Options {
     where
         T: de::Deserialize<'a>,
     {
-        let mut deserializer =
-            Deserializer::from_bytes(s)?.with_default_extensions(self.default_extensions);
-        let t = T::deserialize(&mut deserializer)?;
+        let mut deserializer = Deserializer::from_bytes_with_options(s, self.clone())?;
+
+        let value = T::deserialize(&mut deserializer)?;
 
         deserializer.end()?;
 
-        Ok(t)
+        Ok(value)
     }
 
     /// Serializes `value` into `writer`
@@ -76,7 +105,7 @@ impl Options {
         W: io::Write,
         T: ?Sized + ser::Serialize,
     {
-        let mut s = Serializer::new_with_default_extensions(writer, None, self.default_extensions)?;
+        let mut s = Serializer::with_options(writer, None, self.clone())?;
         value.serialize(&mut s)
     }
 
@@ -86,8 +115,7 @@ impl Options {
         W: io::Write,
         T: ?Sized + ser::Serialize,
     {
-        let mut s =
-            Serializer::new_with_default_extensions(writer, Some(config), self.default_extensions)?;
+        let mut s = Serializer::with_options(writer, Some(config), self.clone())?;
         value.serialize(&mut s)
     }
 
@@ -100,8 +128,7 @@ impl Options {
         T: ?Sized + ser::Serialize,
     {
         let mut output = Vec::new();
-        let mut s =
-            Serializer::new_with_default_extensions(&mut output, None, self.default_extensions)?;
+        let mut s = Serializer::with_options(&mut output, None, self.clone())?;
         value.serialize(&mut s)?;
         Ok(String::from_utf8(output).expect("Ron should be utf-8"))
     }
@@ -112,11 +139,7 @@ impl Options {
         T: ?Sized + ser::Serialize,
     {
         let mut output = Vec::new();
-        let mut s = Serializer::new_with_default_extensions(
-            &mut output,
-            Some(config),
-            self.default_extensions,
-        )?;
+        let mut s = Serializer::with_options(&mut output, Some(config), self.clone())?;
         value.serialize(&mut s)?;
         Ok(String::from_utf8(output).expect("Ron should be utf-8"))
     }

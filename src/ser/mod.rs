@@ -18,7 +18,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    Options::build().to_writer(writer, value)
+    Options::default().to_writer(writer, value)
 }
 
 /// Serializes `value` into `writer` in a pretty way.
@@ -27,7 +27,7 @@ where
     W: io::Write,
     T: ?Sized + Serialize,
 {
-    Options::build().to_writer_pretty(writer, value, config)
+    Options::default().to_writer_pretty(writer, value, config)
 }
 
 /// Serializes `value` and returns it as string.
@@ -38,7 +38,7 @@ pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    Options::build().to_string(value)
+    Options::default().to_string(value)
 }
 
 /// Serializes `value` in the recommended RON layout in a pretty way.
@@ -46,7 +46,7 @@ pub fn to_string_pretty<T>(value: &T, config: PrettyConfig) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    Options::build().to_string_pretty(value, config)
+    Options::default().to_string_pretty(value, config)
 }
 
 /// Pretty serializer state
@@ -70,25 +70,18 @@ struct Pretty {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PrettyConfig {
     /// Limit the pretty-ness up to the given depth.
-    #[serde(default = "default_depth_limit")]
     pub depth_limit: usize,
     /// New line string
-    #[serde(default = "default_new_line")]
     pub new_line: String,
     /// Indentation string
-    #[serde(default = "default_indentor")]
     pub indentor: String,
     // Whether to emit struct names
-    #[serde(default = "default_struct_names")]
     pub struct_names: bool,
     /// Separate tuple members with indentation
-    #[serde(default = "default_separate_tuple_members")]
     pub separate_tuple_members: bool,
     /// Enumerate array items in comments
-    #[serde(default = "default_enumerate_arrays")]
     pub enumerate_arrays: bool,
     /// Always include the decimal in floats
-    #[serde(default = "default_decimal_floats")]
     pub decimal_floats: bool,
     /// Enable extensions. Only configures 'implicit_some',
     ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
@@ -186,50 +179,21 @@ impl PrettyConfig {
     }
 }
 
-fn default_depth_limit() -> usize {
-    !0
-}
-
-fn default_new_line() -> String {
-    #[cfg(not(target_os = "windows"))]
-    let new_line = "\n".to_string();
-    #[cfg(target_os = "windows")]
-    let new_line = "\r\n".to_string();
-
-    new_line
-}
-
-fn default_decimal_floats() -> bool {
-    false
-}
-
-fn default_indentor() -> String {
-    "    ".to_string()
-}
-
-fn default_struct_names() -> bool {
-    false
-}
-
-fn default_separate_tuple_members() -> bool {
-    false
-}
-
-fn default_enumerate_arrays() -> bool {
-    false
-}
-
 impl Default for PrettyConfig {
     fn default() -> Self {
         PrettyConfig {
-            depth_limit: default_depth_limit(),
-            new_line: default_new_line(),
-            indentor: default_indentor(),
-            struct_names: default_struct_names(),
-            separate_tuple_members: default_separate_tuple_members(),
-            enumerate_arrays: default_enumerate_arrays(),
-            extensions: Extensions::default(),
-            decimal_floats: default_decimal_floats(),
+            depth_limit: !0,
+            new_line: if cfg!(not(target_os = "windows")) {
+                String::from("\n")
+            } else {
+                String::from("\r\n")
+            },
+            indentor: String::from("    "),
+            struct_names: false,
+            separate_tuple_members: false,
+            enumerate_arrays: false,
+            extensions: Extensions::empty(),
+            decimal_floats: false,
             _future_proof: (),
         }
     }
@@ -252,19 +216,19 @@ impl<W: io::Write> Serializer<W> {
     ///
     /// Most of the time you can just use `to_string` or `to_string_pretty`.
     pub fn new(writer: W, config: Option<PrettyConfig>) -> Result<Self> {
-        Self::new_with_default_extensions(writer, config, Extensions::empty())
+        Self::with_options(writer, config, Options::default())
     }
 
     /// Creates a new `Serializer`.
     ///
     /// Most of the time you can just use `to_string` or `to_string_pretty`.
-    pub fn new_with_default_extensions(
+    pub fn with_options(
         mut writer: W,
         config: Option<PrettyConfig>,
-        default_extensions: Extensions,
+        options: Options,
     ) -> Result<Self> {
         if let Some(conf) = &config {
-            let non_default_extensions = !default_extensions;
+            let non_default_extensions = !options.default_extensions;
 
             if (non_default_extensions & conf.extensions).contains(Extensions::IMPLICIT_SOME) {
                 writer.write_all(b"#![enable(implicit_some)]")?;
@@ -292,7 +256,7 @@ impl<W: io::Write> Serializer<W> {
                     },
                 )
             }),
-            default_extensions,
+            default_extensions: options.default_extensions,
             is_empty: None,
             newtype_variant: false,
         })
@@ -731,10 +695,12 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 }
 
-pub enum State {
+enum State {
     First,
     Rest,
 }
+
+#[doc(hidden)]
 pub struct Compound<'a, W: io::Write> {
     ser: &'a mut Serializer<W>,
     state: State,

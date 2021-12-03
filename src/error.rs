@@ -1,8 +1,6 @@
 use serde::{de, ser};
 use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Error};
 
-pub use crate::parse::Position;
-
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
 #[derive(Clone, Debug, PartialEq)]
@@ -112,6 +110,18 @@ impl fmt::Display for ErrorCode {
             ErrorCode::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
             _ => f.write_str("Unknown ErrorCode"),
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Position {
+    pub line: usize,
+    pub col: usize,
+}
+
+impl fmt::Display for Position {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.col)
     }
 }
 

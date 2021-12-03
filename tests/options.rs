@@ -10,7 +10,7 @@ struct Struct(Option<u32>, Newtype);
 
 #[test]
 fn default_options() {
-    let ron = Options::build();
+    let ron = Options::default();
 
     let de: Struct = ron.from_str("(Some(42),(4.2))").unwrap();
     let ser = ron.to_string(&de).unwrap();
@@ -20,7 +20,7 @@ fn default_options() {
 
 #[test]
 fn single_default_extension() {
-    let ron = Options::build().with_default_extension(Extensions::IMPLICIT_SOME);
+    let ron = Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
 
     let de: Struct = ron.from_str("(42,(4.2))").unwrap();
     let ser = ron.to_string(&de).unwrap();
