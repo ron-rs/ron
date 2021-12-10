@@ -190,7 +190,7 @@ impl PrettyConfig {
     /// When false `1.0` will serialize as `1`
     /// When true `1.0` will serialize as `1.0`
     ///
-    /// Default: `false`
+    /// Default: `true`
     pub fn decimal_floats(mut self, decimal_floats: bool) -> Self {
         self.decimal_floats = decimal_floats;
 
@@ -238,7 +238,7 @@ fn default_new_line() -> String {
 }
 
 fn default_decimal_floats() -> bool {
-    false
+    true
 }
 
 fn default_indentor() -> String {
@@ -328,7 +328,7 @@ impl<W: io::Write> Serializer<W> {
     fn decimal_floats(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.decimal_floats)
+            .map_or(true, |&(ref config, _)| config.decimal_floats)
     }
 
     fn compact_arrays(&self) -> bool {
