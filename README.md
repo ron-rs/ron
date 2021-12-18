@@ -114,6 +114,34 @@ Note the following advantages of RON over JSON:
 
 > **Note:** Serde's data model represents fixed-size Rust arrays as tuple (instead of as list)
 
+## Quickstart
+
+### `Cargo.toml`
+
+```toml
+[dependencies]
+ron = "0.7"
+serde = { version = "1", features = ["derive"] }
+```
+
+### `main.rs`
+
+```rust
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize, Serialize)]
+struct MyStruct {
+    boolean: bool,
+    float: f32,
+}
+
+fn main() {
+    let x: MyStruct = ron::from_str("(boolean: true, float: 1.23)").unwrap();
+    
+    println!("RON: {}", ron::to_string(&x).unwrap());
+}
+```
+
 ## Tooling
 
 | Editor       | Plugin                                                      |
