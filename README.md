@@ -106,6 +106,7 @@ Note the following advantages of RON over JSON:
 * Numbers: `42`, `3.14`, `0xFF`, `0b0110`
 * Strings: `"Hello"`, `"with\\escapes\n"`, `r#"raw string, great for regex\."#`
 * Booleans: `true`, `false`
+* Chars: `'e'`, `'\n'`
 * Optionals: `Some("string")`, `Some(Some(1.34))`, `None`
 * Tuples: `("abc", 1.23, true)`, `()`
 * Lists: `["abc", "def"]`
