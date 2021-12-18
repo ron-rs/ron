@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#338](https://github.com/ron-rs/ron/issues/338) value map roundtrip ([#341](https://github.com/ron-rs/ron/pull/341))
 - Fix issue [#289](https://github.com/ron-rs/ron/issues/289) enumerate_arrays comments ([#344](https://github.com/ron-rs/ron/pull/344))
 - Report struct name in expected struct error ([#342](https://github.com/ron-rs/ron/pull/342))
+- Add `Options` builder to configure the RON serde roundtrip ([#343](https://github.com/ron-rs/ron/pull/343))
+- Add `compact_arrays` ([#299](https://github.com/ron-rs/ron/pull/299)) and `separator` options to `PrettyConfig` ([#349](https://github.com/ron-rs/ron/pull/349))
 
 ## [0.7.0] - 2021-10-22
 
