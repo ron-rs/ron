@@ -112,6 +112,15 @@ pub struct Bytes<'a> {
     line: usize,
 }
 
+#[cfg(feature = "integer128")]
+pub(crate) type UInt = u128;
+#[cfg(not(feature = "integer128"))]
+pub(crate) type UInt = u64;
+#[cfg(feature = "integer128")]
+pub(crate) type SInt = i128;
+#[cfg(not(feature = "integer128"))]
+pub(crate) type SInt = i64;
+
 impl<'a> Bytes<'a> {
     pub fn new(bytes: &'a [u8]) -> Result<Self> {
         let mut b = Bytes {
@@ -253,15 +262,6 @@ impl<'a> Bytes<'a> {
 
             any_float(f)
         } else {
-            #[cfg(feature = "integer128")]
-            type UInt = u128;
-            #[cfg(not(feature = "integer128"))]
-            type UInt = u64;
-            #[cfg(feature = "integer128")]
-            type SInt = i128;
-            #[cfg(not(feature = "integer128"))]
-            type SInt = i64;
-
             let max_u8 = UInt::from(std::u8::MAX);
             let max_u16 = UInt::from(std::u16::MAX);
             let max_u32 = UInt::from(std::u32::MAX);
