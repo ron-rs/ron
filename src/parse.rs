@@ -113,13 +113,13 @@ pub struct Bytes<'a> {
 }
 
 #[cfg(feature = "integer128")]
-pub(crate) type UInt = u128;
+pub(crate) type LargeUInt = u128;
 #[cfg(not(feature = "integer128"))]
-pub(crate) type UInt = u64;
+pub(crate) type LargeUInt = u64;
 #[cfg(feature = "integer128")]
-pub(crate) type SInt = i128;
+pub(crate) type LargeSInt = i128;
 #[cfg(not(feature = "integer128"))]
-pub(crate) type SInt = i64;
+pub(crate) type LargeSInt = i64;
 
 impl<'a> Bytes<'a> {
     pub fn new(bytes: &'a [u8]) -> Result<Self> {
@@ -262,25 +262,25 @@ impl<'a> Bytes<'a> {
 
             any_float(f)
         } else {
-            let max_u8 = UInt::from(std::u8::MAX);
-            let max_u16 = UInt::from(std::u16::MAX);
-            let max_u32 = UInt::from(std::u32::MAX);
+            let max_u8 = LargeUInt::from(std::u8::MAX);
+            let max_u16 = LargeUInt::from(std::u16::MAX);
+            let max_u32 = LargeUInt::from(std::u32::MAX);
             #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
-            let max_u64 = UInt::from(std::u64::MAX);
+            let max_u64 = LargeUInt::from(std::u64::MAX);
 
-            let min_i8 = SInt::from(std::i8::MIN);
-            let max_i8 = SInt::from(std::i8::MAX);
-            let min_i16 = SInt::from(std::i16::MIN);
-            let max_i16 = SInt::from(std::i16::MAX);
-            let min_i32 = SInt::from(std::i32::MIN);
-            let max_i32 = SInt::from(std::i32::MAX);
+            let min_i8 = LargeSInt::from(std::i8::MIN);
+            let max_i8 = LargeSInt::from(std::i8::MAX);
+            let min_i16 = LargeSInt::from(std::i16::MIN);
+            let max_i16 = LargeSInt::from(std::i16::MAX);
+            let min_i32 = LargeSInt::from(std::i32::MIN);
+            let max_i32 = LargeSInt::from(std::i32::MAX);
             #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
-            let min_i64 = SInt::from(std::i64::MIN);
+            let min_i64 = LargeSInt::from(std::i64::MIN);
             #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
-            let max_i64 = SInt::from(std::i64::MAX);
+            let max_i64 = LargeSInt::from(std::i64::MAX);
 
             if is_signed {
-                match self.signed_integer::<SInt>() {
+                match self.signed_integer::<LargeSInt>() {
                     Ok(x) => {
                         if x >= min_i8 && x <= max_i8 {
                             Ok(AnyNum::I8(x as i8))
@@ -308,7 +308,7 @@ impl<'a> Bytes<'a> {
                     }
                 }
             } else {
-                match self.unsigned_integer::<UInt>() {
+                match self.unsigned_integer::<LargeUInt>() {
                     Ok(x) => {
                         if x <= max_u8 {
                             Ok(AnyNum::U8(x as u8))

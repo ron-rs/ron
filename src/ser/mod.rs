@@ -5,7 +5,7 @@ use crate::{
     error::{Error, Result},
     extensions::Extensions,
     options::Options,
-    parse::{is_ident_first_char, is_ident_other_char, SInt, UInt},
+    parse::{is_ident_first_char, is_ident_other_char, LargeSInt, LargeUInt},
 };
 
 #[cfg(test)]
@@ -375,14 +375,14 @@ impl<W: io::Write> Serializer<W> {
         Ok(())
     }
 
-    fn serialize_sint(&mut self, value: impl Into<SInt>) -> Result<()> {
+    fn serialize_sint(&mut self, value: impl Into<LargeSInt>) -> Result<()> {
         // TODO optimize
         write!(self.output, "{}", value.into())?;
 
         Ok(())
     }
 
-    fn serialize_uint(&mut self, value: impl Into<UInt>) -> Result<()> {
+    fn serialize_uint(&mut self, value: impl Into<LargeUInt>) -> Result<()> {
         // TODO optimize
         write!(self.output, "{}", value.into())?;
 

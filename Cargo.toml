@@ -19,7 +19,7 @@ documentation = "https://docs.rs/ron/"
 exclude = ["bors.toml", ".travis.yml"]
 
 [features]
-default = ["integer128"]
+default = []
 integer128 = []
 
 [dependencies]
