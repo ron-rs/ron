@@ -38,6 +38,8 @@ jobs:
           command: update
           args: -p indexmap --precise 1.6.2
       - run: cargo test
+      - run: cargo test --features integer128
+      - run: cargo test --features indexmap
       - run: cargo test --all-features
 
   clippy:

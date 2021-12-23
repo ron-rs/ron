@@ -56,6 +56,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
         Ok(Value::Number(Number::new(v)))
     }
 
+    #[cfg(feature = "integer128")]
     fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
     where
         E: Error,
@@ -70,6 +71,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
         Ok(Value::Number(Number::new(v)))
     }
 
+    #[cfg(feature = "integer128")]
     fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
     where
         E: Error,
