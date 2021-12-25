@@ -588,7 +588,17 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
     fn has_element(&mut self) -> Result<bool> {
         self.de.bytes.skip_ws()?;
 
-        Ok(self.had_comma && self.de.bytes.peek_or_eof()? != self.terminator)
+        match (
+            self.had_comma,
+            self.de.bytes.peek_or_eof()? != self.terminator,
+        ) {
+            // Trailing comma, maybe has a next element
+            (true, has_element) => Ok(has_element),
+            // No trailing comma but terminator
+            (false, false) => Ok(false),
+            // No trailing comma or terminator
+            (false, true) => self.err(ErrorCode::ExpectedComma),
+        }
     }
 }
 
