@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Options` builder to configure the RON serde roundtrip ([#343](https://github.com/ron-rs/ron/pull/343))
 - Add `compact_arrays` ([#299](https://github.com/ron-rs/ron/pull/299)) and `separator` options to `PrettyConfig` ([#349](https://github.com/ron-rs/ron/pull/349))
 - Add `integer128` feature that guards `i128` and `u128` ([#304](https://github.com/ron-rs/ron/pull/304), [#351](https://github.com/ron-rs/ron/pull/351))
+- Fix issue [#265](https://github.com/ron-rs/ron/issues/265) with better missing comma error ([#353](https://github.com/ron-rs/ron/pull/353))
 
 ## [0.7.0] - 2021-10-22
 
