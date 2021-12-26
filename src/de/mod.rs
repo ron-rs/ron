@@ -384,7 +384,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.newtype_variant || self.bytes.consume(name) {
+        if self.newtype_variant || self.bytes.consume_struct_name(name)? {
             self.newtype_variant = false;
 
             visitor.visit_unit()
@@ -403,7 +403,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_newtype_struct(&mut *self);
         }
 
-        self.bytes.consume(name);
+        self.bytes.consume_struct_name(name)?;
 
         self.bytes.skip_ws()?;
 
@@ -475,7 +475,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if !self.newtype_variant {
-            self.bytes.consume(name);
+            self.bytes.consume_struct_name(name)?;
         }
 
         self.deserialize_tuple(len, visitor)
@@ -511,7 +511,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if !self.newtype_variant {
-            self.bytes.consume(name);
+            self.bytes.consume_struct_name(name)?;
         }
 
         self.bytes.skip_ws()?;
