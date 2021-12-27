@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        rust: [1.36.0, stable, nightly]
+        rust: [1.46.0, stable, nightly]
 
     steps:
       - uses: actions/checkout@v2
@@ -25,18 +25,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
           profile: minimal
           override: true
-      - uses: actions-rs/cargo@v1
-        name: Downgrade bitflags to MSRV
-        if: ${{ matrix.rust }} == "1.36.0"
-        with:
-          command: update
-          args: -p bitflags --precise 1.2.1
-      - uses: actions-rs/cargo@v1
-        name: Downgrade indexmap to MSRV
-        if: ${{ matrix.rust }} == "1.36.0"
-        with:
-          command: update
-          args: -p indexmap --precise 1.6.2
       - run: cargo test
       - run: cargo test --features integer128
       - run: cargo test --features indexmap

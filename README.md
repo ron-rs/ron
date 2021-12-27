@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/ron-rs/ron/actions/workflows/ci.yaml/badge.svg)](https://github.com/ron-rs/ron/actions/workflows/ci.yaml)
 [![Crates.io](https://img.shields.io/crates/v/ron.svg)](https://crates.io/crates/ron)
-[![MSRV](https://img.shields.io/badge/MSRV-1.36.0-orange)](https://github.com/ron-rs/ron)
+[![MSRV](https://img.shields.io/badge/MSRV-1.46.0-orange)](https://github.com/ron-rs/ron)
 [![Docs](https://docs.rs/ron/badge.svg)](https://docs.rs/ron)
 [![Matrix](https://img.shields.io/matrix/ron-rs:matrix.org.svg)](https://matrix.to/#/#ron-rs:matrix.org)
 
@@ -146,7 +146,7 @@ fn main() {
 ## Tooling
 
 | Editor       | Plugin                                                      |
-|--------------|-------------------------------------------------------------|
+| ------------ | ----------------------------------------------------------- |
 | IntelliJ     | [intellij-ron](https://github.com/ron-rs/intellij-ron)      |
 | VS Code      | [a5huynh/vscode-ron](https://github.com/a5huynh/vscode-ron) |
 | Sublime Text | [RON](https://packagecontrol.io/packages/RON)               |
