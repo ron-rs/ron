@@ -66,5 +66,5 @@ fn test_missing_comma_error() {
 fn test_comma_end() {
     assert_eq!(ron::from_str::<(i32, i32)>("(0, 1)").unwrap(), (0, 1));
     assert_eq!(ron::from_str::<(i32, i32)>("(0, 1,)").unwrap(), (0, 1));
-    assert_eq!(ron::from_str::<()>("()").unwrap(), ());
+    assert_eq!(ron::from_str::<()>("()"), Ok(()));
 }
