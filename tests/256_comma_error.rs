@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use ron::error::{Error, ErrorCode, Position};
 
 #[derive(Debug, serde::Deserialize)]
