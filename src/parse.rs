@@ -417,6 +417,35 @@ impl<'a> Bytes<'a> {
         }
     }
 
+    pub fn consume_struct_name(&mut self, ident: &'static str) -> Result<bool> {
+        if self.check_ident("") {
+            Ok(false)
+        } else if self.check_ident(ident) {
+            let _ = self.advance(ident.len());
+
+            Ok(true)
+        } else if ident.is_empty() {
+            Err(self.error(ErrorCode::ExpectedStruct))
+        } else {
+            // Create a working copy
+            let mut bytes = *self;
+
+            // If the following is not even an identifier, then a missing
+            //  opening `(` seems more likely
+            let maybe_ident = bytes.identifier().map_err(|e| Error {
+                code: ErrorCode::ExpectedNamedStruct(ident),
+                position: e.position,
+            })?;
+
+            let found = std::str::from_utf8(maybe_ident).map_err(|e| bytes.error(e.into()))?;
+
+            Err(self.error(ErrorCode::ExpectedStructName {
+                expected: ident,
+                found: String::from(found),
+            }))
+        }
+    }
+
     pub fn consume(&mut self, s: &str) -> bool {
         if self.test_for(s) {
             let _ = self.advance(s.len());
