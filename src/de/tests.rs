@@ -1,7 +1,11 @@
 use serde::Deserialize;
 use serde_bytes;
 
-use super::*;
+use crate::{
+    de::from_str,
+    error::{Error, ErrorCode, Position, Result},
+    parse::{AnyNum, Bytes},
+};
 
 #[derive(Debug, PartialEq, Deserialize)]
 struct EmptyStruct1;
@@ -164,25 +168,25 @@ fn test_err_wrong_value() {
     assert_eq!(from_str::<f32>("'c'"), err(ExpectedFloat, 1, 1));
     assert_eq!(from_str::<String>("'c'"), err(ExpectedString, 1, 1));
     assert_eq!(from_str::<HashMap<u32, u32>>("'c'"), err(ExpectedMap, 1, 1));
-    assert_eq!(from_str::<[u8; 5]>("'c'"), err(ExpectedArray, 1, 1));
+    assert_eq!(from_str::<[u8; 5]>("'c'"), err(ExpectedStructLike, 1, 1));
     assert_eq!(from_str::<Vec<u32>>("'c'"), err(ExpectedArray, 1, 1));
     assert_eq!(from_str::<MyEnum>("'c'"), err(ExpectedIdentifier, 1, 1));
     assert_eq!(
         from_str::<MyStruct>("'c'"),
-        err(ExpectedNamedStruct("MyStruct"), 1, 1)
+        err(ExpectedNamedStructLike("MyStruct"), 1, 1)
     );
     assert_eq!(
         from_str::<MyStruct>("NotMyStruct(x: 4, y: 2)"),
         err(
-            ExpectedStructName {
+            ExpectedDifferentStructName {
                 expected: "MyStruct",
                 found: String::from("NotMyStruct")
             },
             1,
-            1
+            12
         )
     );
-    assert_eq!(from_str::<(u8, bool)>("'c'"), err(ExpectedArray, 1, 1));
+    assert_eq!(from_str::<(u8, bool)>("'c'"), err(ExpectedStructLike, 1, 1));
     assert_eq!(from_str::<bool>("notabool"), err(ExpectedBoolean, 1, 1));
 
     assert_eq!(

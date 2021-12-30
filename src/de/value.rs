@@ -5,20 +5,17 @@ use serde::{
     Deserialize, Deserializer,
 };
 
-use crate::{
-    de,
-    value::{Map, Number, Value},
-};
+use crate::value::{Map, Number, Value};
 
 impl std::str::FromStr for Value {
-    type Err = de::Error;
+    type Err = crate::Error;
 
     /// Creates a value from a string reference.
-    fn from_str(s: &str) -> de::Result<Self> {
+    fn from_str(s: &str) -> crate::Result<Self> {
         let mut de = super::Deserializer::from_str(s)?;
 
-        let val = Value::deserialize(&mut de)?;
-        de.end()?;
+        let val = Value::deserialize(&mut de).map_err(|e| de.error(e))?;
+        de.end().map_err(|e| de.error(e))?;
 
         Ok(val)
     }

@@ -32,13 +32,13 @@ pub enum ErrorCode {
     ExpectedMap,
     ExpectedMapColon,
     ExpectedMapEnd,
-    ExpectedStructName {
+    ExpectedDifferentStructName {
         expected: &'static str,
         found: String,
     },
-    ExpectedStruct,
-    ExpectedNamedStruct(&'static str),
-    ExpectedStructEnd,
+    ExpectedStructLike,
+    ExpectedNamedStructLike(&'static str),
+    ExpectedStructLikeEnd,
     ExpectedUnit,
     ExpectedString,
     ExpectedStringEnd,
@@ -91,22 +91,22 @@ impl fmt::Display for ErrorCode {
             ErrorCode::ExpectedMap => f.write_str("Expected opening `{`"),
             ErrorCode::ExpectedMapColon => f.write_str("Expected colon"),
             ErrorCode::ExpectedMapEnd => f.write_str("Expected closing `}`"),
-            ErrorCode::ExpectedStructName {
+            ErrorCode::ExpectedDifferentStructName {
                 expected,
                 ref found,
             } => write!(f, "Expected struct '{}' but found '{}'", expected, found),
-            ErrorCode::ExpectedStruct => f.write_str("Expected opening `(`"),
-            ErrorCode::ExpectedNamedStruct(name) => {
+            ErrorCode::ExpectedStructLike => f.write_str("Expected opening `(`"),
+            ErrorCode::ExpectedNamedStructLike(name) => {
                 write!(f, "Expected opening `(` for struct '{}'", name)
             }
-            ErrorCode::ExpectedStructEnd => f.write_str("Expected closing `)`"),
+            ErrorCode::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
             ErrorCode::ExpectedUnit => f.write_str("Expected unit"),
             ErrorCode::ExpectedString => f.write_str("Expected string"),
             ErrorCode::ExpectedStringEnd => f.write_str("Expected end of string"),
             ErrorCode::ExpectedIdentifier => f.write_str("Expected identifier"),
-            ErrorCode::InvalidEscape(e) => write!(f, "Invalid escape sequence '{}'", e),
+            ErrorCode::InvalidEscape(s) => f.write_str(s),
             ErrorCode::IntegerOutOfBounds => f.write_str("Integer is out of bounds"),
-            ErrorCode::NoSuchExtension(ref name) => write!(f, "No RON extension '{}'", name),
+            ErrorCode::NoSuchExtension(ref name) => write!(f, "No RON extension named '{}'", name),
             ErrorCode::Utf8Error(ref e) => fmt::Display::fmt(e, f),
             ErrorCode::UnclosedBlockComment => f.write_str("Unclosed block comment"),
             ErrorCode::UnderscoreAtBeginning => {
@@ -130,15 +130,6 @@ impl fmt::Display for Position {
     }
 }
 
-impl de::Error for Error {
-    fn custom<T: fmt::Display>(msg: T) -> Self {
-        Error {
-            code: ErrorCode::Message(msg.to_string()),
-            position: Position { line: 0, col: 0 },
-        }
-    }
-}
-
 impl ser::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Self {
         Error {
@@ -148,7 +139,14 @@ impl ser::Error for Error {
     }
 }
 
+impl de::Error for ErrorCode {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        ErrorCode::Message(msg.to_string())
+    }
+}
+
 impl StdError for Error {}
+impl StdError for ErrorCode {}
 
 impl From<Utf8Error> for ErrorCode {
     fn from(e: Utf8Error) -> Self {
@@ -159,15 +157,6 @@ impl From<Utf8Error> for ErrorCode {
 impl From<FromUtf8Error> for ErrorCode {
     fn from(e: FromUtf8Error) -> Self {
         ErrorCode::Utf8Error(e.utf8_error())
-    }
-}
-
-impl From<Utf8Error> for Error {
-    fn from(e: Utf8Error) -> Self {
-        Error {
-            code: ErrorCode::Utf8Error(e),
-            position: Position { line: 0, col: 0 },
-        }
     }
 }
 

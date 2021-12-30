@@ -77,13 +77,13 @@ fn test_deserialise_tuple_newtypes() {
         from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeUnit(Unit)"#)
             .unwrap_err()
             .code,
-        ErrorCode::ExpectedStructEnd,
+        ErrorCode::ExpectedStructLikeEnd,
     );
     assert_eq!(
         from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeUnit(())"#)
             .unwrap_err()
             .code,
-        ErrorCode::ExpectedStructEnd,
+        ErrorCode::ExpectedStructLikeEnd,
     );
     assert_eq!(
         from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeUnit()"#).unwrap(),
@@ -195,7 +195,7 @@ fn test_deserialise_tuple_newtypes() {
         from_str::<TestEnum>(r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeEnum(C 4, false)"#)
             .unwrap_err()
             .code,
-        ErrorCode::ExpectedArray,
+        ErrorCode::ExpectedStructLike,
     );
     assert_eq!(
         from_str::<TestEnum>(
@@ -210,7 +210,7 @@ fn test_deserialise_tuple_newtypes() {
         )
         .unwrap_err()
         .code,
-        ErrorCode::ExpectedStruct,
+        ErrorCode::ExpectedStructLike,
     );
     assert_eq!(
         from_str::<TestEnum>(
