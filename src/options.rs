@@ -127,9 +127,11 @@ impl Options {
     {
         let mut deserializer = Deserializer::from_bytes_with_options(s, self.clone())?;
 
-        let value = seed.deserialize(&mut deserializer)?;
+        let value = seed
+            .deserialize(&mut deserializer)
+            .map_err(|e| deserializer.error(e))?;
 
-        deserializer.end()?;
+        deserializer.end().map_err(|e| deserializer.error(e))?;
 
         Ok(value)
     }

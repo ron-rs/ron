@@ -1,5 +1,5 @@
 /// Deserialization module.
-pub use crate::error::{Error, ErrorCode, Position, Result};
+pub use crate::error::{Error, ErrorCode, Position};
 
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 use std::{borrow::Cow, io, str};
@@ -17,6 +17,8 @@ mod tag;
 mod tests;
 mod value;
 
+type Result<T> = std::result::Result<T, ErrorCode>;
+
 /// The RON deserializer.
 ///
 /// If you just want to simply deserialize a value,
@@ -29,19 +31,25 @@ pub struct Deserializer<'de> {
 impl<'de> Deserializer<'de> {
     // Cannot implement trait here since output is tied to input lifetime 'de.
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(input: &'de str) -> Result<Self> {
+    pub fn from_str(input: &'de str) -> std::result::Result<Self, Error> {
         Self::from_str_with_options(input, Options::default())
     }
 
-    pub fn from_bytes(input: &'de [u8]) -> Result<Self> {
+    pub fn from_bytes(input: &'de [u8]) -> std::result::Result<Self, Error> {
         Self::from_bytes_with_options(input, Options::default())
     }
 
-    pub fn from_str_with_options(input: &'de str, options: Options) -> Result<Self> {
+    pub fn from_str_with_options(
+        input: &'de str,
+        options: Options,
+    ) -> std::result::Result<Self, Error> {
         Self::from_bytes_with_options(input.as_bytes(), options)
     }
 
-    pub fn from_bytes_with_options(input: &'de [u8], options: Options) -> Result<Self> {
+    pub fn from_bytes_with_options(
+        input: &'de [u8],
+        options: Options,
+    ) -> std::result::Result<Self, Error> {
         let mut deserializer = Deserializer {
             bytes: Bytes::new(input)?,
             newtype_variant: false,
@@ -55,11 +63,15 @@ impl<'de> Deserializer<'de> {
     pub fn remainder(&self) -> Cow<'_, str> {
         String::from_utf8_lossy(self.bytes.bytes())
     }
+
+    pub fn error(&self, code: ErrorCode) -> Error {
+        self.bytes.error(code)
+    }
 }
 
 /// A convenience function for building a deserializer
 /// and deserializing a value of type `T` from a reader.
-pub fn from_reader<R, T>(rdr: R) -> Result<T>
+pub fn from_reader<R, T>(rdr: R) -> std::result::Result<T, Error>
 where
     R: io::Read,
     T: de::DeserializeOwned,
@@ -69,7 +81,7 @@ where
 
 /// A convenience function for building a deserializer
 /// and deserializing a value of type `T` from a string.
-pub fn from_str<'a, T>(s: &'a str) -> Result<T>
+pub fn from_str<'a, T>(s: &'a str) -> std::result::Result<T, Error>
 where
     T: de::Deserialize<'a>,
 {
@@ -78,7 +90,7 @@ where
 
 /// A convenience function for building a deserializer
 /// and deserializing a value of type `T` from bytes.
-pub fn from_bytes<'a, T>(s: &'a [u8]) -> Result<T>
+pub fn from_bytes<'a, T>(s: &'a [u8]) -> std::result::Result<T, Error>
 where
     T: de::Deserialize<'a>,
 {
@@ -94,7 +106,7 @@ impl<'de> Deserializer<'de> {
         if self.bytes.bytes().is_empty() {
             Ok(())
         } else {
-            self.bytes.err(ErrorCode::TrailingCharacters)
+            Err(ErrorCode::TrailingCharacters)
         }
     }
 
@@ -127,7 +139,7 @@ impl<'de> Deserializer<'de> {
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
-    type Error = Error;
+    type Error = ErrorCode;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
@@ -191,7 +203,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'.' => self.deserialize_f64(visitor),
             b'"' | b'r' => self.deserialize_string(visitor),
             b'\'' => self.deserialize_char(visitor),
-            other => self.bytes.err(ErrorCode::UnexpectedByte(other as char)),
+            other => Err(ErrorCode::UnexpectedByte(other as char)),
         }
     }
 
@@ -334,7 +346,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         match res {
             Ok(byte_buf) => visitor.visit_byte_buf(byte_buf),
-            Err(err) => self.bytes.err(ErrorCode::Base64Error(err)),
+            Err(err) => Err(ErrorCode::Base64Error(err)),
         }
     }
 
@@ -359,10 +371,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(v)
             } else {
-                self.bytes.err(ErrorCode::ExpectedOptionEnd)
+                Err(ErrorCode::ExpectedOptionEnd)
             }
         } else {
-            self.bytes.err(ErrorCode::ExpectedOption)
+            Err(ErrorCode::ExpectedOption)
         }
     }
 
@@ -376,7 +388,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
             visitor.visit_unit()
         } else {
-            self.bytes.err(ErrorCode::ExpectedUnit)
+            Err(ErrorCode::ExpectedUnit)
         }
     }
 
@@ -415,12 +427,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume(")") {
                 Ok(value)
             } else {
-                self.bytes.err(ErrorCode::ExpectedStructEnd)
+                Err(ErrorCode::ExpectedStructLikeEnd)
             }
         } else if name.is_empty() {
-            self.bytes.err(ErrorCode::ExpectedStruct)
+            Err(ErrorCode::ExpectedStructLike)
         } else {
-            self.bytes.err(ErrorCode::ExpectedNamedStruct(name))
+            Err(ErrorCode::ExpectedNamedStructLike(name))
         }
     }
 
@@ -437,10 +449,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume("]") {
                 Ok(value)
             } else {
-                self.bytes.err(ErrorCode::ExpectedArrayEnd)
+                Err(ErrorCode::ExpectedArrayEnd)
             }
         } else {
-            self.bytes.err(ErrorCode::ExpectedArray)
+            Err(ErrorCode::ExpectedArray)
         }
     }
 
@@ -458,10 +470,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if old_newtype_variant || self.bytes.consume(")") {
                 Ok(value)
             } else {
-                self.bytes.err(ErrorCode::ExpectedArrayEnd)
+                Err(ErrorCode::ExpectedStructLikeEnd)
             }
         } else {
-            self.bytes.err(ErrorCode::ExpectedArray)
+            Err(ErrorCode::ExpectedStructLike)
         }
     }
 
@@ -478,7 +490,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             self.bytes.consume_struct_name(name)?;
         }
 
-        self.deserialize_tuple(len, visitor)
+        self.deserialize_tuple(len, visitor).map_err(|e| match e {
+            ErrorCode::ExpectedStructLike if !name.is_empty() => {
+                ErrorCode::ExpectedNamedStructLike(name)
+            }
+            e => e,
+        })
     }
 
     fn deserialize_map<V>(mut self, visitor: V) -> Result<V::Value>
@@ -494,10 +511,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.bytes.consume("}") {
                 Ok(value)
             } else {
-                self.bytes.err(ErrorCode::ExpectedMapEnd)
+                Err(ErrorCode::ExpectedMapEnd)
             }
         } else {
-            self.bytes.err(ErrorCode::ExpectedMap)
+            Err(ErrorCode::ExpectedMap)
         }
     }
 
@@ -526,12 +543,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if old_newtype_variant || self.bytes.consume(")") {
                 Ok(value)
             } else {
-                self.bytes.err(ErrorCode::ExpectedStructEnd)
+                Err(ErrorCode::ExpectedStructLikeEnd)
             }
         } else if name.is_empty() {
-            self.bytes.err(ErrorCode::ExpectedStruct)
+            Err(ErrorCode::ExpectedStructLike)
         } else {
-            self.bytes.err(ErrorCode::ExpectedNamedStruct(name))
+            Err(ErrorCode::ExpectedNamedStructLike(name))
         }
     }
 
@@ -553,9 +570,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_str(
-            str::from_utf8(self.bytes.identifier()?).map_err(|e| self.bytes.error(e.into()))?,
-        )
+        visitor.visit_str(str::from_utf8(self.bytes.identifier()?).map_err(ErrorCode::from)?)
     }
 
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
@@ -581,10 +596,6 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
         }
     }
 
-    fn err<T>(&self, kind: ErrorCode) -> Result<T> {
-        self.de.bytes.err(kind)
-    }
-
     fn has_element(&mut self) -> Result<bool> {
         self.de.bytes.skip_ws()?;
 
@@ -597,13 +608,13 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
             // No trailing comma but terminator
             (false, false) => Ok(false),
             // No trailing comma or terminator
-            (false, true) => self.err(ErrorCode::ExpectedComma),
+            (false, true) => Err(ErrorCode::ExpectedComma),
         }
     }
 }
 
 impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
-    type Error = Error;
+    type Error = ErrorCode;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
     where
@@ -622,7 +633,7 @@ impl<'de, 'a> de::SeqAccess<'de> for CommaSeparated<'a, 'de> {
 }
 
 impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
-    type Error = Error;
+    type Error = ErrorCode;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
@@ -655,7 +666,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
 
             Ok(res)
         } else {
-            self.err(ErrorCode::ExpectedMapColon)
+            Err(ErrorCode::ExpectedMapColon)
         }
     }
 }
@@ -671,7 +682,7 @@ impl<'a, 'de> Enum<'a, 'de> {
 }
 
 impl<'de, 'a> de::EnumAccess<'de> for Enum<'a, 'de> {
-    type Error = Error;
+    type Error = ErrorCode;
     type Variant = Self;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
@@ -687,7 +698,7 @@ impl<'de, 'a> de::EnumAccess<'de> for Enum<'a, 'de> {
 }
 
 impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
-    type Error = Error;
+    type Error = ErrorCode;
 
     fn unit_variant(self) -> Result<()> {
         Ok(())
@@ -717,10 +728,10 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
             if self.de.bytes.consume(")") {
                 Ok(val)
             } else {
-                self.de.bytes.err(ErrorCode::ExpectedStructEnd)
+                Err(ErrorCode::ExpectedStructLikeEnd)
             }
         } else {
-            self.de.bytes.err(ErrorCode::ExpectedStruct)
+            Err(ErrorCode::ExpectedStructLike)
         }
     }
 

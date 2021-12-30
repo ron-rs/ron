@@ -1,6 +1,8 @@
 use serde::de::{self, Visitor};
 
-use super::{Deserializer, Error, Result};
+use super::{Deserializer, ErrorCode};
+
+type Result<T> = std::result::Result<T, ErrorCode>;
 
 pub struct IdDeserializer<'a, 'b: 'a> {
     d: &'a mut Deserializer<'b>,
@@ -13,7 +15,7 @@ impl<'a, 'b: 'a> IdDeserializer<'a, 'b> {
 }
 
 impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
-    type Error = Error;
+    type Error = ErrorCode;
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
