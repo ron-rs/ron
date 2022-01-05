@@ -12,7 +12,7 @@ const EXPTECTED: &str = "[
 ]";
 
 const EXPTECTED_COMPACT: &str = "[/*[0]*/ None, /*[1]*/ Some([]), /*[2]*/ Some([/*[0]*/ 42]), \
-/*[3]*/ Some([/*[0]*/ 4, /*[1]*/ 2]), /*[4]*/ None]";
+                                 /*[3]*/ Some([/*[0]*/ 4, /*[1]*/ 2]), /*[4]*/ None]";
 
 #[test]
 fn enumerate_arrays() {
