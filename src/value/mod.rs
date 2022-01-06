@@ -89,7 +89,6 @@ impl FromIterator<(Value, Value)> for Map {
 
 impl IntoIterator for Map {
     type Item = (Value, Value);
-
     type IntoIter = <MapInner as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -349,6 +348,24 @@ impl Value {
     }
 }
 
+impl Value {
+    fn unexpected(&self) -> serde::de::Unexpected {
+        use serde::de::Unexpected;
+
+        match self {
+            Self::Bool(b) => Unexpected::Bool(*b),
+            Self::Char(c) => Unexpected::Char(*c),
+            Self::Map(_) => Unexpected::Map,
+            Self::Number(Number::Integer(i)) => Unexpected::Signed(*i),
+            Self::Number(Number::Float(f)) => Unexpected::Float(f.0),
+            Self::Option(_) => Unexpected::Option,
+            Self::String(s) => Unexpected::Str(s),
+            Self::Seq(_) => Unexpected::Seq,
+            Self::Unit => Unexpected::Unit,
+        }
+    }
+}
+
 /// Deserializer implementation for RON `Value`.
 /// This does not support enums (because `Value` doesn't store them).
 impl<'de> Deserializer<'de> for Value {
@@ -356,8 +373,136 @@ impl<'de> Deserializer<'de> for Value {
 
     forward_to_deserialize_any! {
         bool f32 f64 char str string bytes
-        byte_buf option unit unit_struct newtype_struct seq tuple
-        tuple_struct map struct enum identifier ignored_any
+        byte_buf option unit seq tuple
+        map identifier ignored_any
+    }
+
+    fn deserialize_newtype_struct<V>(mut self, name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        if let Value::Map(map) = &mut self {
+            if map.len() == 1 {
+                let first_key = map.keys().next();
+
+                if let Some(Value::String(key)) = first_key {
+                    if key == name {
+                        if let Some(inner) = map.remove(&Value::String(String::from(name))) {
+                            return Value::Seq(vec![inner]).deserialize_any(visitor);
+                        }
+                    }
+                }
+            }
+        }
+
+        self.deserialize_any(visitor)
+    }
+
+    fn deserialize_unit_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        if let Value::String(ident) = &self {
+            if ident == name {
+                return visitor.visit_unit();
+            }
+        }
+
+        self.deserialize_any(visitor)
+    }
+
+    fn deserialize_tuple_struct<V>(
+        mut self,
+        name: &'static str,
+        _len: usize,
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        if let Value::Map(map) = &mut self {
+            if map.len() == 1 {
+                let first_key = map.keys().next();
+
+                if let Some(Value::String(key)) = first_key {
+                    if key == name {
+                        if let Some(inner) = map.remove(&Value::String(String::from(name))) {
+                            return inner.deserialize_any(visitor);
+                        }
+                    }
+                }
+            }
+        }
+
+        self.deserialize_any(visitor)
+    }
+
+    fn deserialize_struct<V>(
+        mut self,
+        name: &'static str,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        if let Value::Map(map) = &mut self {
+            if map.len() == 1 {
+                let first_key = map.keys().next();
+
+                if let Some(Value::String(key)) = first_key {
+                    if key == name {
+                        if let Some(inner) = map.remove(&Value::String(String::from(name))) {
+                            return inner.deserialize_any(visitor);
+                        }
+                    }
+                }
+            }
+        }
+
+        self.deserialize_any(visitor)
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let (variant, value) = match self {
+            Value::Map(map) => {
+                let mut iter = map.into_iter();
+                let (variant, value) = match iter.next() {
+                    Some(v) => v,
+                    None => {
+                        return Err(serde::de::Error::invalid_value(
+                            serde::de::Unexpected::Map,
+                            &"map with a single key",
+                        ));
+                    }
+                };
+                // enums are encoded in json as maps with a single key:value pair
+                if iter.next().is_some() {
+                    return Err(serde::de::Error::invalid_value(
+                        serde::de::Unexpected::Map,
+                        &"map with a single key",
+                    ));
+                }
+                (variant, Some(value))
+            }
+            s @ Value::String(_) => (s, None),
+            other => {
+                return Err(serde::de::Error::invalid_type(
+                    other.unexpected(),
+                    &"string or map",
+                ));
+            }
+        };
+
+        visitor.visit_enum(EnumRefDeserializer { variant, value })
     }
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -530,6 +675,90 @@ impl<'a, 'de> SeqAccess<'de> for Seq<'a> {
 
     fn size_hint(&self) -> Option<usize> {
         Some(self.seq.len())
+    }
+}
+
+struct EnumRefDeserializer {
+    variant: Value,
+    value: Option<Value>,
+}
+
+impl<'de> serde::de::EnumAccess<'de> for EnumRefDeserializer {
+    type Error = Error;
+    type Variant = VariantRefDeserializer;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
+    where
+        V: serde::de::DeserializeSeed<'de>,
+    {
+        let visitor = VariantRefDeserializer { value: self.value };
+        seed.deserialize(self.variant).map(|v| (v, visitor))
+    }
+}
+
+struct VariantRefDeserializer {
+    value: Option<Value>,
+}
+
+impl<'de> serde::de::VariantAccess<'de> for VariantRefDeserializer {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<()> {
+        match self.value {
+            None => Ok(()),
+            Some(other) => Err(serde::de::Error::invalid_type(
+                other.unexpected(),
+                &"unit variant",
+            )),
+        }
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
+    where
+        T: serde::de::DeserializeSeed<'de>,
+    {
+        match self.value {
+            Some(value) => seed.deserialize(value),
+            None => Err(serde::de::Error::invalid_type(
+                serde::de::Unexpected::UnitVariant,
+                &"newtype variant",
+            )),
+        }
+    }
+
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        match self.value {
+            Some(seq @ Value::Seq(_)) => seq.deserialize_any(visitor),
+            Some(other) => Err(serde::de::Error::invalid_type(
+                other.unexpected(),
+                &"tuple variant",
+            )),
+            None => Err(serde::de::Error::invalid_type(
+                serde::de::Unexpected::UnitVariant,
+                &"tuple variant",
+            )),
+        }
+    }
+
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    where
+        V: serde::de::Visitor<'de>,
+    {
+        match self.value {
+            Some(map @ Value::Map(_)) => map.deserialize_any(visitor),
+            Some(seq @ Value::Seq(_)) => seq.deserialize_any(visitor),
+            Some(other) => Err(serde::de::Error::invalid_type(
+                other.unexpected(),
+                &"struct variant",
+            )),
+            None => Err(serde::de::Error::invalid_type(
+                serde::de::Unexpected::UnitVariant,
+                &"struct variant",
+            )),
+        }
     }
 }
 
