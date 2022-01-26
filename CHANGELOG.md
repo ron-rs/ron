@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#265](https://github.com/ron-rs/ron/issues/265) with better missing comma error ([#353](https://github.com/ron-rs/ron/pull/353))
 - Fix issue [#301](https://github.com/ron-rs/ron/issues/301) with better error messages ([#354](https://github.com/ron-rs/ron/pull/354))
 - Fix issue [#152](https://github.com/ron-rs/ron/issues/152) bitflags serde ([#352](https://github.com/ron-rs/ron/pull/352))
+- Fix issue [#359](https://github.com/ron-rs/ron/issues/359) with `DeserializeSeed` support ([#360](https://github.com/ron-rs/ron/pull/360))
 
 ## [0.7.0] - 2021-10-22
 
