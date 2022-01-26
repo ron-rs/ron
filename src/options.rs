@@ -66,8 +66,8 @@ impl Options {
 }
 
 impl Options {
-    /// A convenience function for reading data from a reader
-    /// and feeding into a deserializer.
+    /// A convenience function for building a deserializer
+    /// and deserializing a value of type `T` from a reader.
     pub fn from_reader<R, T>(&self, mut rdr: R) -> Result<T>
     where
         R: io::Read,
@@ -94,9 +94,43 @@ impl Options {
     where
         T: de::Deserialize<'a>,
     {
+        self.from_bytes_seed(s, std::marker::PhantomData)
+    }
+
+    /// A convenience function for building a deserializer
+    /// and deserializing a value of type `T` from a reader
+    /// and a seed.
+    pub fn from_reader_seed<R, S, T>(&self, mut rdr: R, seed: S) -> Result<T>
+    where
+        R: io::Read,
+        S: for<'a> de::DeserializeSeed<'a, Value = T>,
+    {
+        let mut bytes = Vec::new();
+        rdr.read_to_end(&mut bytes)?;
+
+        self.from_bytes_seed(&bytes, seed)
+    }
+
+    /// A convenience function for building a deserializer
+    /// and deserializing a value of type `T` from a string
+    /// and a seed.
+    pub fn from_str_seed<'a, S, T>(&self, s: &'a str, seed: S) -> Result<T>
+    where
+        S: de::DeserializeSeed<'a, Value = T>,
+    {
+        self.from_bytes_seed(s.as_bytes(), seed)
+    }
+
+    /// A convenience function for building a deserializer
+    /// and deserializing a value of type `T` from bytes
+    /// and a seed.
+    pub fn from_bytes_seed<'a, S, T>(&self, s: &'a [u8], seed: S) -> Result<T>
+    where
+        S: de::DeserializeSeed<'a, Value = T>,
+    {
         let mut deserializer = Deserializer::from_bytes_with_options(s, self.clone())?;
 
-        let value = T::deserialize(&mut deserializer)?;
+        let value = seed.deserialize(&mut deserializer)?;
 
         deserializer.end()?;
 
