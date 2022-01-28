@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#289](https://github.com/ron-rs/ron/issues/289) enumerate_arrays comments ([#344](https://github.com/ron-rs/ron/pull/344))
 - Report struct name in expected struct error ([#342](https://github.com/ron-rs/ron/pull/342))
 - Add `Options` builder to configure the RON serde roundtrip ([#343](https://github.com/ron-rs/ron/pull/343))
+- Fix issue [#359](https://github.com/ron-rs/ron/issues/359) with `DeserializeSeed` support ([#360](https://github.com/ron-rs/ron/pull/360))
 
 ## [0.7.0] - 2021-10-22
 

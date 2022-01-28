@@ -57,8 +57,8 @@ impl<'de> Deserializer<'de> {
     }
 }
 
-/// A convenience function for reading data from a reader
-/// and feeding into a deserializer.
+/// A convenience function for building a deserializer
+/// and deserializing a value of type `T` from a reader.
 pub fn from_reader<R, T>(rdr: R) -> Result<T>
 where
     R: io::Read,
