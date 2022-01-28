@@ -16,7 +16,7 @@ RON = [extensions], ws, value, ws;
 ## Whitespace and comments
 
 ```ebnf
-ws = { ws_single, comment };
+ws = { ws_single | comment };
 ws_single = "\n" | "\t" | "\r" | " ";
 comment = ["//", { no_newline }, "\n"] | ["/*", { ? any character ? }, "*/"];
 ```
@@ -95,7 +95,8 @@ bool = "true" | "false";
 ## Optional
 
 ```ebnf
-option = "Some", ws, "(", ws, value, ws, ")";
+option = "None" | option_some;
+option_some = "Some", ws, "(", ws, value, ws, ")";
 ```
 
 ## List
