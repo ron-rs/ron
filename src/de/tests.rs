@@ -240,13 +240,13 @@ fn rename() {
 fn forgot_apostrophes() {
     let de: Result<(i32, String)> = from_str("(4, \"Hello)");
 
-    assert!(match de {
+    assert!(matches!(
+        de,
         Err(Error {
             code: ErrorCode::ExpectedStringEnd,
             position: _,
-        }) => true,
-        _ => false,
-    });
+        })
+    ));
 }
 
 #[test]
