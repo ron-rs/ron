@@ -69,6 +69,7 @@ struct Pretty {
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
+#[non_exhaustive]
 pub struct PrettyConfig {
     /// Limit the pretty-ness up to the given depth.
     pub depth_limit: usize,
@@ -91,9 +92,6 @@ pub struct PrettyConfig {
     pub extensions: Extensions,
     /// Enable compact arrays
     pub compact_arrays: bool,
-    /// Private field to ensure adding a field is non-breaking.
-    #[serde(skip)]
-    _future_proof: (),
 }
 
 impl PrettyConfig {
@@ -227,7 +225,6 @@ impl Default for PrettyConfig {
             extensions: Extensions::empty(),
             decimal_floats: false,
             compact_arrays: false,
-            _future_proof: (),
         }
     }
 }
@@ -466,10 +463,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_f32(self, v: f32) -> Result<()> {
         write!(self.output, "{}", v)?;
-        // TODO: use f32::EPSILON when minimum supported rust version is 1.43
-        #[allow(clippy::excessive_precision)]
-        pub const EPSILON: f32 = 1.192_092_90e-07_f32;
-        if self.decimal_floats() && (v - v.floor()).abs() < EPSILON {
+        if self.decimal_floats() && (v - v.floor()).abs() < f32::EPSILON {
             write!(self.output, ".0")?;
         }
         Ok(())
@@ -477,10 +471,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_f64(self, v: f64) -> Result<()> {
         write!(self.output, "{}", v)?;
-        // TODO: use f64::EPSILON when minimum supported rust version is 1.43
-        #[allow(clippy::excessive_precision)]
-        pub const EPSILON: f64 = 2.220_446_049_250_313e-16_f64;
-        if self.decimal_floats() && (v - v.floor()).abs() < EPSILON {
+        if self.decimal_floats() && (v - v.floor()).abs() < f64::EPSILON {
             write!(self.output, ".0")?;
         }
         Ok(())
