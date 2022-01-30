@@ -423,7 +423,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.newtype_variant = false;
 
         if self.bytes.consume("[") {
-            let value = visitor.visit_seq(CommaSeparated::new(b']', &mut self))?;
+            let value = visitor.visit_seq(CommaSeparated::new(b']', self))?;
             self.bytes.comma()?;
 
             if self.bytes.consume("]") {
@@ -444,7 +444,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
-            let value = visitor.visit_seq(CommaSeparated::new(b')', &mut self))?;
+            let value = visitor.visit_seq(CommaSeparated::new(b')', self))?;
             self.bytes.comma()?;
 
             if old_newtype_variant || self.bytes.consume(")") {
@@ -480,7 +480,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.newtype_variant = false;
 
         if self.bytes.consume("{") {
-            let value = visitor.visit_map(CommaSeparated::new(b'}', &mut self))?;
+            let value = visitor.visit_map(CommaSeparated::new(b'}', self))?;
             self.bytes.comma()?;
 
             if self.bytes.consume("}") {
@@ -512,7 +512,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
-            let value = visitor.visit_map(CommaSeparated::new(b')', &mut self))?;
+            let value = visitor.visit_map(CommaSeparated::new(b')', self))?;
             self.bytes.comma()?;
 
             if old_newtype_variant || self.bytes.consume(")") {
