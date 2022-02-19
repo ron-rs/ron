@@ -1,8 +1,6 @@
 use serde::de::{self, Visitor};
 
-use super::{Deserializer, ErrorCode};
-
-type Result<T> = std::result::Result<T, ErrorCode>;
+use super::{Deserializer, Error, Result};
 
 pub struct TagDeserializer<'a, 'b: 'a> {
     d: &'a mut Deserializer<'b>,
@@ -15,7 +13,7 @@ impl<'a, 'b: 'a> TagDeserializer<'a, 'b> {
 }
 
 impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut TagDeserializer<'a, 'b> {
-    type Error = ErrorCode;
+    type Error = Error;
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
     where

@@ -4,16 +4,17 @@ use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Err
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Error {
-    pub code: ErrorCode,
+pub struct SpannedError {
+    pub code: Error,
     pub position: Position,
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type SpannedResult<T> = std::result::Result<T, SpannedError>;
 
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub enum ErrorCode {
+pub enum Error {
     Io(String),
     Message(String),
     Base64Error(base64::DecodeError),
@@ -58,7 +59,7 @@ pub enum ErrorCode {
     TrailingCharacters,
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for SpannedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if (self.position == Position { line: 0, col: 0 }) {
             write!(f, "{}", self.code)
@@ -68,52 +69,52 @@ impl fmt::Display for Error {
     }
 }
 
-impl fmt::Display for ErrorCode {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            ErrorCode::Io(ref s) => f.write_str(s),
-            ErrorCode::Message(ref s) => f.write_str(s),
-            ErrorCode::Base64Error(ref e) => fmt::Display::fmt(e, f),
-            ErrorCode::Eof => f.write_str("Unexpected end of RON"),
-            ErrorCode::ExpectedArray => f.write_str("Expected opening `[`"),
-            ErrorCode::ExpectedArrayEnd => f.write_str("Expected closing `]`"),
-            ErrorCode::ExpectedAttribute => f.write_str("Expected an `#![enable(...)]` attribute"),
-            ErrorCode::ExpectedAttributeEnd => {
+            Error::Io(ref s) => f.write_str(s),
+            Error::Message(ref s) => f.write_str(s),
+            Error::Base64Error(ref e) => fmt::Display::fmt(e, f),
+            Error::Eof => f.write_str("Unexpected end of RON"),
+            Error::ExpectedArray => f.write_str("Expected opening `[`"),
+            Error::ExpectedArrayEnd => f.write_str("Expected closing `]`"),
+            Error::ExpectedAttribute => f.write_str("Expected an `#![enable(...)]` attribute"),
+            Error::ExpectedAttributeEnd => {
                 f.write_str("Expected closing `)]` after the enable attribute")
             }
-            ErrorCode::ExpectedBoolean => f.write_str("Expected boolean"),
-            ErrorCode::ExpectedComma => f.write_str("Expected comma"),
-            ErrorCode::ExpectedChar => f.write_str("Expected char"),
-            ErrorCode::ExpectedFloat => f.write_str("Expected float"),
-            ErrorCode::ExpectedInteger => f.write_str("Expected integer"),
-            ErrorCode::ExpectedOption => f.write_str("Expected option"),
-            ErrorCode::ExpectedOptionEnd => f.write_str("Expected closing `)`"),
-            ErrorCode::ExpectedMap => f.write_str("Expected opening `{`"),
-            ErrorCode::ExpectedMapColon => f.write_str("Expected colon"),
-            ErrorCode::ExpectedMapEnd => f.write_str("Expected closing `}`"),
-            ErrorCode::ExpectedDifferentStructName {
+            Error::ExpectedBoolean => f.write_str("Expected boolean"),
+            Error::ExpectedComma => f.write_str("Expected comma"),
+            Error::ExpectedChar => f.write_str("Expected char"),
+            Error::ExpectedFloat => f.write_str("Expected float"),
+            Error::ExpectedInteger => f.write_str("Expected integer"),
+            Error::ExpectedOption => f.write_str("Expected option"),
+            Error::ExpectedOptionEnd => f.write_str("Expected closing `)`"),
+            Error::ExpectedMap => f.write_str("Expected opening `{`"),
+            Error::ExpectedMapColon => f.write_str("Expected colon"),
+            Error::ExpectedMapEnd => f.write_str("Expected closing `}`"),
+            Error::ExpectedDifferentStructName {
                 expected,
                 ref found,
             } => write!(f, "Expected struct '{}' but found '{}'", expected, found),
-            ErrorCode::ExpectedStructLike => f.write_str("Expected opening `(`"),
-            ErrorCode::ExpectedNamedStructLike(name) => {
+            Error::ExpectedStructLike => f.write_str("Expected opening `(`"),
+            Error::ExpectedNamedStructLike(name) => {
                 write!(f, "Expected opening `(` for struct '{}'", name)
             }
-            ErrorCode::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
-            ErrorCode::ExpectedUnit => f.write_str("Expected unit"),
-            ErrorCode::ExpectedString => f.write_str("Expected string"),
-            ErrorCode::ExpectedStringEnd => f.write_str("Expected end of string"),
-            ErrorCode::ExpectedIdentifier => f.write_str("Expected identifier"),
-            ErrorCode::InvalidEscape(s) => f.write_str(s),
-            ErrorCode::IntegerOutOfBounds => f.write_str("Integer is out of bounds"),
-            ErrorCode::NoSuchExtension(ref name) => write!(f, "No RON extension named '{}'", name),
-            ErrorCode::Utf8Error(ref e) => fmt::Display::fmt(e, f),
-            ErrorCode::UnclosedBlockComment => f.write_str("Unclosed block comment"),
-            ErrorCode::UnderscoreAtBeginning => {
+            Error::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
+            Error::ExpectedUnit => f.write_str("Expected unit"),
+            Error::ExpectedString => f.write_str("Expected string"),
+            Error::ExpectedStringEnd => f.write_str("Expected end of string"),
+            Error::ExpectedIdentifier => f.write_str("Expected identifier"),
+            Error::InvalidEscape(s) => f.write_str(s),
+            Error::IntegerOutOfBounds => f.write_str("Integer is out of bounds"),
+            Error::NoSuchExtension(ref name) => write!(f, "No RON extension named '{}'", name),
+            Error::Utf8Error(ref e) => fmt::Display::fmt(e, f),
+            Error::UnclosedBlockComment => f.write_str("Unclosed block comment"),
+            Error::UnderscoreAtBeginning => {
                 f.write_str("Unexpected leading underscore in an integer")
             }
-            ErrorCode::UnexpectedByte(ref byte) => write!(f, "Unexpected byte {:?}", byte),
-            ErrorCode::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
+            Error::UnexpectedByte(ref byte) => write!(f, "Unexpected byte {:?}", byte),
+            Error::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
         }
     }
 }
@@ -132,39 +133,48 @@ impl fmt::Display for Position {
 
 impl ser::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        Error {
-            code: ErrorCode::Message(msg.to_string()),
-            position: Position { line: 0, col: 0 },
-        }
+        Error::Message(msg.to_string())
     }
 }
 
-impl de::Error for ErrorCode {
+impl de::Error for Error {
     fn custom<T: fmt::Display>(msg: T) -> Self {
-        ErrorCode::Message(msg.to_string())
+        Error::Message(msg.to_string())
     }
 }
 
+impl StdError for SpannedError {}
 impl StdError for Error {}
-impl StdError for ErrorCode {}
 
-impl From<Utf8Error> for ErrorCode {
+impl From<Utf8Error> for Error {
     fn from(e: Utf8Error) -> Self {
-        ErrorCode::Utf8Error(e)
+        Error::Utf8Error(e)
     }
 }
 
-impl From<FromUtf8Error> for ErrorCode {
+impl From<FromUtf8Error> for Error {
     fn from(e: FromUtf8Error) -> Self {
-        ErrorCode::Utf8Error(e.utf8_error())
+        Error::Utf8Error(e.utf8_error())
     }
 }
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
-        Error {
-            code: ErrorCode::Io(e.to_string()),
+        Error::Io(e.to_string())
+    }
+}
+
+impl From<io::Error> for SpannedError {
+    fn from(e: io::Error) -> Self {
+        SpannedError {
+            code: e.into(),
             position: Position { line: 0, col: 0 },
         }
+    }
+}
+
+impl From<SpannedError> for Error {
+    fn from(e: SpannedError) -> Self {
+        e.code
     }
 }

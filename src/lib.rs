@@ -70,7 +70,7 @@ pub mod extensions;
 pub mod options;
 
 pub use de::{from_str, Deserializer};
-pub use error::{Error, Result};
+pub use error::{Result, SpannedError};
 pub use options::Options;
 pub use ser::{to_string, Serializer};
 pub use value::{Map, Number, Value};

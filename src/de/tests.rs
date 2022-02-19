@@ -3,7 +3,7 @@ use serde_bytes;
 
 use crate::{
     de::from_str,
-    error::{Error, ErrorCode, Position, Result},
+    error::{Error, Position, SpannedError, SpannedResult},
     parse::{AnyNum, Bytes},
 };
 
@@ -153,8 +153,8 @@ y: 2.0 // 2!
     );
 }
 
-fn err<T>(kind: ErrorCode, line: usize, col: usize) -> Result<T> {
-    Err(Error {
+fn err<T>(kind: Error, line: usize, col: usize) -> SpannedResult<T> {
+    Err(SpannedError {
         code: kind,
         position: Position { line, col },
     })
@@ -162,7 +162,7 @@ fn err<T>(kind: ErrorCode, line: usize, col: usize) -> Result<T> {
 
 #[test]
 fn test_err_wrong_value() {
-    use self::ErrorCode::*;
+    use self::Error::*;
     use std::collections::HashMap;
 
     assert_eq!(from_str::<f32>("'c'"), err(ExpectedFloat, 1, 1));
@@ -238,12 +238,12 @@ fn rename() {
 
 #[test]
 fn forgot_apostrophes() {
-    let de: Result<(i32, String)> = from_str("(4, \"Hello)");
+    let de: SpannedResult<(i32, String)> = from_str("(4, \"Hello)");
 
     assert!(matches!(
         de,
-        Err(Error {
-            code: ErrorCode::ExpectedStringEnd,
+        Err(SpannedError {
+            code: Error::ExpectedStringEnd,
             position: _,
         })
     ));
@@ -251,25 +251,25 @@ fn forgot_apostrophes() {
 
 #[test]
 fn expected_attribute() {
-    let de: Result<String> = from_str("#\"Hello\"");
+    let de: SpannedResult<String> = from_str("#\"Hello\"");
 
-    assert_eq!(de, err(ErrorCode::ExpectedAttribute, 1, 2));
+    assert_eq!(de, err(Error::ExpectedAttribute, 1, 2));
 }
 
 #[test]
 fn expected_attribute_end() {
-    let de: Result<String> = from_str("#![enable(unwrap_newtypes) \"Hello\"");
+    let de: SpannedResult<String> = from_str("#![enable(unwrap_newtypes) \"Hello\"");
 
-    assert_eq!(de, err(ErrorCode::ExpectedAttributeEnd, 1, 28));
+    assert_eq!(de, err(Error::ExpectedAttributeEnd, 1, 28));
 }
 
 #[test]
 fn invalid_attribute() {
-    let de: Result<String> = from_str("#![enable(invalid)] \"Hello\"");
+    let de: SpannedResult<String> = from_str("#![enable(invalid)] \"Hello\"");
 
     assert_eq!(
         de,
-        err(ErrorCode::NoSuchExtension("invalid".to_string()), 1, 18)
+        err(Error::NoSuchExtension("invalid".to_string()), 1, 18)
     );
 }
 
@@ -277,7 +277,7 @@ fn invalid_attribute() {
 fn multiple_attributes() {
     #[derive(Debug, Deserialize, PartialEq)]
     struct New(String);
-    let de: Result<New> =
+    let de: SpannedResult<New> =
         from_str("#![enable(unwrap_newtypes)] #![enable(unwrap_newtypes)] \"Hello\"");
 
     assert_eq!(de, Ok(New("Hello".to_owned())));
@@ -285,7 +285,7 @@ fn multiple_attributes() {
 
 #[test]
 fn uglified_attribute() {
-    let de: Result<()> = from_str(
+    let de: SpannedResult<()> = from_str(
         "#   !\
     // We definitely want to add a comment here
     [\t\tenable( // best style ever

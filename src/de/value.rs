@@ -5,17 +5,18 @@ use serde::{
     Deserialize, Deserializer,
 };
 
+use crate::error::SpannedResult;
 use crate::value::{Map, Number, Value};
 
 impl std::str::FromStr for Value {
-    type Err = crate::Error;
+    type Err = crate::SpannedError;
 
     /// Creates a value from a string reference.
-    fn from_str(s: &str) -> crate::Result<Self> {
+    fn from_str(s: &str) -> SpannedResult<Self> {
         let mut de = super::Deserializer::from_str(s)?;
 
-        let val = Value::deserialize(&mut de).map_err(|e| de.error(e))?;
-        de.end().map_err(|e| de.error(e))?;
+        let val = Value::deserialize(&mut de).map_err(|e| de.span_error(e))?;
+        de.end().map_err(|e| de.span_error(e))?;
 
         Ok(val)
     }
@@ -228,12 +229,12 @@ mod tests {
 
     #[test]
     fn test_tuples_error() {
-        use crate::de::{Error, ErrorCode, Position};
+        use crate::de::{Error, Position, SpannedError};
 
         assert_eq!(
             Value::from_str("Foo:").unwrap_err(),
-            Error {
-                code: ErrorCode::TrailingCharacters,
+            SpannedError {
+                code: Error::TrailingCharacters,
                 position: Position { col: 4, line: 1 }
             },
         );
