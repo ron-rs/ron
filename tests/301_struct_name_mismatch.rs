@@ -1,4 +1,4 @@
-use ron::error::{Error, ErrorCode, Position};
+use ron::error::{Error, Position, SpannedError};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -25,8 +25,8 @@ fn test_unit_struct_name_mismatch() {
     );
     assert_eq!(
         ron::from_str::<MyUnitStruct>("MyUnit Struct"),
-        Err(Error {
-            code: ErrorCode::ExpectedDifferentStructName {
+        Err(SpannedError {
+            code: Error::ExpectedDifferentStructName {
                 expected: "MyUnitStruct",
                 found: String::from("MyUnit")
             },
@@ -35,8 +35,8 @@ fn test_unit_struct_name_mismatch() {
     );
     assert_eq!(
         ron::from_str::<MyUnitStruct>("42"),
-        Err(Error {
-            code: ErrorCode::ExpectedNamedStructLike("MyUnitStruct"),
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike("MyUnitStruct"),
             position: Position { line: 1, col: 1 }
         }),
     );
@@ -54,8 +54,8 @@ fn test_tuple_struct_name_mismatch() {
     );
     assert_eq!(
         ron::from_str::<MyTupleStruct>("MyTypleStruct(true, 42)"),
-        Err(Error {
-            code: ErrorCode::ExpectedDifferentStructName {
+        Err(SpannedError {
+            code: Error::ExpectedDifferentStructName {
                 expected: "MyTupleStruct",
                 found: String::from("MyTypleStruct")
             },
@@ -64,8 +64,8 @@ fn test_tuple_struct_name_mismatch() {
     );
     assert_eq!(
         ron::from_str::<MyTupleStruct>("42"),
-        Err(Error {
-            code: ErrorCode::ExpectedNamedStructLike("MyTupleStruct"),
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike("MyTupleStruct"),
             position: Position { line: 1, col: 1 }
         }),
     );
@@ -83,8 +83,8 @@ fn test_newtype_struct_name_mismatch() {
     );
     assert_eq!(
         ron::from_str::<MyNewtypeStruct>("MyNewtypeStrucl((true, 42))"),
-        Err(Error {
-            code: ErrorCode::ExpectedDifferentStructName {
+        Err(SpannedError {
+            code: Error::ExpectedDifferentStructName {
                 expected: "MyNewtypeStruct",
                 found: String::from("MyNewtypeStrucl")
             },
@@ -93,8 +93,8 @@ fn test_newtype_struct_name_mismatch() {
     );
     assert_eq!(
         ron::from_str::<MyNewtypeStruct>("42"),
-        Err(Error {
-            code: ErrorCode::ExpectedNamedStructLike("MyNewtypeStruct"),
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike("MyNewtypeStruct"),
             position: Position { line: 1, col: 1 }
         }),
     );
@@ -112,8 +112,8 @@ fn test_struct_name_mismatch() {
     );
     assert_eq!(
         ron::from_str::<MyStruct>("MuStryct(a: true, b: 42)"),
-        Err(Error {
-            code: ErrorCode::ExpectedDifferentStructName {
+        Err(SpannedError {
+            code: Error::ExpectedDifferentStructName {
                 expected: "MyStruct",
                 found: String::from("MuStryct")
             },
@@ -122,8 +122,8 @@ fn test_struct_name_mismatch() {
     );
     assert_eq!(
         ron::from_str::<MyStruct>("42"),
-        Err(Error {
-            code: ErrorCode::ExpectedNamedStructLike("MyStruct"),
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike("MyStruct"),
             position: Position { line: 1, col: 1 }
         }),
     );
