@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#152](https://github.com/ron-rs/ron/issues/152) bitflags serde ([#352](https://github.com/ron-rs/ron/pull/352))
 - Fix issue [#359](https://github.com/ron-rs/ron/issues/359) with `DeserializeSeed` support ([#360](https://github.com/ron-rs/ron/pull/360))
 - Bump MSRV to 1.46.0 ([#361](https://github.com/ron-rs/ron/pull/361))
-- Fix issue [#337](https://github.com/ron-rs/ron/issues/337) with on-by-default `decimal_floats` ([#363](https://github.com/ron-rs/ron/pull/363))
+- Fix issue [#337](https://github.com/ron-rs/ron/issues/337) by removing `decimal_floats` PrettyConfig option and unconditional decimals in floats ([#363](https://github.com/ron-rs/ron/pull/363))
 
 ## [0.7.0] - 2021-10-22
 
