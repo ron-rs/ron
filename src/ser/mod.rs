@@ -85,8 +85,6 @@ pub struct PrettyConfig {
     pub separate_tuple_members: bool,
     /// Enumerate array items in comments
     pub enumerate_arrays: bool,
-    /// Always include the decimal in floats
-    pub decimal_floats: bool,
     /// Enable extensions. Only configures 'implicit_some',
     ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
     pub extensions: Extensions,
@@ -170,17 +168,6 @@ impl PrettyConfig {
         self
     }
 
-    /// Configures whether floats should always include a decimal.
-    /// When false `1.0` will serialize as `1`
-    /// When true `1.0` will serialize as `1.0`
-    ///
-    /// Default: `false`
-    pub fn decimal_floats(mut self, decimal_floats: bool) -> Self {
-        self.decimal_floats = decimal_floats;
-
-        self
-    }
-
     /// Configures whether every array should be a single line (true) or a multi line one (false)
     /// When false, `["a","b"]` (as well as any array) will serialize to
     /// `
@@ -223,7 +210,6 @@ impl Default for PrettyConfig {
             separate_tuple_members: false,
             enumerate_arrays: false,
             extensions: Extensions::empty(),
-            decimal_floats: false,
             compact_arrays: false,
         }
     }
@@ -296,12 +282,6 @@ impl<W: io::Write> Serializer<W> {
         self.pretty
             .as_ref()
             .map_or(false, |&(ref config, _)| config.separate_tuple_members)
-    }
-
-    fn decimal_floats(&self) -> bool {
-        self.pretty
-            .as_ref()
-            .map_or(false, |&(ref config, _)| config.decimal_floats)
     }
 
     fn compact_arrays(&self) -> bool {
@@ -463,7 +443,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_f32(self, v: f32) -> Result<()> {
         write!(self.output, "{}", v)?;
-        if self.decimal_floats() && (v - v.floor()).abs() < f32::EPSILON {
+        if (v - v.floor()).abs() < f32::EPSILON {
             write!(self.output, ".0")?;
         }
         Ok(())
@@ -471,7 +451,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_f64(self, v: f64) -> Result<()> {
         write!(self.output, "{}", v)?;
-        if self.decimal_floats() && (v - v.floor()).abs() < f64::EPSILON {
+        if (v - v.floor()).abs() < f64::EPSILON {
             write!(self.output, ".0")?;
         }
         Ok(())

@@ -14,8 +14,8 @@ fn test_struct_names() {
     let struct_name = to_string_pretty(&value, PrettyConfig::default().struct_names(true));
     assert_eq!(
         struct_name,
-        Ok("Point(\n    x: 1,\n    y: 2,\n)".to_string())
+        Ok("Point(\n    x: 1.0,\n    y: 2.0,\n)".to_string())
     );
     let no_struct_name = to_string(&value);
-    assert_eq!(no_struct_name, Ok("(x:1,y:2)".to_string()));
+    assert_eq!(no_struct_name, Ok("(x:1.0,y:2.0)".to_string()));
 }

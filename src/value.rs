@@ -280,7 +280,7 @@ impl Eq for Float {}
 
 impl Hash for Float {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.0 as u64);
+        state.write_u64(self.0.to_bits());
     }
 }
 
