@@ -349,8 +349,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if self.bytes.consume("None") {
             visitor.visit_none()
-        } else if self.bytes.exts.contains(Extensions::IMPLICIT_SOME) {
-            visitor.visit_some(&mut *self)
         } else if self.bytes.consume("Some") && {
             self.bytes.skip_ws()?;
             self.bytes.consume("(")
@@ -366,6 +364,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             } else {
                 Err(Error::ExpectedOptionEnd)
             }
+        } else if self.bytes.exts.contains(Extensions::IMPLICIT_SOME) {
+            visitor.visit_some(&mut *self)
         } else {
             Err(Error::ExpectedOption)
         }
