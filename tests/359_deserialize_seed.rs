@@ -43,4 +43,14 @@ fn test_deserialize_seed() {
 
         assert_eq!(expected, deserialized);
     }
+
+    assert_eq!(
+        ron::Options::default().from_str_seed("'a'", Seed(42)),
+        Err(ron::error::SpannedError {
+            code: ron::Error::Message(String::from(
+                "invalid type: string \"a\", expected an integer"
+            )),
+            position: ron::error::Position { line: 1, col: 4 },
+        })
+    );
 }

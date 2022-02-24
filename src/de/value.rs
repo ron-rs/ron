@@ -9,7 +9,7 @@ use crate::error::SpannedResult;
 use crate::value::{Map, Number, Value};
 
 impl std::str::FromStr for Value {
-    type Err = crate::SpannedError;
+    type Err = crate::error::SpannedError;
 
     /// Creates a value from a string reference.
     fn from_str(s: &str) -> SpannedResult<Self> {

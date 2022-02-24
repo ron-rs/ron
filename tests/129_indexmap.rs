@@ -34,9 +34,9 @@ tasks: {
                     Value::String("shell command".to_string())
                 );
             }
-            _ => panic!(),
+            _ => panic!(), // GRCOV_EXCL_LINE
         },
-        _ => panic!(),
+        _ => panic!(), // GRCOV_EXCL_LINE
     }
 
     let file = r#"(
@@ -69,8 +69,8 @@ tasks: {
                     Value::String("debug message".to_string())
                 );
             }
-            _ => panic!(),
+            _ => panic!(), // GRCOV_EXCL_LINE
         },
-        _ => panic!(),
+        _ => panic!(), // GRCOV_EXCL_LINE
     }
 }
