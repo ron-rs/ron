@@ -73,12 +73,10 @@ jobs:
       - run: cargo install grcov --force --locked
       - run: |
           cargo test --all-features --all-targets
-          cargo run --example decode_file
-          cargo run --example decode
-          cargo run --example encode
-          cargo run --example transcode
           grcov . -s . --binary-path ./target/debug/ \
             -t cobertura -o cobertura.xml --branch \
+            --keep-only "src/*" \
+            --keep-only "tests/*" \
             --ignore-not-existing \
             --excl-line GRCOV_EXCL_LINE \
             --excl-start GRCOV_EXCL_START \
