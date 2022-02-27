@@ -12,7 +12,7 @@ use crate::{
 
 // We have the following char categories.
 const INT_CHAR: u8 = 1 << 0; // [0-9A-Fa-f_]
-const FLOAT_CHAR: u8 = 1 << 1; // [0-9\.Ee+-]
+const FLOAT_CHAR: u8 = 1 << 1; // [0-9\.Ee+-_]
 const IDENT_FIRST_CHAR: u8 = 1 << 2; // [A-Za-z_]
 const IDENT_OTHER_CHAR: u8 = 1 << 3; // [A-Za-z_0-9]
 const IDENT_RAW_CHAR: u8 = 1 << 4; // [A-Za-z_0-9\.+-]
@@ -21,7 +21,7 @@ const WHITESPACE_CHAR: u8 = 1 << 5; // [\n\t\r ]
 // We encode each char as belonging to some number of these categories.
 const DIGIT: u8 = INT_CHAR | FLOAT_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [0-9]
 const ABCDF: u8 = INT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [ABCDFabcdf]
-const UNDER: u8 = INT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [_]
+const UNDER: u8 = INT_CHAR | FLOAT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [_]
 const E____: u8 = INT_CHAR | FLOAT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [Ee]
 const G2Z__: u8 = IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [G-Zg-z]
 const PUNCT: u8 = FLOAT_CHAR | IDENT_RAW_CHAR; // [\.+-]
@@ -546,13 +546,20 @@ impl<'a> Bytes<'a> {
     where
         T: FromStr,
     {
-        for literal in &["inf", "-inf", "NaN"] {
+        for literal in &["inf", "+inf", "-inf", "NaN", "+NaN", "-NaN"] {
             if self.consume_ident(literal) {
                 return FromStr::from_str(literal).map_err(|_| unreachable!()); // must not fail
             }
         }
 
         let num_bytes = self.next_bytes_contained_in(is_float_char);
+
+        // Since `rustc` allows `1_0.0_1`, lint against underscores in floats
+        if let Some(err_bytes) = self.bytes[0..num_bytes].iter().position(|b| *b == b'_') {
+            let _ = self.advance(err_bytes);
+
+            return self.err(ErrorCode::FloatUnderscore);
+        }
 
         let s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
         let res = FromStr::from_str(s).map_err(|_| self.error(ErrorCode::ExpectedFloat));
