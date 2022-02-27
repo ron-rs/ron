@@ -50,10 +50,12 @@ hex_digit = "A" | "a" | "B" | "b" | "C" | "c" | "D" | "d" | "E" | "e" | "F" | "f
 unsigned = (["0", ("b" | "o")], digit, { digit | '_' } |
              "0x", (digit | hex_digit), { digit | hex_digit | '_' });
 signed = ["+" | "-"], unsigned;
-float = float_std | float_frac;
-float_std = ["+" | "-"], digit, { digit }, ".", {digit}, [float_exp];
-float_frac = ".", digit, {digit}, [float_exp];
-float_exp = ("e" | "E"), digit, {digit};
+float = ["+" | "-"], ("inf" | "NaN" | float_num);
+float_num = (float_int | float_std | float_frac), [float_exp];
+float_int = digit, { digit };
+float_std = digit, { digit }, ".", {digit};
+float_frac = ".", digit, {digit};
+float_exp = ("e" | "E"), ["+" | "-"], digit, {digit};
 ```
 
 ## String
