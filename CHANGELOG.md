@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#337](https://github.com/ron-rs/ron/issues/337) by removing `decimal_floats` PrettyConfig option and unconditional decimals in floats ([#363](https://github.com/ron-rs/ron/pull/363))
 - Fix issue [#203](https://github.com/ron-rs/ron/issues/203) with full de error positioning ([#356](https://github.com/ron-rs/ron/pull/356))
 - Fix issue [#367](https://github.com/ron-rs/ron/issues/367) with eager implicit some ([#368](https://github.com/ron-rs/ron/pull/368))
+- Fix issue [#370](https://github.com/ron-rs/ron/issues/370) with `FromStr`-equivalent float EBNF and `Error::FloatUnderscore` ([#371](https://github.com/ron-rs/ron/pull/371))
 
 ## [0.7.0] - 2021-10-22
 
