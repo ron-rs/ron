@@ -17,4 +17,7 @@ fn decimal_floats() {
 
     let with_pretty = to_string_pretty(&1.0, PrettyConfig::new()).unwrap();
     assert_eq!(with_pretty, "1.0");
+
+    let tiny_pretty = to_string_pretty(&0.00000000000000005, PrettyConfig::new()).unwrap();
+    assert_eq!(tiny_pretty, "0.00000000000000005");
 }
