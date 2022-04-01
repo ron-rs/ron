@@ -443,7 +443,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_f32(self, v: f32) -> Result<()> {
         write!(self.output, "{}", v)?;
-        if (v - v.floor()).abs() < f32::EPSILON {
+        if v.fract() == 0.0 {
             write!(self.output, ".0")?;
         }
         Ok(())
@@ -451,7 +451,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_f64(self, v: f64) -> Result<()> {
         write!(self.output, "{}", v)?;
-        if (v - v.floor()).abs() < f64::EPSILON {
+        if v.fract() == 0.0 {
             write!(self.output, ".0")?;
         }
         Ok(())
