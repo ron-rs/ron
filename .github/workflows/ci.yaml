@@ -8,6 +8,8 @@ on:
     branches:
     - master
     - 'v*.*'
+  schedule:
+    - cron: '0 0 * * 0'
 
 jobs:
   tests:

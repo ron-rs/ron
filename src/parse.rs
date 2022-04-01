@@ -772,6 +772,7 @@ impl<'a> Bytes<'a> {
             b'n' => '\n',
             b'r' => '\r',
             b't' => '\t',
+            b'0' => '\0',
             b'x' => self.decode_ascii_escape()? as char,
             b'u' => {
                 self.expect_byte(b'{', ErrorCode::InvalidEscape("Missing {"))?;
