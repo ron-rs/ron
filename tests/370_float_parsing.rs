@@ -1,5 +1,6 @@
 use ron::{
-    de::{Position, ErrorCode}, Error,
+    de::{ErrorCode, Position},
+    Error,
 };
 
 #[test]
