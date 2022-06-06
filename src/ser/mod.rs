@@ -281,7 +281,15 @@ impl<W: io::Write> Serializer<W> {
     /// Creates a new `Serializer`.
     ///
     /// Most of the time you can just use `to_string` or `to_string_pretty`.
-    pub fn new(writer: W, config: Option<PrettyConfig>) -> Result<Self> {
+    /// 
+    /// # Deprecation
+    /// 
+    /// This constructor takes `struct_names`, which has been moved to `PrettyConfig`.
+    /// Because of that, this constructor will overwrite the setting in
+    /// `PrettyConfig` to whatever you specify as a `struct_names` argument here.
+    #[deprecated(note = "Serializer::new is deprecated because struct_names was moved to PrettyConfig")]
+    pub fn new(writer: W, config: Option<PrettyConfig>, struct_names: bool) -> Result<Self> {
+        todo!("figure out how to handle struct_names");
         Self::with_options(writer, config, Options::default())
     }
 
