@@ -275,6 +275,11 @@ pub struct Serializer<W: io::Write> {
     pretty: Option<(PrettyConfig, Pretty)>,
     default_extensions: Extensions,
     is_empty: Option<bool>,
+    /// temporary field for semver compatibility
+    /// this was moved to PrettyConfig but will stay here until the next
+    /// breaking version.
+    /// TODO: remove me
+    struct_names: bool,
 }
 
 impl<W: io::Write> Serializer<W> {
@@ -285,14 +290,17 @@ impl<W: io::Write> Serializer<W> {
     /// # Deprecation
     ///
     /// This constructor takes `struct_names`, which has been moved to `PrettyConfig`.
-    /// Because of that, this constructor will overwrite the setting in
-    /// `PrettyConfig` to whatever you specify as a `struct_names` argument here.
+    /// To stay semver compatible the `Serializer` will keep the `struct_names` field
+    /// until the next minor version gets released, and struct names will be generated
+    /// if either the `PrettyConfig`'s or the `Serializer`'s struct name field is `true`.
     #[deprecated(
         note = "Serializer::new is deprecated because struct_names was moved to PrettyConfig"
     )]
     pub fn new(writer: W, config: Option<PrettyConfig>, struct_names: bool) -> Result<Self> {
-        todo!("figure out how to handle struct_names");
-        Self::with_options(writer, config, Options::default())
+        Self::with_options(writer, config, Options::default()).map(|mut x| {
+            x.struct_names = struct_names;
+            x
+        })
     }
 
     /// Creates a new `Serializer`.
@@ -334,6 +342,7 @@ impl<W: io::Write> Serializer<W> {
             }),
             default_extensions: options.default_extensions,
             is_empty: None,
+            struct_names: false,
         })
     }
 
@@ -427,10 +436,12 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn struct_names(&self) -> bool {
-        self.pretty
-            .as_ref()
-            .map(|(pc, _)| pc.struct_names)
-            .unwrap_or(false)
+        self.struct_names
+            || self
+                .pretty
+                .as_ref()
+                .map(|(pc, _)| pc.struct_names)
+                .unwrap_or(false)
     }
 }
 
