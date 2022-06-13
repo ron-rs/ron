@@ -1,3 +1,5 @@
+use std::f64;
+
 use ron::{
     de::{ErrorCode, Position},
     Error,
