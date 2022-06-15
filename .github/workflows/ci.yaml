@@ -8,6 +8,8 @@ on:
     branches:
     - master
     - 'v*.*'
+  schedule:
+    - cron: '0 0 * * 0'
 
 jobs:
   tests:
@@ -68,3 +70,33 @@ jobs:
           components: rustfmt
           override: true
       - run: cargo fmt -- --check
+
+  coverage:
+    name: "Coverage: nightly"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: llvm-tools-preview
+          override: true
+      - run: cargo install grcov --force --locked
+      - run: |
+          cargo test --all-features --all-targets
+          grcov . -s . --binary-path ./target/debug/ \
+            -t cobertura -o cobertura.xml --branch \
+            --keep-only "src/*" \
+            --keep-only "tests/*" \
+            --ignore-not-existing \
+            --excl-line GRCOV_EXCL_LINE \
+            --excl-start GRCOV_EXCL_START \
+            --excl-stop GRCOV_EXCL_STOP
+        env:
+          RUSTFLAGS: -Cinstrument-coverage
+          RUSTDOCFLAGS: -Cinstrument-coverage
+          LLVM_PROFILE_FILE: codecov-%p-%m.profraw
+      - uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: true
