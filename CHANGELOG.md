@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#359](https://github.com/ron-rs/ron/issues/359) with `DeserializeSeed` support ([#360](https://github.com/ron-rs/ron/pull/360))
 - Fix issue [#370](https://github.com/ron-rs/ron/issues/370) with `FromStr`-equivalent float EBNF and `Error::FloatUnderscore` ([#371](https://github.com/ron-rs/ron/pull/371))
 - Fix issue [#374](https://github.com/ron-rs/ron/issues/374) extraneous .0 for small floats ([#372](https://github.com/ron-rs/ron/pull/372))
+- Deprecate `Serializer::new` ([#382](https://github.com/ron-rs/ron/issues/382))
 
 ## [0.7.0] - 2021-10-22
 
