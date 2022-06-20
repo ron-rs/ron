@@ -27,6 +27,12 @@ jobs:
           toolchain: ${{ matrix.rust }}
           profile: minimal
           override: true
+      - uses: actions-rs/cargo@v1
+        name: Downgrade indexmap to MSRV
+        if: ${{ matrix.rust }} == "1.46.0"
+        with:
+          command: update
+          args: -p indexmap --precise 1.8.2
       - run: cargo test
       - run: cargo test --features integer128
       - run: cargo test --features indexmap
