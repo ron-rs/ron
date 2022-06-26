@@ -22,15 +22,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: ./.github/actions/setup
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: test-${{ matrix.rust }}-cargo-${{ hashFiles('Cargo.lock') }}
+          key: test-${{ matrix.rust }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
@@ -53,15 +47,9 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: ./.github/actions/setup
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: clippy-stable-cargo-${{ hashFiles('Cargo.lock') }}
+          key: clippy-stable
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -77,15 +65,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: ./.github/actions/setup
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: rustfmt-stable-cargo-${{ hashFiles('Cargo.lock') }}
+          key: rustfmt-stable
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -99,15 +81,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/cache@v3
+      - uses: ./.github/actions/setup
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: coverage-nightly-cargo-${{ hashFiles('Cargo.lock') }}
+          key: coverage-nightly
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
