@@ -30,7 +30,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ matrix.rust }}-cargo-${{ hashFiles('Cargo.lock') }}
+          key: test-${{ matrix.rust }}-cargo-${{ hashFiles('Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
@@ -61,7 +61,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ matrix.rust }}-cargo-${{ hashFiles('Cargo.lock') }}
+          key: clippy-stable-cargo-${{ hashFiles('Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -85,7 +85,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ matrix.rust }}-cargo-${{ hashFiles('Cargo.lock') }}
+          key: rustfmt-stable-cargo-${{ hashFiles('Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -107,7 +107,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ matrix.rust }}-cargo-${{ hashFiles('Cargo.lock') }}
+          key: coverage-nightly-cargo-${{ hashFiles('Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
