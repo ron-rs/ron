@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup
         with:
-          key: coverage-nightly
+          key: coverage
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -91,6 +91,8 @@ jobs:
           components: llvm-tools-preview
           override: true
       - run: cargo install grcov --force --locked
+        env:
+          CARGO_TARGET_DIR: target/
       - run: |
           cargo test --all-features --all-targets
           grcov . -s . --binary-path ./target/debug/ \
