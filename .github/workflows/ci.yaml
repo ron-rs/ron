@@ -90,7 +90,7 @@ jobs:
           profile: minimal
           components: llvm-tools-preview
           override: true
-      - run: cargo install grcov --locked
+      - run: cargo install grcov --force --locked
       - run: |
           cargo test --all-features --all-targets
           grcov . -s . --binary-path ./target/debug/ \
