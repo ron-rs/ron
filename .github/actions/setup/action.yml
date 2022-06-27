@@ -16,4 +16,5 @@ runs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
-        key: ${{ inputs.key }}-cargo-${{ hashFiles('Cargo.lock') }}
+          Cargo.lock
+        key: ${{ inputs.key }}-cargo-${{ hashFiles('Cargo.toml') }}
