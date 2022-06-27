@@ -15,7 +15,6 @@ runs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          ~/.rustup/settings.toml
           target/
           Cargo.lock
         key: ${{ inputs.key }}-cargo-${{ hashFiles('Cargo.toml') }}
