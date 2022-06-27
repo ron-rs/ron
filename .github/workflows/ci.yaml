@@ -21,7 +21,10 @@ jobs:
         rust: [1.46.0, stable, nightly]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: test-${{ matrix.rust }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
@@ -43,7 +46,10 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: clippy-stable
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -58,7 +64,10 @@ jobs:
     name: "Format: stable"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: rustfmt-stable
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -71,7 +80,10 @@ jobs:
     name: "Coverage: nightly"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: coverage-nightly
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
