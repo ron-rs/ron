@@ -91,7 +91,7 @@ struct Inner {
 }
 #[derive(Deserialize)]
 pub enum Enum {
-    A(A),
+    A(Inner),
     B,
 }
 ```
