@@ -8,6 +8,24 @@ enum TestEnum {
 }
 
 #[derive(Debug, serde::Deserialize, PartialEq)]
+#[serde(tag = "type")]
+enum TestEnumInternal {
+    StructVariant { a: bool },
+}
+
+#[derive(Debug, serde::Deserialize, PartialEq)]
+#[serde(tag = "type", content = "content")]
+enum TestEnumAdjacent {
+    StructVariant { a: bool },
+}
+
+#[derive(Debug, serde::Deserialize, PartialEq)]
+#[serde(untagged)]
+enum TestEnumUntagged {
+    StructVariant { a: bool },
+}
+
+#[derive(Debug, serde::Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 struct TestStruct {
     a: bool,
@@ -141,6 +159,57 @@ fn test_struct_fields() {
                 outer: Some(String::from("TestStruct")),
             },
             position: Position { line: 1, col: 30 },
+        })
+    );
+}
+
+#[test]
+fn test_internally_tagged_enum() {
+    // Note: Not extracting the variant type is not great,
+    //        but at least not wrong either
+    //       Since the error occurs in serde-generated user code,
+    //        after successfully deserialising, we cannot annotate
+
+    assert_eq!(
+        ron::from_str::<TestEnumInternal>("(type: \"StructVariant\")"),
+        Err(SpannedError {
+            code: Error::MissingStructField {
+                field: "a",
+                outer: None,
+            },
+            position: Position { line: 1, col: 24 },
+        })
+    );
+}
+
+#[test]
+fn test_adjacently_tagged_enum() {
+    // Note: TestEnumAdjacent makes sense here since we are now treating
+    //        the enum as a struct
+
+    assert_eq!(
+        ron::from_str::<TestEnumAdjacent>("(type: \"StructVariant\", content: (d: 4))"),
+        Err(SpannedError {
+            code: Error::MissingStructField {
+                field: "a",
+                outer: Some(String::from("TestEnumAdjacent")),
+            },
+            position: Position { line: 1, col: 39 },
+        })
+    );
+}
+
+#[test]
+fn test_untagged_enum() {
+    // Note: Errors inside untagged enums are not bubbled up
+
+    assert_eq!(
+        ron::from_str::<TestEnumUntagged>("(a: true, a: false)"),
+        Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum TestEnumUntagged"
+            )),
+            position: Position { line: 1, col: 20 },
         })
     );
 }
