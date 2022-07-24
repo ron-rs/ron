@@ -1,54 +1,88 @@
 use std::num::NonZeroU32;
 
-use ron::error::{Error, Position, SpannedError};
-use serde::de::{value::Error as DeError, Deserialize, IntoDeserializer};
+use ron::error::{Error, Position, SpannedError, UnexpectedSerdeTypeValue};
+use serde::{
+    de::{Deserialize, Error as DeError, Unexpected},
+    Deserializer,
+};
 
 #[derive(Debug, serde::Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 enum Test {
-    TupleVariant(i32, NonZeroU32),
+    TupleVariant(i32, String),
     StructVariant { a: bool, b: NonZeroU32, c: i32 },
+}
+
+#[derive(Debug, PartialEq)]
+struct TypeError;
+
+impl<'de> Deserialize<'de> for TypeError {
+    fn deserialize<D: Deserializer<'de>>(_deserializer: D) -> Result<Self, D::Error> {
+        Err(D::Error::invalid_type(Unexpected::Unit, &"impossible"))
+    }
 }
 
 #[test]
 fn test_error_positions() {
     assert_eq!(
-        ron::from_str::<Test>("NotAVariant"),
+        ron::from_str::<TypeError>("  ()"),
         Err(SpannedError {
-            code: Error::Message(String::from(
-                "unknown variant `NotAVariant`, expected `TupleVariant` or `StructVariant`"
-            )),
-            position: Position { line: 1, col: 12 },
-        })
-    );
-
-    assert_eq!(
-        ron::from_str::<Test>("TupleVariant(1, 0)"),
-        Err(SpannedError {
-            code: Error::Message(
-                NonZeroU32::deserialize(IntoDeserializer::<DeError>::into_deserializer(0_u32))
-                    .unwrap_err()
-                    .to_string()
-            ),
-            position: Position { line: 1, col: 18 },
+            code: Error::ExpectedDifferentType {
+                expected: String::from("impossible"),
+                found: UnexpectedSerdeTypeValue::Unit,
+            },
+            position: Position { line: 1, col: 3 },
         })
     );
 
     assert_eq!(
         ron::from_str::<Test>("StructVariant(a: true, b: 0, c: -42)"),
         Err(SpannedError {
-            code: Error::Message(
-                NonZeroU32::deserialize(IntoDeserializer::<DeError>::into_deserializer(0_u32))
-                    .unwrap_err()
-                    .to_string()
-            ),
+            code: Error::InvalidValueForType {
+                expected: String::from("a nonzero u32"),
+                found: UnexpectedSerdeTypeValue::Unsigned(0),
+            },
             position: Position { line: 1, col: 28 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<Test>("TupleVariant(42)"),
+        Err(SpannedError {
+            code: Error::ExpectedDifferentLength {
+                expected: String::from("tuple variant Test::TupleVariant with 2 elements"),
+                found: 1,
+            },
+            position: Position { line: 1, col: 16 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<Test>("NotAVariant"),
+        Err(SpannedError {
+            code: Error::NoSuchEnumVariant {
+                expected: &["TupleVariant", "StructVariant"],
+                found: String::from("NotAVariant"),
+            },
+            position: Position { line: 1, col: 12 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<Test>("StructVariant(a: true, b: 1, c: -42, d: \"gotcha\")"),
+        Err(SpannedError {
+            code: Error::NoSuchStructField {
+                expected: &["a", "b", "c"],
+                found: String::from("d"),
+            },
+            position: Position { line: 1, col: 39 },
         })
     );
 
     assert_eq!(
         ron::from_str::<Test>("StructVariant(a: true, c: -42)"),
         Err(SpannedError {
-            code: Error::Message(String::from("missing field `b`")),
+            code: Error::MissingStructField("b"),
             position: Position { line: 1, col: 30 },
         })
     );
@@ -56,7 +90,7 @@ fn test_error_positions() {
     assert_eq!(
         ron::from_str::<Test>("StructVariant(a: true, b: 1, a: false, c: -42)"),
         Err(SpannedError {
-            code: Error::Message(String::from("duplicate field `a`")),
+            code: Error::DuplicateStructField("a"),
             position: Position { line: 1, col: 31 },
         })
     );
