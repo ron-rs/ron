@@ -63,6 +63,7 @@ fn test_error_positions() {
             code: Error::NoSuchEnumVariant {
                 expected: &["TupleVariant", "StructVariant"],
                 found: String::from("NotAVariant"),
+                outer: Some(String::from("Test")),
             },
             position: Position { line: 1, col: 12 },
         })
@@ -74,6 +75,7 @@ fn test_error_positions() {
             code: Error::NoSuchStructField {
                 expected: &["a", "b", "c"],
                 found: String::from("d"),
+                outer: Some(String::from("StructVariant")),
             },
             position: Position { line: 1, col: 39 },
         })
@@ -82,7 +84,10 @@ fn test_error_positions() {
     assert_eq!(
         ron::from_str::<Test>("StructVariant(a: true, c: -42)"),
         Err(SpannedError {
-            code: Error::MissingStructField("b"),
+            code: Error::MissingStructField {
+                field: "b",
+                outer: Some(String::from("StructVariant")),
+            },
             position: Position { line: 1, col: 30 },
         })
     );
@@ -90,7 +95,10 @@ fn test_error_positions() {
     assert_eq!(
         ron::from_str::<Test>("StructVariant(a: true, b: 1, a: false, c: -42)"),
         Err(SpannedError {
-            code: Error::DuplicateStructField("a"),
+            code: Error::DuplicateStructField {
+                field: "a",
+                outer: Some(String::from("StructVariant")),
+            },
             position: Position { line: 1, col: 31 },
         })
     );

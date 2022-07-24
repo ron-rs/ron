@@ -74,13 +74,21 @@ pub enum Error {
     NoSuchEnumVariant {
         expected: &'static [&'static str],
         found: String,
+        outer: Option<String>,
     },
     NoSuchStructField {
         expected: &'static [&'static str],
         found: String,
+        outer: Option<String>,
     },
-    MissingStructField(&'static str),
-    DuplicateStructField(&'static str),
+    MissingStructField {
+        field: &'static str,
+        outer: Option<String>,
+    },
+    DuplicateStructField {
+        field: &'static str,
+        outer: Option<String>,
+    },
 }
 
 impl fmt::Display for SpannedError {
@@ -173,11 +181,23 @@ impl fmt::Display for Error {
             Error::NoSuchEnumVariant {
                 expected,
                 ref found,
+                ref outer,
             } => {
+                f.write_str("Unexpected ")?;
+
+                if outer.is_none() {
+                    f.write_str("enum ")?;
+                }
+
+                write!(f, "variant named `{}`", found)?;
+
+                if let Some(outer) = outer {
+                    write!(f, "in enum `{}`", outer)?;
+                }
+
                 write!(
                     f,
-                    "Unexpected enum variant named `{}`, {}",
-                    found,
+                    ", {}",
                     OneOf {
                         alts: expected,
                         none: "variants"
@@ -187,22 +207,38 @@ impl fmt::Display for Error {
             Error::NoSuchStructField {
                 expected,
                 ref found,
+                ref outer,
             } => {
+                write!(f, "Unexpected field named `{}`", found)?;
+
+                if let Some(outer) = outer {
+                    write!(f, "in `{}`", outer)?;
+                }
+
                 write!(
                     f,
-                    "Unexpected field named `{}`, {}",
-                    found,
+                    ", {}",
                     OneOf {
                         alts: expected,
                         none: "fields"
                     }
                 )
             }
-            Error::MissingStructField(field) => {
-                write!(f, "Unexpected missing field `{}`", field)
+            Error::MissingStructField { field, ref outer } => {
+                write!(f, "Unexpected missing field `{}`", field)?;
+
+                match outer {
+                    Some(outer) => write!(f, " in `{}`", outer),
+                    None => Ok(()),
+                }
             }
-            Error::DuplicateStructField(field) => {
-                write!(f, "Unexpected duplicate field `{}`", field)
+            Error::DuplicateStructField { field, ref outer } => {
+                write!(f, "Unexpected duplicate field `{}`", field)?;
+
+                match outer {
+                    Some(outer) => write!(f, " in `{}`", outer),
+                    None => Ok(()),
+                }
             }
         }
     }
@@ -262,6 +298,7 @@ impl de::Error for Error {
         Error::NoSuchEnumVariant {
             expected,
             found: variant.to_string(),
+            outer: None,
         }
     }
 
@@ -270,17 +307,18 @@ impl de::Error for Error {
         Error::NoSuchStructField {
             expected,
             found: field.to_string(),
+            outer: None,
         }
     }
 
     #[cold]
     fn missing_field(field: &'static str) -> Self {
-        Error::MissingStructField(field)
+        Error::MissingStructField { field, outer: None }
     }
 
     #[cold]
     fn duplicate_field(field: &'static str) -> Self {
-        Error::DuplicateStructField(field)
+        Error::DuplicateStructField { field, outer: None }
     }
 }
 

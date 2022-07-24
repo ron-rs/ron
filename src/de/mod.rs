@@ -25,6 +25,7 @@ mod value;
 pub struct Deserializer<'de> {
     bytes: Bytes<'de>,
     newtype_variant: bool,
+    last_identifier: Option<&'de str>,
 }
 
 impl<'de> Deserializer<'de> {
@@ -46,6 +47,7 @@ impl<'de> Deserializer<'de> {
         let mut deserializer = Deserializer {
             bytes: Bytes::new(input)?,
             newtype_variant: false,
+            last_identifier: None,
         };
 
         deserializer.bytes.exts |= options.default_extensions;
@@ -528,7 +530,19 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
-            let value = visitor.visit_map(CommaSeparated::new(b')', self))?;
+            let value = visitor
+                .visit_map(CommaSeparated::new(b')', self))
+                .map_err(|err| {
+                    struct_error_name(
+                        err,
+                        if !old_newtype_variant && !name.is_empty() {
+                            Some(name)
+                        } else {
+                            None
+                        },
+                    )
+                })?;
+
             self.bytes.comma()?;
 
             if old_newtype_variant || self.bytes.consume(")") {
@@ -545,7 +559,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
     fn deserialize_enum<V>(
         self,
-        _name: &'static str,
+        name: &'static str,
         _variants: &'static [&'static str],
         visitor: V,
     ) -> Result<V::Value>
@@ -554,14 +568,30 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         self.newtype_variant = false;
 
-        visitor.visit_enum(Enum::new(self))
+        match visitor.visit_enum(Enum::new(self)) {
+            Ok(value) => Ok(value),
+            Err(Error::NoSuchEnumVariant {
+                expected,
+                found,
+                outer: None,
+            }) if !name.is_empty() => Err(Error::NoSuchEnumVariant {
+                expected,
+                found,
+                outer: Some(String::from(name)),
+            }),
+            Err(e) => Err(e),
+        }
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_str(str::from_utf8(self.bytes.identifier()?).map_err(Error::from)?)
+        let identifier = str::from_utf8(self.bytes.identifier()?).map_err(Error::from)?;
+
+        self.last_identifier = Some(identifier);
+
+        visitor.visit_str(identifier)
     }
 
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
@@ -699,6 +729,8 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     where
         T: DeserializeSeed<'de>,
     {
+        let newtype_variant = self.de.last_identifier;
+
         self.de.bytes.skip_ws()?;
 
         if self.de.bytes.consume("(") {
@@ -710,7 +742,9 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
                 .exts
                 .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
 
-            let val = seed.deserialize(&mut *self.de)?;
+            let val = seed
+                .deserialize(&mut *self.de)
+                .map_err(|err| struct_error_name(err, newtype_variant))?;
 
             self.de.newtype_variant = false;
 
@@ -739,8 +773,35 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     where
         V: Visitor<'de>,
     {
+        let struct_variant = self.de.last_identifier;
+
         self.de.bytes.skip_ws()?;
 
-        self.de.deserialize_struct("", fields, visitor)
+        self.de
+            .deserialize_struct("", fields, visitor)
+            .map_err(|err| struct_error_name(err, struct_variant))
+    }
+}
+
+fn struct_error_name(error: Error, name: Option<&str>) -> Error {
+    match error {
+        Error::NoSuchStructField {
+            expected,
+            found,
+            outer: None,
+        } => Error::NoSuchStructField {
+            expected,
+            found,
+            outer: name.map(ToOwned::to_owned),
+        },
+        Error::MissingStructField { field, outer: None } => Error::MissingStructField {
+            field,
+            outer: name.map(ToOwned::to_owned),
+        },
+        Error::DuplicateStructField { field, outer: None } => Error::DuplicateStructField {
+            field,
+            outer: name.map(ToOwned::to_owned),
+        },
+        e => e,
     }
 }
