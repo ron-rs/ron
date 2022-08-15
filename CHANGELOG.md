@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#301](https://github.com/ron-rs/ron/issues/301) with better error messages ([#354](https://github.com/ron-rs/ron/pull/354))
 - Fix issue [#337](https://github.com/ron-rs/ron/issues/337) by removing `decimal_floats` PrettyConfig option and unconditional decimals in floats ([#363](https://github.com/ron-rs/ron/pull/363))
 - Fix issue [#203](https://github.com/ron-rs/ron/issues/203) with full de error positioning ([#356](https://github.com/ron-rs/ron/pull/356))
+- Expand the `ron::Error` enum to distinguish `serde` errors like `NoSuchEnumVariant` and `MissingStructField` with error positioning ([#394](https://github.com/ron-rs/ron/pull/394))
 - Bump MSRV to 1.56.0 ([#396](https://github.com/ron-rs/ron/pull/396))
 
 ## [0.7.1] - 2022-06-15
