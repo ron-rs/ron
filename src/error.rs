@@ -3,7 +3,7 @@ use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Err
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpannedError {
     pub code: Error,
     pub position: Position,
@@ -12,7 +12,7 @@ pub struct SpannedError {
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub type SpannedResult<T> = std::result::Result<T, SpannedError>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Error {
     Io(String),
@@ -59,13 +59,9 @@ pub enum Error {
     Utf8Error(Utf8Error),
     TrailingCharacters,
 
-    ExpectedDifferentType {
-        expected: String,
-        found: UnexpectedSerdeTypeValue,
-    },
     InvalidValueForType {
         expected: String,
-        found: UnexpectedSerdeTypeValue,
+        found: String,
     },
     ExpectedDifferentLength {
         expected: String,
@@ -148,16 +144,6 @@ impl fmt::Display for Error {
             }
             Error::UnexpectedByte(ref byte) => write!(f, "Unexpected byte {:?}", byte),
             Error::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
-            Error::ExpectedDifferentType {
-                ref expected,
-                ref found,
-            } => {
-                write!(
-                    f,
-                    "Expected a value of type {} but found {} instead",
-                    expected, found
-                )
-            }
             Error::InvalidValueForType {
                 ref expected,
                 ref found,
@@ -244,7 +230,7 @@ impl fmt::Display for Error {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Position {
     pub line: usize,
     pub col: usize,
@@ -271,17 +257,52 @@ impl de::Error for Error {
 
     #[cold]
     fn invalid_type(unexp: de::Unexpected, exp: &dyn de::Expected) -> Self {
-        Error::ExpectedDifferentType {
-            expected: exp.to_string(),
-            found: unexp.into(),
-        }
+        // Invalid type and invalid value are merged given their similarity in ron
+        Self::invalid_value(unexp, exp)
     }
 
     #[cold]
     fn invalid_value(unexp: de::Unexpected, exp: &dyn de::Expected) -> Self {
+        struct UnexpectedSerdeTypeValue<'a>(de::Unexpected<'a>);
+
+        impl<'a> fmt::Display for UnexpectedSerdeTypeValue<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                use de::Unexpected::*;
+
+                match self.0 {
+                    Bool(b) => write!(f, "the boolean `{}`", b),
+                    Unsigned(i) => write!(f, "the unsigned integer `{}`", i),
+                    Signed(i) => write!(f, "the signed integer `{}`", i),
+                    Float(n) => write!(f, "the floating point number `{}`", n),
+                    Char(c) => write!(f, "the UTF-8 character `{}`", c),
+                    Str(s) => write!(f, "the string {:?}", s),
+                    Bytes(b) => {
+                        f.write_str("the bytes b\"")?;
+
+                        for b in b {
+                            write!(f, "\\x{:02x}", b)?;
+                        }
+
+                        f.write_str("\"")
+                    }
+                    Unit => write!(f, "a unit value"),
+                    Option => write!(f, "an optional value"),
+                    NewtypeStruct => write!(f, "a newtype struct"),
+                    Seq => write!(f, "a sequence"),
+                    Map => write!(f, "a map"),
+                    Enum => write!(f, "an enum"),
+                    UnitVariant => write!(f, "a unit variant"),
+                    NewtypeVariant => write!(f, "a newtype variant"),
+                    TupleVariant => write!(f, "a tuple variant"),
+                    StructVariant => write!(f, "a struct variant"),
+                    Other(other) => f.write_str(other),
+                }
+            }
+        }
+
         Error::InvalidValueForType {
             expected: exp.to_string(),
-            found: unexp.into(),
+            found: UnexpectedSerdeTypeValue(unexp).to_string(),
         }
     }
 
@@ -355,90 +376,6 @@ impl From<io::Error> for SpannedError {
 impl From<SpannedError> for Error {
     fn from(e: SpannedError) -> Self {
         e.code
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum UnexpectedSerdeTypeValue {
-    Bool(bool),
-    Unsigned(u64),
-    Signed(i64),
-    Float(f64),
-    Char(char),
-    Str(String),
-    Bytes(Vec<u8>),
-    Unit,
-    Option,
-    NewtypeStruct,
-    Seq,
-    Map,
-    Enum,
-    UnitVariant,
-    NewtypeVariant,
-    TupleVariant,
-    StructVariant,
-    Other(String),
-}
-
-impl<'a> From<de::Unexpected<'a>> for UnexpectedSerdeTypeValue {
-    fn from(unexpected: de::Unexpected<'a>) -> Self {
-        use de::Unexpected::*;
-
-        match unexpected {
-            Bool(b) => Self::Bool(b),
-            Unsigned(u) => Self::Unsigned(u),
-            Signed(s) => Self::Signed(s),
-            Float(f) => Self::Float(f),
-            Char(c) => Self::Char(c),
-            Str(s) => Self::Str(s.to_owned()),
-            Bytes(b) => Self::Bytes(b.to_owned()),
-            Unit => Self::Unit,
-            Option => Self::Option,
-            NewtypeStruct => Self::NewtypeStruct,
-            Seq => Self::Seq,
-            Map => Self::Map,
-            Enum => Self::Enum,
-            UnitVariant => Self::UnitVariant,
-            NewtypeVariant => Self::NewtypeVariant,
-            TupleVariant => Self::TupleVariant,
-            StructVariant => Self::StructVariant,
-            Other(o) => Self::Other(o.to_owned()),
-        }
-    }
-}
-
-impl fmt::Display for UnexpectedSerdeTypeValue {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::UnexpectedSerdeTypeValue::*;
-
-        match *self {
-            Bool(b) => write!(f, "the boolean `{}`", b),
-            Unsigned(i) => write!(f, "the integer `{}`", i),
-            Signed(i) => write!(f, "the integer `{}`", i),
-            Float(n) => write!(f, "the floating point number `{}`", n),
-            Char(c) => write!(f, "the UTF-8 character `{}`", c),
-            Str(ref s) => write!(f, "the string {:?}", s),
-            Bytes(ref b) => {
-                f.write_str("the bytes b\"")?;
-
-                for b in b {
-                    write!(f, "\\x{:02x}", b)?;
-                }
-
-                f.write_str("\"")
-            }
-            Unit => write!(f, "a unit value"),
-            Option => write!(f, "an optional value"),
-            NewtypeStruct => write!(f, "a newtype struct"),
-            Seq => write!(f, "a sequence"),
-            Map => write!(f, "a map"),
-            Enum => write!(f, "an enum"),
-            UnitVariant => write!(f, "a unit variant"),
-            NewtypeVariant => write!(f, "a newtype variant"),
-            TupleVariant => write!(f, "a tuple variant"),
-            StructVariant => write!(f, "a struct variant"),
-            Other(ref other) => f.write_str(other),
-        }
     }
 }
 

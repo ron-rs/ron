@@ -656,11 +656,11 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn peek(&self) -> Option<u8> {
-        self.bytes.get(0).cloned()
+        self.bytes.first().cloned()
     }
 
     pub fn peek_or_eof(&self) -> Result<u8> {
-        self.bytes.get(0).cloned().ok_or(Error::Eof)
+        self.bytes.first().cloned().ok_or(Error::Eof)
     }
 
     pub fn signed_integer<T>(&mut self) -> Result<T>

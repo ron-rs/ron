@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use ron::error::{Error, Position, SpannedError, UnexpectedSerdeTypeValue};
+use ron::error::{Error, Position, SpannedError};
 use serde::{
     de::{Deserialize, Error as DeError, Unexpected},
     Deserializer,
@@ -27,9 +27,9 @@ fn test_error_positions() {
     assert_eq!(
         ron::from_str::<TypeError>("  ()"),
         Err(SpannedError {
-            code: Error::ExpectedDifferentType {
+            code: Error::InvalidValueForType {
                 expected: String::from("impossible"),
-                found: UnexpectedSerdeTypeValue::Unit,
+                found: String::from("a unit value"),
             },
             position: Position { line: 1, col: 3 },
         })
@@ -40,7 +40,7 @@ fn test_error_positions() {
         Err(SpannedError {
             code: Error::InvalidValueForType {
                 expected: String::from("a nonzero u32"),
-                found: UnexpectedSerdeTypeValue::Unsigned(0),
+                found: String::from("the unsigned integer `0`"),
             },
             position: Position { line: 1, col: 28 },
         })
