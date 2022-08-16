@@ -1,5 +1,6 @@
-use serde::{de, ser};
 use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Error};
+
+use serde::{de, ser};
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
@@ -276,15 +277,9 @@ impl de::Error for Error {
                     Float(n) => write!(f, "the floating point number `{}`", n),
                     Char(c) => write!(f, "the UTF-8 character `{}`", c),
                     Str(s) => write!(f, "the string {:?}", s),
-                    Bytes(b) => {
-                        f.write_str("the bytes b\"")?;
-
-                        for b in b {
-                            write!(f, "\\x{:02x}", b)?;
-                        }
-
-                        f.write_str("\"")
-                    }
+                    Bytes(b) => write!(f, "the bytes \"{}\"", {
+                        base64::display::Base64Display::with_config(b, base64::STANDARD)
+                    }),
                     Unit => write!(f, "a unit value"),
                     Option => write!(f, "an optional value"),
                     NewtypeStruct => write!(f, "a newtype struct"),

@@ -1,10 +1,10 @@
 /// Deserialization module.
-pub use crate::error::{Error, Position, SpannedError};
-
-use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 use std::{borrow::Cow, io, str};
 
+use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
+
 use self::{id::IdDeserializer, tag::TagDeserializer};
+pub use crate::error::{Error, Position, SpannedError};
 use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
