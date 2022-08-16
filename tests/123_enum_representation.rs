@@ -1,6 +1,7 @@
+use std::{cmp::PartialEq, fmt::Debug};
+
 use ron::{de::from_str, ser::to_string};
 use serde::{Deserialize, Serialize};
-use std::{cmp::PartialEq, fmt::Debug};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum Inner {

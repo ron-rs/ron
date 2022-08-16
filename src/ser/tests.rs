@@ -1,5 +1,6 @@
-use super::to_string;
 use serde::Serialize;
+
+use super::to_string;
 
 #[derive(Serialize)]
 struct EmptyStruct1;
