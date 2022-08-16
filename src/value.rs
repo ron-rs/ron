@@ -12,8 +12,7 @@ use serde::{
     forward_to_deserialize_any, Deserialize, Serialize,
 };
 
-use crate::de::Error;
-use crate::error::Result;
+use crate::{de::Error, error::Result};
 
 /// A `Value` to `Value` map.
 ///
@@ -484,9 +483,11 @@ impl<'de> SeqAccess<'de> for Seq {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use serde::Deserialize;
     use std::{collections::BTreeMap, fmt::Debug};
+
+    use serde::Deserialize;
+
+    use super::*;
 
     fn assert_same<'de, T>(s: &'de str)
     where

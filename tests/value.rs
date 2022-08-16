@@ -1,6 +1,7 @@
+use std::f64;
+
 use ron::value::{Map, Number, Value};
 use serde::Serialize;
-use std::f64;
 
 #[test]
 fn bool() {

@@ -4,10 +4,12 @@ use std::io;
 
 use serde::{de, ser, Deserialize, Serialize};
 
-use crate::de::Deserializer;
-use crate::error::{Result, SpannedResult};
-use crate::extensions::Extensions;
-use crate::ser::{PrettyConfig, Serializer};
+use crate::{
+    de::Deserializer,
+    error::{Result, SpannedResult},
+    extensions::Extensions,
+    ser::{PrettyConfig, Serializer},
+};
 
 /// Roundtrip serde options.
 ///

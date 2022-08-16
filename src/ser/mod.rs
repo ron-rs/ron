@@ -1,5 +1,6 @@
-use serde::{ser, Deserialize, Serialize};
 use std::io;
+
+use serde::{ser, Deserialize, Serialize};
 
 use crate::{
     error::{Error, Result},
