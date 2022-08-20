@@ -77,7 +77,7 @@ pub const fn is_ident_other_char(c: u8) -> bool {
     ENCODINGS[c as usize] & IDENT_OTHER_CHAR != 0
 }
 
-const fn is_ident_raw_char(c: u8) -> bool {
+pub const fn is_ident_raw_char(c: u8) -> bool {
     ENCODINGS[c as usize] & IDENT_RAW_CHAR != 0
 }
 
@@ -450,27 +450,26 @@ impl<'a> Bytes<'a> {
 
     pub fn consume_struct_name(&mut self, ident: &'static str) -> Result<bool> {
         if self.check_ident("") {
-            Ok(false)
-        } else if ident.is_empty() {
-            Err(Error::ExpectedStructLike)
-        } else if self.check_ident(ident) {
-            let _ = self.advance(ident.len());
-
-            Ok(true)
-        } else {
-            // If the following is not even an identifier, then a missing
-            //  opening `(` seems more likely
-            let maybe_ident = self
-                .identifier()
-                .map_err(|_| Error::ExpectedNamedStructLike(ident))?;
-
-            let found = std::str::from_utf8(maybe_ident).map_err(Error::from)?;
-
-            Err(Error::ExpectedDifferentStructName {
-                expected: ident,
-                found: String::from(found),
-            })
+            return Ok(false);
         }
+
+        if ident.is_empty() {
+            return Err(Error::ExpectedStructLike);
+        }
+
+        let found_ident = match self.identifier() {
+            Ok(maybe_ident) => std::str::from_utf8(maybe_ident)?,
+            Err(_) => return Err(Error::ExpectedNamedStructLike(ident)),
+        };
+
+        if found_ident != ident {
+            return Err(Error::ExpectedDifferentStructName {
+                expected: ident,
+                found: String::from(found_ident),
+            });
+        }
+
+        Ok(true)
     }
 
     pub fn consume(&mut self, s: &str) -> bool {

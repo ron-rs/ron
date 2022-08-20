@@ -86,6 +86,7 @@ pub enum Error {
         field: &'static str,
         outer: Option<String>,
     },
+    InvalidIdentifier(String),
 }
 
 impl fmt::Display for SpannedError {
@@ -227,6 +228,7 @@ impl fmt::Display for Error {
                     None => Ok(()),
                 }
             }
+            Error::InvalidIdentifier(ref invalid) => write!(f, "Invalid identifier {:?}", invalid),
         }
     }
 }
