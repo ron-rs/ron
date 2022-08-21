@@ -495,6 +495,43 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        // Enable serde flatten by checking for a struct on a working copy
+        let mut wc = self.bytes;
+
+        // Remove any leading struct name identifier
+        if !self.newtype_variant {
+            let _ = wc.identifier();
+            wc.skip_ws()?;
+        }
+
+        // Check if we see something struct- or tuple-like
+        if self.newtype_variant || wc.consume("(") {
+            wc.skip_ws()?;
+
+            let has_field_ident = wc.identifier().is_ok();
+
+            wc.skip_ws()?;
+
+            // It's a struct if it has either a field name followed by a colon
+            //  or the struct is immediately closed
+            let is_struct = wc.eat_byte().map_or(false, |c| {
+                if has_field_ident {
+                    c == b':'
+                } else {
+                    c == b')'
+                }
+            });
+
+            if is_struct {
+                // Remove any leading struct name identifier
+                if !self.newtype_variant {
+                    let _ = self.bytes.identifier();
+                }
+
+                return self.deserialize_struct("", &[], visitor);
+            }
+        }
+
         self.newtype_variant = false;
 
         if self.bytes.consume("{") {
