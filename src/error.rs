@@ -2,6 +2,8 @@ use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Err
 
 use serde::{de, ser};
 
+use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char};
+
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -87,6 +89,7 @@ pub enum Error {
         outer: Option<String>,
     },
     InvalidIdentifier(String),
+    SuggestRawIdentifier(String),
 }
 
 impl fmt::Display for SpannedError {
@@ -126,10 +129,19 @@ impl fmt::Display for Error {
             Error::ExpectedDifferentStructName {
                 expected,
                 ref found,
-            } => write!(f, "Expected struct `{}` but found `{}`", expected, found),
+            } => write!(
+                f,
+                "Expected struct {} but found {}",
+                Identifier(expected),
+                Identifier(found)
+            ),
             Error::ExpectedStructLike => f.write_str("Expected opening `(`"),
             Error::ExpectedNamedStructLike(name) => {
-                write!(f, "Expected opening `(` for struct `{}`", name)
+                if name.is_empty() {
+                    f.write_str("Expected only opening `(`, no name, for un-nameable struct")
+                } else {
+                    write!(f, "Expected opening `(` for struct {}", Identifier(name))
+                }
             }
             Error::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
             Error::ExpectedUnit => f.write_str("Expected unit"),
@@ -138,7 +150,9 @@ impl fmt::Display for Error {
             Error::ExpectedIdentifier => f.write_str("Expected identifier"),
             Error::InvalidEscape(s) => f.write_str(s),
             Error::IntegerOutOfBounds => f.write_str("Integer is out of bounds"),
-            Error::NoSuchExtension(ref name) => write!(f, "No RON extension named `{}`", name),
+            Error::NoSuchExtension(ref name) => {
+                write!(f, "No RON extension named {}", Identifier(name))
+            }
             Error::Utf8Error(ref e) => fmt::Display::fmt(e, f),
             Error::UnclosedBlockComment => f.write_str("Unclosed block comment"),
             Error::UnderscoreAtBeginning => {
@@ -177,10 +191,10 @@ impl fmt::Display for Error {
                     f.write_str("enum ")?;
                 }
 
-                write!(f, "variant named `{}`", found)?;
+                write!(f, "variant named {}", Identifier(found))?;
 
                 if let Some(outer) = outer {
-                    write!(f, "in enum `{}`", outer)?;
+                    write!(f, "in enum {}", Identifier(outer))?;
                 }
 
                 write!(
@@ -197,10 +211,10 @@ impl fmt::Display for Error {
                 ref found,
                 ref outer,
             } => {
-                write!(f, "Unexpected field named `{}`", found)?;
+                write!(f, "Unexpected field named {}", Identifier(found))?;
 
                 if let Some(outer) = outer {
-                    write!(f, "in `{}`", outer)?;
+                    write!(f, "in {}", Identifier(outer))?;
                 }
 
                 write!(
@@ -213,22 +227,27 @@ impl fmt::Display for Error {
                 )
             }
             Error::MissingStructField { field, ref outer } => {
-                write!(f, "Unexpected missing field `{}`", field)?;
+                write!(f, "Unexpected missing field {}", Identifier(field))?;
 
                 match outer {
-                    Some(outer) => write!(f, " in `{}`", outer),
+                    Some(outer) => write!(f, " in {}", Identifier(outer)),
                     None => Ok(()),
                 }
             }
             Error::DuplicateStructField { field, ref outer } => {
-                write!(f, "Unexpected duplicate field `{}`", field)?;
+                write!(f, "Unexpected duplicate field {}", Identifier(field))?;
 
                 match outer {
-                    Some(outer) => write!(f, " in `{}`", outer),
+                    Some(outer) => write!(f, " in {}", Identifier(outer)),
                     None => Ok(()),
                 }
             }
             Error::InvalidIdentifier(ref invalid) => write!(f, "Invalid identifier {:?}", invalid),
+            Error::SuggestRawIdentifier(ref identifier) => write!(
+                f,
+                "Found invalid std identifier `{}`, try the raw identifier `r#{}` instead",
+                identifier, identifier
+            ),
         }
     }
 }
@@ -385,17 +404,40 @@ impl fmt::Display for OneOf {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.alts {
             [] => write!(f, "there are no {}", self.none),
-            [a1] => write!(f, "expected `{}` instead", a1),
-            [a1, a2] => write!(f, "expected either `{}` or `{}` instead", a1, a2),
+            [a1] => write!(f, "expected {} instead", Identifier(a1)),
+            [a1, a2] => write!(
+                f,
+                "expected either {} or {} instead",
+                Identifier(a1),
+                Identifier(a2)
+            ),
             [a1, ref alts @ ..] => {
-                write!(f, "expected one of `{}`", a1)?;
+                write!(f, "expected one of {}", Identifier(a1))?;
 
                 for alt in alts {
-                    write!(f, ", `{}`", alt)?;
+                    write!(f, ", {}", Identifier(alt))?;
                 }
 
                 f.write_str(" instead")
             }
+        }
+    }
+}
+
+struct Identifier<'a>(&'a str);
+
+impl<'a> fmt::Display for Identifier<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.is_empty() || !self.0.as_bytes().iter().copied().all(is_ident_raw_char) {
+            return write!(f, "{:?}_[invalid identifier]", self.0);
+        }
+
+        let mut bytes = self.0.as_bytes().iter().copied();
+
+        if !bytes.next().map_or(false, is_ident_first_char) || !bytes.all(is_ident_other_char) {
+            write!(f, "`r#{}`", self.0)
+        } else {
+            write!(f, "`{}`", self.0)
         }
     }
 }

@@ -175,7 +175,7 @@ impl<'a> Bytes<'a> {
 
     fn any_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
         let base = if self.peek() == Some(b'0') {
-            match self.bytes.get(1).cloned() {
+            match self.bytes.get(1).copied() {
                 Some(b'x') => 16,
                 Some(b'b') => 2,
                 Some(b'o') => 8,
@@ -453,12 +453,11 @@ impl<'a> Bytes<'a> {
             return Ok(false);
         }
 
-        if ident.is_empty() {
-            return Err(Error::ExpectedStructLike);
-        }
-
         let found_ident = match self.identifier() {
             Ok(maybe_ident) => std::str::from_utf8(maybe_ident)?,
+            Err(Error::SuggestRawIdentifier(found_ident)) if found_ident == ident => {
+                return Err(Error::SuggestRawIdentifier(found_ident))
+            }
             Err(_) => return Err(Error::ExpectedNamedStructLike(ident)),
         };
 
@@ -583,6 +582,14 @@ impl<'a> Bytes<'a> {
     pub fn identifier(&mut self) -> Result<&'a [u8]> {
         let next = self.peek_or_eof()?;
         if !is_ident_first_char(next) {
+            if is_ident_raw_char(next) {
+                let ident_bytes = &self.bytes[..self.next_bytes_contained_in(is_ident_raw_char)];
+
+                if let Ok(ident) = std::str::from_utf8(ident_bytes) {
+                    return Err(Error::SuggestRawIdentifier(String::from(ident)));
+                }
+            }
+
             return Err(Error::ExpectedIdentifier);
         }
 
@@ -592,7 +599,7 @@ impl<'a> Bytes<'a> {
             match self.bytes.get(1).ok_or(Error::Eof)? {
                 b'"' => return Err(Error::ExpectedIdentifier),
                 b'#' => {
-                    let after_next = self.bytes.get(2).cloned().unwrap_or_default();
+                    let after_next = self.bytes.get(2).copied().unwrap_or_default();
                     // Note: it's important to check this before advancing forward, so that
                     // the value-type deserializer can fall back to parsing it differently.
                     if !is_ident_raw_char(after_next) {
@@ -602,10 +609,30 @@ impl<'a> Bytes<'a> {
                     let _ = self.advance(2);
                     self.next_bytes_contained_in(is_ident_raw_char)
                 }
-                _ => self.next_bytes_contained_in(is_ident_other_char),
+                _ => {
+                    let std_ident_length = self.next_bytes_contained_in(is_ident_other_char);
+                    let raw_ident_length = self.next_bytes_contained_in(is_ident_raw_char);
+
+                    if raw_ident_length > std_ident_length {
+                        if let Ok(ident) = std::str::from_utf8(&self.bytes[..raw_ident_length]) {
+                            return Err(Error::SuggestRawIdentifier(String::from(ident)));
+                        }
+                    }
+
+                    std_ident_length
+                }
             }
         } else {
-            self.next_bytes_contained_in(is_ident_other_char)
+            let std_ident_length = self.next_bytes_contained_in(is_ident_other_char);
+            let raw_ident_length = self.next_bytes_contained_in(is_ident_raw_char);
+
+            if raw_ident_length > std_ident_length {
+                if let Ok(ident) = std::str::from_utf8(&self.bytes[..raw_ident_length]) {
+                    return Err(Error::SuggestRawIdentifier(String::from(ident)));
+                }
+            }
+
+            std_ident_length
         };
 
         let ident = &self.bytes[..length];
@@ -655,11 +682,11 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn peek(&self) -> Option<u8> {
-        self.bytes.first().cloned()
+        self.bytes.first().copied()
     }
 
     pub fn peek_or_eof(&self) -> Result<u8> {
-        self.bytes.first().cloned().ok_or(Error::Eof)
+        self.bytes.first().copied().ok_or(Error::Eof)
     }
 
     pub fn signed_integer<T>(&mut self) -> Result<T>
