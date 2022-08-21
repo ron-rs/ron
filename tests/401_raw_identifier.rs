@@ -67,6 +67,24 @@ fn test_invalid_identifiers() {
         "1:1: Expected only opening `(`, no name, for un-nameable struct"
     );
 
+    let de = ron::from_str::<RawStruct>("").unwrap_err();
+    assert_eq!(
+        de,
+        SpannedError {
+            code: Error::ExpectedNamedStructLike("Hello+World"),
+            position: Position { line: 1, col: 1 },
+        },
+    );
+
+    let de = ron::from_str::<RawStruct>("r#").unwrap_err();
+    assert_eq!(
+        de,
+        SpannedError {
+            code: Error::ExpectedNamedStructLike("Hello+World"),
+            position: Position { line: 1, col: 1 },
+        },
+    );
+
     let de = ron::from_str::<RawStruct>("Hello+World").unwrap_err();
     assert_eq!(
         de,
