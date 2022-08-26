@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Fix issues [#277](https://github.com/ron-rs/ron/issues/277) and [#405](https://github.com/ron-rs/ron/issues/405) with `Value::Map` `IntoIter` and extraneous item check for `Value::Seq` ([#406](https://github.com/ron-rs/ron/pull/406))
+
 ## [0.8.0] - 2022-08-17
 - Add `integer128` feature that guards `i128` and `u128` ([#304](https://github.com/ron-rs/ron/pull/304), [#351](https://github.com/ron-rs/ron/pull/351))
 - Fix issue [#265](https://github.com/ron-rs/ron/issues/265) with better missing comma error ([#353](https://github.com/ron-rs/ron/pull/353))
