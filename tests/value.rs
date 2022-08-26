@@ -1,6 +1,9 @@
 use std::f64;
 
-use ron::value::{Map, Number, Value};
+use ron::{
+    error::Error,
+    value::{Map, Number, Value},
+};
 use serde::Serialize;
 
 #[test]
@@ -68,6 +71,34 @@ fn seq() {
         Value::Number(Number::new(2f64)),
     ];
     assert_eq!("[1, 2.0]".parse(), Ok(Value::Seq(seq)));
+
+    let err = Value::Seq(vec![Value::Number(Number::new(1))])
+        .into_rust::<[i32; 2]>()
+        .unwrap_err();
+
+    assert_eq!(
+        err,
+        Error::ExpectedDifferentLength {
+            expected: String::from("an array of length 2"),
+            found: 1,
+        }
+    );
+
+    let err = Value::Seq(vec![
+        Value::Number(Number::new(1)),
+        Value::Number(Number::new(2)),
+        Value::Number(Number::new(3)),
+    ])
+    .into_rust::<[i32; 2]>()
+    .unwrap_err();
+
+    assert_eq!(
+        err,
+        Error::ExpectedDifferentLength {
+            expected: String::from("a sequence of length 2"),
+            found: 3,
+        }
+    );
 }
 
 #[test]
