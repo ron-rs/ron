@@ -83,6 +83,16 @@ impl FromIterator<(Value, Value)> for Map {
     }
 }
 
+impl IntoIterator for Map {
+    type Item = (Value, Value);
+
+    type IntoIter = <MapInner as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 /// Note: equality is only given if both values and order of values match
 impl Eq for Map {}
 
@@ -353,18 +363,45 @@ impl<'de> Deserializer<'de> for Value {
         match self {
             Value::Bool(b) => visitor.visit_bool(b),
             Value::Char(c) => visitor.visit_char(c),
-            Value::Map(m) => visitor.visit_map(MapAccessor {
-                keys: m.keys().cloned().rev().collect(),
-                values: m.values().cloned().rev().collect(),
-            }),
+            Value::Map(m) => {
+                let old_len = m.len();
+
+                let mut items: Vec<(Value, Value)> = m.into_iter().collect();
+                items.reverse();
+
+                let value = visitor.visit_map(MapAccessor {
+                    items: &mut items,
+                    value: None,
+                })?;
+
+                if items.is_empty() {
+                    Ok(value)
+                } else {
+                    Err(Error::ExpectedDifferentLength {
+                        expected: format!("a map of length {}", old_len - items.len()),
+                        found: old_len,
+                    })
+                }
+            }
             Value::Number(Number::Float(ref f)) => visitor.visit_f64(f.get()),
             Value::Number(Number::Integer(i)) => visitor.visit_i64(i),
             Value::Option(Some(o)) => visitor.visit_some(*o),
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
             Value::Seq(mut seq) => {
+                let old_len = seq.len();
+
                 seq.reverse();
-                visitor.visit_seq(Seq { seq })
+                let value = visitor.visit_seq(Seq { seq: &mut seq })?;
+
+                if seq.is_empty() {
+                    Ok(value)
+                } else {
+                    Err(Error::ExpectedDifferentLength {
+                        expected: format!("a sequence of length {}", old_len - seq.len()),
+                        found: old_len,
+                    })
+                }
             }
             Value::Unit => visitor.visit_unit(),
         }
@@ -433,12 +470,12 @@ impl<'de> Deserializer<'de> for Value {
     }
 }
 
-struct MapAccessor {
-    keys: Vec<Value>,
-    values: Vec<Value>,
+struct MapAccessor<'a> {
+    items: &'a mut Vec<(Value, Value)>,
+    value: Option<Value>,
 }
 
-impl<'de> MapAccess<'de> for MapAccessor {
+impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -446,28 +483,35 @@ impl<'de> MapAccess<'de> for MapAccessor {
         K: DeserializeSeed<'de>,
     {
         // The `Vec` is reversed, so we can pop to get the originally first element
-        self.keys
-            .pop()
-            .map_or(Ok(None), |v| seed.deserialize(v).map(Some))
+        match self.items.pop() {
+            Some((key, value)) => {
+                self.value = Some(value);
+                seed.deserialize(key).map(Some)
+            }
+            None => Ok(None),
+        }
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,
     {
-        // The `Vec` is reversed, so we can pop to get the originally first element
-        self.values
-            .pop()
-            .map(|v| seed.deserialize(v))
-            .expect("Contract violation")
+        match self.value.take() {
+            Some(value) => seed.deserialize(value),
+            None => panic!("Contract violation: value before key"),
+        }
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.items.len())
     }
 }
 
-struct Seq {
-    seq: Vec<Value>,
+struct Seq<'a> {
+    seq: &'a mut Vec<Value>,
 }
 
-impl<'de> SeqAccess<'de> for Seq {
+impl<'a, 'de> SeqAccess<'de> for Seq<'a> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
@@ -478,6 +522,10 @@ impl<'de> SeqAccess<'de> for Seq {
         self.seq
             .pop()
             .map_or(Ok(None), |v| seed.deserialize(v).map(Some))
+    }
+
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.seq.len())
     }
 }
 
