@@ -6,7 +6,7 @@ use crate::{
     error::{Error, Result},
     extensions::Extensions,
     options::Options,
-    parse::{is_ident_first_char, is_ident_other_char, LargeSInt, LargeUInt},
+    parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char, LargeSInt, LargeUInt},
 };
 
 #[cfg(test)]
@@ -367,8 +367,11 @@ impl<W: io::Write> Serializer<W> {
         Ok(())
     }
 
-    fn write_identifier(&mut self, name: &str) -> io::Result<()> {
-        let mut bytes = name.as_bytes().iter().cloned();
+    fn write_identifier(&mut self, name: &str) -> Result<()> {
+        if name.is_empty() || !name.as_bytes().iter().copied().all(is_ident_raw_char) {
+            return Err(Error::InvalidIdentifier(name.into()));
+        }
+        let mut bytes = name.as_bytes().iter().copied();
         if !bytes.next().map_or(false, is_ident_first_char) || !bytes.all(is_ident_other_char) {
             self.output.write_all(b"r#")?;
         }

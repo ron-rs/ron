@@ -124,11 +124,54 @@ impl<'de> Deserializer<'de> {
                 // first argument is technically incorrect, but ignored anyway
                 self.deserialize_tuple(0, visitor)
             } else {
-                // first two arguments are technically incorrect, but ignored anyway
-                self.deserialize_struct("", &[], visitor)
+                // giving no name results in worse errors but is necessary here
+                self.handle_struct_after_name("", visitor)
             }
         } else {
             visitor.visit_unit()
+        }
+    }
+
+    /// Called from `deserialize_struct`, `struct_variant`, and `handle_any_struct`.
+    /// Handles deserialising the enclosing parentheses and everything in between.
+    ///
+    /// This method assumes there is no struct name identifier left.
+    fn handle_struct_after_name<V>(
+        &mut self,
+        name_for_pretty_errors_only: &'static str,
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        if self.newtype_variant || self.bytes.consume("(") {
+            let old_newtype_variant = self.newtype_variant;
+            self.newtype_variant = false;
+
+            let value = visitor
+                .visit_map(CommaSeparated::new(b')', self))
+                .map_err(|err| {
+                    struct_error_name(
+                        err,
+                        if !old_newtype_variant && !name_for_pretty_errors_only.is_empty() {
+                            Some(name_for_pretty_errors_only)
+                        } else {
+                            None
+                        },
+                    )
+                })?;
+
+            self.bytes.comma()?;
+
+            if old_newtype_variant || self.bytes.consume(")") {
+                Ok(value)
+            } else {
+                Err(Error::ExpectedStructLikeEnd)
+            }
+        } else if name_for_pretty_errors_only.is_empty() {
+            Err(Error::ExpectedStructLike)
+        } else {
+            Err(Error::ExpectedNamedStructLike(name_for_pretty_errors_only))
         }
     }
 }
@@ -512,7 +555,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 
     fn deserialize_struct<V>(
-        mut self,
+        self,
         name: &'static str,
         _fields: &'static [&'static str],
         visitor: V,
@@ -526,35 +569,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         self.bytes.skip_ws()?;
 
-        if self.newtype_variant || self.bytes.consume("(") {
-            let old_newtype_variant = self.newtype_variant;
-            self.newtype_variant = false;
-
-            let value = visitor
-                .visit_map(CommaSeparated::new(b')', self))
-                .map_err(|err| {
-                    struct_error_name(
-                        err,
-                        if !old_newtype_variant && !name.is_empty() {
-                            Some(name)
-                        } else {
-                            None
-                        },
-                    )
-                })?;
-
-            self.bytes.comma()?;
-
-            if old_newtype_variant || self.bytes.consume(")") {
-                Ok(value)
-            } else {
-                Err(Error::ExpectedStructLikeEnd)
-            }
-        } else if name.is_empty() {
-            Err(Error::ExpectedStructLike)
-        } else {
-            Err(Error::ExpectedNamedStructLike(name))
-        }
+        self.handle_struct_after_name(name, visitor)
     }
 
     fn deserialize_enum<V>(
@@ -769,7 +784,7 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
         self.de.deserialize_tuple(len, visitor)
     }
 
-    fn struct_variant<V>(self, fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -778,7 +793,7 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
         self.de.bytes.skip_ws()?;
 
         self.de
-            .deserialize_struct("", fields, visitor)
+            .handle_struct_after_name("", visitor)
             .map_err(|err| struct_error_name(err, struct_variant))
     }
 }
