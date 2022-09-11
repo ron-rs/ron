@@ -9,6 +9,7 @@ use crate::{
     parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char, LargeSInt, LargeUInt},
 };
 
+mod raw;
 #[cfg(test)]
 mod tests;
 mod value;
@@ -533,6 +534,10 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
+        if name == crate::value::raw::RAW_VALUE_TOKEN {
+            return value.serialize(raw::RawValueSerializer::new(self));
+        }
+
         if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) || self.newtype_variant {
             self.newtype_variant = false;
 

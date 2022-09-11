@@ -90,6 +90,7 @@ pub enum Error {
     },
     InvalidIdentifier(String),
     SuggestRawIdentifier(String),
+    ExpectedRawValue,
 }
 
 impl fmt::Display for SpannedError {
@@ -248,6 +249,7 @@ impl fmt::Display for Error {
                 "Found invalid std identifier `{}`, try the raw identifier `r#{}` instead",
                 identifier, identifier
             ),
+            Error::ExpectedRawValue => f.write_str("Expected a `ron::value::RawValue`"),
         }
     }
 }

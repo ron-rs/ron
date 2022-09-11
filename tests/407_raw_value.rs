@@ -1,0 +1,136 @@
+use ron::{
+    de::from_bytes,
+    error::{Error, Position, SpannedError},
+    from_str, to_string,
+    value::RawValue,
+};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+struct WithRawValue {
+    a: bool,
+    b: Box<RawValue>,
+}
+
+#[test]
+fn test_raw_value_simple() {
+    let raw: &RawValue = from_str("true").unwrap();
+    assert_eq!(raw.get_ron(), "true");
+    let ser = to_string(raw).unwrap();
+    assert_eq!(ser, "true");
+}
+
+#[test]
+fn test_raw_value_inner() {
+    let raw: WithRawValue = from_str("(a: false, b: [1, /* lol */ 2, 3])").unwrap();
+    assert_eq!(raw.b.get_ron(), "[1, /* lol */ 2, 3]");
+    let ser = to_string(&raw).unwrap();
+    assert_eq!(ser, "(a:false,b:[1, /* lol */ 2, 3])");
+}
+
+#[test]
+fn test_raw_value_comment() {
+    let raw: WithRawValue = from_str("(a: false, b: /* nope */ 4)").unwrap();
+    assert_eq!(raw.b.get_ron(), "4");
+
+    let raw: WithRawValue = from_str("(a: false, b: 4 /* yes */)").unwrap();
+    assert_eq!(raw.b.get_ron(), "4 /* yes */");
+
+    let raw: WithRawValue = from_str("(a: false, b: (/* this */ 4 /* too */))").unwrap();
+    assert_eq!(raw.b.get_ron(), "(/* this */ 4 /* too */)");
+}
+
+#[test]
+fn test_raw_value_invalid() {
+    let err = from_str::<&RawValue>("4.d").unwrap_err();
+    assert_eq!(
+        err,
+        SpannedError {
+            code: Error::TrailingCharacters,
+            position: Position { line: 1, col: 3 }
+        }
+    );
+
+    let err = from_bytes::<&RawValue>(b"\0").unwrap_err();
+    assert_eq!(
+        err,
+        SpannedError {
+            code: Error::UnexpectedByte('\0'),
+            position: Position { line: 1, col: 1 }
+        }
+    )
+}
+
+#[test]
+fn test_raw_value_from_ron() {
+    let raw = RawValue::from_ron("/* hi */ (None, 4.2) /* bye */").unwrap();
+    assert_eq!(raw.get_ron(), "/* hi */ (None, 4.2) /* bye */");
+
+    let err = RawValue::from_ron("4.d").unwrap_err();
+    assert_eq!(
+        err,
+        SpannedError {
+            code: Error::TrailingCharacters,
+            position: Position { line: 1, col: 3 }
+        }
+    );
+}
+
+#[test]
+fn test_raw_value_into_rust() {
+    let raw = RawValue::from_ron("/* hi */ (a: false, b: None) /* bye */").unwrap();
+
+    let with: WithRawValue = raw.into_rust().unwrap();
+    assert_eq!(
+        with,
+        WithRawValue {
+            a: false,
+            b: from_str("None").unwrap(),
+        }
+    );
+
+    let err = raw.into_rust::<i32>().unwrap_err();
+    assert_eq!(
+        err,
+        SpannedError {
+            code: Error::ExpectedInteger,
+            position: Position { line: 1, col: 10 },
+        }
+    );
+}
+
+#[test]
+fn test_raw_value_from_rust() {
+    let raw = RawValue::from_rust(&42).unwrap();
+    assert_eq!(raw.get_ron(), "42");
+
+    let raw = RawValue::from_rust(&WithRawValue {
+        a: true,
+        b: from_str("4.2").unwrap(),
+    })
+    .unwrap();
+    assert_eq!(raw.get_ron(), "(a:true,b:4.2)");
+}
+
+#[test]
+fn test_raw_value_serde_json() {
+    let raw = RawValue::from_ron("/* hi */ (None, 4.2) /* bye */").unwrap();
+
+    let ser = serde_json::to_string(&WithRawValue {
+        a: true,
+        b: raw.to_owned(),
+    })
+    .unwrap();
+    assert_eq!(ser, "{\"a\":true,\"b\":\"/* hi */ (None, 4.2) /* bye */\"}");
+
+    let with: WithRawValue = serde_json::from_str(&ser).unwrap();
+    assert_eq!(raw, &*with.b);
+
+    let err =
+        serde_json::from_str::<WithRawValue>("{\"a\":true,\"b\":\"/* hi */ (a:) /* bye */\"}")
+            .unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "invalid RON value at 1:13: Unexpected byte ')' at line 1 column 39"
+    );
+}

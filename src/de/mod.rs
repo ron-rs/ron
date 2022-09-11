@@ -447,6 +447,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        if name == crate::value::raw::RAW_VALUE_TOKEN {
+            let bytes_before = self.bytes.bytes();
+            self.bytes.skip_ws()?;
+            let _ignored = self.deserialize_ignored_any(serde::de::IgnoredAny)?;
+            self.bytes.skip_ws()?;
+            let bytes_after = self.bytes.bytes();
+
+            let ron_bytes = &bytes_before[..bytes_before.len() - bytes_after.len()];
+            let ron_str = str::from_utf8(ron_bytes).map_err(Error::from)?;
+
+            return visitor
+                .visit_borrowed_str::<Error>(ron_str)
+                .map_err(|_| Error::ExpectedRawValue);
+        }
+
         if self.bytes.exts.contains(Extensions::UNWRAP_NEWTYPES) || self.newtype_variant {
             self.newtype_variant = false;
 
