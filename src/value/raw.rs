@@ -77,6 +77,14 @@ impl RawValue {
             .map(|_| Self::from_borrowed_str(ron))
     }
 
+    /// Helper function to validate a RON string and turn it into a `RawValue`.
+    pub fn from_boxed_ron(ron: Box<str>) -> SpannedResult<Box<Self>> {
+        match Options::default().from_str::<&Self>(&*ron) {
+            Ok(_) => Ok(Self::from_boxed_str(ron)),
+            Err(err) => Err(err),
+        }
+    }
+
     /// Helper function to deserialize the inner RON string into `T`.
     pub fn into_rust<'de, T: Deserialize<'de>>(&'de self) -> SpannedResult<T> {
         Options::default().from_str(&self.ron)
@@ -93,12 +101,6 @@ impl RawValue {
 impl From<Box<RawValue>> for Box<str> {
     fn from(raw_value: Box<RawValue>) -> Self {
         RawValue::into_boxed_str(raw_value)
-    }
-}
-
-impl From<Box<RawValue>> for String {
-    fn from(raw_value: Box<RawValue>) -> Self {
-        RawValue::into_boxed_str(raw_value).into_string()
     }
 }
 

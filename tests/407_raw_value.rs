@@ -155,15 +155,12 @@ fn test_raw_value_serde_json() {
 
 #[test]
 fn test_raw_value_clone_into() {
-    let raw: Box<RawValue> = from_str("(None, 4.2)").unwrap();
+    let raw = RawValue::from_boxed_ron(String::from("(None, 4.2)").into_boxed_str()).unwrap();
     let raw2 = raw.clone();
     assert_eq!(raw, raw2);
 
-    let boxed_str: Box<str> = raw.into();
+    let boxed_str: Box<str> = raw2.into();
     assert_eq!(&*boxed_str, "(None, 4.2)");
-
-    let string: String = raw2.into();
-    assert_eq!(string, "(None, 4.2)");
 }
 
 #[test]
@@ -178,5 +175,32 @@ RawValue(
     /* hi */ (None, 4.2) /* bye */,
 )\
     "
+    );
+}
+
+#[test]
+fn test_boxed_raw_value_deserialise_from_string() {
+    let string = serde::de::value::StringDeserializer::<Error>::new(String::from("4.2"));
+
+    let err = <&RawValue>::deserialize(string.clone()).unwrap_err();
+    assert_eq!(
+        err,
+        Error::InvalidValueForType {
+            expected: String::from("any valid borrowed RON-value-string"),
+            found: String::from("the string \"4.2\""),
+        }
+    );
+
+    let boxed_raw = Box::<RawValue>::deserialize(string).unwrap();
+    assert_eq!(boxed_raw.get_ron(), "4.2");
+
+    let string = serde::de::value::StringDeserializer::<Error>::new(String::from("["));
+
+    let err = Box::<RawValue>::deserialize(string).unwrap_err();
+    assert_eq!(
+        err,
+        Error::Message(String::from(
+            "invalid RON value at 1:2: Unexpected end of RON"
+        ))
     );
 }
