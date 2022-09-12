@@ -15,6 +15,10 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::{de::Error, error::Result};
 
+pub(crate) mod raw;
+
+pub use raw::RawValue;
+
 /// A [`Value`] to [`Value`] map.
 ///
 /// This structure either uses a [BTreeMap](std::collections::BTreeMap) or the
