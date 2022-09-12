@@ -133,4 +133,50 @@ fn test_raw_value_serde_json() {
         err.to_string(),
         "invalid RON value at 1:13: Unexpected byte ')' at line 1 column 39"
     );
+
+    let err = serde_json::from_str::<WithRawValue>("{\"a\":true,\"b\":42}").unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "invalid type: integer `42`, expected any valid RON-value-string at line 1 column 16"
+    );
+
+    let err = serde_json::from_str::<&RawValue>("\"/* hi */ (a:) /* bye */\"").unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "invalid RON value at 1:13: Unexpected byte ')' at line 1 column 25"
+    );
+
+    let err = serde_json::from_str::<&RawValue>("42").unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        "invalid type: integer `42`, expected any valid borrowed RON-value-string at line 1 column 2"
+    );
+}
+
+#[test]
+fn test_raw_value_clone_into() {
+    let raw: Box<RawValue> = from_str("(None, 4.2)").unwrap();
+    let raw2 = raw.clone();
+    assert_eq!(raw, raw2);
+
+    let boxed_str: Box<str> = raw.into();
+    assert_eq!(&*boxed_str, "(None, 4.2)");
+
+    let string: String = raw2.into();
+    assert_eq!(string, "(None, 4.2)");
+}
+
+#[test]
+fn test_raw_value_debug_display() {
+    let raw = RawValue::from_ron("/* hi */ (None, 4.2) /* bye */").unwrap();
+
+    assert_eq!(format!("{}", raw), "/* hi */ (None, 4.2) /* bye */");
+    assert_eq!(
+        format!("{:#?}", raw),
+        "\
+RawValue(
+    /* hi */ (None, 4.2) /* bye */,
+)\
+    "
+    );
 }

@@ -13,22 +13,25 @@ use crate::{
 
 pub(crate) const RAW_VALUE_TOKEN: &str = "$ron::private::RawValue";
 
-#[repr(transparent)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
 pub struct RawValue {
     ron: str,
 }
 
 impl RawValue {
-    fn from_borrowed(ron: &str) -> &Self {
+    fn from_borrowed_str(ron: &str) -> &Self {
+        // Safety: RawValue is a transparent newtype around str
         unsafe { std::mem::transmute::<&str, &RawValue>(ron) }
     }
 
-    fn from_owned(ron: Box<str>) -> Box<Self> {
+    fn from_boxed_str(ron: Box<str>) -> Box<Self> {
+        // Safety: RawValue is a transparent newtype around str
         unsafe { std::mem::transmute::<Box<str>, Box<RawValue>>(ron) }
     }
 
-    fn into_owned(raw_value: Box<Self>) -> Box<str> {
+    fn into_boxed_str(raw_value: Box<Self>) -> Box<str> {
+        // Safety: RawValue is a transparent newtype around str
         unsafe { std::mem::transmute::<Box<RawValue>, Box<str>>(raw_value) }
     }
 }
@@ -43,7 +46,7 @@ impl ToOwned for RawValue {
     type Owned = Box<RawValue>;
 
     fn to_owned(&self) -> Self::Owned {
-        RawValue::from_owned(self.ron.to_owned().into_boxed_str())
+        RawValue::from_boxed_str(self.ron.to_owned().into_boxed_str())
     }
 }
 
@@ -71,7 +74,7 @@ impl RawValue {
     pub fn from_ron(ron: &str) -> SpannedResult<&Self> {
         Options::default()
             .from_str::<&Self>(ron)
-            .map(|_| Self::from_borrowed(ron))
+            .map(|_| Self::from_borrowed_str(ron))
     }
 
     /// Helper function to deserialize the inner RON string into `T`.
@@ -83,19 +86,19 @@ impl RawValue {
     pub fn from_rust<T: Serialize>(value: &T) -> Result<Box<Self>, Error> {
         let ron = Options::default().to_string(value)?;
 
-        Ok(RawValue::from_owned(ron.into_boxed_str()))
+        Ok(RawValue::from_boxed_str(ron.into_boxed_str()))
     }
 }
 
 impl From<Box<RawValue>> for Box<str> {
     fn from(raw_value: Box<RawValue>) -> Self {
-        RawValue::into_owned(raw_value)
+        RawValue::into_boxed_str(raw_value)
     }
 }
 
 impl From<Box<RawValue>> for String {
     fn from(raw_value: Box<RawValue>) -> Self {
-        RawValue::into_owned(raw_value).into_string()
+        RawValue::into_boxed_str(raw_value).into_string()
     }
 }
 
@@ -113,12 +116,13 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawValue {
             type Value = &'de RawValue;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                write!(formatter, "any valid RON value")
+                // This error message only shows up with foreign Deserializers
+                write!(formatter, "any valid borrowed RON-value-string")
             }
 
             fn visit_borrowed_str<E: de::Error>(self, ron: &'de str) -> Result<Self::Value, E> {
                 match Options::default().from_str::<serde::de::IgnoredAny>(ron) {
-                    Ok(_) => Ok(RawValue::from_borrowed(ron)),
+                    Ok(_) => Ok(RawValue::from_borrowed_str(ron)),
                     Err(err) => Err(de::Error::custom(format!(
                         "invalid RON value at {}: {}",
                         err.position, err.code
@@ -146,12 +150,13 @@ impl<'de> Deserialize<'de> for Box<RawValue> {
             type Value = Box<RawValue>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                write!(formatter, "any valid RON value")
+                // This error message only shows up with foreign Deserializers
+                write!(formatter, "any valid RON-value-string")
             }
 
             fn visit_str<E: de::Error>(self, ron: &str) -> Result<Self::Value, E> {
                 match Options::default().from_str::<serde::de::IgnoredAny>(ron) {
-                    Ok(_) => Ok(RawValue::from_owned(ron.to_owned().into_boxed_str())),
+                    Ok(_) => Ok(RawValue::from_boxed_str(ron.to_owned().into_boxed_str())),
                     Err(err) => Err(de::Error::custom(format!(
                         "invalid RON value at {}: {}",
                         err.position, err.code
@@ -161,7 +166,7 @@ impl<'de> Deserialize<'de> for Box<RawValue> {
 
             fn visit_string<E: de::Error>(self, ron: String) -> Result<Self::Value, E> {
                 match Options::default().from_str::<serde::de::IgnoredAny>(&ron) {
-                    Ok(_) => Ok(RawValue::from_owned(ron.into_boxed_str())),
+                    Ok(_) => Ok(RawValue::from_boxed_str(ron.into_boxed_str())),
                     Err(err) => Err(de::Error::custom(format!(
                         "invalid RON value at {}: {}",
                         err.position, err.code
@@ -173,7 +178,7 @@ impl<'de> Deserialize<'de> for Box<RawValue> {
                 self,
                 deserializer: D,
             ) -> Result<Self::Value, D::Error> {
-                deserializer.deserialize_str(self)
+                deserializer.deserialize_string(self)
             }
         }
 
