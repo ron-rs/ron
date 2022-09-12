@@ -74,6 +74,20 @@ fn test_raw_value_from_ron() {
             position: Position { line: 1, col: 3 }
         }
     );
+
+    let raw =
+        RawValue::from_boxed_ron(String::from("/* hi */ (None, 4.2) /* bye */").into_boxed_str())
+            .unwrap();
+    assert_eq!(raw.get_ron(), "/* hi */ (None, 4.2) /* bye */");
+
+    let err = RawValue::from_boxed_ron(String::from("(").into_boxed_str()).unwrap_err();
+    assert_eq!(
+        err,
+        SpannedError {
+            code: Error::Eof,
+            position: Position { line: 1, col: 2 },
+        }
+    );
 }
 
 #[test]
