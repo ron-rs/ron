@@ -106,7 +106,7 @@ fn unit() {
     use ron::error::{Error, Position, SpannedError};
 
     assert_eq!("()".parse(), Ok(Value::Unit));
-    assert_eq!("Foo".parse(), Ok(Value::String(String::from("Foo"))));
+    assert_eq!("Foo".parse(), Ok(Value::Unit));
 
     assert_eq!(
         "".parse::<Value>(),

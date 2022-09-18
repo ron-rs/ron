@@ -12,11 +12,13 @@ use serde::{
     forward_to_deserialize_any, Deserialize, Serialize,
 };
 
-use crate::{de::Error, error::Result};
+use crate::error::{Error, Result};
 
 pub(crate) mod raw;
 
 pub use raw::RawValue;
+
+pub(crate) const VALUE_TOKEN: &str = "$ron::private::Value";
 
 /// A `Value` to `Value` map.
 ///
@@ -26,7 +28,7 @@ pub use raw::RawValue;
 /// to preserve the order of the parsed map.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct Map(MapInner);
+pub struct Map(MapInner<Value, Value>);
 
 impl Map {
     /// Creates a new, empty `Map`.
@@ -89,7 +91,7 @@ impl FromIterator<(Value, Value)> for Map {
 
 impl IntoIterator for Map {
     type Item = (Value, Value);
-    type IntoIter = <MapInner as IntoIterator>::IntoIter;
+    type IntoIter = <MapInner<Value, Value> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -138,10 +140,130 @@ impl PartialOrd for Map {
     }
 }
 
+/// A `Value` to `Value` map.
+///
+/// This structure either uses a [BTreeMap](std::collections::BTreeMap) or the
+/// [IndexMap](indexmap::IndexMap) internally.
+/// The latter can be used by enabling the `indexmap` feature. This can be used
+/// to preserve the order of the parsed map.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct NamedFields(MapInner<String, Value>);
+
+impl NamedFields {
+    /// Creates a new, empty `Fields`.
+    pub fn new() -> NamedFields {
+        Default::default()
+    }
+
+    /// Returns the number of elements in the map.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns `true` if `self.len() == 0`, `false` otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.0.len() == 0
+    }
+
+    /// Inserts a new element, returning the previous element with this `key` if
+    /// there was any.
+    pub fn insert(&mut self, key: String, value: Value) -> Option<Value> {
+        self.0.insert(key, value)
+    }
+
+    /// Removes an element by its `key`.
+    pub fn remove(&mut self, key: &str) -> Option<Value> {
+        self.0.remove(key)
+    }
+
+    /// Iterate all key-value pairs.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> + DoubleEndedIterator {
+        self.0.iter().map(|(k, v)| (&**k, v))
+    }
+
+    /// Iterate all key-value pairs mutably.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&str, &mut Value)> + DoubleEndedIterator {
+        self.0.iter_mut().map(|(k, v)| (&**k, v))
+    }
+
+    /// Iterate all keys.
+    pub fn keys(&self) -> impl Iterator<Item = &str> + DoubleEndedIterator {
+        self.0.keys().map(|k| &**k)
+    }
+
+    /// Iterate all values.
+    pub fn values(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
+        self.0.values()
+    }
+
+    /// Iterate all values mutably.
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> + DoubleEndedIterator {
+        self.0.values_mut()
+    }
+}
+
+impl FromIterator<(String, Value)> for NamedFields {
+    fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
+        NamedFields(MapInner::from_iter(iter))
+    }
+}
+
+impl IntoIterator for NamedFields {
+    type Item = (String, Value);
+    type IntoIter = <MapInner<String, Value> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+/// Note: equality is only given if both values and order of values match
+impl Eq for NamedFields {}
+
+impl Hash for NamedFields {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.iter().for_each(|x| x.hash(state));
+    }
+}
+
+impl Index<&str> for NamedFields {
+    type Output = Value;
+
+    fn index(&self, index: &str) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<&str> for NamedFields {
+    fn index_mut(&mut self, index: &str) -> &mut Self::Output {
+        self.0.get_mut(index).expect("no entry found for key")
+    }
+}
+
+impl Ord for NamedFields {
+    fn cmp(&self, other: &NamedFields) -> Ordering {
+        self.iter().cmp(other.iter())
+    }
+}
+
+/// Note: equality is only given if both values and order of values match
+impl PartialEq for NamedFields {
+    fn eq(&self, other: &NamedFields) -> bool {
+        self.iter().zip(other.iter()).all(|(a, b)| a == b)
+    }
+}
+
+impl PartialOrd for NamedFields {
+    fn partial_cmp(&self, other: &NamedFields) -> Option<Ordering> {
+        self.iter().partial_cmp(other.iter())
+    }
+}
+
 #[cfg(not(feature = "indexmap"))]
-type MapInner = std::collections::BTreeMap<Value, Value>;
+type MapInner<K, V> = std::collections::BTreeMap<K, V>;
 #[cfg(feature = "indexmap")]
-type MapInner = indexmap::IndexMap<Value, Value>;
+type MapInner<K, V> = indexmap::IndexMap<K, V>;
 
 /// A wrapper for a number, which can be either `f64` or `i64`.
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
@@ -336,6 +458,18 @@ pub enum Value {
     String(String),
     Seq(Vec<Value>),
     Unit,
+    NamedUnit {
+        name: &'static str,
+    },
+    Tuple(Vec<Value>),
+    TupleStructLike {
+        name: &'static str,
+        fields: Vec<Value>,
+    },
+    StructLike {
+        name: &'static str,
+        fields: NamedFields,
+    },
 }
 
 impl Value {
@@ -362,6 +496,10 @@ impl Value {
             Self::String(s) => Unexpected::Str(s),
             Self::Seq(_) => Unexpected::Seq,
             Self::Unit => Unexpected::Unit,
+            Self::NamedUnit { .. } => Unexpected::Other("named unit"),
+            Self::Tuple(_) => Unexpected::Other("tuple"),
+            Self::TupleStructLike { .. } => Unexpected::Other("tuple-struct-like"),
+            Self::StructLike { .. } => Unexpected::Other("struct-like"),
         }
     }
 }
@@ -553,6 +691,33 @@ impl<'de> Deserializer<'de> for Value {
                 }
             }
             Value::Unit => visitor.visit_unit(),
+            Value::NamedUnit { name } => {
+                let mut map = Map::new();
+                map.insert(Value::String(String::from(name)), Value::Unit);
+                Value::Map(map).deserialize_any(visitor)
+            }
+            Value::Tuple(fields) => Value::Seq(fields).deserialize_any(visitor),
+            Value::TupleStructLike { name, fields } => {
+                let fields = Value::Seq(fields);
+
+                let mut map = Map::new();
+                map.insert(Value::String(String::from(name)), fields);
+
+                Value::Map(map).deserialize_any(visitor)
+            }
+            Value::StructLike { name, fields } => {
+                let fields = Value::Map(
+                    fields
+                        .into_iter()
+                        .map(|(k, v)| (Value::String(k), v))
+                        .collect(),
+                );
+
+                let mut map = Map::new();
+                map.insert(Value::String(String::from(name)), fields);
+
+                Value::Map(map).deserialize_any(visitor)
+            }
         }
     }
 

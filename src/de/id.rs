@@ -178,10 +178,19 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
         unimplemented!("IdDeserializer may only be used for identifiers")
     }
 
-    fn deserialize_newtype_struct<V>(self, _: &'static str, _: V) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
+        if name == crate::value::VALUE_TOKEN {
+            let old_ron_value = self.d.ron_value;
+            self.d.ron_value = true;
+            let result = self.deserialize_any(visitor);
+            self.d.ron_value = old_ron_value;
+
+            return result;
+        }
+
         unimplemented!("IdDeserializer may only be used for identifiers")
     }
 

@@ -1,4 +1,4 @@
-use serde::ser::{Serialize, Serializer};
+use serde::ser::{Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct, Serializer};
 
 use crate::value::{Number, Value};
 
@@ -18,6 +18,36 @@ impl Serialize for Value {
             Value::String(ref s) => serializer.serialize_str(s),
             Value::Seq(ref s) => Serialize::serialize(s, serializer),
             Value::Unit => serializer.serialize_unit(),
+            Value::NamedUnit { name } => serializer.serialize_unit_struct(name),
+            Value::Tuple(ref fields) => {
+                let mut tuple = serializer.serialize_tuple(fields.len())?;
+
+                for field in fields {
+                    tuple.serialize_element(field)?;
+                }
+
+                tuple.end()
+            }
+            Value::TupleStructLike { name, ref fields } => {
+                let mut tuple = serializer.serialize_tuple_struct(name, fields.len())?;
+
+                for field in fields {
+                    tuple.serialize_field(field)?;
+                }
+
+                tuple.end()
+            }
+            Value::StructLike { name, ref fields } => {
+                let /*mut*/ r#struct = serializer.serialize_struct(name, fields.len())?;
+
+                // TODO: the field names have to be interned static str's as well
+
+                // for (key, value) in fields.iter() {
+                //     r#struct.serialize_field(key, value)?;
+                // }
+
+                r#struct.end()
+            }
         }
     }
 }

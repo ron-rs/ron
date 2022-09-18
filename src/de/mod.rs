@@ -27,6 +27,7 @@ pub struct Deserializer<'de> {
     newtype_variant: bool,
     last_identifier: Option<&'de str>,
     any_newtype: bool,
+    ron_value: bool,
 }
 
 impl<'de> Deserializer<'de> {
@@ -50,6 +51,7 @@ impl<'de> Deserializer<'de> {
             newtype_variant: false,
             last_identifier: None,
             any_newtype: false,
+            ron_value: false,
         };
 
         deserializer.bytes.exts |= options.default_extensions;
@@ -128,8 +130,8 @@ impl<'de> Deserializer<'de> {
         bytes.skip_ws()?;
 
         if id.is_ok() && bytes.peek() == Some(b':') {
-            // first two arguments are technically incorrect, but ignored anyway
-            self.deserialize_struct("", &[], visitor)
+            // giving no name results in worse errors but is necessary here
+            self.handle_struct_after_name("", visitor)
         } else if !self.any_newtype {
             // first argument is ignored
             self.deserialize_tuple(0, visitor)
@@ -291,6 +293,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     de: self,
                     key: Some(ident),
                 })
+            } else if self.ron_value {
+                visitor.visit_unit()
             } else {
                 visitor.visit_str(std::str::from_utf8(ident)?)
             };
@@ -529,6 +533,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        if name == crate::value::VALUE_TOKEN {
+            let old_ron_value = self.ron_value;
+            self.ron_value = true;
+            let result = self.deserialize_any(visitor);
+            self.ron_value = old_ron_value;
+
+            return result;
+        }
+
         if name == crate::value::raw::RAW_VALUE_TOKEN {
             let bytes_before = self.bytes.bytes();
             self.bytes.skip_ws()?;

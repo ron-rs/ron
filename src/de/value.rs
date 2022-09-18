@@ -29,7 +29,8 @@ impl<'de> Deserialize<'de> for Value {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(ValueVisitor)
+        deserializer.deserialize_newtype_struct(crate::value::VALUE_TOKEN, ValueVisitor)
+        //deserializer.deserialize_any(ValueVisitor)
     }
 }
 
