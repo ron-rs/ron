@@ -400,7 +400,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         } {
             self.bytes.skip_ws()?;
 
+            self.newtype_variant = self
+                .bytes
+                .exts
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
+
             let v = visitor.visit_some(&mut *self)?;
+
+            self.newtype_variant = false;
 
             self.bytes.comma()?;
 
