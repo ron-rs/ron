@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issues [#277](https://github.com/ron-rs/ron/issues/277) and [#405](https://github.com/ron-rs/ron/issues/405) with `Value::Map` `IntoIter` and extraneous item check for `Value::Seq` ([#406](https://github.com/ron-rs/ron/pull/406))
 - Fix issue [#401](https://github.com/ron-rs/ron/issues/401) with correct raw struct name identifier parsing ([#402](https://github.com/ron-rs/ron/pull/402))
 - Add `ron::value::RawValue` helper type which can (de)serialize any valid RON ([#407](https://github.com/ron-rs/ron/pull/407))
+- Fix issue [#410](https://github.com/ron-rs/ron/issues/410) trailing comma parsing in tuples and `Some` ([#412](https://github.com/ron-rs/ron/pull/412))
 
 ## [0.8.0] - 2022-08-17
 
