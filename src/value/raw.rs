@@ -79,7 +79,7 @@ impl RawValue {
 
     /// Helper function to validate a RON string and turn it into a `RawValue`.
     pub fn from_boxed_ron(ron: Box<str>) -> SpannedResult<Box<Self>> {
-        match Options::default().from_str::<&Self>(&*ron) {
+        match Options::default().from_str::<&Self>(&ron) {
             Ok(_) => Ok(Self::from_boxed_str(ron)),
             Err(err) => Err(err),
         }
