@@ -9,9 +9,11 @@ macro_rules! test_non_identifier {
             impl<'de> Visitor<'de> for FieldVisitor {
                 type Value = FieldName;
 
+                // GRCOV_EXCL_START
                 fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
                     fmt.write_str("an error")
                 }
+                // GRCOV_EXCL_STOP
             }
 
             struct FieldName;
@@ -29,9 +31,11 @@ macro_rules! test_non_identifier {
             impl<'de> Visitor<'de> for StructVisitor {
                 type Value = Struct;
 
+                // GRCOV_EXCL_START
                 fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
                     fmt.write_str("a struct")
                 }
+                // GRCOV_EXCL_STOP
 
                 fn visit_map<A: MapAccess<'de>>(self, mut map: A)
                     -> Result<Self::Value, A::Error>
