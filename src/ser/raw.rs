@@ -170,3 +170,71 @@ impl<'a, W: io::Write> ser::Serializer for RawValueSerializer<'a, W> {
         Err(Error::ExpectedRawValue)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    macro_rules! test_non_raw_value {
+        ($test_name:ident => $serialize_method:ident($($serialize_param:expr),*)) => {
+            #[test]
+            fn $test_name() {
+                use serde::{Serialize, Serializer};
+
+                struct Inner;
+
+                impl Serialize for Inner {
+                    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                        serializer.$serialize_method($($serialize_param),*).map(|_| unreachable!())
+                    }
+                }
+
+                #[derive(Debug)]
+                struct Newtype;
+
+                impl Serialize for Newtype {
+                    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                        serializer.serialize_newtype_struct(
+                            crate::value::raw::RAW_VALUE_TOKEN, &Inner,
+                        )
+                    }
+                }
+
+                assert_eq!(
+                    crate::to_string(&Newtype).unwrap_err(),
+                    crate::Error::ExpectedRawValue
+                )
+            }
+        };
+    }
+
+    test_non_raw_value! { test_bool => serialize_bool(false) }
+    test_non_raw_value! { test_i8 => serialize_i8(0) }
+    test_non_raw_value! { test_i16 => serialize_i16(0) }
+    test_non_raw_value! { test_i32 => serialize_i32(0) }
+    test_non_raw_value! { test_i64 => serialize_i64(0) }
+    #[cfg(feature = "integer128")]
+    test_non_raw_value! { test_i128 => serialize_i128(0) }
+    test_non_raw_value! { test_u8 => serialize_u8(0) }
+    test_non_raw_value! { test_u16 => serialize_u16(0) }
+    test_non_raw_value! { test_u32 => serialize_u32(0) }
+    test_non_raw_value! { test_u64 => serialize_u64(0) }
+    #[cfg(feature = "integer128")]
+    test_non_raw_value! { test_u128 => serialize_u128(0) }
+    test_non_raw_value! { test_f32 => serialize_f32(0.0) }
+    test_non_raw_value! { test_f64 => serialize_f64(0.0) }
+    test_non_raw_value! { test_char => serialize_char('\0') }
+    test_non_raw_value! { test_bytes => serialize_bytes(b"") }
+    test_non_raw_value! { test_none => serialize_none() }
+    test_non_raw_value! { test_some => serialize_some(&()) }
+    test_non_raw_value! { test_unit => serialize_unit() }
+    test_non_raw_value! { test_unit_struct => serialize_unit_struct("U") }
+    test_non_raw_value! { test_unit_variant => serialize_unit_variant("E", 0, "U") }
+    test_non_raw_value! { test_newtype_struct => serialize_newtype_struct("N", &()) }
+    test_non_raw_value! { test_newtype_variant => serialize_newtype_variant("E", 0, "N", &()) }
+    test_non_raw_value! { test_seq => serialize_seq(None) }
+    test_non_raw_value! { test_tuple => serialize_tuple(0) }
+    test_non_raw_value! { test_tuple_struct => serialize_tuple_struct("T", 0) }
+    test_non_raw_value! { test_tuple_variant => serialize_tuple_variant("E", 0, "T", 0) }
+    test_non_raw_value! { test_map => serialize_map(None) }
+    test_non_raw_value! { test_struct => serialize_struct("S", 0) }
+    test_non_raw_value! { test_struct_variant => serialize_struct_variant("E", 0, "S", 0) }
+}
