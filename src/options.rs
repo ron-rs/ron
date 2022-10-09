@@ -38,6 +38,11 @@ pub struct Options {
     ///  activation is NOT included in the output RON.
     /// No extensions are enabled by default.
     pub default_extensions: Extensions,
+    /// Default recursion limit that is checked during serialization and
+    ///  deserialization.
+    /// If set to `None`, infinite recursion is allowed and stack overflow
+    ///  errors can crash the serialization or deserialization process.
+    /// Defaults to `Some(128)`, i.e. 128 recursive calls are allowed.
     pub recursion_limit: Option<usize>,
 }
 

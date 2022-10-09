@@ -227,6 +227,7 @@ pub struct Serializer<W: io::Write> {
     default_extensions: Extensions,
     is_empty: Option<bool>,
     newtype_variant: bool,
+    recursion_limit: Option<usize>,
 }
 
 impl<W: io::Write> Serializer<W> {
@@ -277,6 +278,7 @@ impl<W: io::Write> Serializer<W> {
             default_extensions: options.default_extensions,
             is_empty: None,
             newtype_variant: false,
+            recursion_limit: options.recursion_limit,
         })
     }
 
@@ -388,6 +390,26 @@ impl<W: io::Write> Serializer<W> {
     }
 }
 
+macro_rules! guard_recursion {
+    ($self:expr => $expr:expr) => {{
+        if let Some(limit) = &mut $self.recursion_limit {
+            if let Some(new_limit) = limit.checked_sub(1) {
+                *limit = new_limit;
+            } else {
+                return Err(Error::ExceededRecursionLimit);
+            }
+        }
+
+        let result = $expr;
+
+        if let Some(limit) = &mut $self.recursion_limit {
+            *limit = limit.saturating_add(1);
+        }
+
+        result
+    }};
+}
+
 impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     type Error = Error;
     type Ok = ();
@@ -496,7 +518,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         if !implicit_some {
             self.output.write_all(b"Some(")?;
         }
-        value.serialize(&mut *self)?;
+        guard_recursion! { self => value.serialize(&mut *self)? };
         if !implicit_some {
             self.output.write_all(b")")?;
         }
@@ -535,13 +557,13 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         T: ?Sized + Serialize,
     {
         if name == crate::value::raw::RAW_VALUE_TOKEN {
-            return value.serialize(raw::RawValueSerializer::new(self));
+            return guard_recursion! { self => value.serialize(raw::RawValueSerializer::new(self)) };
         }
 
         if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) || self.newtype_variant {
             self.newtype_variant = false;
 
-            return value.serialize(&mut *self);
+            return guard_recursion! { self => value.serialize(&mut *self) };
         }
 
         if self.struct_names() {
@@ -549,7 +571,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         }
 
         self.output.write_all(b"(")?;
-        value.serialize(&mut *self)?;
+        guard_recursion! { self => value.serialize(&mut *self)? };
         self.output.write_all(b")")?;
         Ok(())
     }
@@ -571,7 +593,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             .extensions()
             .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
 
-        value.serialize(&mut *self)?;
+        guard_recursion! { self => value.serialize(&mut *self)? };
 
         self.newtype_variant = false;
 
@@ -596,11 +618,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             pretty.sequence_index.push(0);
         }
 
-        Ok(Compound {
-            ser: self,
-            state: State::First,
-            newtype_variant: false,
-        })
+        Compound::try_new(self, false)
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -617,11 +635,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Ok(Compound {
-            ser: self,
-            state: State::First,
-            newtype_variant: old_newtype_variant,
-        })
+        Compound::try_new(self, old_newtype_variant)
     }
 
     fn serialize_tuple_struct(
@@ -654,11 +668,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Ok(Compound {
-            ser: self,
-            state: State::First,
-            newtype_variant: false,
-        })
+        Compound::try_new(self, false)
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -672,11 +682,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
         self.start_indent()?;
 
-        Ok(Compound {
-            ser: self,
-            state: State::First,
-            newtype_variant: false,
-        })
+        Compound::try_new(self, false)
     }
 
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
@@ -693,11 +699,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.is_empty = Some(len == 0);
         self.start_indent()?;
 
-        Ok(Compound {
-            ser: self,
-            state: State::First,
-            newtype_variant: old_newtype_variant,
-        })
+        Compound::try_new(self, old_newtype_variant)
     }
 
     fn serialize_struct_variant(
@@ -715,11 +717,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.is_empty = Some(len == 0);
         self.start_indent()?;
 
-        Ok(Compound {
-            ser: self,
-            state: State::First,
-            newtype_variant: false,
-        })
+        Compound::try_new(self, false)
     }
 }
 
@@ -733,6 +731,32 @@ pub struct Compound<'a, W: io::Write> {
     ser: &'a mut Serializer<W>,
     state: State,
     newtype_variant: bool,
+}
+
+impl<'a, W: io::Write> Compound<'a, W> {
+    fn try_new(ser: &'a mut Serializer<W>, newtype_variant: bool) -> Result<Self> {
+        if let Some(limit) = &mut ser.recursion_limit {
+            if let Some(new_limit) = limit.checked_sub(1) {
+                *limit = new_limit;
+            } else {
+                return Err(Error::ExceededRecursionLimit);
+            }
+        }
+
+        Ok(Compound {
+            ser,
+            state: State::First,
+            newtype_variant,
+        })
+    }
+}
+
+impl<'a, W: io::Write> Drop for Compound<'a, W> {
+    fn drop(&mut self) {
+        if let Some(limit) = &mut self.ser.recursion_limit {
+            *limit = limit.saturating_add(1);
+        }
+    }
 }
 
 impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
@@ -768,7 +792,7 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
             }
         }
 
-        value.serialize(&mut *self.ser)?;
+        guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
 
         Ok(())
     }
@@ -822,7 +846,7 @@ impl<'a, W: io::Write> ser::SerializeTuple for Compound<'a, W> {
             self.ser.indent()?;
         }
 
-        value.serialize(&mut *self.ser)?;
+        guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
 
         Ok(())
     }
@@ -903,7 +927,7 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
             }
         }
         self.ser.indent()?;
-        key.serialize(&mut *self.ser)
+        guard_recursion! { self.ser => key.serialize(&mut *self.ser) }
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
@@ -916,7 +940,7 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
             self.ser.output.write_all(config.separator.as_bytes())?;
         }
 
-        value.serialize(&mut *self.ser)?;
+        guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
 
         Ok(())
     }
@@ -966,7 +990,7 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
             self.ser.output.write_all(config.separator.as_bytes())?;
         }
 
-        value.serialize(&mut *self.ser)?;
+        guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
 
         Ok(())
     }
