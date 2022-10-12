@@ -90,6 +90,7 @@ pub enum Error {
     },
     InvalidIdentifier(String),
     SuggestRawIdentifier(String),
+    ExceededRecursionLimit,
 }
 
 impl fmt::Display for SpannedError {
@@ -248,6 +249,7 @@ impl fmt::Display for Error {
                 "Found invalid std identifier `{}`, try the raw identifier `r#{}` instead",
                 identifier, identifier
             ),
+            Error::ExceededRecursionLimit => f.write_str("Exceeded recursion limit, try increasing the limit and using `serde_stacker` to protect against a stack overflow"),
         }
     }
 }
