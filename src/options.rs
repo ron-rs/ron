@@ -38,12 +38,19 @@ pub struct Options {
     ///  activation is NOT included in the output RON.
     /// No extensions are enabled by default.
     pub default_extensions: Extensions,
+    /// Default recursion limit that is checked during serialization and
+    ///  deserialization.
+    /// If set to `None`, infinite recursion is allowed and stack overflow
+    ///  errors can crash the serialization or deserialization process.
+    /// Defaults to `Some(128)`, i.e. 128 recursive calls are allowed.
+    pub recursion_limit: Option<usize>,
 }
 
 impl Default for Options {
     fn default() -> Self {
         Self {
             default_extensions: Extensions::empty(),
+            recursion_limit: Some(128),
         }
     }
 }
@@ -60,6 +67,23 @@ impl Options {
     /// Do NOT enable `default_extension` by default during serialization and deserialization.
     pub fn without_default_extension(mut self, default_extension: Extensions) -> Self {
         self.default_extensions &= !default_extension;
+        self
+    }
+
+    #[must_use]
+    /// Set a maximum recursion limit during serialization and deserialization.
+    pub fn with_recursion_limit(mut self, recursion_limit: usize) -> Self {
+        self.recursion_limit = Some(recursion_limit);
+        self
+    }
+
+    #[must_use]
+    /// Disable the recursion limit during serialization and deserialization.
+    ///
+    /// If you expect to handle highly recursive datastructures, consider wrapping
+    /// `ron` with [`serde_stacker`](https://docs.rs/serde_stacker/latest/serde_stacker/).
+    pub fn without_recursion_limit(mut self) -> Self {
+        self.recursion_limit = None;
         self
     }
 }
