@@ -651,7 +651,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         self.last_identifier = Some(identifier);
 
-        visitor.visit_str(identifier)
+        visitor.visit_borrowed_str(identifier)
     }
 
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
