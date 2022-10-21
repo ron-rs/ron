@@ -104,7 +104,7 @@ impl PrettyConfig {
     /// (indentation level) 6, everything will be put into the same line,
     /// without pretty formatting.
     ///
-    /// Default: [std::usize::MAX]
+    /// Default: [usize::MAX]
     pub fn depth_limit(mut self, depth_limit: usize) -> Self {
         self.depth_limit = depth_limit;
 
@@ -169,15 +169,22 @@ impl PrettyConfig {
         self
     }
 
-    /// Configures whether every array should be a single line (true) or a multi line one (false)
-    /// When false, `["a","b"]` (as well as any array) will serialize to
-    /// `
+    /// Configures whether every array should be a single line (`true`)
+    /// or a multi line one (`false`).
+    ///
+    /// When `false`, `["a","b"]` (as well as any array) will serialize to
+    /// ```
     /// [
     ///   "a",
     ///   "b",
     /// ]
-    /// `
-    /// When true, `["a","b"]` (as well as any array) will serialize to `["a","b"]`
+    /// # ;
+    /// ```
+    /// When `true`, `["a","b"]` (as well as any array) will serialize to
+    /// ```
+    /// ["a","b"]
+    /// # ;
+    /// ```
     ///
     /// Default: `false`
     pub fn compact_arrays(mut self, compact_arrays: bool) -> Self {
@@ -188,7 +195,7 @@ impl PrettyConfig {
 
     /// Configures extensions
     ///
-    /// Default: Extensions::empty()
+    /// Default: [Extensions::empty()]
     pub fn extensions(mut self, extensions: Extensions) -> Self {
         self.extensions = extensions;
 
@@ -199,7 +206,7 @@ impl PrettyConfig {
 impl Default for PrettyConfig {
     fn default() -> Self {
         PrettyConfig {
-            depth_limit: !0,
+            depth_limit: usize::MAX,
             new_line: if cfg!(not(target_os = "windows")) {
                 String::from("\n")
             } else {
