@@ -108,7 +108,7 @@ impl PrettyConfig {
     /// (indentation level) 6, everything will be put into the same line,
     /// without pretty formatting.
     ///
-    /// Default: [std::usize::MAX]
+    /// Default: [usize::MAX]
     pub fn depth_limit(mut self, depth_limit: usize) -> Self {
         self.depth_limit = depth_limit;
 
@@ -177,13 +177,18 @@ impl PrettyConfig {
     /// or a multi line one (`false`).
     ///
     /// When `false`, `["a","b"]` (as well as any array) will serialize to
-    /// `
+    /// ```
     /// [
     ///   "a",
     ///   "b",
     /// ]
-    /// `
-    /// When `true`, `["a","b"]` (as well as any array) will serialize to `["a","b"]`
+    /// # ;
+    /// ```
+    /// When `true`, `["a","b"]` (as well as any array) will serialize to
+    /// ```
+    /// ["a","b"]
+    /// # ;
+    /// ```
     ///
     /// Default: `false`
     pub fn compact_arrays(mut self, compact_arrays: bool) -> Self {
@@ -194,7 +199,7 @@ impl PrettyConfig {
 
     /// Configures extensions
     ///
-    /// Default: Extensions::empty()
+    /// Default: [Extensions::empty()]
     pub fn extensions(mut self, extensions: Extensions) -> Self {
         self.extensions = extensions;
 
@@ -204,15 +209,17 @@ impl PrettyConfig {
     /// Configures whether strings should be serialized using escapes (true)
     /// or fall back to raw strings if the string contains a `"` (false).
     ///
-    /// When `true`, "a\nb" will serialize to
-    /// `
+    /// When `true`, `"a\nb"` will serialize to
+    /// ```
     /// "a\nb"
-    /// `
-    /// When `false`, "a\nb" will instead serialize to
-    /// `
+    /// # ;
+    /// ```
+    /// When `false`, `"a\nb"` will instead serialize to
+    /// ```
     /// "a
     /// b"
-    /// `
+    /// # ;
+    /// ```
     ///
     /// Default: `true`
     pub fn escape_strings(mut self, escape_strings: bool) -> Self {
@@ -225,7 +232,7 @@ impl PrettyConfig {
 impl Default for PrettyConfig {
     fn default() -> Self {
         PrettyConfig {
-            depth_limit: !0,
+            depth_limit: usize::MAX,
             new_line: if cfg!(not(target_os = "windows")) {
                 String::from("\n")
             } else {
