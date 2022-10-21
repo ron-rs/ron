@@ -217,15 +217,17 @@ impl PrettyConfig {
     /// Configures whether strings should be serialized using escapes (true)
     /// or fall back to raw strings if the string contains a `"` (false).
     ///
-    /// When `true`, "a\nb" will serialize to
-    /// `
+    /// When `true`, `"a\nb"` will serialize to
+    /// ```
     /// "a\nb"
-    /// `
-    /// When `false`, "a\nb" will instead serialize to
-    /// `
+    /// # ;
+    /// ```
+    /// When `false`, `"a\nb"` will instead serialize to
+    /// ```
     /// "a
     /// b"
-    /// `
+    /// # ;
+    /// ```
     ///
     /// Default: `true`
     pub fn escape_strings(mut self, escape_strings: bool) -> Self {
