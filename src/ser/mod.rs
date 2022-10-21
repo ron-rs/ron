@@ -92,6 +92,9 @@ pub struct PrettyConfig {
     pub extensions: Extensions,
     /// Enable compact arrays
     pub compact_arrays: bool,
+    /// Whether to serialize strings as escaped strings,
+    ///  or fall back onto raw strings if necessary.
+    pub escape_strings: bool,
 }
 
 impl PrettyConfig {
@@ -170,15 +173,17 @@ impl PrettyConfig {
         self
     }
 
-    /// Configures whether every array should be a single line (true) or a multi line one (false)
-    /// When false, `["a","b"]` (as well as any array) will serialize to
+    /// Configures whether every array should be a single line (`true`)
+    /// or a multi line one (`false`).
+    ///
+    /// When `false`, `["a","b"]` (as well as any array) will serialize to
     /// `
     /// [
     ///   "a",
     ///   "b",
     /// ]
     /// `
-    /// When true, `["a","b"]` (as well as any array) will serialize to `["a","b"]`
+    /// When `true`, `["a","b"]` (as well as any array) will serialize to `["a","b"]`
     ///
     /// Default: `false`
     pub fn compact_arrays(mut self, compact_arrays: bool) -> Self {
@@ -192,6 +197,26 @@ impl PrettyConfig {
     /// Default: Extensions::empty()
     pub fn extensions(mut self, extensions: Extensions) -> Self {
         self.extensions = extensions;
+
+        self
+    }
+
+    /// Configures whether strings should be serialized using escapes (true)
+    /// or fall back to raw strings if the string contains a `"` (false).
+    ///
+    /// When `true`, "a\nb" will serialize to
+    /// `
+    /// "a\nb"
+    /// `
+    /// When `false`, "a\nb" will instead serialize to
+    /// `
+    /// "a
+    /// b"
+    /// `
+    ///
+    /// Default: `true`
+    pub fn escape_strings(mut self, escape_strings: bool) -> Self {
+        self.escape_strings = escape_strings;
 
         self
     }
@@ -213,6 +238,7 @@ impl Default for PrettyConfig {
             enumerate_arrays: false,
             extensions: Extensions::empty(),
             compact_arrays: false,
+            escape_strings: true,
         }
     }
 }
@@ -302,6 +328,12 @@ impl<W: io::Write> Serializer<W> {
                 .map_or(Extensions::empty(), |&(ref config, _)| config.extensions)
     }
 
+    fn escape_strings(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(true, |&(ref config, _)| config.escape_strings)
+    }
+
     fn start_indent(&mut self) -> Result<()> {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             pretty.indent += 1;
@@ -353,6 +385,28 @@ impl<W: io::Write> Serializer<W> {
                 .write_all(c.encode_utf8(&mut scalar).as_bytes())?;
         }
         self.output.write_all(b"\"")?;
+        Ok(())
+    }
+
+    fn serialize_unescaped_or_raw_str(&mut self, value: &str) -> io::Result<()> {
+        if value.contains('"') {
+            let (_, num_consecutive_hashes) =
+                value.chars().fold((0, 0), |(count, max), c| match c {
+                    '#' => (count + 1, max.max(count + 1)),
+                    _ => (0_usize, max),
+                });
+            let hashes = vec![b'#'; num_consecutive_hashes + 1];
+            self.output.write_all(b"r")?;
+            self.output.write_all(&hashes)?;
+            self.output.write_all(b"\"")?;
+            self.output.write_all(value.as_bytes())?;
+            self.output.write_all(b"\"")?;
+            self.output.write_all(&hashes)?;
+        } else {
+            self.output.write_all(b"\"")?;
+            self.output.write_all(value.as_bytes())?;
+            self.output.write_all(b"\"")?;
+        }
         Ok(())
     }
 
@@ -495,7 +549,11 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.serialize_escaped_str(v)?;
+        if self.escape_strings() {
+            self.serialize_escaped_str(v)?;
+        } else {
+            self.serialize_unescaped_or_raw_str(v)?;
+        }
 
         Ok(())
     }
