@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Add CIFuzz GitHub action
 - Fix issues [#277](https://github.com/ron-rs/ron/issues/277) and [#405](https://github.com/ron-rs/ron/issues/405) with `Value::Map` `IntoIter` and extraneous item check for `Value::Seq` ([#406](https://github.com/ron-rs/ron/pull/406))
 - Fix issue [#401](https://github.com/ron-rs/ron/issues/401) with correct raw struct name identifier parsing ([#402](https://github.com/ron-rs/ron/pull/402))
 - Add `ron::value::RawValue` helper type which can (de)serialize any valid RON ([#407](https://github.com/ron-rs/ron/pull/407))
