@@ -1,12 +1,16 @@
 use std::io;
 
+use base64::Engine;
 use serde::{ser, Deserialize, Serialize};
 
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
     options::Options,
-    parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char, LargeSInt, LargeUInt},
+    parse::{
+        is_ident_first_char, is_ident_other_char, is_ident_raw_char, LargeSInt, LargeUInt,
+        BASE64_ENGINE,
+    },
 };
 
 #[cfg(test)]
@@ -507,7 +511,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        self.serialize_str(base64::encode(v).as_str())
+        self.serialize_str(BASE64_ENGINE.encode(v).as_str())
     }
 
     fn serialize_none(self) -> Result<()> {
