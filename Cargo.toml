@@ -24,7 +24,7 @@ default = []
 integer128 = []
 
 [dependencies]
-base64 = "0.20"
+base64 = "0.21"
 bitflags = "1.3"
 indexmap = { version = "1.9", features = ["serde-1"], optional = true }
 # serde supports i128/u128 from 1.0.60 onwards
