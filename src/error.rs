@@ -303,7 +303,7 @@ impl de::Error for Error {
                     Char(c) => write!(f, "the UTF-8 character `{}`", c),
                     Str(s) => write!(f, "the string {:?}", s),
                     Bytes(b) => write!(f, "the bytes \"{}\"", {
-                        base64::display::Base64Display::with_config(b, base64::STANDARD)
+                        base64::display::Base64Display::from(b, &base64::engine::DEFAULT_ENGINE)
                     }),
                     Unit => write!(f, "a unit value"),
                     Option => write!(f, "an optional value"),
