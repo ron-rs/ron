@@ -1,6 +1,7 @@
 /// Deserialization module.
 use std::{borrow::Cow, io, str};
 
+use base64::Engine;
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
 
 use self::{id::IdDeserializer, tag::TagDeserializer};
@@ -9,7 +10,7 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{AnyNum, Bytes, ParsedStr},
+    parse::{AnyNum, Bytes, ParsedStr, BASE64_ENGINE},
 };
 
 mod id;
@@ -403,7 +404,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 ParsedStr::Allocated(ref s) => s.as_str(),
                 ParsedStr::Slice(s) => s,
             };
-            base64::decode(base64_str)
+            BASE64_ENGINE.decode(base64_str)
         };
 
         match res {

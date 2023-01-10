@@ -2,7 +2,7 @@ use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Err
 
 use serde::{de, ser};
 
-use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char};
+use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char, BASE64_ENGINE};
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
@@ -303,7 +303,7 @@ impl de::Error for Error {
                     Char(c) => write!(f, "the UTF-8 character `{}`", c),
                     Str(s) => write!(f, "the string {:?}", s),
                     Bytes(b) => write!(f, "the bytes \"{}\"", {
-                        base64::display::Base64Display::from(b, &base64::engine::DEFAULT_ENGINE)
+                        base64::display::Base64Display::new(b, &BASE64_ENGINE)
                     }),
                     Unit => write!(f, "a unit value"),
                     Option => write!(f, "an optional value"),
