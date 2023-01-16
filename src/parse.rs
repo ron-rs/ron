@@ -5,14 +5,10 @@ use std::{
     str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
-use base64::engine::general_purpose::{GeneralPurpose, STANDARD};
-
 use crate::{
     error::{Error, Position, Result, SpannedError, SpannedResult},
     extensions::Extensions,
 };
-
-pub const BASE64_ENGINE: GeneralPurpose = STANDARD;
 
 // We have the following char categories.
 const INT_CHAR: u8 = 1 << 0; // [0-9A-Fa-f_]

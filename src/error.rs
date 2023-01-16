@@ -2,7 +2,7 @@ use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Err
 
 use serde::{de, ser};
 
-use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char, BASE64_ENGINE};
+use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char};
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
@@ -20,7 +20,7 @@ pub type SpannedResult<T> = std::result::Result<T, SpannedError>;
 pub enum Error {
     Io(String),
     Message(String),
-    Base64Error(base64::DecodeError),
+    Base64Error(data_encoding::DecodeError),
     Eof,
     ExpectedArray,
     ExpectedArrayEnd,
@@ -302,9 +302,7 @@ impl de::Error for Error {
                     Float(n) => write!(f, "the floating point number `{}`", n),
                     Char(c) => write!(f, "the UTF-8 character `{}`", c),
                     Str(s) => write!(f, "the string {:?}", s),
-                    Bytes(b) => write!(f, "the bytes \"{}\"", {
-                        base64::display::Base64Display::new(b, &BASE64_ENGINE)
-                    }),
+                    Bytes(b) => write!(f, "the bytes \"{}\"", data_encoding::BASE64.encode(b)),
                     Unit => write!(f, "a unit value"),
                     Option => write!(f, "an optional value"),
                     NewtypeStruct => write!(f, "a newtype struct"),
