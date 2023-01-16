@@ -328,12 +328,57 @@ fn ws_tuple_newtype_variant() {
 
 #[test]
 fn test_byte_stream() {
+    // Requires padding of the base64 data
     assert_eq!(
         Ok(BytesStruct {
             small: vec![1, 2],
             large: vec![1, 2, 3, 4]
         }),
         from_str("BytesStruct( small:[1, 2], large:\"AQIDBA==\" )"),
+    );
+    // Requires no padding of the base64 data
+    assert_eq!(
+        Ok(BytesStruct {
+            small: vec![1, 2],
+            large: vec![1, 2, 3, 4, 5, 6]
+        }),
+        from_str("BytesStruct( small:[1, 2], large:\"AQIDBAUG\" )"),
+    );
+
+    // Invalid base64
+    assert_eq!(
+        Err(SpannedError {
+            code: Error::Base64Error(data_encoding::DecodeError {
+                position: 0,
+                kind: data_encoding::DecodeKind::Symbol
+            }),
+            position: Position { line: 1, col: 40 }
+        }),
+        from_str::<BytesStruct>("BytesStruct( small:[1, 2], large:\"_+!!\" )"),
+    );
+
+    // Missing padding
+    assert_eq!(
+        Err(SpannedError {
+            code: Error::Base64Error(data_encoding::DecodeError {
+                position: 4,
+                kind: data_encoding::DecodeKind::Length
+            }),
+            position: Position { line: 1, col: 42 }
+        }),
+        from_str::<BytesStruct>("BytesStruct( small:[1, 2], large:\"AQIDBA\" )"),
+    );
+
+    // Too much padding
+    assert_eq!(
+        Err(SpannedError {
+            code: Error::Base64Error(data_encoding::DecodeError {
+                position: 8,
+                kind: data_encoding::DecodeKind::Length
+            }),
+            position: Position { line: 1, col: 45 }
+        }),
+        from_str::<BytesStruct>("BytesStruct( small:[1, 2], large:\"AQIDBA===\" )"),
     );
 }
 

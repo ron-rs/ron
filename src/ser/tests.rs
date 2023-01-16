@@ -121,6 +121,16 @@ fn test_byte_stream() {
         "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)"
     );
 
+    // Requires padding of the base64 data
+    let large = vec![0x01, 0x02, 0x03, 0x04];
+    let large = serde_bytes::Bytes::new(&large);
+    assert_eq!(to_string(&large).unwrap(), "\"AQIDBA==\"");
+
+    // Requires no padding of the base64 data
+    let large = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
+    let large = serde_bytes::Bytes::new(&large);
+    assert_eq!(to_string(&large).unwrap(), "\"AQIDBAUG\"");
+
     let large = vec![255u8; 64];
     let large = serde_bytes::Bytes::new(&large);
     assert_eq!(

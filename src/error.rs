@@ -443,3 +443,19 @@ impl<'a> fmt::Display for Identifier<'a> {
         }
     }
 }
+
+#[test]
+fn test_unexpected_bytes() {
+    use crate::de::from_str;
+
+    assert_eq!(
+        Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: "a borrowed byte array".into(),
+                found: "the bytes \"AQI=\"".into(),
+            },
+            position: Position { line: 1, col: 7 }
+        }),
+        from_str::<&serde_bytes::Bytes>("\"AQI=\"")
+    );
+}
