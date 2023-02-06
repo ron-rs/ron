@@ -8,6 +8,7 @@ authors = [
 	"Christopher Durham <cad97@cad97.com>",
 	"Dzmitry Malyshau <kvarkus@gmail.com>",
 	"Thomas Schaller <torkleyy@gmail.com>",
+	"Juniper Tyree <juniper.tyree@helsinki.fi>",
 ]
 edition = "2021"
 description = "Rusty Object Notation"
