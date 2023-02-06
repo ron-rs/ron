@@ -128,8 +128,11 @@ fn test_byte_stream() {
     assert_eq!(
         to_string(&large).unwrap(),
         concat!(
-            "\"/////////////////////////////////////////",
-            "////////////////////////////////////////////w==\""
+            "b\"\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
+            "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
+            "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
+            "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
+            "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\""
         )
     );
 }

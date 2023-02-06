@@ -540,6 +540,37 @@ impl<W: io::Write> Serializer<W> {
         Ok(())
     }
 
+    fn serialize_escaped_byte_str(&mut self, value: &[u8]) -> io::Result<()> {
+        self.output.write_all(b"b\"")?;
+        for c in value.iter().flat_map(|c| std::ascii::escape_default(*c)) {
+            self.output.write_all(&[c])?;
+        }
+        self.output.write_all(b"\"")?;
+        Ok(())
+    }
+
+    fn serialize_unescaped_or_raw_byte_str(&mut self, value: &[u8]) -> io::Result<()> {
+        if value.contains(&b'"') {
+            let (_, num_consecutive_hashes) =
+                value.iter().fold((0, 0), |(count, max), c| match c {
+                    b'#' => (count + 1, max.max(count + 1)),
+                    _ => (0_usize, max),
+                });
+            let hashes = vec![b'#'; num_consecutive_hashes + 1];
+            self.output.write_all(b"br")?;
+            self.output.write_all(&hashes)?;
+            self.output.write_all(b"\"")?;
+            self.output.write_all(value)?;
+            self.output.write_all(b"\"")?;
+            self.output.write_all(&hashes)?;
+        } else {
+            self.output.write_all(b"b\"")?;
+            self.output.write_all(value)?;
+            self.output.write_all(b"\"")?;
+        }
+        Ok(())
+    }
+
     fn serialize_sint(&mut self, value: impl Into<LargeSInt>, suffix: &str) -> Result<()> {
         // TODO optimize
         write!(self.output, "{}", value.into())?;
@@ -729,7 +760,21 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        self.serialize_str(BASE64_ENGINE.encode(v).as_str())
+        #[allow(deprecated)]
+        if self
+            .extensions()
+            .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS)
+        {
+            return self.serialize_str(BASE64_ENGINE.encode(v).as_str());
+        }
+
+        if self.escape_strings() {
+            self.serialize_escaped_byte_str(v)?;
+        } else {
+            self.serialize_unescaped_or_raw_byte_str(v)?;
+        }
+
+        Ok(())
     }
 
     fn serialize_none(self) -> Result<()> {

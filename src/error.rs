@@ -1,8 +1,8 @@
-use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Error};
+use std::{error::Error as StdError, fmt, io, str::Utf8Error};
 
 use serde::{de, ser};
 
-use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char, BASE64_ENGINE};
+use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char};
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
@@ -20,6 +20,10 @@ pub type SpannedResult<T> = std::result::Result<T, SpannedError>;
 pub enum Error {
     Io(String),
     Message(String),
+    #[deprecated(
+        since = "0.9.0",
+        note = "ambiguous base64 byte strings are replaced by strongly typed b\"\""
+    )]
     Base64Error(base64::DecodeError),
     Eof,
     ExpectedArray,
@@ -46,6 +50,8 @@ pub enum Error {
     ExpectedStructLikeEnd,
     ExpectedUnit,
     ExpectedString,
+    ExpectedByteString,
+    ExpectedByteStringFoundBase64,
     ExpectedStringEnd,
     ExpectedIdentifier,
 
@@ -114,6 +120,7 @@ impl fmt::Display for Error {
         match *self {
             Error::Io(ref s) => f.write_str(s),
             Error::Message(ref s) => f.write_str(s),
+            #[allow(deprecated)]
             Error::Base64Error(ref e) => fmt::Display::fmt(e, f),
             Error::Eof => f.write_str("Unexpected end of RON"),
             Error::ExpectedArray => f.write_str("Expected opening `[`"),
@@ -153,6 +160,8 @@ impl fmt::Display for Error {
             Error::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
             Error::ExpectedUnit => f.write_str("Expected unit"),
             Error::ExpectedString => f.write_str("Expected string"),
+            Error::ExpectedByteString => f.write_str("Expected byte string"),
+            Error::ExpectedByteStringFoundBase64 => f.write_str("Expected byte string but found base64 string, try a Rusty byte string literal (or enable the `deprecated_base64_byte_string` extension)"),
             Error::ExpectedStringEnd => f.write_str("Expected end of string"),
             Error::ExpectedIdentifier => f.write_str("Expected identifier"),
             Error::InvalidEscape(s) => f.write_str(s),
@@ -314,8 +323,10 @@ impl de::Error for Error {
                     Float(n) => write!(f, "the floating point number `{}`", n),
                     Char(c) => write!(f, "the UTF-8 character `{}`", c),
                     Str(s) => write!(f, "the string {:?}", s),
-                    Bytes(b) => write!(f, "the bytes \"{}\"", {
-                        base64::display::Base64Display::new(b, &BASE64_ENGINE)
+                    Bytes(b) => write!(f, "the bytes b\"{}\"", {
+                        b.iter()
+                            .flat_map(|b| char::from(*b).escape_default())
+                            .collect::<String>()
                     }),
                     Unit => write!(f, "a unit value"),
                     Option => write!(f, "an optional value"),
@@ -381,12 +392,6 @@ impl StdError for Error {}
 impl From<Utf8Error> for Error {
     fn from(e: Utf8Error) -> Self {
         Error::Utf8Error(e)
-    }
-}
-
-impl From<FromUtf8Error> for Error {
-    fn from(e: FromUtf8Error) -> Self {
-        Error::Utf8Error(e.utf8_error())
     }
 }
 

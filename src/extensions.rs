@@ -6,6 +6,8 @@ bitflags::bitflags! {
         const UNWRAP_NEWTYPES = 0x1;
         const IMPLICIT_SOME = 0x2;
         const UNWRAP_VARIANT_NEWTYPES = 0x4;
+        #[deprecated(since = "0.9.0", note = "ambiguous base64 byte strings are replaced by strongly typed b\"\"")]
+        const DEPRECATED_BASE64_BYTE_STRINGS = 0x10;
     }
 }
 
@@ -16,6 +18,8 @@ impl Extensions {
             b"unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
             b"implicit_some" => Some(Extensions::IMPLICIT_SOME),
             b"unwrap_variant_newtypes" => Some(Extensions::UNWRAP_VARIANT_NEWTYPES),
+            #[allow(deprecated)]
+            b"deprecated_base64_byte_string" => Some(Extensions::DEPRECATED_BASE64_BYTE_STRINGS),
             _ => None,
         }
     }

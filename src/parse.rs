@@ -2,10 +2,13 @@
 
 use std::{
     char::from_u32 as char_from_u32,
-    str::{from_utf8, from_utf8_unchecked, FromStr},
+    str::{from_utf8, from_utf8_unchecked, FromStr, Utf8Error},
 };
 
-use base64::engine::general_purpose::{GeneralPurpose, STANDARD};
+use base64::{
+    engine::general_purpose::{GeneralPurpose, STANDARD},
+    Engine,
+};
 
 use crate::{
     error::{Error, Position, Result, SpannedError, SpannedResult},
@@ -827,8 +830,19 @@ impl<'a> Bytes<'a> {
             return Err(Error::ExpectedIdentifier);
         }
 
-        // If the next two bytes signify the start of a raw string literal,
-        // return an error.
+        // If the next two bytes signify the start of a (raw) byte string
+        // literal, return an error.
+        if next == b'b' {
+            match self.bytes.get(1) {
+                Some(b'"') => return Err(Error::ExpectedIdentifier),
+                Some(b'r') => match self.bytes.get(2) {
+                    Some(b'"') => return Err(Error::ExpectedIdentifier),
+                    Some(_) | None => (),
+                },
+                Some(_) | None => (),
+            }
+        };
+
         let length = if next == b'r' {
             match self.bytes.get(1) {
                 Some(b'"') => return Err(Error::ExpectedIdentifier),
@@ -950,6 +964,64 @@ impl<'a> Bytes<'a> {
         self.bytes.first().copied().ok_or(Error::Eof)
     }
 
+    pub fn byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
+        if self.consume("\"") {
+            #[allow(deprecated)]
+            match self.escaped_string()?.try_into() {
+                Ok(byte_str)
+                    if self
+                        .exts
+                        .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS) =>
+                {
+                    Ok(byte_str)
+                }
+                Ok(_) => Err(Error::ExpectedByteStringFoundBase64),
+                Err(err) => Err(Error::Base64Error(err)),
+            }
+        } else if self.consume("r") {
+            #[allow(deprecated)]
+            match self.raw_string()?.try_into() {
+                Ok(byte_str)
+                    if self
+                        .exts
+                        .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS) =>
+                {
+                    Ok(byte_str)
+                }
+                Ok(_) => Err(Error::ExpectedByteStringFoundBase64),
+                Err(err) => Err(Error::Base64Error(err)),
+            }
+        } else if self.consume("b\"") {
+            self.escaped_byte_string()
+        } else if self.consume("br") {
+            self.raw_byte_string()
+        } else {
+            Err(Error::ExpectedByteString)
+        }
+    }
+
+    fn escaped_byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
+        match self.escaped_byte_buf() {
+            Ok((bytes, advance)) => {
+                let _ = self.advance(advance);
+                Ok(bytes)
+            }
+            Err(Error::ExpectedString) => Err(Error::ExpectedByteString),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn raw_byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
+        match self.raw_byte_buf() {
+            Ok((bytes, advance)) => {
+                let _ = self.advance(advance);
+                Ok(bytes)
+            }
+            Err(Error::ExpectedString) => Err(Error::ExpectedByteString),
+            Err(err) => Err(err),
+        }
+    }
+
     pub fn string(&mut self) -> Result<ParsedStr<'a>> {
         if self.consume("\"") {
             self.escaped_string()
@@ -961,6 +1033,28 @@ impl<'a> Bytes<'a> {
     }
 
     fn escaped_string(&mut self) -> Result<ParsedStr<'a>> {
+        match self.escaped_byte_buf() {
+            Ok((bytes, advance)) => {
+                let string = bytes.try_into().map_err(Error::from)?;
+                let _ = self.advance(advance);
+                Ok(string)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn raw_string(&mut self) -> Result<ParsedStr<'a>> {
+        match self.raw_byte_buf() {
+            Ok((bytes, advance)) => {
+                let string = bytes.try_into().map_err(Error::from)?;
+                let _ = self.advance(advance);
+                Ok(string)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn escaped_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
         use std::iter::repeat;
 
         let (i, end_or_escape) = self
@@ -971,13 +1065,11 @@ impl<'a> Bytes<'a> {
             .ok_or(Error::ExpectedStringEnd)?;
 
         if *end_or_escape == b'"' {
-            let s = from_utf8(&self.bytes[..i]).map_err(Error::from)?;
+            let s = &self.bytes[..i];
 
             // Advance by the number of bytes of the string
             // + 1 for the `"`.
-            let _ = self.advance(i + 1);
-
-            Ok(ParsedStr::Slice(s))
+            Ok((ParsedByteStr::Slice(s), i + 1))
         } else {
             let mut i = i;
             let mut s: Vec<_> = self.bytes[..i].to_vec();
@@ -1005,16 +1097,14 @@ impl<'a> Bytes<'a> {
                 s.extend_from_slice(&self.bytes[..i]);
 
                 if *end_or_escape == b'"' {
-                    let _ = self.advance(i + 1);
-
-                    let s = String::from_utf8(s).map_err(Error::from)?;
-                    break Ok(ParsedStr::Allocated(s));
+                    // Advance to the end of the string + 1 for the `"`.
+                    break Ok((ParsedByteStr::Allocated(s), i + 1));
                 }
             }
         }
     }
 
-    fn raw_string(&mut self) -> Result<ParsedStr<'a>> {
+    fn raw_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
         let num_hashes = self.bytes.iter().take_while(|&&b| b == b'#').count();
         let hashes = &self.bytes[..num_hashes];
         let _ = self.advance(num_hashes);
@@ -1030,13 +1120,11 @@ impl<'a> Bytes<'a> {
             .position(|window| window == ending.as_slice())
             .ok_or(Error::ExpectedStringEnd)?;
 
-        let s = from_utf8(&self.bytes[..i]).map_err(Error::from)?;
+        let s = &self.bytes[..i];
 
-        // Advance by the number of bytes of the string
+        // Advance by the number of bytes of the byte string
         // + `num_hashes` + 1 for the `"`.
-        let _ = self.advance(i + num_hashes + 1);
-
-        Ok(ParsedStr::Slice(s))
+        Ok((ParsedByteStr::Slice(s), i + num_hashes + 1))
     }
 
     fn test_for(&self, s: &str) -> bool {
@@ -1418,6 +1506,40 @@ pub enum NewtypeMode {
 pub enum TupleMode {
     ImpreciseTupleOrNewtype,
     DifferentiateNewtype,
+}
+
+#[derive(Clone, Debug)]
+pub enum ParsedByteStr<'a> {
+    Allocated(Vec<u8>),
+    Slice(&'a [u8]),
+}
+
+impl<'a> TryFrom<ParsedStr<'a>> for ParsedByteStr<'a> {
+    type Error = base64::DecodeError;
+
+    fn try_from(str: ParsedStr<'a>) -> Result<Self, Self::Error> {
+        let base64_str = match &str {
+            ParsedStr::Allocated(string) => string.as_str(),
+            ParsedStr::Slice(str) => str,
+        };
+
+        BASE64_ENGINE
+            .decode(base64_str)
+            .map(ParsedByteStr::Allocated)
+    }
+}
+
+impl<'a> TryFrom<ParsedByteStr<'a>> for ParsedStr<'a> {
+    type Error = Utf8Error;
+
+    fn try_from(bytes: ParsedByteStr<'a>) -> Result<Self, Self::Error> {
+        match bytes {
+            ParsedByteStr::Allocated(byte_buf) => Ok(ParsedStr::Allocated(
+                String::from_utf8(byte_buf).map_err(|e| e.utf8_error())?,
+            )),
+            ParsedByteStr::Slice(bytes) => Ok(ParsedStr::Slice(from_utf8(bytes)?)),
+        }
+    }
 }
 
 #[cfg(test)]
