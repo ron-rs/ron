@@ -188,6 +188,19 @@ mod tests {
         assert_eq!(direct, value, "Deserialization for {:?} is not the same", s);
     }
 
+    fn assert_same_bytes<'de, T>(s: &'de [u8])
+    where
+        T: Debug + Deserialize<'de> + PartialEq,
+    {
+        use crate::de::from_bytes;
+
+        let direct: T = from_bytes(s).unwrap();
+        let value: Value = from_bytes(s).unwrap();
+        let value = T::deserialize(value).unwrap();
+
+        assert_eq!(direct, value, "Deserialization for {:?} is not the same", s);
+    }
+
     #[test]
     fn boolean() {
         assert_same::<bool>("true");
@@ -210,6 +223,20 @@ mod tests {
     fn char() {
         assert_same::<char>("'4'");
         assert_same::<char>("'c'");
+    }
+
+    #[test]
+    fn string() {
+        assert_same::<String>(r#""hello world""#);
+        assert_same::<String>(r#""this is a Rusty 🦀 string""#);
+    }
+
+    #[test]
+    fn bytes() {
+        assert_same::<serde_bytes::ByteBuf>(r#"b"hello world""#);
+        assert_same_bytes::<serde_bytes::ByteBuf>(
+            b"b\"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1\"",
+        );
     }
 
     #[test]
