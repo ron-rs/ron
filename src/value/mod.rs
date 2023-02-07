@@ -229,13 +229,17 @@ mod tests {
     fn string() {
         assert_same::<String>(r#""hello world""#);
         assert_same::<String>(r#""this is a Rusty 🦀 string""#);
+        assert_same::<String>(r#""this is now valid UTF-8 \xf8\xa1\xa1\xa1\xa1""#);
     }
 
     #[test]
     fn bytes() {
-        assert_same::<serde_bytes::ByteBuf>(r#"b"hello world""#);
+        assert_same_bytes::<serde_bytes::ByteBuf>(br#"b"hello world""#);
         assert_same_bytes::<serde_bytes::ByteBuf>(
             b"b\"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1\"",
+        );
+        assert_same_bytes::<serde_bytes::ByteBuf>(
+            br#"b"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1""#,
         );
     }
 

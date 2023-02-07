@@ -16,7 +16,7 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{Bytes, NewtypeMode, ParsedStr, StructType, TupleMode},
+    parse::{Bytes, NewtypeMode, ParsedByteStr, ParsedStr, StructType, TupleMode},
 };
 
 mod id;

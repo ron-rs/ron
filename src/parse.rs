@@ -440,7 +440,10 @@ impl<'a> Bytes<'a> {
         let c = if c == b'\\' {
             let _ = self.advance(1);
 
-            self.parse_escape()?
+            match self.parse_escape(EscapeEncoding::Utf8)? {
+                EscapeCharacter::Ascii(b) => b as char,
+                EscapeCharacter::Utf8(c) => c,
+            }
         } else {
             // Check where the end of the char (') is and try to
             // interpret the rest as UTF-8
@@ -966,30 +969,34 @@ impl<'a> Bytes<'a> {
 
     pub fn byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
         if self.consume("\"") {
+            let base64_result = self.escaped_string()?.try_into();
+
             #[allow(deprecated)]
-            match self.escaped_string()?.try_into() {
-                Ok(byte_str)
-                    if self
-                        .exts
-                        .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS) =>
-                {
-                    Ok(byte_str)
+            if self
+                .exts
+                .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS)
+            {
+                base64_result.map_err(Error::Base64Error)
+            } else {
+                match base64_result {
+                    Ok(_) => Err(Error::ExpectedByteStringFoundBase64),
+                    Err(_) => Err(Error::ExpectedByteString),
                 }
-                Ok(_) => Err(Error::ExpectedByteStringFoundBase64),
-                Err(err) => Err(Error::Base64Error(err)),
             }
         } else if self.consume("r") {
+            let base64_result = self.raw_string()?.try_into();
+
             #[allow(deprecated)]
-            match self.raw_string()?.try_into() {
-                Ok(byte_str)
-                    if self
-                        .exts
-                        .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS) =>
-                {
-                    Ok(byte_str)
+            if self
+                .exts
+                .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS)
+            {
+                base64_result.map_err(Error::Base64Error)
+            } else {
+                match base64_result {
+                    Ok(_) => Err(Error::ExpectedByteStringFoundBase64),
+                    Err(_) => Err(Error::ExpectedByteString),
                 }
-                Ok(_) => Err(Error::ExpectedByteStringFoundBase64),
-                Err(err) => Err(Error::Base64Error(err)),
             }
         } else if self.consume("b\"") {
             self.escaped_byte_string()
@@ -1001,7 +1008,7 @@ impl<'a> Bytes<'a> {
     }
 
     fn escaped_byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
-        match self.escaped_byte_buf() {
+        match self.escaped_byte_buf(EscapeEncoding::Binary) {
             Ok((bytes, advance)) => {
                 let _ = self.advance(advance);
                 Ok(bytes)
@@ -1033,7 +1040,7 @@ impl<'a> Bytes<'a> {
     }
 
     fn escaped_string(&mut self) -> Result<ParsedStr<'a>> {
-        match self.escaped_byte_buf() {
+        match self.escaped_byte_buf(EscapeEncoding::Utf8) {
             Ok((bytes, advance)) => {
                 let string = bytes.try_into().map_err(Error::from)?;
                 let _ = self.advance(advance);
@@ -1054,7 +1061,7 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    fn escaped_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
+    fn escaped_byte_buf(&mut self, encoding: EscapeEncoding) -> Result<(ParsedByteStr<'a>, usize)> {
         use std::iter::repeat;
 
         let (i, end_or_escape) = self
@@ -1076,14 +1083,17 @@ impl<'a> Bytes<'a> {
 
             loop {
                 let _ = self.advance(i + 1);
-                let character = self.parse_escape()?;
-                match character.len_utf8() {
-                    1 => s.push(character as u8),
-                    len => {
-                        let start = s.len();
-                        s.extend(repeat(0).take(len));
-                        character.encode_utf8(&mut s[start..]);
-                    }
+
+                match self.parse_escape(encoding)? {
+                    EscapeCharacter::Ascii(c) => s.push(c),
+                    EscapeCharacter::Utf8(c) => match c.len_utf8() {
+                        1 => s.push(c as u8),
+                        len => {
+                            let start = s.len();
+                            s.extend(repeat(0).take(len));
+                            c.encode_utf8(&mut s[start..]);
+                        }
+                    },
                 }
 
                 let (new_i, end_or_escape) = self
@@ -1153,16 +1163,22 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    fn parse_escape(&mut self) -> Result<char> {
+    fn parse_escape(&mut self, encoding: EscapeEncoding) -> Result<EscapeCharacter> {
         let c = match self.eat_byte()? {
-            b'\'' => '\'',
-            b'"' => '"',
-            b'\\' => '\\',
-            b'n' => '\n',
-            b'r' => '\r',
-            b't' => '\t',
-            b'0' => '\0',
-            b'x' => self.decode_ascii_escape()? as char,
+            b'\'' => EscapeCharacter::Ascii(b'\''),
+            b'"' => EscapeCharacter::Ascii(b'"'),
+            b'\\' => EscapeCharacter::Ascii(b'\\'),
+            b'n' => EscapeCharacter::Ascii(b'\n'),
+            b'r' => EscapeCharacter::Ascii(b'\r'),
+            b't' => EscapeCharacter::Ascii(b'\t'),
+            b'0' => EscapeCharacter::Ascii(b'\0'),
+            b'x' => {
+                let b = self.decode_ascii_escape()?;
+                match encoding {
+                    EscapeEncoding::Binary => EscapeCharacter::Ascii(b),
+                    EscapeEncoding::Utf8 => EscapeCharacter::Utf8(b as char),
+                }
+            }
             b'u' => {
                 self.expect_byte(b'{', Error::InvalidEscape("Missing { in Unicode escape"))?;
 
@@ -1195,7 +1211,9 @@ impl<'a> Bytes<'a> {
                     b'}',
                     Error::InvalidEscape("No } at the end of Unicode escape"),
                 )?;
-                char_from_u32(bytes).ok_or(Error::InvalidEscape("Not a valid char"))?
+                let c = char_from_u32(bytes).ok_or(Error::InvalidEscape("Not a valid char"))?;
+
+                EscapeCharacter::Utf8(c)
             }
             _ => {
                 return Err(Error::InvalidEscape("Unknown escape character"));
@@ -1540,6 +1558,18 @@ impl<'a> TryFrom<ParsedByteStr<'a>> for ParsedStr<'a> {
             ParsedByteStr::Slice(bytes) => Ok(ParsedStr::Slice(from_utf8(bytes)?)),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum EscapeEncoding {
+    Binary,
+    Utf8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum EscapeCharacter {
+    Ascii(u8),
+    Utf8(char),
 }
 
 #[cfg(test)]
