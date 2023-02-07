@@ -167,7 +167,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         E: Error,
     {
-        self.visit_string(String::from_utf8(v).map_err(|e| Error::custom(format!("{}", e)))?)
+        Ok(Value::Bytes(v))
     }
 
     fn visit_none<E>(self) -> Result<Self::Value, E>

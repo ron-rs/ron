@@ -25,6 +25,7 @@ pub enum Value {
     Number(Number),
     Option(Option<Box<Value>>),
     String(String),
+    Bytes(Vec<u8>),
     Seq(Vec<Value>),
     Unit,
 }
@@ -86,6 +87,7 @@ impl<'de> Deserializer<'de> for Value {
             Value::Option(Some(o)) => visitor.visit_some(*o),
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
+            Value::Bytes(b) => visitor.visit_byte_buf(b),
             Value::Seq(mut seq) => {
                 let old_len = seq.len();
 

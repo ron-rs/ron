@@ -15,6 +15,7 @@ impl Serialize for Value {
             Value::Option(Some(ref o)) => serializer.serialize_some(o.as_ref()),
             Value::Option(None) => serializer.serialize_none(),
             Value::String(ref s) => serializer.serialize_str(s),
+            Value::Bytes(ref b) => serializer.serialize_bytes(b),
             Value::Seq(ref s) => Serialize::serialize(s, serializer),
             Value::Unit => serializer.serialize_unit(),
         }
