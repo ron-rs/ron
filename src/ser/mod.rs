@@ -1,7 +1,8 @@
 use std::io;
 
 use base64::Engine;
-use serde::{ser, Deserialize, Serialize};
+use serde::{ser, ser::Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     error::{Error, Result},

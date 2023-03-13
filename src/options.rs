@@ -2,7 +2,8 @@
 
 use std::io;
 
-use serde::{de, ser, Deserialize, Serialize};
+use serde::{de, ser};
+use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     de::Deserializer,
