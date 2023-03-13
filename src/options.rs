@@ -162,7 +162,11 @@ impl Options {
         Ok(value)
     }
 
-    /// Serializes `value` into `writer`
+    /// Serializes `value` into `writer`.
+    ///
+    /// This function does not generate any newlines or nice formatting;
+    /// if you want that, you can use
+    /// [`to_writer_pretty`][Self::to_writer_pretty] instead.
     pub fn to_writer<W, T>(&self, writer: W, value: &T) -> Result<()>
     where
         W: io::Write,
@@ -185,7 +189,8 @@ impl Options {
     /// Serializes `value` and returns it as string.
     ///
     /// This function does not generate any newlines or nice formatting;
-    /// if you want that, you can use `to_string_pretty` instead.
+    /// if you want that, you can use
+    /// [`to_string_pretty`][Self::to_string_pretty] instead.
     pub fn to_string<T>(&self, value: &T) -> Result<String>
     where
         T: ?Sized + ser::Serialize,

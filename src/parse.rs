@@ -109,7 +109,7 @@ pub enum AnyNum {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Bytes<'a> {
-    /// Bits set according to the `Extensions` enum.
+    /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
     bytes: &'a [u8],
     cursor: Position,
