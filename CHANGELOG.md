@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Depend on `serde_derive` directly to potentially enable more compilation parallelism ([#441](https://github.com/ron-rs/ron/pull/441))
 - Add `compact_maps` and `compact_structs` options to `PrettyConfig` to allow serialising maps and structs on a single line ([#448](https://github.com/ron-rs/ron/pull/448))
 - Add minimal support for `#[serde(flatten)]` with roundtripping through RON maps ([#455](https://github.com/ron-rs/ron/pull/455))
+- Breaking: Bump `bitflags` dependency to 2.0, `Extensions` is now `u64`-sized ([#443](https://github.com/ron-rs/ron/pull/443))
 
 ## [0.8.0] - 2022-08-17
 
