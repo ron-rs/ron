@@ -141,6 +141,10 @@ fn main() {
     let x: MyStruct = ron::from_str("(boolean: true, float: 1.23)").unwrap();
     
     println!("RON: {}", ron::to_string(&x).unwrap());
+
+    println!("Pretty RON: {}", ron::ser::to_string_pretty(
+        &x, ron::ser::PrettyConfig::default()).unwrap(),
+    );
 }
 ```
 

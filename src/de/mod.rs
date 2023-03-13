@@ -22,7 +22,7 @@ mod value;
 /// The RON deserializer.
 ///
 /// If you just want to simply deserialize a value,
-/// you can use the `from_str` convenience function.
+/// you can use the [`from_str`] convenience function.
 pub struct Deserializer<'de> {
     bytes: Bytes<'de>,
     newtype_variant: bool,
@@ -128,9 +128,9 @@ impl<'de> Deserializer<'de> {
         }
     }
 
-    /// Called from `deserialize_any` when a struct was detected. Decides if
-    /// there is a unit, tuple or usual struct and deserializes it
-    /// accordingly.
+    /// Called from [`deserialize_any`][serde::Deserializer::deserialize_any]
+    /// when a struct was detected. Decides if there is a unit, tuple or usual
+    /// struct and deserializes it accordingly.
     ///
     /// This method assumes there is no identifier left.
     fn handle_any_struct<V>(&mut self, visitor: V) -> Result<V::Value>
@@ -155,8 +155,11 @@ impl<'de> Deserializer<'de> {
         }
     }
 
-    /// Called from `deserialize_struct`, `struct_variant`, and `handle_any_struct`.
-    /// Handles deserialising the enclosing parentheses and everything in between.
+    /// Called from
+    /// [`deserialize_struct`][serde::Deserializer::deserialize_struct],
+    /// [`struct_variant`][serde::de::VariantAccess::struct_variant], and
+    /// [`handle_any_struct`][Self::handle_any_struct]. Handles
+    /// deserialising the enclosing parentheses and everything in between.
     ///
     /// This method assumes there is no struct name identifier left.
     fn handle_struct_after_name<V>(

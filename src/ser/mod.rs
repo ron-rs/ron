@@ -18,7 +18,10 @@ mod raw;
 mod tests;
 mod value;
 
-/// Serializes `value` into `writer`
+/// Serializes `value` into `writer`.
+///
+/// This function does not generate any newlines or nice formatting;
+/// if you want that, you can use [`to_writer_pretty`] instead.
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: io::Write,
@@ -39,7 +42,7 @@ where
 /// Serializes `value` and returns it as string.
 ///
 /// This function does not generate any newlines or nice formatting;
-/// if you want that, you can use `to_string_pretty` instead.
+/// if you want that, you can use [`to_string_pretty`] instead.
 pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
@@ -102,7 +105,7 @@ pub struct PrettyConfig {
 }
 
 impl PrettyConfig {
-    /// Creates a default `PrettyConfig`.
+    /// Creates a default [`PrettyConfig`].
     pub fn new() -> Self {
         Default::default()
     }
@@ -256,8 +259,8 @@ impl Default for PrettyConfig {
 
 /// The RON serializer.
 ///
-/// You can just use `to_string` for deserializing a value.
-/// If you want it pretty-printed, take a look at the `pretty` module.
+/// You can just use [`to_string`] for deserializing a value.
+/// If you want it pretty-printed, take a look at [`to_string_pretty`].
 pub struct Serializer<W: io::Write> {
     output: W,
     pretty: Option<(PrettyConfig, Pretty)>,
@@ -268,16 +271,18 @@ pub struct Serializer<W: io::Write> {
 }
 
 impl<W: io::Write> Serializer<W> {
-    /// Creates a new `Serializer`.
+    /// Creates a new [`Serializer`].
     ///
-    /// Most of the time you can just use `to_string` or `to_string_pretty`.
+    /// Most of the time you can just use [`to_string`] or
+    /// [`to_string_pretty`].
     pub fn new(writer: W, config: Option<PrettyConfig>) -> Result<Self> {
         Self::with_options(writer, config, Options::default())
     }
 
-    /// Creates a new `Serializer`.
+    /// Creates a new [`Serializer`].
     ///
-    /// Most of the time you can just use `to_string` or `to_string_pretty`.
+    /// Most of the time you can just use [`to_string`] or
+    /// [`to_string_pretty`].
     pub fn with_options(
         mut writer: W,
         config: Option<PrettyConfig>,
