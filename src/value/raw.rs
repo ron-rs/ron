@@ -70,14 +70,16 @@ impl RawValue {
         &self.ron
     }
 
-    /// Helper function to validate a RON string and turn it into a `RawValue`.
+    /// Helper function to validate a RON string and turn it into a
+    /// [`RawValue`].
     pub fn from_ron(ron: &str) -> SpannedResult<&Self> {
         Options::default()
             .from_str::<&Self>(ron)
             .map(|_| Self::from_borrowed_str(ron))
     }
 
-    /// Helper function to validate a RON string and turn it into a `RawValue`.
+    /// Helper function to validate a RON string and turn it into a
+    /// [`RawValue`].
     pub fn from_boxed_ron(ron: Box<str>) -> SpannedResult<Box<Self>> {
         match Options::default().from_str::<&Self>(&ron) {
             Ok(_) => Ok(Self::from_boxed_str(ron)),
