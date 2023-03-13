@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde_derive::Serialize;
 
 use super::to_string;
 
