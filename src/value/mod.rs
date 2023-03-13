@@ -18,7 +18,7 @@ pub(crate) mod raw;
 
 pub use raw::RawValue;
 
-/// A `Value` to `Value` map.
+/// A [`Value`] to [`Value`] map.
 ///
 /// This structure either uses a [BTreeMap](std::collections::BTreeMap) or the
 /// [IndexMap](indexmap::IndexMap) internally.
@@ -29,7 +29,7 @@ pub use raw::RawValue;
 pub struct Map(MapInner);
 
 impl Map {
-    /// Creates a new, empty `Map`.
+    /// Creates a new, empty [`Map`].
     pub fn new() -> Map {
         Default::default()
     }
@@ -144,20 +144,20 @@ type MapInner = std::collections::BTreeMap<Value, Value>;
 #[cfg(feature = "indexmap")]
 type MapInner = indexmap::IndexMap<Value, Value>;
 
-/// A wrapper for a number, which can be either `f64` or `i64`.
+/// A wrapper for a number, which can be either [`f64`] or [`i64`].
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Number {
     Integer(i64),
     Float(Float),
 }
 
-/// A wrapper for `f64`, which guarantees that the inner value
-/// is finite and thus implements `Eq`, `Hash` and `Ord`.
+/// A wrapper for [`f64`], which guarantees that the inner value
+/// is finite and thus implements [`Eq`], [`Hash`] and [`Ord`].
 #[derive(Copy, Clone, Debug)]
 pub struct Float(f64);
 
 impl Float {
-    /// Construct a new `Float`.
+    /// Construct a new [`Float`].
     pub fn new(v: f64) -> Self {
         Float(v)
     }
@@ -174,8 +174,8 @@ impl Number {
         v.into()
     }
 
-    /// Returns the `f64` representation of the number regardless of whether the number is stored
-    /// as a float or integer.
+    /// Returns the [`f64`] representation of the [`Number`] regardless of
+    /// whether the number is stored as a float or integer.
     ///
     /// # Example
     ///
@@ -190,7 +190,7 @@ impl Number {
         self.map_to(|i| i as f64, |f| f)
     }
 
-    /// If the `Number` is a float, return it. Otherwise return `None`.
+    /// If the [`Number`] is a float, return it. Otherwise return [`None`].
     ///
     /// # Example
     ///
@@ -205,7 +205,7 @@ impl Number {
         self.map_to(|_| None, Some)
     }
 
-    /// If the `Number` is an integer, return it. Otherwise return `None`.
+    /// If the [`Number`] is an integer, return it. Otherwise return [`None`].
     ///
     /// # Example
     ///
@@ -261,8 +261,9 @@ impl From<i32> for Number {
     }
 }
 
-// The following number conversion checks if the integer fits losslessly into an i64, before
-// constructing a Number::Integer variant. If not, the conversion defaults to float.
+/// The following [`Number`] conversion checks if the integer fits losslessly
+/// into an [`i64`], before constructing a [`Number::Integer`] variant.
+/// If not, the conversion defaults to [`Number::Float`].
 
 impl From<u64> for Number {
     fn from(i: u64) -> Number {
@@ -275,9 +276,9 @@ impl From<u64> for Number {
 }
 
 /// Partial equality comparison
-/// In order to be able to use `Number` as a mapping key, NaN floating values
-/// wrapped in `Float` are equals to each other. It is not the case for
-/// underlying `f64` values itself.
+/// In order to be able to use [`Number`] as a mapping key, NaN floating values
+/// wrapped in [`Float`] are equal to each other. It is not the case for
+/// underlying [`f64`] values itself.
 impl PartialEq for Float {
     fn eq(&self, other: &Self) -> bool {
         self.0.is_nan() && other.0.is_nan() || self.0 == other.0
@@ -285,9 +286,9 @@ impl PartialEq for Float {
 }
 
 /// Equality comparison
-/// In order to be able to use `Float` as a mapping key, NaN floating values
-/// wrapped in `Float` are equals to each other. It is not the case for
-/// underlying `f64` values itself.
+/// In order to be able to use [`Float`] as a mapping key, NaN floating values
+/// wrapped in [`Float`] are equal to each other. It is not the case for
+/// underlying [`f64`] values itself.
 impl Eq for Float {}
 
 impl Hash for Float {
@@ -297,9 +298,11 @@ impl Hash for Float {
 }
 
 /// Partial ordering comparison
-/// In order to be able to use `Number` as a mapping key, NaN floating values
-/// wrapped in `Number` are equals to each other and are less then any other
-/// floating value. It is not the case for the underlying `f64` values themselves.
+/// In order to be able to use [`Number`] as a mapping key, NaN floating values
+/// wrapped in [`Number`] are equal to each other and are less then any other
+/// floating value. It is not the case for the underlying [`f64`] values
+/// themselves.
+///
 /// ```
 /// use ron::value::Number;
 /// assert!(Number::new(std::f64::NAN) < Number::new(std::f64::NEG_INFINITY));
@@ -317,10 +320,10 @@ impl PartialOrd for Float {
 }
 
 /// Ordering comparison
-/// In order to be able to use `Float` as a mapping key, NaN floating values
-/// wrapped in `Float` are equals to each other and are less then any other
-/// floating value. It is not the case for underlying `f64` values itself. See
-/// the `PartialEq` implementation.
+/// In order to be able to use [`Float`] as a mapping key, NaN floating values
+/// wrapped in [`Float`] are equal to each other and are less then any other
+/// floating value. It is not the case for underlying [`f64`] values itself.
+/// See the [`PartialEq`] implementation.
 impl Ord for Float {
     fn cmp(&self, other: &Self) -> Ordering {
         self.partial_cmp(other).expect("Bug: Contract violation")
@@ -340,7 +343,7 @@ pub enum Value {
 }
 
 impl Value {
-    /// Tries to deserialize this `Value` into `T`.
+    /// Tries to deserialize this [`Value`] into `T`.
     pub fn into_rust<T>(self) -> Result<T>
     where
         T: DeserializeOwned,
@@ -349,8 +352,8 @@ impl Value {
     }
 }
 
-/// Deserializer implementation for RON `Value`.
-/// This does not support enums (because `Value` doesn't store them).
+/// Deserializer implementation for RON [`Value`].
+/// This does not support enums (because [`Value`] does not store them).
 impl<'de> Deserializer<'de> for Value {
     type Error = Error;
 
