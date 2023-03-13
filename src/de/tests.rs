@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use serde_bytes;
+use serde_derive::Deserialize;
 
 use crate::{
     de::from_str,

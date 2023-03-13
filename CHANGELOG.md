@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#423](https://github.com/ron-rs/ron/issues/423) deserialising an identifier into a borrowed str ([#424](https://github.com/ron-rs/ron/pull/424))
 - Bump MSRV to 1.57.0 and bump dependency: `base64` to 0.20 ([#431](https://github.com/ron-rs/ron/pull/431))
 - Bump dependency `base64` to 0.21 ([#433](https://github.com/ron-rs/ron/pull/433))
+- Depend on `serde_derive` directly to potentially enable more compilation parallelism ([#441](https://github.com/ron-rs/ron/pull/441))
 
 ## [0.8.0] - 2022-08-17
 - Add `integer128` feature that guards `i128` and `u128` ([#304](https://github.com/ron-rs/ron/pull/304), [#351](https://github.com/ron-rs/ron/pull/351))

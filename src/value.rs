@@ -9,8 +9,9 @@ use std::{
 
 use serde::{
     de::{DeserializeOwned, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor},
-    forward_to_deserialize_any, Deserialize, Serialize,
+    forward_to_deserialize_any,
 };
+use serde_derive::{Deserialize, Serialize};
 
 use crate::{de::Error, error::Result};
 
