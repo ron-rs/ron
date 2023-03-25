@@ -1,8 +1,14 @@
-use std::{error::Error as StdError, fmt, io, str::Utf8Error, string::FromUtf8Error};
+use std::{
+    error::Error as StdError,
+    fmt, io,
+    str::{self, Utf8Error},
+    string::FromUtf8Error,
+};
 
 use serde::{de, ser};
+use unicode_ident::is_xid_continue;
 
-use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char, BASE64_ENGINE};
+use crate::parse::{is_ident_first_char, is_ident_raw_char, BASE64_ENGINE};
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
@@ -399,6 +405,24 @@ impl From<SpannedError> for Error {
     }
 }
 
+impl SpannedError {
+    pub(crate) fn from_utf8_error(error: Utf8Error, source: &[u8]) -> Self {
+        let source =
+            str::from_utf8(&source[..error.valid_up_to()]).expect("source is valid up to error");
+        let line = 1 + source.chars().filter(|&c| c == '\n').count();
+        let col = 1 + source
+            .rsplit('\n')
+            .next()
+            .expect("rsplit always yields at least one value")
+            .chars()
+            .count();
+        Self {
+            code: error.into(),
+            position: Position { line, col },
+        }
+    }
+}
+
 struct OneOf {
     alts: &'static [&'static str],
     none: &'static str,
@@ -432,13 +456,13 @@ struct Identifier<'a>(&'a str);
 
 impl<'a> fmt::Display for Identifier<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.0.is_empty() || !self.0.as_bytes().iter().copied().all(is_ident_raw_char) {
+        if self.0.is_empty() || !self.0.chars().all(is_ident_raw_char) {
             return write!(f, "{:?}_[invalid identifier]", self.0);
         }
 
-        let mut bytes = self.0.as_bytes().iter().copied();
+        let mut chars = self.0.chars();
 
-        if !bytes.next().map_or(false, is_ident_first_char) || !bytes.all(is_ident_other_char) {
+        if !chars.next().map_or(false, is_ident_first_char) || !chars.all(is_xid_continue) {
             write!(f, "`r#{}`", self.0)
         } else {
             write!(f, "`{}`", self.0)

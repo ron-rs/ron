@@ -651,7 +651,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let identifier = str::from_utf8(self.bytes.identifier()?).map_err(Error::from)?;
+        let identifier = self.bytes.identifier()?;
 
         self.last_identifier = Some(identifier);
 

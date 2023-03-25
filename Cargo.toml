@@ -30,6 +30,7 @@ indexmap = { version = "1.9", features = ["serde-1"], optional = true }
 # serde supports i128/u128 from 1.0.60 onwards
 serde = "1.0.60"
 serde_derive = "1.0"
+unicode-ident = "1.0.8"
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }

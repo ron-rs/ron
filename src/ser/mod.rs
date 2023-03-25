@@ -3,13 +3,14 @@ use std::io;
 use base64::Engine;
 use serde::{ser, ser::Serialize};
 use serde_derive::{Deserialize, Serialize};
+use unicode_ident::is_xid_continue;
 
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
     options::Options,
     parse::{
-        is_ident_first_char, is_ident_other_char, is_ident_raw_char, LargeSInt, LargeUInt,
+        is_ident_first_char, is_ident_raw_char, LargeSInt, LargeUInt,
         BASE64_ENGINE,
     },
 };
@@ -442,11 +443,11 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn write_identifier(&mut self, name: &str) -> Result<()> {
-        if name.is_empty() || !name.as_bytes().iter().copied().all(is_ident_raw_char) {
+        if name.is_empty() || !name.chars().all(is_ident_raw_char) {
             return Err(Error::InvalidIdentifier(name.into()));
         }
-        let mut bytes = name.as_bytes().iter().copied();
-        if !bytes.next().map_or(false, is_ident_first_char) || !bytes.all(is_ident_other_char) {
+        let mut chars = name.chars();
+        if !chars.next().map_or(false, is_ident_first_char) || !chars.all(is_xid_continue) {
             self.output.write_all(b"r#")?;
         }
         self.output.write_all(name.as_bytes())?;
