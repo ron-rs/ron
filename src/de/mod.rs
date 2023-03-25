@@ -312,7 +312,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         if let Some(ident) = ident {
             self.bytes.skip_ws()?;
 
-            return self.handle_any_struct(visitor, Some(std::str::from_utf8(ident)?));
+            return self.handle_any_struct(visitor, Some(ident));
         }
 
         match self.bytes.peek_or_eof()? {
@@ -733,7 +733,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let identifier = str::from_utf8(self.bytes.identifier()?).map_err(Error::from)?;
+        let identifier = self.bytes.identifier()?;
 
         self.last_identifier = Some(identifier);
 

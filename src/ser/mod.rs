@@ -2,12 +2,13 @@ use std::io;
 
 use serde::{ser, ser::Serialize};
 use serde_derive::{Deserialize, Serialize};
+use unicode_ident::is_xid_continue;
 
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
     options::Options,
-    parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char, LargeSInt, LargeUInt},
+    parse::{is_ident_first_char, is_ident_raw_char, LargeSInt, LargeUInt},
 };
 
 mod raw;
@@ -591,9 +592,9 @@ impl<W: io::Write> Serializer<W> {
 
     fn write_identifier(&mut self, name: &str) -> Result<()> {
         self.validate_identifier(name)?;
-        let mut bytes = name.as_bytes().iter().copied();
-        if !bytes.next().map_or(false, is_ident_first_char)
-            || !bytes.all(is_ident_other_char)
+        let mut chars = name.chars();
+        if !chars.next().map_or(false, is_ident_first_char)
+            || !chars.all(is_xid_continue)
             || [
                 "true", "false", "Some", "None", "inf", "inff32", "inff64", "NaN", "NaNf32",
                 "NaNf64",
@@ -607,7 +608,7 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn validate_identifier(&self, name: &str) -> Result<()> {
-        if name.is_empty() || !name.as_bytes().iter().copied().all(is_ident_raw_char) {
+        if name.is_empty() || !name.chars().all(is_ident_raw_char) {
             return Err(Error::InvalidIdentifier(name.into()));
         }
         Ok(())

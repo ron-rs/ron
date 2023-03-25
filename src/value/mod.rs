@@ -236,9 +236,6 @@ mod tests {
     fn bytes() {
         assert_same_bytes::<serde_bytes::ByteBuf>(br#"b"hello world""#);
         assert_same_bytes::<serde_bytes::ByteBuf>(
-            b"b\"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1\"",
-        );
-        assert_same_bytes::<serde_bytes::ByteBuf>(
             br#"b"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1""#,
         );
     }

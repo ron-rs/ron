@@ -11,11 +11,11 @@ bitflags::bitflags! {
 
 impl Extensions {
     /// Creates an extension flag from an ident.
-    pub fn from_ident(ident: &[u8]) -> Option<Extensions> {
+    pub fn from_ident(ident: &str) -> Option<Extensions> {
         match ident {
-            b"unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
-            b"implicit_some" => Some(Extensions::IMPLICIT_SOME),
-            b"unwrap_variant_newtypes" => Some(Extensions::UNWRAP_VARIANT_NEWTYPES),
+            "unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
+            "implicit_some" => Some(Extensions::IMPLICIT_SOME),
+            "unwrap_variant_newtypes" => Some(Extensions::UNWRAP_VARIANT_NEWTYPES),
             _ => None,
         }
     }
