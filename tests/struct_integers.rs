@@ -33,7 +33,6 @@ fn roundtrip() {
         j: std::u128::MAX,
     };
     let serialized = ron::ser::to_string(&s).unwrap();
-    dbg!(&serialized);
     let deserialized = ron::de::from_str(&serialized).unwrap();
     assert_eq!(s, deserialized,);
 }

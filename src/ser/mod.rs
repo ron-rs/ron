@@ -9,10 +9,7 @@ use crate::{
     error::{Error, Result},
     extensions::Extensions,
     options::Options,
-    parse::{
-        is_ident_first_char, is_ident_raw_char, LargeSInt, LargeUInt,
-        BASE64_ENGINE,
-    },
+    parse::{is_ident_first_char, is_ident_raw_char, LargeSInt, LargeUInt, BASE64_ENGINE},
 };
 
 mod raw;

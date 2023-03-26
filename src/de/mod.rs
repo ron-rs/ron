@@ -242,7 +242,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return self.handle_any_struct(visitor);
         }
 
-        match self.bytes.peek_or_eof()? {
+        match self.bytes.peek_byte_or_eof()? {
             b'(' => self.handle_any_struct(visitor),
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
@@ -686,7 +686,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
 
         match (
             self.had_comma,
-            self.de.bytes.peek_or_eof()? != self.terminator,
+            self.de.bytes.peek_byte_or_eof()? != self.terminator,
         ) {
             // Trailing comma, maybe has a next element
             (true, has_element) => Ok(has_element),
