@@ -109,9 +109,6 @@ pub(crate) type LargeSInt = i64;
 
 impl<'a> Bytes<'a> {
     pub fn new(bytes: &'a [u8]) -> SpannedResult<Self> {
-        // // Verify that input is valid utf-8
-        // str::from_utf8(bytes).map_err(|error| SpannedError::from_utf8_error(error, bytes))?;
-
         let string =
             str::from_utf8(bytes).map_err(|error| SpannedError::from_utf8_error(error, bytes))?;
 
@@ -158,7 +155,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn advance_byte(&mut self) -> Result<()> {
-        if self.peek_or_eof()? == b'\n' {
+        if self.peek_byte_or_eof()? == b'\n' {
             self.cursor.line += 1;
             self.cursor.col = 1;
         } else {
@@ -201,7 +198,7 @@ impl<'a> Bytes<'a> {
             let _ = self.advance(2);
         }
 
-        let num_bytes = self.next_bytes_contained_in(is_int_char);
+        let num_bytes = self.next_bytes_while(is_int_char);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedInteger);
@@ -263,7 +260,7 @@ impl<'a> Bytes<'a> {
     pub fn integer<T: Integer>(&mut self) -> Result<T> {
         let bytes_backup = self.string;
 
-        let is_negative = match self.peek_or_eof()? {
+        let is_negative = match self.peek_byte_or_eof()? {
             b'+' => {
                 let _ = self.advance_byte();
                 false
@@ -300,7 +297,7 @@ impl<'a> Bytes<'a> {
         };
         let sign = if is_negative { -1 } else { 1 };
 
-        let num_bytes = self.next_bytes_contained_in(is_int_char);
+        let num_bytes = self.next_bytes_while(is_int_char);
 
         if self.string[num_bytes..].starts_with(&['i', 'u']) {
             let int_bytes_backup = *self;
@@ -475,7 +472,7 @@ impl<'a> Bytes<'a> {
             return Err(Error::ExpectedChar);
         }
 
-        let c = self.peek_or_eof()?;
+        let c = self.peek_byte_or_eof()?;
 
         let c = if c == b'\\' {
             let _ = self.advance(1);
@@ -700,10 +697,14 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn eat_byte(&mut self) -> Result<u8> {
-        let peek = self.peek_or_eof()?;
-        let _ = self.advance_byte();
+        let peek = self.peek_byte_or_eof()?;
+        if peek.is_ascii() {
+            let _ = self.advance_byte();
 
-        Ok(peek)
+            Ok(peek)
+        } else {
+            Err(Error::NoCharBoundary)
+        }
     }
 
     pub fn eat_char(&mut self) -> Result<char> {
@@ -797,13 +798,13 @@ impl<'a> Bytes<'a> {
             }
         }
 
-        let num_bytes = self.next_bytes_contained_in(is_float_char);
+        let num_bytes = self.next_bytes_while(is_float_char);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedFloat);
         }
 
-        if self.peek_or_eof()? == b'_' {
+        if self.peek_byte_or_eof()? == b'_' {
             return Err(Error::UnderscoreAtBeginning);
         }
 
@@ -868,7 +869,7 @@ impl<'a> Bytes<'a> {
         let next = self.peek_char_or_eof()?;
         if !is_ident_first_char(next) {
             if is_ident_raw_char(next) {
-                let ident_bytes = self.next_chars_contained_in(is_ident_raw_char);
+                let ident_bytes = self.next_chars_while(is_ident_raw_char);
                 return Err(Error::SuggestRawIdentifier(
                     self.string[..ident_bytes].into(),
                 ));
@@ -902,12 +903,11 @@ impl<'a> Bytes<'a> {
                     }
                     // skip "r#"
                     let _ = self.advance(2);
-                    dbg!(&self);
-                    dbg!(self.next_chars_contained_in(is_ident_raw_char))
+                    self.next_chars_while(is_ident_raw_char)
                 }
                 _ => {
-                    let std_ident_length = self.next_chars_contained_in(is_xid_continue);
-                    let raw_ident_length = self.next_chars_contained_in(is_ident_raw_char);
+                    let std_ident_length = self.next_chars_while(is_xid_continue);
+                    let raw_ident_length = self.next_chars_while(is_ident_raw_char);
 
                     if raw_ident_length > std_ident_length {
                         return Err(Error::SuggestRawIdentifier(
@@ -923,7 +923,7 @@ impl<'a> Bytes<'a> {
                 [self.string.chars().next().unwrap_or_default().len_utf8()..]
                 .find(|c| !is_xid_continue(c))
                 .unwrap_or(self.string.len() - 1);
-            let raw_ident_length = self.next_chars_contained_in(is_ident_raw_char);
+            let raw_ident_length = self.next_chars_while(is_ident_raw_char);
 
             if raw_ident_length > std_ident_length {
                 return Err(Error::SuggestRawIdentifier(
@@ -940,13 +940,25 @@ impl<'a> Bytes<'a> {
         Ok(ident)
     }
 
-    pub fn next_bytes_contained_in(&self, allowed: fn(u8) -> bool) -> usize {
-        self.bytes().iter().take_while(|&&b| allowed(b)).count()
+    pub fn next_bytes_while(&self, condition: fn(u8) -> bool) -> usize {
+        self.next_bytes_while_from(0, condition)
     }
 
-    pub fn next_chars_contained_in(&self, allowed: fn(char) -> bool) -> usize {
-        self.string
-            .find(|c| !allowed(c))
+    pub fn next_bytes_while_from(&self, from: usize, condition: fn(u8) -> bool) -> usize {
+        self.string[from..]
+            .as_bytes()
+            .iter()
+            .take_while(|&&b| condition(b))
+            .count()
+    }
+
+    pub fn next_chars_while(&self, condition: fn(char) -> bool) -> usize {
+        self.next_chars_while_from(0, condition)
+    }
+
+    pub fn next_chars_while_from(&self, from: usize, condition: fn(char) -> bool) -> usize {
+        self.string[from..]
+            .find(|c| !condition(c))
             .unwrap_or(self.string.len())
     }
 
@@ -956,18 +968,8 @@ impl<'a> Bytes<'a> {
                 b'+' | b'-' => 1,
                 _ => 0,
             };
-            let flen = self
-                .bytes()
-                .iter()
-                .skip(skip)
-                .take_while(|&&b| is_float_char(b))
-                .count();
-            let ilen = self
-                .bytes()
-                .iter()
-                .skip(skip)
-                .take_while(|&&b| is_int_char(b))
-                .count();
+            let flen = self.next_bytes_while_from(skip, is_float_char);
+            let ilen = self.next_bytes_while_from(skip, is_int_char);
             flen > ilen
         } else {
             false
@@ -1017,7 +1019,7 @@ impl<'a> Bytes<'a> {
         self.bytes().first().copied()
     }
 
-    pub fn peek_or_eof(&self) -> Result<u8> {
+    pub fn peek_byte_or_eof(&self) -> Result<u8> {
         self.bytes().first().copied().ok_or(Error::Eof)
     }
 
@@ -1195,7 +1197,7 @@ impl<'a> Bytes<'a> {
     }
 
     fn raw_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
-        let num_hashes = self.string.chars().take_while(|&c| c == '#').count();
+        let num_hashes = self.next_bytes_while(|b| b == b'#');
         let hashes = &self.string[..num_hashes];
         let _ = self.advance(num_hashes);
 
@@ -1297,19 +1299,17 @@ impl<'a> Bytes<'a> {
                 let mut num_digits = 0;
 
                 while num_digits < 6 {
-                    let byte = self.peek_or_eof()?;
+                    let byte = self.peek_byte_or_eof()?;
 
                     if byte == b'}' {
                         break;
                     } else {
-                        self.advance_byte()?;
+                        num_digits += self.advance_char()?;
                     }
 
                     let byte = self.decode_hex(byte)?;
                     bytes <<= 4;
                     bytes |= u32::from(byte);
-
-                    num_digits += 1;
                 }
 
                 if num_digits == 0 {
@@ -1338,7 +1338,7 @@ impl<'a> Bytes<'a> {
         if self.consume("/") {
             match self.eat_byte()? {
                 b'/' => {
-                    let bytes = self.bytes().iter().take_while(|&&b| b != b'\n').count();
+                    let bytes = self.next_bytes_while(|b| b != b'\n');
 
                     let _ = self.advance(bytes);
 
@@ -1352,11 +1352,7 @@ impl<'a> Bytes<'a> {
                     let mut level = 1;
 
                     while level > 0 {
-                        let bytes = self
-                            .bytes()
-                            .iter()
-                            .take_while(|&&b| b != b'/' && b != b'*')
-                            .count();
+                        let bytes = self.next_bytes_while(|b| !matches!(b, b'/' | b'*'));
 
                         if self.string.is_empty() {
                             return Err(Error::UnclosedBlockComment);
@@ -1370,7 +1366,8 @@ impl<'a> Bytes<'a> {
                         } else if self.consume("*/") {
                             level -= 1;
                         } else {
-                            self.eat_byte().map_err(|_| Error::UnclosedBlockComment)?;
+                            self.advance_char()
+                                .map_err(|_| Error::UnclosedBlockComment)?;
                         }
                     }
 
