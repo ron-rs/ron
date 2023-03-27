@@ -866,9 +866,9 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
-        let next = self.peek_char_or_eof()?;
-        if !is_ident_first_char(next) {
-            if is_ident_raw_char(next) {
+        let first = self.peek_char_or_eof()?;
+        if !is_ident_first_char(first) {
+            if is_ident_raw_char(first) {
                 let ident_bytes = self.next_chars_while(is_ident_raw_char);
                 return Err(Error::SuggestRawIdentifier(
                     self.string[..ident_bytes].into(),
@@ -880,7 +880,7 @@ impl<'a> Bytes<'a> {
 
         // If the next two bytes signify the start of a (raw) byte string
         //  literal, return an error.
-        if next == 'b' {
+        if first == 'b' {
             match self.string.chars().nth(1) {
                 Some('"' | '\'') => return Err(Error::ExpectedIdentifier),
                 Some('r') => match self.string.chars().nth(2) {
@@ -891,7 +891,7 @@ impl<'a> Bytes<'a> {
             }
         };
 
-        let length = if next == 'r' {
+        let length = if first == 'r' {
             match self.string.chars().nth(1) {
                 Some('"') => return Err(Error::ExpectedIdentifier),
                 Some('#') => {
@@ -919,10 +919,8 @@ impl<'a> Bytes<'a> {
                 }
             }
         } else {
-            let std_ident_length = 1 + self.string
-                [self.string.chars().next().unwrap_or_default().len_utf8()..]
-                .find(|c| !is_xid_continue(c))
-                .unwrap_or(self.string.len() - 1);
+            let std_ident_length =
+                first.len_utf8() + self.next_chars_while_from(first.len_utf8(), is_xid_continue);
             let raw_ident_length = self.next_chars_while(is_ident_raw_char);
 
             if raw_ident_length > std_ident_length {
@@ -959,7 +957,7 @@ impl<'a> Bytes<'a> {
     pub fn next_chars_while_from(&self, from: usize, condition: fn(char) -> bool) -> usize {
         self.string[from..]
             .find(|c| !condition(c))
-            .unwrap_or(self.string.len())
+            .unwrap_or(self.string.len() - from)
     }
 
     pub fn next_bytes_is_float(&self) -> bool {
