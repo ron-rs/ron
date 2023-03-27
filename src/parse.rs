@@ -605,9 +605,9 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
-        let next = self.peek_char_or_eof()?;
-        if !is_ident_first_char(next) {
-            if is_ident_raw_char(next) {
+        let first = self.peek_char_or_eof()?;
+        if !is_ident_first_char(first) {
+            if is_ident_raw_char(first) {
                 let ident_bytes = self.next_chars_while(is_ident_raw_char);
                 return Err(Error::SuggestRawIdentifier(
                     self.string[..ident_bytes].into(),
@@ -619,7 +619,7 @@ impl<'a> Bytes<'a> {
 
         // If the next two bytes signify the start of a raw string literal,
         // return an error.
-        let length = if next == 'r' {
+        let length = if first == 'r' {
             match self.bytes().get(1).ok_or(Error::Eof)? {
                 b'"' => return Err(Error::ExpectedIdentifier),
                 b'#' => {
@@ -647,10 +647,8 @@ impl<'a> Bytes<'a> {
                 }
             }
         } else {
-            let std_ident_length = 1 + self.string
-                [self.string.chars().next().unwrap_or_default().len_utf8()..]
-                .find(|c| !is_xid_continue(c))
-                .unwrap_or(self.string.len() - 1);
+            let std_ident_length =
+                first.len_utf8() + self.next_chars_while_from(first.len_utf8(), is_xid_continue);
             let raw_ident_length = self.next_chars_while(is_ident_raw_char);
 
             if raw_ident_length > std_ident_length {
@@ -687,7 +685,7 @@ impl<'a> Bytes<'a> {
     pub fn next_chars_while_from(&self, from: usize, condition: fn(char) -> bool) -> usize {
         self.string[from..]
             .find(|c| !condition(c))
-            .unwrap_or(self.string.len())
+            .unwrap_or(self.string.len() - from)
     }
 
     pub fn next_bytes_is_float(&self) -> bool {
@@ -721,10 +719,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn peek_byte_or_eof(&self) -> Result<u8> {
-        self.bytes()
-            .first()
-            .copied()
-            .ok_or(Error::Eof)
+        self.bytes().first().copied().ok_or(Error::Eof)
     }
 
     pub fn peek_char_or_eof(&self) -> Result<char> {
@@ -879,7 +874,7 @@ impl<'a> Bytes<'a> {
                     if byte == b'}' {
                         break;
                     } else {
-                         num_digits += self.advance_char()?;
+                        num_digits += self.advance_char()?;
                     }
 
                     let byte = self.decode_hex(byte)?;
