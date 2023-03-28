@@ -55,7 +55,7 @@ fn test_raw_value_invalid() {
     assert_eq!(
         err,
         SpannedError {
-            code: Error::UnexpectedByte(b'\0'),
+            code: Error::UnexpectedChar('\0'),
             position: Position { line: 1, col: 1 }
         }
     )
@@ -145,7 +145,7 @@ fn test_raw_value_serde_json() {
             .unwrap_err();
     assert_eq!(
         err.to_string(),
-        "invalid RON value at 1:13: Unexpected byte ')' at line 1 column 39"
+        "invalid RON value at 1:13: Unexpected char ')' at line 1 column 39"
     );
 
     let err = serde_json::from_str::<WithRawValue>("{\"a\":true,\"b\":42}").unwrap_err();
@@ -157,7 +157,7 @@ fn test_raw_value_serde_json() {
     let err = serde_json::from_str::<&RawValue>("\"/* hi */ (a:) /* bye */\"").unwrap_err();
     assert_eq!(
         err.to_string(),
-        "invalid RON value at 1:13: Unexpected byte ')' at line 1 column 25"
+        "invalid RON value at 1:13: Unexpected char ')' at line 1 column 25"
     );
 
     let err = serde_json::from_str::<&RawValue>("42").unwrap_err();

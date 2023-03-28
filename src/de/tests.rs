@@ -4,7 +4,7 @@ use serde_derive::Deserialize;
 use crate::{
     de::from_str,
     error::{Error, Position, SpannedError, SpannedResult},
-    parse::Bytes,
+    parse::Parser,
     value::Number,
 };
 
@@ -352,8 +352,8 @@ fn check_de_any_number<
     s: &str,
     cmp: T,
 ) {
-    let mut bytes = Bytes::new(s.as_bytes()).unwrap();
-    let number = bytes.any_number().unwrap();
+    let mut parser = Parser::new(s).unwrap();
+    let number = parser.any_number().unwrap();
 
     assert_eq!(number, Number::new(cmp));
     assert_eq!(

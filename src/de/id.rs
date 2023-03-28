@@ -21,11 +21,11 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
         V: Visitor<'b>,
     {
         if self.map_as_struct {
-            self.d.bytes.expect_byte(b'"', Error::ExpectedString)?;
+            self.d.parser.expect_char('"', Error::ExpectedString)?;
         }
         let result = self.d.deserialize_identifier(visitor);
         if self.map_as_struct {
-            self.d.bytes.expect_byte(b'"', Error::ExpectedStringEnd)?;
+            self.d.parser.expect_char('"', Error::ExpectedStringEnd)?;
         }
         result
     }

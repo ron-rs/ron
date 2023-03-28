@@ -16,19 +16,13 @@ use crate::{
 // We have the following char categories.
 const INT_CHAR: u8 = 1 << 0; // [0-9A-Fa-f_]
 const FLOAT_CHAR: u8 = 1 << 1; // [0-9\.Ee+-_]
-const IDENT_FIRST_CHAR: u8 = 1 << 2; // [A-Za-z_]
-const IDENT_OTHER_CHAR: u8 = 1 << 3; // [A-Za-z_0-9]
-const IDENT_RAW_CHAR: u8 = 1 << 4; // [A-Za-z_0-9\.+-]
-const WHITESPACE_CHAR: u8 = 1 << 5; // [\n\t\r ]
 
 // We encode each char as belonging to some number of these categories.
-const DIGIT: u8 = INT_CHAR | FLOAT_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [0-9]
-const ABCDF: u8 = INT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [ABCDFabcdf]
-const UNDER: u8 = INT_CHAR | FLOAT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [_]
-const E____: u8 = INT_CHAR | FLOAT_CHAR | IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [Ee]
-const G2Z__: u8 = IDENT_FIRST_CHAR | IDENT_OTHER_CHAR | IDENT_RAW_CHAR; // [G-Zg-z]
-const PUNCT: u8 = FLOAT_CHAR | IDENT_RAW_CHAR; // [\.+-]
-const WS___: u8 = WHITESPACE_CHAR; // [\t\n\r ]
+const DIGIT: u8 = INT_CHAR | FLOAT_CHAR; // [0-9]
+const ABCDF: u8 = INT_CHAR; // [ABCDFabcdf]
+const UNDER: u8 = INT_CHAR | FLOAT_CHAR; // [_]
+const E____: u8 = INT_CHAR | FLOAT_CHAR; // [Ee]
+const PUNCT: u8 = FLOAT_CHAR; // [\.+-]
 const _____: u8 = 0; // everything else
 
 // Table of encodings, for fast predicates. (Non-ASCII and special chars are
@@ -36,19 +30,19 @@ const _____: u8 = 0; // everything else
 #[rustfmt::skip]
 const ENCODINGS: [u8; 256] = [
 /*                     0      1      2      3      4      5      6      7      8      9    */
-/*   0+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, WS___,
-/*  10+: ·········· */ WS___, _____, _____, WS___, _____, _____, _____, _____, _____, _____,
+/*   0+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/*  10+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
 /*  20+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/*  30+: ·· !"#$%&' */ _____, _____, WS___, _____, _____, _____, _____, _____, _____, _____,
+/*  30+: ·· !"#$%&' */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
 /*  40+: ()*+,-./01 */ _____, _____, _____, PUNCT, _____, PUNCT, PUNCT, _____, DIGIT, DIGIT,
 /*  50+: 23456789:; */ DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, _____, _____,
 /*  60+: <=>?@ABCDE */ _____, _____, _____, _____, _____, ABCDF, ABCDF, ABCDF, ABCDF, E____,
-/*  70+: FGHIJKLMNO */ ABCDF, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__,
-/*  80+: PQRSTUVWZY */ G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__,
-/*  90+: Z[\]^_`abc */ G2Z__, _____, _____, _____, _____, UNDER, _____, ABCDF, ABCDF, ABCDF,
-/* 100+: defghijklm */ ABCDF, E____, ABCDF, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__,
-/* 110+: nopqrstuvw */ G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__, G2Z__,
-/* 120+: xyz{|}~··· */ G2Z__, G2Z__, G2Z__, _____, _____, _____, _____, _____, _____, _____,
+/*  70+: FGHIJKLMNO */ ABCDF, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/*  80+: PQRSTUVWZY */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/*  90+: Z[\]^_`abc */ _____, _____, _____, _____, _____, UNDER, _____, ABCDF, ABCDF, ABCDF,
+/* 100+: defghijklm */ ABCDF, E____, ABCDF, _____, _____, _____, _____, _____, _____, _____,
+/* 110+: nopqrstuvw */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
+/* 120+: xyz{|}~··· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
 /* 130+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
 /* 140+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
 /* 150+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
@@ -77,23 +71,34 @@ pub fn is_ident_first_char(c: char) -> bool {
 }
 
 pub fn is_ident_raw_char(c: char) -> bool {
-    if c.is_ascii() {
-        ENCODINGS[c as usize] & IDENT_RAW_CHAR != 0
-    } else {
-        is_xid_continue(c)
-    }
+    is_xid_continue(c) || matches!(c, '.' | '+' | '-')
 }
 
-const fn is_whitespace_char(c: u8) -> bool {
-    ENCODINGS[c as usize] & WHITESPACE_CHAR != 0
+const fn is_whitespace_char(c: char) -> bool {
+    // TODO compare to using a bitmap
+    // " \t\n\r\x0A\x0B\x0C\u{85}" could be added to the above map
+    // for 200E to 2029 this could be done by casting to u16 and comparing first and second byte individually
+    matches!(
+        c,
+        ' ' | '\t'
+            | '\n'
+            | '\r'
+            | '\x0B'
+            | '\x0C'
+            | '\u{85}'
+            | '\u{200E}'
+            | '\u{200F}'
+            | '\u{2028}'
+            | '\u{2029}'
+    )
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Bytes<'a> {
+pub struct Parser<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
-    string: &'a str,
-    pre_ws_string: &'a str,
+    src: &'a str,
+    pre_ws_src: &'a str,
     last_ws_len: usize,
     cursor: Position,
 }
@@ -107,34 +112,32 @@ pub(crate) type LargeSInt = i128;
 #[cfg(not(feature = "integer128"))]
 pub(crate) type LargeSInt = i64;
 
-impl<'a> Bytes<'a> {
-    pub fn new(bytes: &'a [u8]) -> SpannedResult<Self> {
-        let string =
-            str::from_utf8(bytes).map_err(|error| SpannedError::from_utf8_error(error, bytes))?;
-
-        let mut b = Bytes {
+/// constructor and parsing utilities
+impl<'a> Parser<'a> {
+    pub fn new(source: &'a str) -> SpannedResult<Self> {
+        let mut parser = Parser {
             exts: Extensions::empty(),
-            string,
-            pre_ws_string: string,
+            src: source,
+            pre_ws_src: source,
             last_ws_len: 0,
             cursor: Position { line: 1, col: 1 },
         };
 
-        b.skip_ws().map_err(|e| b.span_error(e))?;
+        parser.skip_ws().map_err(|e| parser.span_error(e))?;
 
         // Loop over all extensions attributes
         loop {
-            let attribute = b.extensions().map_err(|e| b.span_error(e))?;
+            let attribute = parser.extensions().map_err(|e| parser.span_error(e))?;
 
             if attribute.is_empty() {
                 break;
             }
 
-            b.exts |= attribute;
-            b.skip_ws().map_err(|e| b.span_error(e))?;
+            parser.exts |= attribute;
+            parser.skip_ws().map_err(|e| parser.span_error(e))?;
         }
 
-        Ok(b)
+        Ok(parser)
     }
 
     pub fn span_error(&self, code: Error) -> SpannedError {
@@ -154,20 +157,12 @@ impl<'a> Bytes<'a> {
         Ok(())
     }
 
-    pub fn advance_byte(&mut self) -> Result<()> {
-        if self.peek_byte_or_eof()? == b'\n' {
-            self.cursor.line += 1;
-            self.cursor.col = 1;
-        } else {
-            self.cursor.col += 1;
-        }
-        self.string = &self.string[1..];
-
-        Ok(())
+    pub fn advance_char(&mut self) -> Result<usize> {
+        self.next().map(char::len_utf8)
     }
 
-    pub fn advance_char(&mut self) -> Result<usize> {
-        let c = self.peek_char_or_eof()?;
+    pub fn next(&mut self) -> Result<char> {
+        let c = self.peek()?;
         if c == '\n' {
             self.cursor.line += 1;
             self.cursor.col = 1;
@@ -175,17 +170,128 @@ impl<'a> Bytes<'a> {
             self.cursor.col += 1;
         }
 
-        self.string = &self.string[c.len_utf8()..];
+        self.src = &self.src[c.len_utf8()..];
 
-        Ok(c.len_utf8())
+        Ok(c)
     }
 
+    pub fn peek(&self) -> Result<char> {
+        self.src.chars().next().ok_or(Error::Eof)
+    }
+
+    pub fn bytes(&self) -> &'a [u8] {
+        self.src.as_bytes()
+    }
+
+    pub fn source(&self) -> &'a str {
+        self.src
+    }
+
+    pub fn pre_ws_source(&self) -> &'a str {
+        self.pre_ws_src
+    }
+
+    pub fn consume_str(&mut self, s: &str) -> bool {
+        if self.src.starts_with(s) {
+            let _ = self.advance(s.len());
+
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn consume_char(&mut self, expected: char) -> bool {
+        if let Ok(c) = self.peek() {
+            if c == expected {
+                _ = self.advance_char();
+                return true;
+            }
+        }
+        false
+    }
+
+    fn consume_all(&mut self, all: &[&str]) -> Result<bool> {
+        all.iter()
+            .map(|elem| {
+                if self.consume_str(elem) {
+                    self.skip_ws()?;
+
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            })
+            .fold(Ok(true), |acc, x| acc.and_then(|val| x.map(|x| x && val)))
+    }
+
+    pub fn expect_char(&mut self, expected: char, error: Error) -> Result<()> {
+        self.consume_char(expected).then_some(()).ok_or(error)
+    }
+
+    #[must_use]
+    pub fn next_bytes_while(&self, condition: fn(u8) -> bool) -> usize {
+        self.next_bytes_while_from(0, condition)
+    }
+
+    #[must_use]
+    pub fn next_bytes_while_max(&self, max: usize, condition: fn(u8) -> bool) -> usize {
+        self.next_bytes_while_from_max(0, max, condition)
+    }
+
+    #[must_use]
+    pub fn next_bytes_while_from(&self, from: usize, condition: fn(u8) -> bool) -> usize {
+        self.src[from..]
+            .as_bytes()
+            .iter()
+            .take_while(|&&b| condition(b))
+            .count()
+    }
+
+    #[must_use]
+    pub fn next_bytes_while_from_max(
+        &self,
+        from: usize,
+        mut max: usize,
+        condition: fn(u8) -> bool,
+    ) -> usize {
+        self.src[from..]
+            .as_bytes()
+            .iter()
+            .take_while(|&&b| {
+                max > 0 && {
+                    max -= 1;
+                    condition(b)
+                }
+            })
+            .count()
+    }
+
+    #[must_use]
+    pub fn next_chars_while(&self, condition: fn(char) -> bool) -> usize {
+        self.next_chars_while_from(0, condition)
+    }
+
+    #[must_use]
+    pub fn next_chars_while_from(&self, from: usize, condition: fn(char) -> bool) -> usize {
+        self.src[from..]
+            .find(|c| !condition(c))
+            .unwrap_or(self.src.len() - from)
+    }
+
+    pub fn peek_char_or_eof(&self) -> Result<char> {
+        self.src.chars().next().ok_or(Error::Eof)
+    }
+}
+
+/// actual parsing of ron tokens
+impl<'a> Parser<'a> {
     fn parse_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
-        let base = if self.peek() == Some(b'0') {
-            match self.bytes().get(1).copied() {
-                Some(b'x') => 16,
-                Some(b'b') => 2,
-                Some(b'o') => 8,
+        let base = if self.peek_char_or_eof()? == '0' {
+            match self.src.chars().nth(1) {
+                Some('x') => 16,
+                Some('b') => 2,
+                Some('o') => 8,
                 _ => 10,
             }
         } else {
@@ -204,74 +310,70 @@ impl<'a> Bytes<'a> {
             return Err(Error::ExpectedInteger);
         }
 
-        let s = &self.string[..num_bytes];
+        let s = &self.src[..num_bytes];
 
         if s.starts_with('_') {
             return Err(Error::UnderscoreAtBeginning);
         }
 
         fn calc_num<T: Num>(
-            bytes: &mut Bytes,
-            b: &[u8],
+            parser: &mut Parser,
+            s: &str,
             base: u8,
-            mut f: impl FnMut(&mut T, u8) -> bool,
+            f: fn(&mut T, u8) -> bool,
         ) -> Result<T> {
             let mut num_acc = T::from_u8(0);
 
-            for (i, &byte) in b.iter().enumerate() {
-                if byte == b'_' {
+            for (i, byte) in s.chars().enumerate() {
+                if byte == '_' {
                     continue;
                 }
 
                 if num_acc.checked_mul_ext(base) {
-                    let _ = bytes.advance(b.len());
+                    let _ = parser.advance(s.len());
                     return Err(Error::IntegerOutOfBounds);
                 }
 
-                let digit = bytes.decode_hex(byte)?;
+                let digit = parser.decode_hex(byte)?;
 
                 if digit >= base {
-                    let _ = bytes.advance(i);
-                    // we know that the byte is an ASCII character here
-                    return Err(Error::InvalidIntegerDigit {
-                        digit: char::from(byte),
-                        base,
-                    });
+                    let _ = parser.advance(i);
+                    return Err(Error::InvalidIntegerDigit { digit: byte, base });
                 }
 
                 if f(&mut num_acc, digit) {
-                    let _ = bytes.advance(b.len());
+                    let _ = parser.advance(s.len());
                     return Err(Error::IntegerOutOfBounds);
                 }
             }
 
-            let _ = bytes.advance(b.len());
+            let _ = parser.advance(s.len());
 
             Ok(num_acc)
         }
 
         if sign > 0 {
-            calc_num(self, s.as_bytes(), base, T::checked_add_ext)
+            calc_num(self, s, base, T::checked_add_ext)
         } else {
-            calc_num(self, s.as_bytes(), base, T::checked_sub_ext)
+            calc_num(self, s, base, T::checked_sub_ext)
         }
     }
 
     pub fn integer<T: Integer>(&mut self) -> Result<T> {
-        let bytes_backup = self.string;
+        let src_backup = self.src;
 
-        let is_negative = match self.peek_byte_or_eof()? {
-            b'+' => {
-                let _ = self.advance_byte();
+        let is_negative = match self.peek_char_or_eof()? {
+            '+' => {
+                let _ = self.advance_char();
                 false
             }
-            b'-' => {
-                let _ = self.advance_byte();
+            '-' => {
+                let _ = self.advance_char();
                 true
             }
-            b'b' if self.consume("b'") => {
+            'b' if self.consume_str("b'") => {
                 // Parse a byte literal
-                let byte = match self.eat_char()? {
+                let byte = match self.next()? {
                     '\\' => match self.parse_escape(EscapeEncoding::Binary, true)? {
                         // we know that this byte is an ASCII character
                         EscapeCharacter::Ascii(b) => b,
@@ -285,11 +387,11 @@ impl<'a> Bytes<'a> {
                     _ => return Err(Error::ExpectedByteLiteral),
                 };
 
-                if !self.consume("'") {
+                if !self.consume_char('\'') {
                     return Err(Error::ExpectedByteLiteral);
                 }
 
-                let bytes_ron = &bytes_backup[..bytes_backup.len() - self.string.len()];
+                let bytes_ron = &src_backup[..src_backup.len() - self.src.len()];
 
                 return T::try_from_parsed_integer(ParsedInteger::U8(byte), bytes_ron);
             }
@@ -299,64 +401,64 @@ impl<'a> Bytes<'a> {
 
         let num_bytes = self.next_bytes_while(is_int_char);
 
-        if self.string[num_bytes..].starts_with(&['i', 'u']) {
-            let int_bytes_backup = *self;
+        if self.src[num_bytes..].starts_with(&['i', 'u']) {
+            let int_parser_backup = *self;
             let _ = self.advance(num_bytes);
 
             #[allow(clippy::never_loop)]
             loop {
                 let (res, suffix_bytes) = if self.consume_ident("i8") {
-                    let suffix_bytes = self.string;
-                    *self = int_bytes_backup;
+                    let suffix_bytes = self.src;
+                    *self = int_parser_backup;
                     (
                         self.parse_integer::<i8>(sign).map(ParsedInteger::I8),
                         suffix_bytes,
                     )
                 } else if self.consume_ident("i16") {
-                    let suffix_bytes = self.string;
-                    *self = int_bytes_backup;
+                    let suffix_bytes = self.src;
+                    *self = int_parser_backup;
                     (
                         self.parse_integer::<i16>(sign).map(ParsedInteger::I16),
                         suffix_bytes,
                     )
                 } else if self.consume_ident("i32") {
-                    let suffix_bytes = self.string;
-                    *self = int_bytes_backup;
+                    let suffix_bytes = self.src;
+                    *self = int_parser_backup;
                     (
                         self.parse_integer::<i32>(sign).map(ParsedInteger::I32),
                         suffix_bytes,
                     )
                 } else if self.consume_ident("i64") {
-                    let suffix_bytes = self.string;
-                    *self = int_bytes_backup;
+                    let suffix_bytes = self.src;
+                    *self = int_parser_backup;
                     (
                         self.parse_integer::<i64>(sign).map(ParsedInteger::I64),
                         suffix_bytes,
                     )
                 } else if self.consume_ident("u8") {
-                    let suffix_bytes = self.string;
-                    *self = int_bytes_backup;
+                    let suffix_bytes = self.src;
+                    *self = int_parser_backup;
                     (
                         self.parse_integer::<u8>(sign).map(ParsedInteger::U8),
                         suffix_bytes,
                     )
                 } else if self.consume_ident("u16") {
-                    let suffix_bytes = self.string;
-                    *self = int_bytes_backup;
+                    let suffix_bytes = self.src;
+                    *self = int_parser_backup;
                     (
                         self.parse_integer::<u16>(sign).map(ParsedInteger::U16),
                         suffix_bytes,
                     )
                 } else if self.consume_ident("u32") {
-                    let suffix_bytes = self.string;
-                    *self = int_bytes_backup;
+                    let suffix_bytes = self.src;
+                    *self = int_parser_backup;
                     (
                         self.parse_integer::<u32>(sign).map(ParsedInteger::U32),
                         suffix_bytes,
                     )
                 } else if self.consume_ident("u64") {
-                    let suffix_bytes = self.string;
-                    *self = int_bytes_backup;
+                    let suffix_bytes = self.src;
+                    *self = int_parser_backup;
                     (
                         self.parse_integer::<u64>(sign).map(ParsedInteger::U64),
                         suffix_bytes,
@@ -364,15 +466,15 @@ impl<'a> Bytes<'a> {
                 } else {
                     #[cfg(feature = "integer128")]
                     if self.consume_ident("i128") {
-                        let suffix_bytes = self.string;
-                        *self = int_bytes_backup;
+                        let suffix_bytes = self.src;
+                        *self = int_parser_backup;
                         (
                             self.parse_integer::<i128>(sign).map(ParsedInteger::I128),
                             suffix_bytes,
                         )
                     } else if self.consume_ident("u128") {
-                        let suffix_bytes = self.string;
-                        *self = int_bytes_backup;
+                        let suffix_bytes = self.src;
+                        *self = int_parser_backup;
                         (
                             self.parse_integer::<u128>(sign).map(ParsedInteger::U128),
                             suffix_bytes,
@@ -394,12 +496,12 @@ impl<'a> Bytes<'a> {
                     let _ = self.identifier();
                 }
 
-                let integer_ron = &bytes_backup[..bytes_backup.len() - suffix_bytes.len()];
+                let integer_ron = &src_backup[..src_backup.len() - suffix_bytes.len()];
 
                 return res.and_then(|parsed| T::try_from_parsed_integer(parsed, integer_ron));
             }
 
-            *self = int_bytes_backup;
+            *self = int_parser_backup;
         }
 
         T::parse(self, sign)
@@ -413,7 +515,7 @@ impl<'a> Bytes<'a> {
             };
         }
 
-        let bytes_backup = *self;
+        let parser_backup = *self;
 
         let (integer_err, integer_bytes) = match self.integer::<ParsedInteger>() {
             Ok(integer) => {
@@ -435,7 +537,7 @@ impl<'a> Bytes<'a> {
             Err(err) => (err, *self),
         };
 
-        *self = bytes_backup;
+        *self = parser_backup;
 
         // Fall-back to parse an out-of-range integer as a float
         match self.float::<ParsedFloat>() {
@@ -454,59 +556,31 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn bool(&mut self) -> Result<bool> {
-        if self.consume("true") {
+        if self.consume_str("true") {
             Ok(true)
-        } else if self.consume("false") {
+        } else if self.consume_str("false") {
             Ok(false)
         } else {
             Err(Error::ExpectedBoolean)
         }
     }
 
-    pub fn bytes(&self) -> &'a [u8] {
-        self.string.as_bytes()
-    }
-
     pub fn char(&mut self) -> Result<char> {
-        if !self.consume("'") {
-            return Err(Error::ExpectedChar);
-        }
+        self.expect_char('\'', Error::ExpectedChar)?;
 
-        let c = self.peek_byte_or_eof()?;
+        let c = self.next()?;
 
-        let c = if c == b'\\' {
-            let _ = self.advance(1);
-
+        let c = if c == '\\' {
             match self.parse_escape(EscapeEncoding::Utf8, true)? {
                 // we know that this byte is an ASCII character
                 EscapeCharacter::Ascii(b) => char::from(b),
                 EscapeCharacter::Utf8(c) => c,
             }
         } else {
-            // Check where the end of the char (') is and try to
-            // interpret the rest as UTF-8
-
-            let max = self.bytes().len().min(5);
-            let pos: usize = self.bytes()[..max]
-                .iter()
-                .position(|&x| x == b'\'')
-                .ok_or(Error::ExpectedChar)?;
-            let s = &self.string[0..pos];
-            let mut chars = s.chars();
-
-            let first = chars.next().ok_or(Error::ExpectedChar)?;
-            if chars.next().is_some() {
-                return Err(Error::ExpectedChar);
-            }
-
-            let _ = self.advance(pos);
-
-            first
+            c
         };
 
-        if !self.consume("'") {
-            return Err(Error::ExpectedChar);
-        }
+        self.expect_char('\'', Error::ExpectedChar)?;
 
         Ok(c)
     }
@@ -514,7 +588,7 @@ impl<'a> Bytes<'a> {
     pub fn comma(&mut self) -> Result<bool> {
         self.skip_ws()?;
 
-        if self.consume(",") {
+        if self.consume_char(',') {
             self.skip_ws()?;
 
             Ok(true)
@@ -526,11 +600,11 @@ impl<'a> Bytes<'a> {
     /// Only returns true if the char after `ident` cannot belong
     /// to an identifier.
     pub fn check_ident(&mut self, ident: &str) -> bool {
-        self.test_for(ident) && !self.check_ident_other_char(ident.len())
+        self.src.starts_with(ident) && !self.check_ident_other_char(ident.len())
     }
 
     fn check_ident_other_char(&self, index: usize) -> bool {
-        self.string[index..]
+        self.src[index..]
             .chars()
             .next()
             .map_or(false, is_xid_continue)
@@ -557,26 +631,26 @@ impl<'a> Bytes<'a> {
         tuple: TupleMode,
     ) -> Result<StructType> {
         fn check_struct_type_inner(
-            bytes: &mut Bytes,
+            parser: &mut Parser,
             newtype: NewtypeMode,
             tuple: TupleMode,
         ) -> Result<StructType> {
-            if matches!(newtype, NewtypeMode::NoParensMeanUnit) && !bytes.consume("(") {
+            if matches!(newtype, NewtypeMode::NoParensMeanUnit) && !parser.consume_char('(') {
                 return Ok(StructType::Unit);
             }
 
-            bytes.skip_ws()?;
+            parser.skip_ws()?;
 
-            if bytes.identifier().is_ok() {
-                bytes.skip_ws()?;
+            if parser.identifier().is_ok() {
+                parser.skip_ws()?;
 
-                match bytes.peek() {
+                match parser.peek() {
                     // Definitely a struct with named fields
-                    Some(b':') => return Ok(StructType::Named),
+                    Ok(':') => return Ok(StructType::Named),
                     // Definitely a tuple struct with fields
-                    Some(b',') => return Ok(StructType::Tuple),
+                    Ok(',') => return Ok(StructType::Tuple),
                     // Either a newtype or a tuple struct
-                    Some(b')') => return Ok(StructType::NewtypeOrTuple),
+                    Ok(')') => return Ok(StructType::NewtypeOrTuple),
                     // Something else, let's investigate further
                     _ => (),
                 };
@@ -592,26 +666,26 @@ impl<'a> Bytes<'a> {
             // Skip ahead to see if the value is followed by a comma
             while braces > 0 {
                 // Skip spurious braces in comments, strings, and characters
-                bytes.skip_ws()?;
-                let mut bytes_copy = *bytes;
+                parser.skip_ws()?;
+                let mut bytes_copy = *parser;
                 if bytes_copy.char().is_ok() {
-                    *bytes = bytes_copy;
+                    *parser = bytes_copy;
                 }
-                let mut bytes_copy = *bytes;
+                let mut bytes_copy = *parser;
                 if bytes_copy.string().is_ok() {
-                    *bytes = bytes_copy;
+                    *parser = bytes_copy;
                 }
-                let mut bytes_copy = *bytes;
+                let mut bytes_copy = *parser;
                 if bytes_copy.byte_string().is_ok() {
-                    *bytes = bytes_copy;
+                    *parser = bytes_copy;
                 }
 
-                let c = bytes.eat_byte()?;
-                if c == b'(' || c == b'[' || c == b'{' {
+                let c = parser.next()?;
+                if matches!(c, '(' | '[' | '{') {
                     braces += 1;
-                } else if c == b')' || c == b']' || c == b'}' {
+                } else if matches!(c, ')' | ']' | '}') {
                     braces -= 1;
-                } else if c == b',' && braces == 1 {
+                } else if c == ',' && braces == 1 {
                     comma = true;
                     break;
                 }
@@ -672,56 +746,9 @@ impl<'a> Bytes<'a> {
         Ok(true)
     }
 
-    pub fn consume(&mut self, s: &str) -> bool {
-        if self.test_for(s) {
-            let _ = self.advance(s.len());
-
-            true
-        } else {
-            false
-        }
-    }
-
-    fn consume_all(&mut self, all: &[&str]) -> Result<bool> {
-        all.iter()
-            .map(|elem| {
-                if self.consume(elem) {
-                    self.skip_ws()?;
-
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
-            })
-            .try_fold(true, |acc, x| x.map(|x| acc && x))
-    }
-
-    pub fn eat_byte(&mut self) -> Result<u8> {
-        let peek = self.peek_byte_or_eof()?;
-        if peek.is_ascii() {
-            let _ = self.advance_byte();
-
-            Ok(peek)
-        } else {
-            Err(Error::NoCharBoundary)
-        }
-    }
-
-    pub fn eat_char(&mut self) -> Result<char> {
-        let peek = self.peek_char_or_eof()?;
-        let _ = self.advance_char();
-
-        Ok(peek)
-    }
-
-    pub fn expect_byte(&mut self, byte: u8, error: Error) -> Result<()> {
-        self.eat_byte()
-            .and_then(|b| if b == byte { Ok(()) } else { Err(error) })
-    }
-
     /// Returns the extensions bit mask.
     fn extensions(&mut self) -> Result<Extensions> {
-        if self.peek() != Some(b'#') {
+        if self.peek() != Ok('#') {
             return Ok(Extensions::empty());
         }
 
@@ -779,20 +806,20 @@ impl<'a> Bytes<'a> {
                 return T::parse(literal);
             }
 
-            if self.string.starts_with(literal)
-                && self.string[literal.len()..].starts_with(F32_SUFFIX)
+            if self.src.starts_with(literal)
+                && self.src[literal.len()..].starts_with(F32_SUFFIX)
                 && !self.check_ident_other_char(literal.len() + F32_SUFFIX.len())
             {
-                let float_ron = &self.string[..literal.len() + F32_SUFFIX.len()];
+                let float_ron = &self.src[..literal.len() + F32_SUFFIX.len()];
                 let _ = self.advance(literal.len() + F32_SUFFIX.len());
                 return T::try_from_parsed_float(ParsedFloat::F32(*value_f32), float_ron);
             }
 
-            if self.string.starts_with(literal)
-                && self.string[literal.len()..].starts_with(F64_SUFFIX)
+            if self.src.starts_with(literal)
+                && self.src[literal.len()..].starts_with(F64_SUFFIX)
                 && !self.check_ident_other_char(literal.len() + F64_SUFFIX.len())
             {
-                let float_ron = &self.string[..literal.len() + F64_SUFFIX.len()];
+                let float_ron = &self.src[..literal.len() + F64_SUFFIX.len()];
                 let _ = self.advance(literal.len() + F64_SUFFIX.len());
                 return T::try_from_parsed_float(ParsedFloat::F64(*value_f64), float_ron);
             }
@@ -804,14 +831,14 @@ impl<'a> Bytes<'a> {
             return Err(Error::ExpectedFloat);
         }
 
-        if self.peek_byte_or_eof()? == b'_' {
+        if self.peek_char_or_eof()? == '_' {
             return Err(Error::UnderscoreAtBeginning);
         }
 
         let mut f = String::with_capacity(num_bytes);
         let mut allow_underscore = false;
 
-        for (i, b) in self.string.as_bytes()[0..num_bytes].iter().enumerate() {
+        for (i, b) in self.src.as_bytes()[0..num_bytes].iter().enumerate() {
             match *b {
                 b'_' if allow_underscore => continue,
                 b'_' => {
@@ -827,8 +854,8 @@ impl<'a> Bytes<'a> {
             f.push(char::from(*b));
         }
 
-        if self.string[num_bytes..].starts_with('f') {
-            let bytes_backup = *self;
+        if self.src[num_bytes..].starts_with('f') {
+            let parser_backup = *self;
             let _ = self.advance(num_bytes);
 
             #[allow(clippy::never_loop)]
@@ -844,18 +871,17 @@ impl<'a> Bytes<'a> {
                 let parsed = match res {
                     Ok(parsed) => parsed,
                     Err(_) => {
-                        *self = bytes_backup;
+                        *self = parser_backup;
                         return Err(Error::ExpectedFloat);
                     }
                 };
 
-                let float_ron =
-                    &bytes_backup.string[..bytes_backup.string.len() - self.string.len()];
+                let float_ron = &parser_backup.src[..parser_backup.src.len() - self.src.len()];
 
                 return T::try_from_parsed_float(parsed, float_ron);
             }
 
-            *self = bytes_backup;
+            *self = parser_backup;
         }
 
         let value = T::parse(&f)?;
@@ -866,13 +892,11 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
-        let first = self.peek_char_or_eof()?;
+        let first = self.peek()?;
         if !is_ident_first_char(first) {
             if is_ident_raw_char(first) {
                 let ident_bytes = self.next_chars_while(is_ident_raw_char);
-                return Err(Error::SuggestRawIdentifier(
-                    self.string[..ident_bytes].into(),
-                ));
+                return Err(Error::SuggestRawIdentifier(self.src[..ident_bytes].into()));
             }
 
             return Err(Error::ExpectedIdentifier);
@@ -881,9 +905,9 @@ impl<'a> Bytes<'a> {
         // If the next two bytes signify the start of a (raw) byte string
         //  literal, return an error.
         if first == 'b' {
-            match self.string.chars().nth(1) {
+            match self.src.chars().nth(1) {
                 Some('"' | '\'') => return Err(Error::ExpectedIdentifier),
-                Some('r') => match self.string.chars().nth(2) {
+                Some('r') => match self.src.chars().nth(2) {
                     Some('#' | '"') => return Err(Error::ExpectedIdentifier),
                     Some(_) | None => (),
                 },
@@ -892,10 +916,10 @@ impl<'a> Bytes<'a> {
         };
 
         let length = if first == 'r' {
-            match self.string.chars().nth(1) {
+            match self.src.chars().nth(1) {
                 Some('"') => return Err(Error::ExpectedIdentifier),
                 Some('#') => {
-                    let after_next = self.string.chars().nth(2).unwrap_or_default();
+                    let after_next = self.src.chars().nth(2).unwrap_or_default();
                     // Note: it's important to check this before advancing forward, so that
                     // the value-type deserializer can fall back to parsing it differently.
                     if !is_ident_raw_char(after_next) {
@@ -911,7 +935,7 @@ impl<'a> Bytes<'a> {
 
                     if raw_ident_length > std_ident_length {
                         return Err(Error::SuggestRawIdentifier(
-                            self.string[..raw_ident_length].into(),
+                            self.src[..raw_ident_length].into(),
                         ));
                     }
 
@@ -925,45 +949,23 @@ impl<'a> Bytes<'a> {
 
             if raw_ident_length > std_ident_length {
                 return Err(Error::SuggestRawIdentifier(
-                    self.string[..raw_ident_length].into(),
+                    self.src[..raw_ident_length].into(),
                 ));
             }
 
             std_ident_length
         };
 
-        let ident = &self.string[..length];
+        let ident = &self.src[..length];
         let _ = self.advance(length);
 
         Ok(ident)
     }
 
-    pub fn next_bytes_while(&self, condition: fn(u8) -> bool) -> usize {
-        self.next_bytes_while_from(0, condition)
-    }
-
-    pub fn next_bytes_while_from(&self, from: usize, condition: fn(u8) -> bool) -> usize {
-        self.string[from..]
-            .as_bytes()
-            .iter()
-            .take_while(|&&b| condition(b))
-            .count()
-    }
-
-    pub fn next_chars_while(&self, condition: fn(char) -> bool) -> usize {
-        self.next_chars_while_from(0, condition)
-    }
-
-    pub fn next_chars_while_from(&self, from: usize, condition: fn(char) -> bool) -> usize {
-        self.string[from..]
-            .find(|c| !condition(c))
-            .unwrap_or(self.string.len() - from)
-    }
-
     pub fn next_bytes_is_float(&self) -> bool {
-        if let Some(byte) = self.peek() {
-            let skip = match byte {
-                b'+' | b'-' => 1,
+        if let Ok(c) = self.peek() {
+            let skip = match c {
+                '+' | '-' => 1,
                 _ => 0,
             };
             let flen = self.next_bytes_while_from(skip, is_float_char);
@@ -975,19 +977,19 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
-        if self.string.is_empty() {
+        if self.src.is_empty() {
             return Ok(());
         }
 
-        if (self.string.len() + self.last_ws_len) < self.pre_ws_string.len() {
-            // [[last whitespace] ... [string]] means the last whitespace
+        if (self.src.len() + self.last_ws_len) < self.pre_ws_src.len() {
+            // [[last whitespace] ... [src]] means the last whitespace
             //  is disjoint from this one and we need to reset the pre ws
-            self.pre_ws_string = self.string;
+            self.pre_ws_src = self.src;
         }
 
         loop {
             while self.peek().map_or(false, is_whitespace_char) {
-                let _ = self.advance_byte();
+                let _ = self.advance_char();
             }
 
             match self.skip_comment()? {
@@ -1000,29 +1002,13 @@ impl<'a> Bytes<'a> {
             }
         }
 
-        self.last_ws_len = self.pre_ws_string.len() - self.string.len();
+        self.last_ws_len = self.pre_ws_src.len() - self.src.len();
 
         Ok(())
     }
 
     pub fn has_unclosed_line_comment(&self) -> bool {
-        self.string.is_empty() && self.last_ws_len == usize::MAX
-    }
-
-    pub fn pre_ws_bytes(&self) -> &'a [u8] {
-        self.pre_ws_string.as_bytes()
-    }
-
-    pub fn peek(&self) -> Option<u8> {
-        self.bytes().first().copied()
-    }
-
-    pub fn peek_byte_or_eof(&self) -> Result<u8> {
-        self.bytes().first().copied().ok_or(Error::Eof)
-    }
-
-    pub fn peek_char_or_eof(&self) -> Result<char> {
-        self.string.chars().next().ok_or(Error::Eof)
+        self.src.is_empty() && self.last_ws_len == usize::MAX
     }
 
     pub fn byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
@@ -1049,7 +1035,7 @@ impl<'a> Bytes<'a> {
             }
         }
 
-        if self.consume("\"") {
+        if self.consume_char('"') {
             let base64_str = self.escaped_string()?;
             let base64_result = ParsedByteStr::try_from_base64(base64_str.clone());
 
@@ -1064,7 +1050,7 @@ impl<'a> Bytes<'a> {
                     Err(_) => Err(Error::ExpectedByteString),
                 }
             }
-        } else if self.consume("r") {
+        } else if self.consume_char('r') {
             let base64_str = self.raw_string()?;
             let base64_result = ParsedByteStr::try_from_base64(base64_str.clone());
 
@@ -1079,9 +1065,9 @@ impl<'a> Bytes<'a> {
                     Err(_) => Err(Error::ExpectedByteString),
                 }
             }
-        } else if self.consume("b\"") {
+        } else if self.consume_str("b\"") {
             self.escaped_byte_string()
-        } else if self.consume("br") {
+        } else if self.consume_str("br") {
             self.raw_byte_string()
         } else {
             Err(Error::ExpectedByteString)
@@ -1110,9 +1096,9 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn string(&mut self) -> Result<ParsedStr<'a>> {
-        if self.consume("\"") {
+        if self.consume_str("\"") {
             self.escaped_string()
-        } else if self.consume("r") {
+        } else if self.consume_str("r") {
             self.raw_string()
         } else {
             Err(Error::ExpectedString)
@@ -1152,14 +1138,14 @@ impl<'a> Bytes<'a> {
             .ok_or(Error::ExpectedStringEnd)?;
 
         if *end_or_escape == b'"' {
-            let s = &self.string.as_bytes()[..i];
+            let s = &self.src.as_bytes()[..i];
 
             // Advance by the number of bytes of the string
             // + 1 for the `"`.
             Ok((ParsedByteStr::Slice(s), i + 1))
         } else {
             let mut i = i;
-            let mut s = self.string.as_bytes()[..i].to_vec();
+            let mut s = self.src.as_bytes()[..i].to_vec();
 
             loop {
                 let _ = self.advance(i + 1);
@@ -1184,7 +1170,7 @@ impl<'a> Bytes<'a> {
                     .ok_or(Error::ExpectedStringEnd)?;
 
                 i = new_i;
-                s.extend_from_slice(&self.string.as_bytes()[..i]);
+                s.extend_from_slice(&self.src.as_bytes()[..i]);
 
                 if *end_or_escape == b'"' {
                     // Advance to the end of the string + 1 for the `"`.
@@ -1196,32 +1182,26 @@ impl<'a> Bytes<'a> {
 
     fn raw_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
         let num_hashes = self.next_bytes_while(|b| b == b'#');
-        let hashes = &self.string[..num_hashes];
+        let hashes = &self.src[..num_hashes];
         let _ = self.advance(num_hashes);
 
-        if !self.consume("\"") {
-            return Err(Error::ExpectedString);
-        }
+        self.expect_char('"', Error::ExpectedString)?;
 
         let ending = ["\"", hashes].concat();
-        let i = self.string.find(&ending).ok_or(Error::ExpectedStringEnd)?;
+        let i = self.src.find(&ending).ok_or(Error::ExpectedStringEnd)?;
 
-        let s = &self.string.as_bytes()[..i];
+        let s = &self.src.as_bytes()[..i];
 
         // Advance by the number of bytes of the byte string
         // + `num_hashes` + 1 for the `"`.
         Ok((ParsedByteStr::Slice(s), i + num_hashes + 1))
     }
 
-    fn test_for(&self, s: &str) -> bool {
-        self.string.starts_with(s)
-    }
-
     fn decode_ascii_escape(&mut self) -> Result<u8> {
         let mut n = 0;
         for _ in 0..2 {
             n <<= 4;
-            let byte = self.eat_byte()?;
+            let byte = self.next()?;
             let decoded = self.decode_hex(byte)?;
             n |= decoded;
         }
@@ -1230,8 +1210,12 @@ impl<'a> Bytes<'a> {
     }
 
     #[inline]
-    fn decode_hex(&self, c: u8) -> Result<u8> {
-        match c {
+    fn decode_hex(&self, c: char) -> Result<u8> {
+        if !c.is_ascii() {
+            return Err(Error::InvalidEscape("Non-hex digit found"));
+        }
+
+        match c as u8 {
             c @ b'0'..=b'9' => Ok(c - b'0'),
             c @ b'a'..=b'f' => Ok(10 + c - b'a'),
             c @ b'A'..=b'F' => Ok(10 + c - b'A'),
@@ -1240,15 +1224,15 @@ impl<'a> Bytes<'a> {
     }
 
     fn parse_escape(&mut self, encoding: EscapeEncoding, is_char: bool) -> Result<EscapeCharacter> {
-        let c = match self.eat_byte()? {
-            b'\'' => EscapeCharacter::Ascii(b'\''),
-            b'"' => EscapeCharacter::Ascii(b'"'),
-            b'\\' => EscapeCharacter::Ascii(b'\\'),
-            b'n' => EscapeCharacter::Ascii(b'\n'),
-            b'r' => EscapeCharacter::Ascii(b'\r'),
-            b't' => EscapeCharacter::Ascii(b'\t'),
-            b'0' => EscapeCharacter::Ascii(b'\0'),
-            b'x' => {
+        let c = match self.next()? {
+            '\'' => EscapeCharacter::Ascii(b'\''),
+            '"' => EscapeCharacter::Ascii(b'"'),
+            '\\' => EscapeCharacter::Ascii(b'\\'),
+            'n' => EscapeCharacter::Ascii(b'\n'),
+            'r' => EscapeCharacter::Ascii(b'\r'),
+            't' => EscapeCharacter::Ascii(b'\t'),
+            '0' => EscapeCharacter::Ascii(b'\0'),
+            'x' => {
                 // Fast exit for ascii escape in byte string
                 let b: u8 = self.decode_ascii_escape()?;
                 if let EscapeEncoding::Binary = encoding {
@@ -1272,7 +1256,7 @@ impl<'a> Bytes<'a> {
                 // UTF-8 character needs up to four bytes and we have already
                 //  consumed one, so at most three to go
                 for i in 1..4 {
-                    if !self.consume(r"\x") {
+                    if !self.consume_str(r"\x") {
                         return Err(Error::InvalidEscape(
                             "Not a valid byte-escaped Unicode character",
                         ));
@@ -1290,16 +1274,16 @@ impl<'a> Bytes<'a> {
                     "Not a valid byte-escaped Unicode character",
                 ));
             }
-            b'u' => {
-                self.expect_byte(b'{', Error::InvalidEscape("Missing { in Unicode escape"))?;
+            'u' => {
+                self.expect_char('{', Error::InvalidEscape("Missing { in Unicode escape"))?;
 
                 let mut bytes: u32 = 0;
                 let mut num_digits = 0;
 
                 while num_digits < 6 {
-                    let byte = self.peek_byte_or_eof()?;
+                    let byte = self.peek_char_or_eof()?;
 
-                    if byte == b'}' {
+                    if byte == '}' {
                         break;
                     } else {
                         num_digits += self.advance_char()?;
@@ -1316,8 +1300,8 @@ impl<'a> Bytes<'a> {
                     ));
                 }
 
-                self.expect_byte(
-                    b'}',
+                self.expect_char(
+                    '}',
                     Error::InvalidEscape("No } at the end of Unicode escape"),
                 )?;
                 let c = char_from_u32(bytes).ok_or(Error::InvalidEscape(
@@ -1333,9 +1317,9 @@ impl<'a> Bytes<'a> {
     }
 
     fn skip_comment(&mut self) -> Result<Option<Comment>> {
-        if self.consume("/") {
-            match self.eat_byte()? {
-                b'/' => {
+        if self.consume_char('/') {
+            match self.next()? {
+                '/' => {
                     let bytes = self.next_bytes_while(|b| b != b'\n');
 
                     let _ = self.advance(bytes);
@@ -1346,22 +1330,22 @@ impl<'a> Bytes<'a> {
                         Ok(Some(Comment::ClosedLine))
                     }
                 }
-                b'*' => {
+                '*' => {
                     let mut level = 1;
 
                     while level > 0 {
                         let bytes = self.next_bytes_while(|b| !matches!(b, b'/' | b'*'));
 
-                        if self.string.is_empty() {
+                        if self.src.is_empty() {
                             return Err(Error::UnclosedBlockComment);
                         }
 
                         let _ = self.advance(bytes);
 
                         // check whether / or * and take action
-                        if self.consume("/*") {
+                        if self.consume_str("/*") {
                             level += 1;
-                        } else if self.consume("*/") {
+                        } else if self.consume_str("*/") {
                             level -= 1;
                         } else {
                             self.advance_char()
@@ -1371,7 +1355,7 @@ impl<'a> Bytes<'a> {
 
                     Ok(Some(Comment::Block))
                 }
-                b => Err(Error::UnexpectedByte(b)),
+                c => Err(Error::UnexpectedChar(c)),
             }
         } else {
             Ok(None)
@@ -1447,7 +1431,7 @@ impl_num! { i8 i16 i32 i64 u8 u16 u32 u64 }
 impl_num! { i128 u128 }
 
 pub trait Integer: Sized {
-    fn parse(bytes: &mut Bytes, sign: i8) -> Result<Self>;
+    fn parse(parser: &mut Parser, sign: i8) -> Result<Self>;
 
     fn try_from_parsed_integer(parsed: ParsedInteger, ron: &str) -> Result<Self>;
 }
@@ -1455,8 +1439,8 @@ pub trait Integer: Sized {
 macro_rules! impl_integer {
     ($wrap:ident($ty:ty)) => {
         impl Integer for $ty {
-            fn parse(bytes: &mut Bytes, sign: i8) -> Result<Self> {
-                bytes.parse_integer(sign)
+            fn parse(parser: &mut Parser, sign: i8) -> Result<Self> {
+                parser.parse_integer(sign)
             }
 
             fn try_from_parsed_integer(parsed: ParsedInteger, ron: &str) -> Result<Self> {
@@ -1504,9 +1488,9 @@ pub enum ParsedInteger {
 }
 
 impl Integer for ParsedInteger {
-    fn parse(bytes: &mut Bytes, sign: i8) -> Result<Self> {
+    fn parse(parser: &mut Parser, sign: i8) -> Result<Self> {
         if sign < 0 {
-            let signed = bytes.parse_integer::<LargeSInt>(-1)?;
+            let signed = parser.parse_integer::<LargeSInt>(-1)?;
 
             return if let Ok(x) = i8::try_from(signed) {
                 Ok(ParsedInteger::I8(x))
@@ -1528,7 +1512,7 @@ impl Integer for ParsedInteger {
             };
         }
 
-        let unsigned = bytes.parse_integer::<LargeUInt>(1)?;
+        let unsigned = parser.parse_integer::<LargeUInt>(1)?;
 
         if let Ok(x) = u8::try_from(unsigned) {
             Ok(ParsedInteger::U8(x))
@@ -1677,33 +1661,33 @@ mod tests {
 
     #[test]
     fn decode_x10() {
-        let mut bytes = Bytes::new(b"10").unwrap();
-        assert_eq!(bytes.decode_ascii_escape(), Ok(0x10));
+        let mut bytes = Parser::new("10").unwrap();
+        assert_eq!(bytes.decode_ascii_escape(), Ok(b'\x10'));
     }
 
     #[test]
     fn track_prior_ws() {
-        const BYTES: &[u8] = b"   /*hey*/ 42       /*bye*/ 24  ";
-        let mut bytes = Bytes::new(BYTES).unwrap();
+        const SOURCE: &str = "   /*hey*/ 42       /*bye*/ 24  ";
+        let mut bytes = Parser::new(SOURCE).unwrap();
 
-        assert_eq!(bytes.bytes(), b"42       /*bye*/ 24  ");
-        assert_eq!(bytes.pre_ws_bytes(), BYTES);
+        assert_eq!(bytes.source(), "42       /*bye*/ 24  ");
+        assert_eq!(bytes.pre_ws_source(), SOURCE);
 
         bytes.skip_ws().unwrap();
 
-        assert_eq!(bytes.bytes(), b"42       /*bye*/ 24  ");
-        assert_eq!(bytes.pre_ws_bytes(), BYTES);
+        assert_eq!(bytes.source(), "42       /*bye*/ 24  ");
+        assert_eq!(bytes.pre_ws_source(), SOURCE);
 
         assert_eq!(bytes.integer::<u8>().unwrap(), 42);
 
-        assert_eq!(bytes.bytes(), b"       /*bye*/ 24  ");
-        assert_eq!(bytes.pre_ws_bytes(), BYTES);
+        assert_eq!(bytes.source(), "       /*bye*/ 24  ");
+        assert_eq!(bytes.pre_ws_source(), SOURCE);
 
         bytes.skip_ws().unwrap();
         bytes.skip_ws().unwrap();
 
-        assert_eq!(bytes.bytes(), b"24  ");
-        assert_eq!(bytes.pre_ws_bytes(), b"       /*bye*/ 24  ");
+        assert_eq!(bytes.source(), "24  ");
+        assert_eq!(bytes.pre_ws_source(), "       /*bye*/ 24  ");
     }
 
     #[test]
