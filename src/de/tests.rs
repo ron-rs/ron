@@ -4,7 +4,7 @@ use serde_derive::Deserialize;
 use crate::{
     de::from_str,
     error::{Error, Position, SpannedError, SpannedResult},
-    parse::{AnyNum, Bytes},
+    parse::{AnyNum, Parser},
 };
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -346,7 +346,7 @@ fn test_numbers() {
 }
 
 fn de_any_number(s: &str) -> AnyNum {
-    let mut bytes = Bytes::new(s.as_bytes()).unwrap();
+    let mut bytes = Parser::new(s).unwrap();
 
     bytes.any_num().unwrap()
 }
