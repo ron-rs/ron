@@ -58,11 +58,11 @@ const ENCODINGS: [u8; 256] = [
 ];
 
 const fn is_int_char(c: u8) -> bool {
-    ENCODINGS[c as usize] & INT_CHAR != 0
+    c.is_ascii_hexdigit() || c == b'_'
 }
 
 const fn is_float_char(c: u8) -> bool {
-    ENCODINGS[c as usize] & FLOAT_CHAR != 0
+    c.is_ascii_digit() || matches!(c, b'e'|b'E'|b'.'|b'+'|b'-')
 }
 
 pub fn is_ident_first_char(c: char) -> bool {
