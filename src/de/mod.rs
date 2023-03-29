@@ -125,7 +125,7 @@ impl<'de> Deserializer<'de> {
     pub fn end(&mut self) -> Result<()> {
         self.parser.skip_ws()?;
 
-        if dbg!(self.parser).src().is_empty() {
+        if self.parser.src().is_empty() {
             Ok(())
         } else {
             Err(Error::TrailingCharacters)
