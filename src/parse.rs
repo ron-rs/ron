@@ -102,12 +102,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn advance(&mut self, bytes: usize) -> Result<()> {
-        let mut idx = 0;
-        while idx < bytes {
-            idx += self.advance_char()?;
+    pub fn advance(&mut self, mut bytes: usize) -> Result<()> {
+        while bytes > 0 {
+            bytes -= self.advance_char()?;
         }
-        debug_assert_eq!(idx, bytes, "bytes are a valid unicode boundry");
 
         Ok(())
     }
