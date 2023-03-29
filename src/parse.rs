@@ -13,57 +13,12 @@ use crate::{
     value::Number,
 };
 
-// We have the following char categories.
-const INT_CHAR: u8 = 1 << 0; // [0-9A-Fa-f_]
-const FLOAT_CHAR: u8 = 1 << 1; // [0-9\.Ee+-_]
-
-// We encode each char as belonging to some number of these categories.
-const DIGIT: u8 = INT_CHAR | FLOAT_CHAR; // [0-9]
-const ABCDF: u8 = INT_CHAR; // [ABCDFabcdf]
-const UNDER: u8 = INT_CHAR | FLOAT_CHAR; // [_]
-const E____: u8 = INT_CHAR | FLOAT_CHAR; // [Ee]
-const PUNCT: u8 = FLOAT_CHAR; // [\.+-]
-const _____: u8 = 0; // everything else
-
-// Table of encodings, for fast predicates. (Non-ASCII and special chars are
-// shown with '·' in the comment.)
-#[rustfmt::skip]
-const ENCODINGS: [u8; 256] = [
-/*                     0      1      2      3      4      5      6      7      8      9    */
-/*   0+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/*  10+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/*  20+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/*  30+: ·· !"#$%&' */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/*  40+: ()*+,-./01 */ _____, _____, _____, PUNCT, _____, PUNCT, PUNCT, _____, DIGIT, DIGIT,
-/*  50+: 23456789:; */ DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, DIGIT, _____, _____,
-/*  60+: <=>?@ABCDE */ _____, _____, _____, _____, _____, ABCDF, ABCDF, ABCDF, ABCDF, E____,
-/*  70+: FGHIJKLMNO */ ABCDF, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/*  80+: PQRSTUVWZY */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/*  90+: Z[\]^_`abc */ _____, _____, _____, _____, _____, UNDER, _____, ABCDF, ABCDF, ABCDF,
-/* 100+: defghijklm */ ABCDF, E____, ABCDF, _____, _____, _____, _____, _____, _____, _____,
-/* 110+: nopqrstuvw */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 120+: xyz{|}~··· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 130+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 140+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 150+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 160+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 170+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 180+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 190+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 200+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 210+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 220+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 230+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 240+: ·········· */ _____, _____, _____, _____, _____, _____, _____, _____, _____, _____,
-/* 250+: ·········· */ _____, _____, _____, _____, _____, _____
-];
-
 const fn is_int_char(c: u8) -> bool {
     c.is_ascii_hexdigit() || c == b'_'
 }
 
 const fn is_float_char(c: u8) -> bool {
-    c.is_ascii_digit() || matches!(c, b'e'|b'E'|b'.'|b'+'|b'-')
+    c.is_ascii_digit() || matches!(c, b'e' | b'E' | b'.' | b'+' | b'-' | b'_')
 }
 
 pub fn is_ident_first_char(c: char) -> bool {
@@ -162,7 +117,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn next(&mut self) -> Result<char> {
-        let c = self.peek()?;
+        let c = match self.peek() {
+            Ok(it) => it,
+            Err(err) => return Err(err),
+        };
         if c == '\n' {
             self.cursor.line += 1;
             self.cursor.col = 1;
@@ -176,11 +134,11 @@ impl<'a> Parser<'a> {
     }
 
     pub fn peek(&self) -> Result<char> {
-        self.src.chars().next().ok_or(Error::Eof)
-    }
-
-    pub fn bytes(&self) -> &'a [u8] {
-        self.src.as_bytes()
+        if let Some(c) = self.src.chars().next() {
+            Ok(c)
+        } else {
+            Err(Error::Eof)
+        }
     }
 
     pub fn source(&self) -> &'a str {
@@ -281,6 +239,11 @@ impl<'a> Parser<'a> {
 
     pub fn peek_char_or_eof(&self) -> Result<char> {
         self.src.chars().next().ok_or(Error::Eof)
+    }
+
+    #[must_use]
+    pub fn find_index(&self, condition: fn(char) -> bool) -> Option<(usize, char)> {
+        self.src.char_indices().find(|&(_, c)| condition(c))
     }
 }
 
@@ -1131,13 +1094,10 @@ impl<'a> Parser<'a> {
         use std::iter::repeat;
 
         let (i, end_or_escape) = self
-            .bytes()
-            .iter()
-            .enumerate()
-            .find(|&(_, &b)| b == b'\\' || b == b'"')
+            .find_index(|c| matches!(c, '\\' | '"'))
             .ok_or(Error::ExpectedStringEnd)?;
 
-        if *end_or_escape == b'"' {
+        if end_or_escape == '"' {
             let s = &self.src.as_bytes()[..i];
 
             // Advance by the number of bytes of the string
@@ -1163,16 +1123,13 @@ impl<'a> Parser<'a> {
                 }
 
                 let (new_i, end_or_escape) = self
-                    .bytes()
-                    .iter()
-                    .enumerate()
-                    .find(|&(_, &b)| b == b'\\' || b == b'"')
+                    .find_index(|c| matches!(c, '\\' | '"'))
                     .ok_or(Error::ExpectedStringEnd)?;
 
                 i = new_i;
                 s.extend_from_slice(&self.src.as_bytes()[..i]);
 
-                if *end_or_escape == b'"' {
+                if end_or_escape == '"' {
                     // Advance to the end of the string + 1 for the `"`.
                     break Ok((ParsedByteStr::Allocated(s), i + 1));
                 }
