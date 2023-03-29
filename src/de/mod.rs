@@ -63,7 +63,7 @@ impl<'de> Deserializer<'de> {
 
     pub fn remainder(&self) -> Cow<'_, str> {
         // FIXME this does not make sense with the unicode validation on creation
-        String::from_utf8_lossy(self.parser.bytes())
+        Cow::Borrowed(self.parser.src())
     }
 
     pub fn span_error(&self, code: Error) -> SpannedError {
@@ -125,7 +125,7 @@ impl<'de> Deserializer<'de> {
     pub fn end(&mut self) -> Result<()> {
         self.parser.skip_ws()?;
 
-        if self.parser.bytes().is_empty() {
+        if dbg!(self.parser).src().is_empty() {
             Ok(())
         } else {
             Err(Error::TrailingCharacters)
@@ -480,14 +480,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if name == crate::value::raw::RAW_VALUE_TOKEN {
-            let bytes_before = self.parser.bytes();
+            let src_before = self.parser.src();
             self.parser.skip_ws()?;
             let _ignored = self.deserialize_ignored_any(serde::de::IgnoredAny)?;
             self.parser.skip_ws()?;
-            let bytes_after = self.parser.bytes();
+            let src_after = self.parser.src();
 
-            let ron_bytes = &bytes_before[..bytes_before.len() - bytes_after.len()];
-            let ron_str = str::from_utf8(ron_bytes).map_err(Error::from)?;
+            let ron_str = &src_before[..src_before.len() - src_after.len()];
 
             return visitor
                 .visit_borrowed_str::<Error>(ron_str)
@@ -688,10 +687,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
     fn has_element(&mut self) -> Result<bool> {
         self.de.parser.skip_ws()?;
 
-        match (
-            self.had_comma,
-            self.de.parser.peek()? != self.terminator,
-        ) {
+        match (self.had_comma, self.de.parser.peek()? != self.terminator) {
             // Trailing comma, maybe has a next element
             (true, has_element) => Ok(has_element),
             // No trailing comma but terminator
