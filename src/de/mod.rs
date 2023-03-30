@@ -69,7 +69,7 @@ impl<'de> Deserializer<'de> {
     }
 
     pub fn remainder(&self) -> &'de str {
-        self.parser.source()
+        self.parser.src()
     }
 
     pub fn span_error(&self, code: Error) -> SpannedError {
@@ -135,7 +135,7 @@ impl<'de> Deserializer<'de> {
     pub fn end(&mut self) -> Result<()> {
         self.parser.skip_ws()?;
 
-        if self.parser.source().is_empty() {
+        if self.parser.src().is_empty() {
             Ok(())
         } else {
             Err(Error::TrailingCharacters)
@@ -317,13 +317,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return self.handle_any_struct(visitor, Some(ident));
         }
 
-        match self.parser.peek_char_or_eof()? {
+        match self.parser.peek()? {
             '(' => self.handle_any_struct(visitor, None),
             '[' => self.deserialize_seq(visitor),
             '{' => self.deserialize_map(visitor),
             '0'..='9' | '+' | '-' | '.' => self.parser.any_number()?.visit(visitor),
             '"' | 'r' => self.deserialize_string(visitor),
-            'b' if matches!(self.parser.source().chars().nth(1), Some('\'')) => {
+            'b' if matches!(self.parser.peek2(), Ok('\'')) => {
                 self.parser.any_number()?.visit(visitor)
             }
             'b' => self.deserialize_byte_buf(visitor),
@@ -538,11 +538,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if name == crate::value::raw::RAW_VALUE_TOKEN {
-            let src_before = self.parser.pre_ws_source();
+            let src_before = self.parser.pre_ws_src();
             self.parser.skip_ws()?;
             let _ignored = self.deserialize_ignored_any(serde::de::IgnoredAny)?;
             self.parser.skip_ws()?;
-            let src_after = self.parser.source();
+            let src_after = self.parser.src();
 
             if self.parser.has_unclosed_line_comment() {
                 return Err(Error::UnclosedLineComment);
@@ -788,7 +788,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
 
         match (
             self.had_comma,
-            self.de.parser.peek_char_or_eof()? != self.terminator.as_char(),
+            self.de.parser.peek()? != self.terminator.as_char(),
         ) {
             // Trailing comma, maybe has a next element
             (true, has_element) => Ok(has_element),
