@@ -1113,9 +1113,9 @@ impl<'a> Parser<'a> {
     }
 
     pub fn string(&mut self) -> Result<ParsedStr<'a>> {
-        if self.consume_str("\"") {
+        if self.consume_char('"') {
             self.escaped_string()
-        } else if self.consume_str("r") {
+        } else if self.consume_char('r') {
             self.raw_string()
         } else {
             Err(Error::ExpectedString)
