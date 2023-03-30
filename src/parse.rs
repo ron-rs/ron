@@ -869,8 +869,6 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_ident(&mut self) -> bool {
-        // If normal ident, first char must be `is_ident_first_char`
-        // If raw ident, first char must be `r`, which is `is_ident_first_char`
         if let Ok(c) = self.peek() {
             if c == 'b' {
                 match self.peek2() {
