@@ -363,7 +363,6 @@ impl<'a> Parser<'a> {
             let max_i64 = LargeSInt::from(std::i64::MAX);
 
             if is_signed {
-                // TODO should a `+ u128::MAX` be allowed?
                 match self.signed_integer::<LargeSInt>() {
                     Ok(x) => {
                         if x >= min_i8 && x <= max_i8 {
@@ -589,8 +588,6 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_ident(&mut self) -> bool {
-        // If normal ident, first char must be `is_ident_first_char`
-        // If raw ident, first char must be `r`, which is `is_ident_first_char`
         if let Ok(c) = self.peek() {
             if c == 'r' {
                 match self.peek2() {
