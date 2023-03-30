@@ -62,7 +62,6 @@ impl<'de> Deserializer<'de> {
     }
 
     pub fn remainder(&self) -> Cow<'_, str> {
-        // FIXME this does not make sense with the unicode validation on creation
         Cow::Borrowed(self.parser.src())
     }
 
