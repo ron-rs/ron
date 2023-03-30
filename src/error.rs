@@ -98,7 +98,6 @@ pub enum Error {
     SuggestRawIdentifier(String),
     ExpectedRawValue,
     ExceededRecursionLimit,
-    NoCharBoundary,
 }
 
 impl fmt::Display for SpannedError {
@@ -259,7 +258,6 @@ impl fmt::Display for Error {
             ),
             Error::ExpectedRawValue => f.write_str("Expected a `ron::value::RawValue`"),
             Error::ExceededRecursionLimit => f.write_str("Exceeded recursion limit, try increasing the limit and using `serde_stacker` to protect against a stack overflow"),
-            Error::NoCharBoundary => f.write_str("Tried to index source inside of char boundry"),
         }
     }
 }
