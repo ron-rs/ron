@@ -269,6 +269,19 @@ pub struct Position {
     pub line: usize,
     pub col: usize,
 }
+impl Position {
+    pub(crate) fn from_offset(src: &str, cursor: usize) -> Position {
+        let src = &src[..cursor];
+        let line = 1 + src.chars().filter(|&c| c == '\n').count();
+        let col = 1 + src
+            .rsplit('\n')
+            .next()
+            .expect("rsplit always yields at least one value")
+            .chars()
+            .count();
+        Position { line, col }
+    }
+}
 
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -408,19 +421,11 @@ impl From<SpannedError> for Error {
 }
 
 impl SpannedError {
-    pub(crate) fn from_utf8_error(error: Utf8Error, source: &[u8]) -> Self {
-        let source =
-            str::from_utf8(&source[..error.valid_up_to()]).expect("source is valid up to error");
-        let line = 1 + source.chars().filter(|&c| c == '\n').count();
-        let col = 1 + source
-            .rsplit('\n')
-            .next()
-            .expect("rsplit always yields at least one value")
-            .chars()
-            .count();
+    pub(crate) fn from_utf8_error(error: Utf8Error, src: &[u8]) -> Self {
+        let src = str::from_utf8(&src[..error.valid_up_to()]).expect("source is valid up to error");
         Self {
             code: error.into(),
-            position: Position { line, col },
+            position: Position::from_offset(src, error.valid_up_to()),
         }
     }
 }

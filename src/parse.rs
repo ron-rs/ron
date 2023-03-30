@@ -1,6 +1,9 @@
 #![allow(clippy::identity_op)]
 
-use std::str::{self, FromStr};
+use std::{
+    iter::Peekable,
+    str::{self, Chars, FromStr},
+};
 
 use base64::engine::general_purpose::{GeneralPurpose, STANDARD};
 use unicode_ident::{is_xid_continue, is_xid_start};
@@ -65,12 +68,13 @@ pub enum AnyNum {
     U128(u128),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct Parser<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
     src: &'a str,
-    cursor: Position,
+    chars: Peekable<Chars<'a>>,
+    cursor: usize,
 }
 
 #[cfg(feature = "integer128")]
@@ -84,11 +88,12 @@ pub(crate) type LargeSInt = i64;
 
 /// constructor and parsing utilities
 impl<'a> Parser<'a> {
-    pub fn new(source: &'a str) -> SpannedResult<Self> {
+    pub fn new(src: &'a str) -> SpannedResult<Self> {
         let mut parser = Parser {
             exts: Extensions::empty(),
-            src: source,
-            cursor: Position { line: 1, col: 1 },
+            src,
+            chars: src.chars().peekable(),
+            cursor: 0,
         };
 
         parser.skip_ws().map_err(|e| parser.span_error(e))?;
@@ -108,44 +113,37 @@ impl<'a> Parser<'a> {
         Ok(parser)
     }
 
+    pub fn set_cursor(&mut self, cursor: usize) {
+        self.cursor = cursor;
+        self.chars = self.src[cursor..].chars().peekable()
+    }
+
     pub fn span_error(&self, code: Error) -> SpannedError {
         SpannedError {
             code,
-            position: self.cursor,
+            position: Position::from_offset(self.src, self.cursor),
         }
     }
 
-    pub fn advance(&mut self, mut bytes: usize) -> Result<()> {
-        while bytes > 0 {
-            bytes -= self.advance_char()?;
-        }
-
-        Ok(())
-    }
-
-    pub fn advance_char(&mut self) -> Result<usize> {
-        self.next().map(char::len_utf8)
+    pub fn advance(&mut self, bytes: usize) {
+        self.set_cursor(self.cursor + bytes)
     }
 
     pub fn next(&mut self) -> Result<char> {
-        let c = match self.peek() {
-            Ok(it) => it,
-            Err(err) => return Err(err),
-        };
-        if c == '\n' {
-            self.cursor.line += 1;
-            self.cursor.col = 1;
-        } else {
-            self.cursor.col += 1;
-        }
-
-        self.src = &self.src[c.len_utf8()..];
-
+        let c = self.chars.next().ok_or(Error::Eof)?;
+        self.cursor += c.len_utf8();
         Ok(c)
     }
 
-    pub fn peek(&self) -> Result<char> {
-        if let Some(c) = self.src.chars().next() {
+    pub fn peek(&mut self) -> Result<char> {
+        if let Some(&c) = self.chars.peek() {
+            Ok(c)
+        } else {
+            Err(Error::Eof)
+        }
+    }
+    pub fn peek2(&self) -> Result<char> {
+        if let Some(c) = self.chars.clone().nth(1) {
             Ok(c)
         } else {
             Err(Error::Eof)
@@ -153,12 +151,12 @@ impl<'a> Parser<'a> {
     }
 
     pub fn src(&self) -> &'a str {
-        self.src
+        &self.src[self.cursor..]
     }
 
     pub fn consume_str(&mut self, s: &str) -> bool {
-        if self.src.starts_with(s) {
-            let _ = self.advance(s.len());
+        if self.src().starts_with(s) {
+            self.advance(s.len());
 
             true
         } else {
@@ -169,7 +167,7 @@ impl<'a> Parser<'a> {
     pub fn consume_char(&mut self, expected: char) -> bool {
         if let Ok(c) = self.peek() {
             if c == expected {
-                _ = self.advance_char();
+                _ = self.next();
                 return true;
             }
         }
@@ -206,7 +204,7 @@ impl<'a> Parser<'a> {
 
     #[must_use]
     pub fn next_bytes_while_from(&self, from: usize, condition: fn(u8) -> bool) -> usize {
-        self.src[from..]
+        self.src()[from..]
             .as_bytes()
             .iter()
             .take_while(|&&b| condition(b))
@@ -220,7 +218,7 @@ impl<'a> Parser<'a> {
         mut max: usize,
         condition: fn(u8) -> bool,
     ) -> usize {
-        self.src[from..]
+        self.src()[from..]
             .as_bytes()
             .iter()
             .take_while(|&&b| {
@@ -239,14 +237,14 @@ impl<'a> Parser<'a> {
 
     #[must_use]
     pub fn next_chars_while_from(&self, from: usize, condition: fn(char) -> bool) -> usize {
-        self.src[from..]
+        self.src()[from..]
             .find(|c| !condition(c))
-            .unwrap_or(self.src.len() - from)
+            .unwrap_or(self.src().len() - from)
     }
 
     #[must_use]
     pub fn find_index(&self, condition: fn(char) -> bool) -> Option<(usize, char)> {
-        self.src.char_indices().find(|&(_, c)| condition(c))
+        self.src().char_indices().find(|&(_, c)| condition(c))
     }
 }
 
@@ -254,10 +252,10 @@ impl<'a> Parser<'a> {
 impl<'a> Parser<'a> {
     fn any_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
         let base = if self.peek() == Ok('0') {
-            match self.src.chars().nth(1) {
-                Some('x') => 16,
-                Some('b') => 2,
-                Some('o') => 8,
+            match self.peek2() {
+                Ok('x') => 16,
+                Ok('b') => 2,
+                Ok('o') => 8,
                 _ => 10,
             }
         } else {
@@ -267,7 +265,7 @@ impl<'a> Parser<'a> {
         if base != 10 {
             // If we have `0x45A` for example,
             // cut it to `45A`.
-            let _ = self.advance(2);
+            self.advance(2);
         }
 
         let num_bytes = self.next_bytes_while(is_int_char);
@@ -276,7 +274,7 @@ impl<'a> Parser<'a> {
             return Err(Error::ExpectedInteger);
         }
 
-        let s = &self.src[..num_bytes];
+        let s = &self.src()[..num_bytes];
 
         if s.starts_with('_') {
             return Err(Error::UnderscoreAtBeginning);
@@ -319,7 +317,7 @@ impl<'a> Parser<'a> {
             calc_num(s, base, T::checked_sub_ext)
         };
 
-        let _ = self.advance(num_bytes);
+        self.advance(num_bytes);
 
         res
     }
@@ -336,7 +334,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let source_backup = self.src;
+        let cursor_backup = self.cursor;
 
         let first = self.peek()?;
         let is_signed = matches!(first, '-' | '+');
@@ -388,7 +386,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     Err(_) => {
-                        self.src = source_backup;
+                        self.set_cursor(cursor_backup);
 
                         any_float(self.float::<f64>()?)
                     }
@@ -416,7 +414,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     Err(_) => {
-                        self.src = source_backup;
+                        self.set_cursor(cursor_backup);
 
                         any_float(self.float::<f64>()?)
                     }
@@ -462,11 +460,11 @@ impl<'a> Parser<'a> {
     /// Only returns true if the char after `ident` cannot belong
     /// to an identifier.
     pub fn check_ident(&mut self, ident: &str) -> bool {
-        self.src.starts_with(ident) && !self.check_ident_other_char(ident.len())
+        self.src().starts_with(ident) && !self.check_ident_other_char(ident.len())
     }
 
     fn check_ident_other_char(&self, index: usize) -> bool {
-        self.src[index..]
+        self.src()[index..]
             .chars()
             .next()
             .map_or(false, is_xid_continue)
@@ -474,7 +472,7 @@ impl<'a> Parser<'a> {
 
     /// Should only be used on a working copy
     pub fn check_tuple_struct(mut self) -> Result<bool> {
-        if self.identifier().is_err() {
+        if !self.skip_ident() {
             // if there's no field ident, this is a tuple struct
             return Ok(true);
         }
@@ -489,7 +487,7 @@ impl<'a> Parser<'a> {
     /// to an identifier.
     pub fn consume_ident(&mut self, ident: &str) -> bool {
         if self.check_ident(ident) {
-            let _ = self.advance(ident.len());
+            self.advance(ident.len());
 
             true
         } else {
@@ -577,17 +575,44 @@ impl<'a> Parser<'a> {
         let num_bytes = self.next_bytes_while(is_float_char);
 
         // Since `rustc` allows `1_0.0_1`, lint against underscores in floats
-        if let Some(err_bytes) = self.src[..num_bytes].find('_') {
-            let _ = self.advance(err_bytes);
+        if let Some(err_bytes) = self.src()[..num_bytes].find('_') {
+            self.advance(err_bytes);
 
             return Err(Error::FloatUnderscore);
         }
 
-        let res = FromStr::from_str(&self.src[..num_bytes]).map_err(|_| Error::ExpectedFloat);
+        let res = FromStr::from_str(&self.src()[..num_bytes]).map_err(|_| Error::ExpectedFloat);
 
-        let _ = self.advance(num_bytes);
+        self.advance(num_bytes);
 
         res
+    }
+
+    pub fn skip_ident(&mut self) -> bool {
+        // If normal ident, first char must be `is_ident_first_char`
+        // If raw ident, first char must be `r`, which is `is_ident_first_char`
+        if let Ok(c) = self.peek() {
+            if c == 'r' {
+                match self.peek2() {
+                    Ok('#') => {
+                        let len = self.next_chars_while_from(2, is_ident_raw_char);
+                        if len > 0 {
+                            self.advance(2 + len);
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    }
+                    Ok('"') => return false,
+                    _ => {}
+                }
+            }
+            if is_xid_start(c) {
+                self.advance(1 + self.next_chars_while_from(1, is_xid_continue));
+                return true;
+            }
+        }
+        false
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
@@ -595,7 +620,9 @@ impl<'a> Parser<'a> {
         if !is_ident_first_char(first) {
             if is_ident_raw_char(first) {
                 let ident_bytes = self.next_chars_while(is_ident_raw_char);
-                return Err(Error::SuggestRawIdentifier(self.src[..ident_bytes].into()));
+                return Err(Error::SuggestRawIdentifier(
+                    self.src()[..ident_bytes].into(),
+                ));
             }
 
             return Err(Error::ExpectedIdentifier);
@@ -604,17 +631,17 @@ impl<'a> Parser<'a> {
         // If the next two bytes signify the start of a raw string literal,
         // return an error.
         let length = if first == 'r' {
-            match self.src.chars().nth(1).ok_or(Error::Eof)? {
+            match self.peek2()? {
                 '"' => return Err(Error::ExpectedIdentifier),
                 '#' => {
-                    let after_next = self.src[2..].chars().next().unwrap_or_default();
+                    let after_next = self.src()[2..].chars().next().unwrap_or_default();
                     // Note: it's important to check this before advancing forward, so that
                     // the value-type deserializer can fall back to parsing it differently.
                     if !is_ident_raw_char(after_next) {
                         return Err(Error::ExpectedIdentifier);
                     }
                     // skip "r#"
-                    let _ = self.advance(2);
+                    self.advance(2);
                     self.next_chars_while(is_ident_raw_char)
                 }
                 _ => {
@@ -623,7 +650,7 @@ impl<'a> Parser<'a> {
 
                     if raw_ident_length > std_ident_length {
                         return Err(Error::SuggestRawIdentifier(
-                            self.src[..raw_ident_length].into(),
+                            self.src()[..raw_ident_length].into(),
                         ));
                     }
 
@@ -637,20 +664,20 @@ impl<'a> Parser<'a> {
 
             if raw_ident_length > std_ident_length {
                 return Err(Error::SuggestRawIdentifier(
-                    self.src[..raw_ident_length].into(),
+                    self.src()[..raw_ident_length].into(),
                 ));
             }
 
             std_ident_length
         };
 
-        let ident = &self.src[..length];
-        let _ = self.advance(length);
+        let ident = &self.src()[..length];
+        self.advance(length);
 
         Ok(ident)
     }
 
-    pub fn next_bytes_is_float(&self) -> bool {
+    pub fn next_bytes_is_float(&mut self) -> bool {
         if let Ok(c) = self.peek() {
             let skip = match c {
                 '+' | '-' => 1,
@@ -667,7 +694,7 @@ impl<'a> Parser<'a> {
     pub fn skip_ws(&mut self) -> Result<()> {
         loop {
             while self.peek().map_or(false, is_whitespace_char) {
-                let _ = self.advance_char();
+                let _ = self.next();
             }
 
             if !self.skip_comment()? {
@@ -682,12 +709,12 @@ impl<'a> Parser<'a> {
     {
         match self.peek()? {
             '+' => {
-                let _ = self.advance_char();
+                let _ = self.next();
 
                 self.any_integer(1)
             }
             '-' => {
-                let _ = self.advance_char();
+                let _ = self.next();
 
                 self.any_integer(-1)
             }
@@ -711,19 +738,19 @@ impl<'a> Parser<'a> {
             .ok_or(Error::ExpectedStringEnd)?;
 
         if end_or_escape == '"' {
-            let s = &self.src[..i];
+            let s = &self.src()[..i];
 
             // Advance by the number of bytes of the string
             // + 1 for the `"`.
-            let _ = self.advance(i + 1);
+            self.advance(i + 1);
 
             Ok(ParsedStr::Slice(s))
         } else {
             let mut i = i;
-            let mut s = self.src[..i].to_owned();
+            let mut s = self.src()[..i].to_owned();
 
             loop {
-                let _ = self.advance(i + 1);
+                self.advance(i + 1);
                 let character = self.parse_escape()?;
                 s.push(character);
 
@@ -732,10 +759,10 @@ impl<'a> Parser<'a> {
                     .ok_or(Error::ExpectedStringEnd)?;
 
                 i = new_i;
-                s.push_str(&self.src[..i]);
+                s.push_str(&self.src()[..i]);
 
                 if end_or_escape == '"' {
-                    let _ = self.advance(i + 1);
+                    self.advance(i + 1);
 
                     break Ok(ParsedStr::Allocated(s));
                 }
@@ -746,20 +773,19 @@ impl<'a> Parser<'a> {
     /// Parses after the `r`
     fn raw_string(&mut self) -> Result<ParsedStr<'a>> {
         let num_hashes = self.next_bytes_while(|b| b == b'#');
-        let hashes = &self.src[..num_hashes];
-        let _ = self.advance(num_hashes);
+        let hashes = &self.src()[..num_hashes];
+        self.advance(num_hashes);
 
         self.expect_char('"', Error::ExpectedString)?;
 
         let ending = [&"\"", hashes].concat();
-        let i = self.src.find(&ending).ok_or(Error::ExpectedStringEnd)?;
+        let i = self.src().find(&ending).ok_or(Error::ExpectedStringEnd)?;
 
-        // SAFETY: Self::new verifies bytes is valid utf8
-        let s = &self.src[..i];
+        let s = &self.src()[..i];
 
         // Advance by the number of bytes of the string
         // + `num_hashes` + 1 for the `"`.
-        let _ = self.advance(i + num_hashes + 1);
+        self.advance(i + num_hashes + 1);
 
         Ok(ParsedStr::Slice(s))
     }
@@ -769,8 +795,8 @@ impl<'a> Parser<'a> {
     }
 
     fn decode_char(&mut self, len: usize) -> Result<char> {
-        let src = self.src;
-        self.advance(len)?;
+        let src = self.src();
+        self.advance(len);
         u32::from_str_radix(&src[..len], 16)
             .ok()
             .and_then(char::from_u32)
@@ -815,7 +841,7 @@ impl<'a> Parser<'a> {
                 '/' => {
                     let bytes = self.next_bytes_while(|b| b != b'\n');
 
-                    let _ = self.advance(bytes);
+                    self.advance(bytes);
                 }
                 '*' => {
                     let mut level = 1;
@@ -823,11 +849,11 @@ impl<'a> Parser<'a> {
                     while level > 0 {
                         let bytes = self.next_bytes_while(|b| !matches!(b, b'/' | b'*'));
 
-                        if self.src.is_empty() {
+                        if self.src().is_empty() {
                             return Err(Error::UnclosedBlockComment);
                         }
 
-                        let _ = self.advance(bytes);
+                        self.advance(bytes);
 
                         // check whether / or * and take action
                         if self.consume_str("/*") {
@@ -835,8 +861,7 @@ impl<'a> Parser<'a> {
                         } else if self.consume_str("*/") {
                             level -= 1;
                         } else {
-                            self.advance_char()
-                                .map_err(|_| Error::UnclosedBlockComment)?;
+                            self.next().map_err(|_| Error::UnclosedBlockComment)?;
                         }
                     }
                 }

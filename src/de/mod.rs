@@ -142,7 +142,7 @@ impl<'de> Deserializer<'de> {
         V: Visitor<'de>,
     {
         // Create a working copy
-        let mut bytes = self.parser;
+        let mut bytes = self.parser.clone();
 
         if bytes.consume_str("(") {
             bytes.skip_ws()?;
@@ -237,10 +237,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_f64(std::f64::NAN);
         }
 
-        // `identifier` does not change state if it fails
-        let ident = self.parser.identifier().ok();
-
-        if ident.is_some() {
+        if self.parser.skip_ident() {
             self.parser.skip_ws()?;
 
             return self.handle_any_struct(visitor);
