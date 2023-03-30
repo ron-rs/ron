@@ -143,7 +143,7 @@ impl<'de> Deserializer<'de> {
         // Create a working copy
         let mut bytes = self.parser.clone();
 
-        if bytes.consume_str("(") {
+        if bytes.consume_char('(') {
             bytes.skip_ws()?;
 
             if bytes.check_tuple_struct()? {
@@ -173,7 +173,7 @@ impl<'de> Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.newtype_variant || self.parser.consume_str("(") {
+        if self.newtype_variant || self.parser.consume_char('(') {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
@@ -194,7 +194,7 @@ impl<'de> Deserializer<'de> {
 
             self.parser.skip_ws()?;
 
-            if old_newtype_variant || self.parser.consume_str(")") {
+            if old_newtype_variant || self.parser.consume_char(')') {
                 Ok(value)
             } else {
                 Err(Error::ExpectedStructLikeEnd)
@@ -424,7 +424,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             visitor.visit_none()
         } else if self.parser.consume_str("Some") && {
             self.parser.skip_ws()?;
-            self.parser.consume_str("(")
+            self.parser.consume_char('(')
         } {
             self.parser.skip_ws()?;
 
@@ -432,7 +432,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
             self.parser.comma()?;
 
-            if self.parser.consume_str(")") {
+            if self.parser.consume_char(')') {
                 Ok(v)
             } else {
                 Err(Error::ExpectedOptionEnd)
@@ -499,12 +499,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         self.parser.skip_ws()?;
 
-        if self.parser.consume_str("(") {
+        if self.parser.consume_char('(') {
             self.parser.skip_ws()?;
             let value = guard_recursion! { self => visitor.visit_newtype_struct(&mut *self)? };
             self.parser.comma()?;
 
-            if self.parser.consume_str(")") {
+            if self.parser.consume_char(')') {
                 Ok(value)
             } else {
                 Err(Error::ExpectedStructLikeEnd)
@@ -522,13 +522,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         self.newtype_variant = false;
 
-        if self.parser.consume_str("[") {
+        if self.parser.consume_char('[') {
             let value = guard_recursion! { self =>
                 visitor.visit_seq(CommaSeparated::new(']', self))?
             };
             self.parser.skip_ws()?;
 
-            if self.parser.consume_str("]") {
+            if self.parser.consume_char(']') {
                 Ok(value)
             } else {
                 Err(Error::ExpectedArrayEnd)
@@ -542,7 +542,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.newtype_variant || self.parser.consume_str("(") {
+        if self.newtype_variant || self.parser.consume_char('(') {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
@@ -551,7 +551,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             };
             self.parser.skip_ws()?;
 
-            if old_newtype_variant || self.parser.consume_str(")") {
+            if old_newtype_variant || self.parser.consume_char(')') {
                 Ok(value)
             } else {
                 Err(Error::ExpectedStructLikeEnd)
@@ -586,13 +586,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         self.newtype_variant = false;
 
-        if self.parser.consume_str("{") {
+        if self.parser.consume_char('{') {
             let value = guard_recursion! { self =>
                 visitor.visit_map(CommaSeparated::new('}', self))?
             };
             self.parser.skip_ws()?;
 
-            if self.parser.consume_str("}") {
+            if self.parser.consume_char('}') {
                 Ok(value)
             } else {
                 Err(Error::ExpectedMapEnd)
@@ -739,7 +739,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     {
         self.de.parser.skip_ws()?;
 
-        if self.de.parser.consume_str(":") {
+        if self.de.parser.consume_char(':') {
             self.de.parser.skip_ws()?;
 
             let res = guard_recursion! { self.de =>
@@ -796,7 +796,7 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
 
         self.de.parser.skip_ws()?;
 
-        if self.de.parser.consume_str("(") {
+        if self.de.parser.consume_char('(') {
             self.de.parser.skip_ws()?;
 
             self.de.newtype_variant = self
@@ -815,7 +815,7 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
 
             self.de.parser.comma()?;
 
-            if self.de.parser.consume_str(")") {
+            if self.de.parser.consume_char(')') {
                 Ok(val)
             } else {
                 Err(Error::ExpectedStructLikeEnd)
