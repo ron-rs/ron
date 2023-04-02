@@ -32,12 +32,12 @@ fn test_ascii_10() {
 
 #[test]
 fn test_ascii_chars() {
-    (1..128).into_iter().flat_map(from_u32).for_each(check_same)
+    (1..128).flat_map(from_u32).for_each(check_same)
 }
 
 #[test]
 fn test_ascii_string() {
-    let s: String = (1..128).into_iter().flat_map(from_u32).collect();
+    let s: String = (1..128).flat_map(from_u32).collect();
 
     check_same(s);
 }

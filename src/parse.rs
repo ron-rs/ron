@@ -15,12 +15,12 @@ use crate::{
 
 pub const BASE64_ENGINE: GeneralPurpose = STANDARD;
 
-const fn is_int_char(c: u8) -> bool {
-    c.is_ascii_hexdigit() || c == b'_'
+const fn is_int_char(c: char) -> bool {
+    c.is_ascii_hexdigit() || c == '_'
 }
 
-const fn is_float_char(c: u8) -> bool {
-    c.is_ascii_digit() || matches!(c, b'e' | b'E' | b'.' | b'+' | b'-' | b'_')
+const fn is_float_char(c: char) -> bool {
+    c.is_ascii_digit() || matches!(c, 'e' | 'E' | '.' | '+' | '-' | '_')
 }
 
 pub fn is_ident_first_char(c: char) -> bool {
@@ -28,7 +28,7 @@ pub fn is_ident_first_char(c: char) -> bool {
 }
 
 pub fn is_ident_raw_char(c: char) -> bool {
-    is_xid_continue(c) || matches!(c, '.' | '+' | '-')
+    matches!(c, '.' | '+' | '-') | is_xid_continue(c)
 }
 
 const fn is_whitespace_char(c: char) -> bool {
@@ -167,7 +167,7 @@ impl<'a> Parser<'a> {
     pub fn consume_char(&mut self, expected: char) -> bool {
         if let Ok(c) = self.peek() {
             if c == expected {
-                _ = self.next();
+                let _ = self.next();
                 return true;
             }
         }
@@ -189,26 +189,16 @@ impl<'a> Parser<'a> {
     }
 
     pub fn expect_char(&mut self, expected: char, error: Error) -> Result<()> {
-        self.consume_char(expected).then_some(()).ok_or(error)
-    }
-
-    #[must_use]
-    pub fn next_bytes_while(&self, condition: fn(u8) -> bool) -> usize {
-        self.next_bytes_while_from(0, condition)
+        if self.consume_char(expected) {
+            Ok(())
+        } else {
+            Err(error)
+        }
     }
 
     #[must_use]
     pub fn next_bytes_while_max(&self, max: usize, condition: fn(u8) -> bool) -> usize {
         self.next_bytes_while_from_max(0, max, condition)
-    }
-
-    #[must_use]
-    pub fn next_bytes_while_from(&self, from: usize, condition: fn(u8) -> bool) -> usize {
-        self.src()[from..]
-            .as_bytes()
-            .iter()
-            .take_while(|&&b| condition(b))
-            .count()
     }
 
     #[must_use]
@@ -268,7 +258,7 @@ impl<'a> Parser<'a> {
             self.advance(2);
         }
 
-        let num_bytes = self.next_bytes_while(is_int_char);
+        let num_bytes = self.next_chars_while(is_int_char);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedInteger);
@@ -283,8 +273,8 @@ impl<'a> Parser<'a> {
         fn calc_num<T: Num>(s: &str, base: u8, f: fn(&mut T, u8) -> bool) -> Result<T> {
             let mut num_acc = T::from_u8(0);
 
-            for &byte in s.as_bytes() {
-                if byte == b'_' {
+            for c in s.chars() {
+                if c == '_' {
                     continue;
                 }
 
@@ -292,11 +282,11 @@ impl<'a> Parser<'a> {
                     return Err(Error::IntegerOutOfBounds);
                 }
 
-                let digit = if byte.is_ascii_digit() {
-                    byte - b'0'
+                let digit = if c.is_ascii_digit() {
+                    (c as u8) - b'0'
                 } else {
-                    debug_assert!(byte.is_ascii_alphabetic());
-                    byte.to_ascii_lowercase() - b'a' + 10
+                    debug_assert!(c.is_ascii_alphabetic());
+                    (c as u8).to_ascii_lowercase() - b'a' + 10
                 };
 
                 if digit >= base {
@@ -372,6 +362,10 @@ impl<'a> Parser<'a> {
                         } else if x >= min_i32 && x <= max_i32 {
                             Ok(AnyNum::I32(x as i32))
                         } else if x >= min_i64 && x <= max_i64 {
+                            #[cfg_attr(
+                                not(feature = "integer128"),
+                                allow(clippy::unnecessary_cast)
+                            )]
                             Ok(AnyNum::I64(x as i64))
                         } else {
                             #[cfg(feature = "integer128")]
@@ -400,6 +394,10 @@ impl<'a> Parser<'a> {
                         } else if x <= max_u32 {
                             Ok(AnyNum::U32(x as u32))
                         } else if x <= max_u64 {
+                            #[cfg_attr(
+                                not(feature = "integer128"),
+                                allow(clippy::unnecessary_cast)
+                            )]
                             Ok(AnyNum::U64(x as u64))
                         } else {
                             #[cfg(feature = "integer128")]
@@ -571,7 +569,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let num_bytes = self.next_bytes_while(is_float_char);
+        let num_bytes = self.next_chars_while(is_float_char);
 
         // Since `rustc` allows `1_0.0_1`, lint against underscores in floats
         if let Some(err_bytes) = self.src()[..num_bytes].find('_') {
@@ -680,8 +678,8 @@ impl<'a> Parser<'a> {
                 '+' | '-' => 1,
                 _ => 0,
             };
-            let flen = self.next_bytes_while_from(skip, is_float_char);
-            let ilen = self.next_bytes_while_from(skip, is_int_char);
+            let flen = self.next_chars_while_from(skip, is_float_char);
+            let ilen = self.next_chars_while_from(skip, is_int_char);
             flen > ilen
         } else {
             false
@@ -769,13 +767,13 @@ impl<'a> Parser<'a> {
 
     /// Parses after the `r`
     fn raw_string(&mut self) -> Result<ParsedStr<'a>> {
-        let num_hashes = self.next_bytes_while(|b| b == b'#');
+        let num_hashes = self.next_chars_while(|c| c == '#');
         let hashes = &self.src()[..num_hashes];
         self.advance(num_hashes);
 
         self.expect_char('"', Error::ExpectedString)?;
 
-        let ending = [&"\"", hashes].concat();
+        let ending = ["\"", hashes].concat();
         let i = self.src().find(&ending).ok_or(Error::ExpectedStringEnd)?;
 
         let s = &self.src()[..i];
@@ -836,7 +834,7 @@ impl<'a> Parser<'a> {
         if self.consume_char('/') {
             match self.next()? {
                 '/' => {
-                    let bytes = self.next_bytes_while(|b| b != b'\n');
+                    let bytes = self.next_chars_while(|c| c != '\n');
 
                     self.advance(bytes);
                 }
@@ -844,7 +842,7 @@ impl<'a> Parser<'a> {
                     let mut level = 1;
 
                     while level > 0 {
-                        let bytes = self.next_bytes_while(|b| !matches!(b, b'/' | b'*'));
+                        let bytes = self.next_chars_while(|c| !matches!(c, '/' | '*'));
 
                         if self.src().is_empty() {
                             return Err(Error::UnclosedBlockComment);

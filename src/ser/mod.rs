@@ -326,13 +326,13 @@ impl<W: io::Write> Serializer<W> {
     fn separate_tuple_members(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.separate_tuple_members)
+            .map_or(false, |(config, _)| config.separate_tuple_members)
     }
 
     fn compact_arrays(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.compact_arrays)
+            .map_or(false, |(config, _)| config.compact_arrays)
     }
 
     fn extensions(&self) -> Extensions {
@@ -340,13 +340,13 @@ impl<W: io::Write> Serializer<W> {
             | self
                 .pretty
                 .as_ref()
-                .map_or(Extensions::empty(), |&(ref config, _)| config.extensions)
+                .map_or(Extensions::empty(), |(config, _)| config.extensions)
     }
 
     fn escape_strings(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(true, |&(ref config, _)| config.escape_strings)
+            .map_or(true, |(config, _)| config.escape_strings)
     }
 
     fn start_indent(&mut self) -> Result<()> {

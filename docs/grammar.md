@@ -17,7 +17,7 @@ RON = [extensions], ws, value, ws;
 
 ```ebnf
 ws = { ws_single | comment };
-ws_single = "\n" | "\t" | "\r" | " ";
+ws_single = "\n" | "\t" | "\r" | " " | U+000B | U+000C | U+0085 | U+200E | U+200F | U+2028 | U+2029;
 comment = ["//", { no_newline }, "\n"] | ["/*", nested_block_comment, "*/"];
 nested_block_comment = { ? any characters except "/*" or "*/" ? }, [ "/*", nested_block_comment, "*/", nested_block_comment ];
 ```
@@ -145,8 +145,10 @@ enum_variant_named = ident, ws, "(", [named_field, { comma, named_field }, [comm
 ```ebnf
 ident = ident_std | ident_raw;
 ident_std = ident_std_first, { ident_std_rest };
-ident_std_first = "A" | ... | "Z" | "a" | ... | "z" | "_";
-ident_std_rest = ident_std_first | digit;
+ident_std_first = XID_Start | "_";
+ident_std_rest = XID_Continue;
 ident_raw = "r", "#", ident_raw_rest, { ident_raw_rest };
 ident_raw_rest = ident_std_rest | "." | "+" | "-";
 ```
+
+> Note: [XID_Start](http://unicode.org/cldr/utility/list-unicodeset.jsp?a=%5B%3AXID_Start%3A%5D&abb=on&g=&i=) and [XID_Continue](http://unicode.org/cldr/utility/list-unicodeset.jsp?a=%5B%3AXID_Continue%3A%5D&abb=on&g=&i=) refer to Unicode character sets.

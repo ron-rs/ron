@@ -269,7 +269,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             '.' => self.deserialize_f64(visitor),
             '"' | 'r' => self.deserialize_string(visitor),
             '\'' => self.deserialize_char(visitor),
-            other => Err(Error::UnexpectedChar(other as char)),
+            other => Err(Error::UnexpectedChar(other)),
         }
     }
 

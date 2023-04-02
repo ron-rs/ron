@@ -166,7 +166,7 @@ impl fmt::Display for Error {
             Error::UnderscoreAtBeginning => {
                 f.write_str("Unexpected leading underscore in an integer")
             }
-            Error::UnexpectedChar(c) => write!(f, "Unexpected char {c:?}"),
+            Error::UnexpectedChar(c) => write!(f, "Unexpected char {:?}", c),
             Error::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
             Error::InvalidValueForType {
                 ref expected,
