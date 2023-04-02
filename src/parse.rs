@@ -887,7 +887,9 @@ impl<'a> Parser<'a> {
                 }
             }
             if is_xid_start(c) {
-                self.advance(1 + self.next_chars_while_from(1, is_xid_continue));
+                self.advance(
+                    c.len_utf8() + self.next_chars_while_from(c.len_utf8(), is_xid_continue),
+                );
                 return true;
             }
         }

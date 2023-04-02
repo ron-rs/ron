@@ -22,6 +22,11 @@ fn test_char_not_a_comment() {
 }
 
 #[test]
+fn ident_starts_with_non_ascii_byte() {
+    let _ = from_str::<Value>("שּׁȬSSSSSSSSSSR");
+}
+
+#[test]
 fn test_file_invalid_unicode() {
     let error = from_bytes::<Value>(&[b'\n', b'a', 0b11000000, 0]).unwrap_err();
     assert!(matches!(error.code, Error::Utf8Error(_)));
