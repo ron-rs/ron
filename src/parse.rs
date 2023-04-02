@@ -14,12 +14,12 @@ use crate::{
     value::Number,
 };
 
-const fn is_int_char(c: u8) -> bool {
-    c.is_ascii_hexdigit() || c == b'_'
+const fn is_int_char(c: char) -> bool {
+    c.is_ascii_hexdigit() || c == '_'
 }
 
-const fn is_float_char(c: u8) -> bool {
-    c.is_ascii_digit() || matches!(c, b'e' | b'E' | b'.' | b'+' | b'-' | b'_')
+const fn is_float_char(c: char) -> bool {
+    c.is_ascii_digit() || matches!(c, 'e' | 'E' | '.' | '+' | '-' | '_')
 }
 
 pub fn is_ident_first_char(c: char) -> bool {
@@ -27,7 +27,7 @@ pub fn is_ident_first_char(c: char) -> bool {
 }
 
 pub fn is_ident_raw_char(c: char) -> bool {
-    is_xid_continue(c) || matches!(c, '.' | '+' | '-')
+    matches!(c, '.' | '+' | '-') | is_xid_continue(c)
 }
 
 const fn is_whitespace_char(c: char) -> bool {
@@ -184,7 +184,7 @@ impl<'a> Parser<'a> {
     pub fn consume_char(&mut self, expected: char) -> bool {
         if let Ok(c) = self.peek() {
             if c == expected {
-                _ = self.next();
+                let _ = self.next();
                 return true;
             }
         }
@@ -206,26 +206,16 @@ impl<'a> Parser<'a> {
     }
 
     pub fn expect_char(&mut self, expected: char, error: Error) -> Result<()> {
-        self.consume_char(expected).then_some(()).ok_or(error)
-    }
-
-    #[must_use]
-    pub fn next_bytes_while(&self, condition: fn(u8) -> bool) -> usize {
-        self.next_bytes_while_from(0, condition)
+        if self.consume_char(expected) {
+            Ok(())
+        } else {
+            Err(error)
+        }
     }
 
     #[must_use]
     pub fn next_bytes_while_max(&self, max: usize, condition: fn(u8) -> bool) -> usize {
         self.next_bytes_while_from_max(0, max, condition)
-    }
-
-    #[must_use]
-    pub fn next_bytes_while_from(&self, from: usize, condition: fn(u8) -> bool) -> usize {
-        self.src()[from..]
-            .as_bytes()
-            .iter()
-            .take_while(|&&b| condition(b))
-            .count()
     }
 
     #[must_use]
@@ -285,7 +275,7 @@ impl<'a> Parser<'a> {
             self.advance(2);
         }
 
-        let num_bytes = self.next_bytes_while(is_int_char);
+        let num_bytes = self.next_chars_while(is_int_char);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedInteger);
@@ -305,8 +295,8 @@ impl<'a> Parser<'a> {
         ) -> Result<T> {
             let mut num_acc = T::from_u8(0);
 
-            for (i, byte) in s.chars().enumerate() {
-                if byte == '_' {
+            for (i, c) in s.chars().enumerate() {
+                if c == '_' {
                     continue;
                 }
 
@@ -315,11 +305,11 @@ impl<'a> Parser<'a> {
                     return Err(Error::IntegerOutOfBounds);
                 }
 
-                let digit = parser.decode_hex(byte)?;
+                let digit = parser.decode_hex(c)?;
 
                 if digit >= base {
                     parser.advance(i);
-                    return Err(Error::InvalidIntegerDigit { digit: byte, base });
+                    return Err(Error::InvalidIntegerDigit { digit: c, base });
                 }
 
                 if f(&mut num_acc, digit) {
@@ -380,7 +370,7 @@ impl<'a> Parser<'a> {
         };
         let sign = if is_negative { -1 } else { 1 };
 
-        let num_bytes = self.next_bytes_while(is_int_char);
+        let num_bytes = self.next_chars_while(is_int_char);
 
         if self.src()[num_bytes..].starts_with(&['i', 'u']) {
             let int_cursor = self.cursor;
@@ -802,7 +792,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let num_bytes = self.next_bytes_while(is_float_char);
+        let num_bytes = self.next_chars_while(is_float_char);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedFloat);
@@ -983,8 +973,8 @@ impl<'a> Parser<'a> {
                 '+' | '-' => 1,
                 _ => 0,
             };
-            let flen = self.next_bytes_while_from(skip, is_float_char);
-            let ilen = self.next_bytes_while_from(skip, is_int_char);
+            let flen = self.next_chars_while_from(skip, is_float_char);
+            let ilen = self.next_chars_while_from(skip, is_int_char);
             flen > ilen
         } else {
             false
@@ -1190,7 +1180,7 @@ impl<'a> Parser<'a> {
     }
 
     fn raw_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
-        let num_hashes = self.next_bytes_while(|b| b == b'#');
+        let num_hashes = self.next_chars_while(|c| c == '#');
         let hashes = &self.src()[..num_hashes];
         self.advance(num_hashes);
 
@@ -1330,7 +1320,7 @@ impl<'a> Parser<'a> {
         if self.consume_char('/') {
             match self.next()? {
                 '/' => {
-                    let bytes = self.next_bytes_while(|b| b != b'\n');
+                    let bytes = self.next_chars_while(|c| c != '\n');
 
                     let _ = self.advance(bytes);
 
@@ -1344,7 +1334,7 @@ impl<'a> Parser<'a> {
                     let mut level = 1;
 
                     while level > 0 {
-                        let bytes = self.next_bytes_while(|b| !matches!(b, b'/' | b'*'));
+                        let bytes = self.next_chars_while(|c| !matches!(c, '/' | '*'));
 
                         if self.src().is_empty() {
                             return Err(Error::UnclosedBlockComment);
