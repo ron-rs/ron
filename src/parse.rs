@@ -603,7 +603,9 @@ impl<'a> Parser<'a> {
                 }
             }
             if is_xid_start(c) {
-                self.advance(1 + self.next_chars_while_from(1, is_xid_continue));
+                self.advance(
+                    c.len_utf8() + self.next_chars_while_from(c.len_utf8(), is_xid_continue),
+                );
                 return true;
             }
         }
@@ -790,9 +792,13 @@ impl<'a> Parser<'a> {
     }
 
     fn decode_char(&mut self, len: usize) -> Result<char> {
-        let src = self.src();
+        // str::get ensures that we neither end up on a unicode boundry nor out of bounds
+        let src = self
+            .src()
+            .get(..len)
+            .ok_or(Error::InvalidEscape("Expected hex escape"))?;
         self.advance(len);
-        u32::from_str_radix(&src[..len], 16)
+        u32::from_str_radix(&src, 16)
             .ok()
             .and_then(char::from_u32)
             .ok_or(Error::InvalidEscape("Invalid hex escape"))
