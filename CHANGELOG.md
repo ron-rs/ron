@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump MSRV to 1.57.0 and bump dependency: `base64` to 0.20 ([#431](https://github.com/ron-rs/ron/pull/431))
 - Bump dependency `base64` to 0.21 ([#433](https://github.com/ron-rs/ron/pull/433))
 - Depend on `serde_derive` directly to potentially enable more compilation parallelism ([#441](https://github.com/ron-rs/ron/pull/441))
+- Add `compact_maps` and `compact_structs` options to `PrettyConfig` to allow serialising maps and structs on a single line ([#448](https://github.com/ron-rs/ron/pull/448))
 
 ## [0.8.0] - 2022-08-17
 
