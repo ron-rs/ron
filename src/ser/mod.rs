@@ -98,11 +98,18 @@ pub struct PrettyConfig {
     /// Enable extensions. Only configures 'implicit_some',
     ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
     pub extensions: Extensions,
-    /// Enable compact arrays
+    /// Enable compact arrays, which do not insert new lines and indentation
+    ///  between the elements of an array
     pub compact_arrays: bool,
     /// Whether to serialize strings as escaped strings,
     ///  or fall back onto raw strings if necessary.
     pub escape_strings: bool,
+    /// Enable compact structs, which do not insert new lines and indentation
+    ///  between the fields of a struct
+    pub compact_structs: bool,
+    /// Enable compact maps, which do not insert new lines and indentation
+    ///  between the entries of a struct
+    pub compact_maps: bool,
 }
 
 impl PrettyConfig {
@@ -184,7 +191,7 @@ impl PrettyConfig {
     /// Configures whether every array should be a single line (`true`)
     /// or a multi line one (`false`).
     ///
-    /// When `false`, `["a","b"]` (as well as any array) will serialize to
+    /// When `false`, `["a","b"]` will serialize to
     /// ```
     /// [
     ///   "a",
@@ -192,7 +199,7 @@ impl PrettyConfig {
     /// ]
     /// # ;
     /// ```
-    /// When `true`, `["a","b"]` (as well as any array) will serialize to
+    /// When `true`, `["a","b"]` will instead serialize to
     /// ```
     /// ["a","b"]
     /// # ;
@@ -235,6 +242,55 @@ impl PrettyConfig {
 
         self
     }
+
+    /// Configures whether every struct should be a single line (`true`)
+    /// or a multi line one (`false`).
+    ///
+    /// When `false`, `Struct { a: 4, b: 2 }` will serialize to
+    /// ```ignore
+    /// Struct(
+    ///     a: 4,
+    ///     b: 2,
+    /// )
+    /// # ;
+    /// ```
+    /// When `true`, `Struct { a: 4, b: 2 }` will instead serialize to
+    /// ```ignore
+    /// Struct(a: 4, b: 2)
+    /// # ;
+    /// ```
+    ///
+    /// Default: `false`
+    pub fn compact_structs(mut self, compact_structs: bool) -> Self {
+        self.compact_structs = compact_structs;
+
+        self
+    }
+
+    /// Configures whether every map should be a single line (`true`)
+    /// or a multi line one (`false`).
+    ///
+    /// When `false`, a map with entries `{ "a": 4, "b": 2 }` will serialize to
+    /// ```ignore
+    /// {
+    ///     "a": 4,
+    ///     "b": 2,
+    /// }
+    /// # ;
+    /// ```
+    /// When `true`, a map with entries `{ "a": 4, "b": 2 }` will instead
+    /// serialize to
+    /// ```ignore
+    /// {"a": 4, "b": 2}
+    /// # ;
+    /// ```
+    ///
+    /// Default: `false`
+    pub fn compact_maps(mut self, compact_maps: bool) -> Self {
+        self.compact_maps = compact_maps;
+
+        self
+    }
 }
 
 impl Default for PrettyConfig {
@@ -254,6 +310,8 @@ impl Default for PrettyConfig {
             extensions: Extensions::empty(),
             compact_arrays: false,
             escape_strings: true,
+            compact_structs: false,
+            compact_maps: false,
         }
     }
 }
@@ -335,6 +393,18 @@ impl<W: io::Write> Serializer<W> {
         self.pretty
             .as_ref()
             .map_or(false, |&(ref config, _)| config.compact_arrays)
+    }
+
+    fn compact_structs(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |&(ref config, _)| config.compact_structs)
+    }
+
+    fn compact_maps(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |&(ref config, _)| config.compact_maps)
     }
 
     fn extensions(&self) -> Extensions {
@@ -681,11 +751,11 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
         self.output.write_all(b"[")?;
 
-        if let Some(len) = len {
-            self.is_empty = Some(len == 0);
-        }
-
         if !self.compact_arrays() {
+            if let Some(len) = len {
+                self.is_empty = Some(len == 0);
+            }
+
             self.start_indent()?;
         }
 
@@ -751,11 +821,13 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
         self.output.write_all(b"{")?;
 
-        if let Some(len) = len {
-            self.is_empty = Some(len == 0);
-        }
+        if !self.compact_maps() {
+            if let Some(len) = len {
+                self.is_empty = Some(len == 0);
+            }
 
-        self.start_indent()?;
+            self.start_indent()?;
+        }
 
         Compound::try_new(self, false)
     }
@@ -771,8 +843,10 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.output.write_all(b"(")?;
         }
 
-        self.is_empty = Some(len == 0);
-        self.start_indent()?;
+        if !self.compact_structs() {
+            self.is_empty = Some(len == 0);
+            self.start_indent()?;
+        }
 
         Compound::try_new(self, old_newtype_variant)
     }
@@ -789,8 +863,10 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
-        self.is_empty = Some(len == 0);
-        self.start_indent()?;
+        if !self.compact_structs() {
+            self.is_empty = Some(len == 0);
+            self.start_indent()?;
+        }
 
         Compound::try_new(self, false)
     }
@@ -994,14 +1070,18 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
             self.ser.output.write_all(b",")?;
 
             if let Some((ref config, ref pretty)) = self.ser.pretty {
-                if pretty.indent <= config.depth_limit {
+                if pretty.indent <= config.depth_limit && !config.compact_maps {
                     self.ser.output.write_all(config.new_line.as_bytes())?;
                 } else {
                     self.ser.output.write_all(config.separator.as_bytes())?;
                 }
             }
         }
-        self.ser.indent()?;
+
+        if !self.ser.compact_maps() {
+            self.ser.indent()?;
+        }
+
         guard_recursion! { self.ser => key.serialize(&mut *self.ser) }
     }
 
@@ -1023,13 +1103,17 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
     fn end(self) -> Result<()> {
         if let State::Rest = self.state {
             if let Some((ref config, ref pretty)) = self.ser.pretty {
-                if pretty.indent <= config.depth_limit {
+                if pretty.indent <= config.depth_limit && !config.compact_maps {
                     self.ser.output.write_all(b",")?;
                     self.ser.output.write_all(config.new_line.as_bytes())?;
                 }
             }
         }
-        self.ser.end_indent()?;
+
+        if !self.ser.compact_maps() {
+            self.ser.end_indent()?;
+        }
+
         // map always disables `self.newtype_variant`
         self.ser.output.write_all(b"}")?;
         Ok(())
@@ -1050,14 +1134,18 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
             self.ser.output.write_all(b",")?;
 
             if let Some((ref config, ref pretty)) = self.ser.pretty {
-                if pretty.indent <= config.depth_limit {
+                if pretty.indent <= config.depth_limit && !config.compact_structs {
                     self.ser.output.write_all(config.new_line.as_bytes())?;
                 } else {
                     self.ser.output.write_all(config.separator.as_bytes())?;
                 }
             }
         }
-        self.ser.indent()?;
+
+        if !self.ser.compact_structs() {
+            self.ser.indent()?;
+        }
+
         self.ser.write_identifier(key)?;
         self.ser.output.write_all(b":")?;
 
@@ -1073,13 +1161,17 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
     fn end(self) -> Result<()> {
         if let State::Rest = self.state {
             if let Some((ref config, ref pretty)) = self.ser.pretty {
-                if pretty.indent <= config.depth_limit {
+                if pretty.indent <= config.depth_limit && !config.compact_structs {
                     self.ser.output.write_all(b",")?;
                     self.ser.output.write_all(config.new_line.as_bytes())?;
                 }
             }
         }
-        self.ser.end_indent()?;
+
+        if !self.ser.compact_structs() {
+            self.ser.end_indent()?;
+        }
+
         if !self.newtype_variant {
             self.ser.output.write_all(b")")?;
         }
