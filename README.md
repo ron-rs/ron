@@ -102,6 +102,13 @@ Note the following advantages of RON over JSON:
 * optional struct names improve readability
 * enums are supported (and less verbose than their JSON representation)
 
+## Limitations
+
+RON is not designed to be a fully self-describing format (unlike JSON) and is thus not guaranteed to work when [`deserialize_any`](https://docs.rs/serde/latest/serde/trait.Deserializer.html#tymethod.deserialize_any) is used instead of its typed alternatives. In particular, the following Serde attributes are not yet supported:
+- `#[serde(tag = "type")]`, i.e. internally tagged enums
+- `#[serde(untagged)]`, i.e. untagged enums
+- `#[serde(flatten)]`, i.e. flattening an inner struct into its outer container
+
 ## RON syntax overview
 
 * Numbers: `42`, `3.14`, `0xFF`, `0b0110`
