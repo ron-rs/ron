@@ -243,10 +243,26 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         // `identifier` does not change state if it fails
         let ident = self.bytes.identifier().ok();
 
-        if ident.is_some() {
+        if let Some(ident) = ident {
             self.bytes.skip_ws()?;
 
-            return self.handle_any_struct(visitor);
+            // HACK: switch to JSON enum semantics for JSON content
+            // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
+            return if std::any::type_name::<V::Value>() == "serde::__private::de::content::Content"
+            {
+                let ident = std::str::from_utf8(ident)?;
+
+                if self.bytes.peek() == Some(b'(') {
+                    visitor.visit_map(SerdeEnumContent {
+                        de: self,
+                        ident: Some(ident),
+                    })
+                } else {
+                    visitor.visit_str(ident)
+                }
+            } else {
+                self.handle_any_struct(visitor)
+            };
         }
 
         match self.bytes.peek_or_eof()? {
@@ -923,5 +939,33 @@ fn struct_error_name(error: Error, name: Option<&str>) -> Error {
             outer: name.map(ToOwned::to_owned),
         },
         e => e,
+    }
+}
+
+struct SerdeEnumContent<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+    ident: Option<&'a str>,
+}
+
+impl<'de, 'a> de::MapAccess<'de> for SerdeEnumContent<'a, 'de> {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
+    where
+        K: DeserializeSeed<'de>,
+    {
+        self.ident
+            .take()
+            .map(|ident| seed.deserialize(serde::de::value::StrDeserializer::new(ident)))
+            .transpose()
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        self.de.bytes.skip_ws()?;
+
+        seed.deserialize(&mut *self.de)
     }
 }
