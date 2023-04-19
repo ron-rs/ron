@@ -4,7 +4,7 @@ use ron::{
     error::Error,
     value::{Map, Number, Value},
 };
-use serde::Serialize;
+use serde_derive::{Deserialize, Serialize};
 
 #[test]
 fn bool() {
@@ -117,10 +117,10 @@ fn unit() {
     );
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 struct Scene(Option<(u32, u32)>);
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 struct Scene2 {
     foo: Option<(u32, u32)>,
 }
@@ -130,19 +130,33 @@ fn roundtrip() {
     use ron::{de::from_str, ser::to_string};
 
     {
-        let s = to_string(&Scene2 {
+        let v = Scene2 {
             foo: Some((122, 13)),
-        })
-        .unwrap();
+        };
+        let s = to_string(&v).unwrap();
         println!("{}", s);
-        let scene: Value = from_str(&s).unwrap();
-        println!("{:?}", scene);
+        let val: Value = from_str(&s).unwrap();
+        println!("{:?}", val);
+        let v2 = val.into_rust::<Scene2>();
+        assert_eq!(v2, Ok(v));
     }
     {
-        let s = to_string(&Scene(Some((13, 122)))).unwrap();
+        let v = Scene(Some((13, 122)));
+        let s = to_string(&v).unwrap();
         println!("{}", s);
-        let scene: Value = from_str(&s).unwrap();
-        println!("{:?}", scene);
+        let val: Value = from_str(&s).unwrap();
+        println!("{:?}", val);
+        let v2 = val.into_rust::<Scene>();
+        assert_eq!(v2, Ok(v));
+    }
+    {
+        let v = (42,);
+        let s = to_string(&v).unwrap();
+        println!("{}", s);
+        let val: Value = from_str(&s).unwrap();
+        println!("{:?}", val);
+        let v2 = val.into_rust::<(i32,)>();
+        assert_eq!(v2, Ok(v));
     }
 }
 

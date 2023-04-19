@@ -17,7 +17,7 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{AnyNum, Bytes, ParsedStr, BASE64_ENGINE},
+    parse::{AnyNum, Bytes, ParsedStr, StructType, BASE64_ENGINE},
 };
 
 mod id;
@@ -33,6 +33,7 @@ mod value;
 pub struct Deserializer<'de> {
     bytes: Bytes<'de>,
     newtype_variant: bool,
+    serde_content_newtype: bool,
     last_identifier: Option<&'de str>,
     recursion_limit: Option<usize>,
 }
@@ -56,6 +57,7 @@ impl<'de> Deserializer<'de> {
         let mut deserializer = Deserializer {
             bytes: Bytes::new(input)?,
             newtype_variant: false,
+            serde_content_newtype: false,
             last_identifier: None,
             recursion_limit: options.recursion_limit,
         };
@@ -140,25 +142,49 @@ impl<'de> Deserializer<'de> {
     /// struct and deserializes it accordingly.
     ///
     /// This method assumes there is no identifier left.
-    fn handle_any_struct<V>(&mut self, visitor: V) -> Result<V::Value>
+    fn handle_any_struct<V>(&mut self, visitor: V, ident: Option<&str>) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        // Create a working copy
-        let mut bytes = self.bytes;
+        // HACK: switch to JSON enum semantics for JSON content
+        // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
+        let is_serde_content =
+            std::any::type_name::<V::Value>() == "serde::__private::de::content::Content";
 
-        if bytes.consume("(") {
-            bytes.skip_ws()?;
+        let old_serde_content_newtype = self.serde_content_newtype;
+        self.serde_content_newtype = false;
 
-            if bytes.check_tuple_struct()? {
-                // first argument is technically incorrect, but ignored anyway
-                self.deserialize_tuple(0, visitor)
-            } else {
+        match (self.bytes.check_struct_type()?, ident) {
+            (StructType::Unit, Some(ident)) if is_serde_content => {
+                // serde's Content type needs the ident for unit variants
+                visitor.visit_str(ident)
+            }
+            (StructType::Unit, _) => visitor.visit_unit(),
+            (_, Some(ident)) if is_serde_content => {
+                // serde's Content type uses a singleton map encoding for enums
+                visitor.visit_map(SerdeEnumContent {
+                    de: self,
+                    ident: Some(ident),
+                })
+            }
+            (StructType::Named, _) => {
                 // giving no name results in worse errors but is necessary here
                 self.handle_struct_after_name("", visitor)
             }
-        } else {
-            visitor.visit_unit()
+            (StructType::NewtypeOrTuple, _) if old_serde_content_newtype => {
+                // deserialize a newtype struct or variant
+                self.bytes.consume("(");
+                self.bytes.skip_ws()?;
+                let result = self.deserialize_any(visitor);
+                self.bytes.skip_ws()?;
+                self.bytes.consume(")");
+
+                result
+            }
+            (StructType::Tuple | StructType::NewtypeOrTuple, _) => {
+                // first argument is technically incorrect, but ignored anyway
+                self.deserialize_tuple(0, visitor)
+            }
         }
     }
 
@@ -246,27 +272,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         if let Some(ident) = ident {
             self.bytes.skip_ws()?;
 
-            // HACK: switch to JSON enum semantics for JSON content
-            // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
-            return if std::any::type_name::<V::Value>() == "serde::__private::de::content::Content"
-            {
-                let ident = std::str::from_utf8(ident)?;
-
-                if self.bytes.peek() == Some(b'(') {
-                    visitor.visit_map(SerdeEnumContent {
-                        de: self,
-                        ident: Some(ident),
-                    })
-                } else {
-                    visitor.visit_str(ident)
-                }
-            } else {
-                self.handle_any_struct(visitor)
-            };
+            return self.handle_any_struct(visitor, Some(std::str::from_utf8(ident)?));
         }
 
         match self.bytes.peek_or_eof()? {
-            b'(' => self.handle_any_struct(visitor),
+            b'(' => self.handle_any_struct(visitor, None),
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
             b'0'..=b'9' | b'+' | b'-' => {
@@ -966,6 +976,11 @@ impl<'de, 'a> de::MapAccess<'de> for SerdeEnumContent<'a, 'de> {
     {
         self.de.bytes.skip_ws()?;
 
-        seed.deserialize(&mut *self.de)
+        let old_serde_content_newtype = self.de.serde_content_newtype;
+        self.de.serde_content_newtype = true;
+        let result = seed.deserialize(&mut *self.de);
+        self.de.serde_content_newtype = old_serde_content_newtype;
+
+        result
     }
 }
