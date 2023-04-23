@@ -26,6 +26,7 @@ mod value;
 pub struct Deserializer<'de> {
     bytes: Bytes<'de>,
     newtype_variant: bool,
+    flatten_map_key: bool,
     last_identifier: Option<&'de str>,
     recursion_limit: Option<usize>,
 }
@@ -49,6 +50,7 @@ impl<'de> Deserializer<'de> {
         let mut deserializer = Deserializer {
             bytes: Bytes::new(input)?,
             newtype_variant: false,
+            flatten_map_key: false,
             last_identifier: None,
             recursion_limit: options.recursion_limit,
         };
@@ -420,6 +422,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        self.flatten_map_key = false;
+
         if self.bytes.consume("None") {
             visitor.visit_none()
         } else if self.bytes.consume("Some") && {
@@ -475,6 +479,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        self.flatten_map_key = false;
+
         if name == crate::value::raw::RAW_VALUE_TOKEN {
             let bytes_before = self.bytes.bytes();
             self.bytes.skip_ws()?;
@@ -522,6 +528,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         self.newtype_variant = false;
+        self.flatten_map_key = false;
 
         if self.bytes.consume("[") {
             let value = guard_recursion! { self =>
@@ -543,6 +550,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        self.flatten_map_key = false;
+
         if self.newtype_variant || self.bytes.consume("(") {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
@@ -571,6 +580,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        self.flatten_map_key = false;
+
         if !self.newtype_variant {
             self.bytes.consume_struct_name(name)?;
         }
@@ -586,6 +597,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         self.newtype_variant = false;
+        self.flatten_map_key = false;
 
         if self.bytes.consume("{") {
             let value = guard_recursion! { self =>
@@ -612,6 +624,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        self.flatten_map_key = false;
+
         if !self.newtype_variant {
             self.bytes.consume_struct_name(name)?;
         }
@@ -631,6 +645,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         self.newtype_variant = false;
+        self.flatten_map_key = false;
 
         match guard_recursion! { self => visitor.visit_enum(Enum::new(self)) } {
             Ok(value) => Ok(value),
@@ -651,7 +666,25 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let identifier = str::from_utf8(self.bytes.identifier()?).map_err(Error::from)?;
+        let identifier = match self.bytes.identifier() {
+            Ok(identifier) => identifier,
+            Err(err) if self.flatten_map_key => {
+                if !self.bytes.consume("\"") {
+                    return Err(err);
+                }
+
+                let identifier = self.bytes.identifier()?;
+
+                if !self.bytes.consume("\"") {
+                    return Err(err);
+                }
+
+                identifier
+            }
+            Err(err) => return Err(err),
+        };
+
+        let identifier = str::from_utf8(identifier).map_err(Error::from)?;
 
         self.last_identifier = Some(identifier);
 
@@ -725,13 +758,17 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         K: DeserializeSeed<'de>,
     {
         if self.has_element()? {
-            if self.terminator == b')' {
+            let old_map_key = self.de.flatten_map_key;
+            self.de.flatten_map_key = true;
+            let result = if self.terminator == b')' {
                 guard_recursion! { self.de =>
                     seed.deserialize(&mut IdDeserializer::new(&mut *self.de)).map(Some)
                 }
             } else {
                 guard_recursion! { self.de => seed.deserialize(&mut *self.de).map(Some) }
-            }
+            };
+            self.de.flatten_map_key = old_map_key;
+            result
         } else {
             Ok(None)
         }
