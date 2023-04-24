@@ -103,6 +103,66 @@ Main({
     let de: Newtype = ron::from_str(&ron).unwrap();
 
     assert_eq!(de, val);
+
+    assert_eq!(
+        ron::from_str::<Main>(
+            "{
+        first\": 1,
+        \"second\": 2,
+        \"third\": Some(3),
+        \"some_other_field\": 1337,
+    }"
+        ),
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::ExpectedString,
+            position: ron::error::Position { line: 2, col: 10 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<Main>(
+            "{
+        \"first\": 1,
+        \"second: 2,
+        \"third\": Some(3),
+        \"some_other_field\": 1337,
+    }"
+        ),
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::ExpectedStringEnd,
+            position: ron::error::Position { line: 3, col: 17 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<Main>(
+            "{
+        \"first\": 1,
+        \"second\": 2,
+        third\": Some(3),
+        \"some_other_field\": 1337,
+    }"
+        ),
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::ExpectedString,
+            position: ron::error::Position { line: 4, col: 10 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<Main>(
+            "{
+        \"first\": 1,
+        \"second\": 2,
+        \"third\": Some(3),
+        \"some_other_field: 1337,
+    }"
+        ),
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::ExpectedStringEnd,
+            position: ron::error::Position { line: 5, col: 27 },
+        })
+    );
 }
 
 #[test]
@@ -168,6 +228,62 @@ MyType({
     let de: Newtype = ron::from_str(&ron).unwrap();
 
     assert_eq!(de, val);
+
+    assert_eq!(
+        ron::from_str::<MyType>(
+            "{
+        first\": 1,
+        \"second\": 2,
+        \"third\": 3,
+    }"
+        ),
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::ExpectedString,
+            position: ron::error::Position { line: 2, col: 10 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<MyType>(
+            "{
+        \"first\": 1,
+        \"second: 2,
+        \"third\": 3,
+    }"
+        ),
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::ExpectedStringEnd,
+            position: ron::error::Position { line: 3, col: 17 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<MyType>(
+            "{
+        \"first\": 1,
+        \"second\": 2,
+        third\": 3,
+    }"
+        ),
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::ExpectedString,
+            position: ron::error::Position { line: 4, col: 10 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<MyType>(
+            "{
+        \"first\": 1,
+        \"second\": 2,
+        \"third: 3,
+    }"
+        ),
+        Err(ron::error::SpannedError {
+            code: ron::error::Error::ExpectedStringEnd,
+            position: ron::error::Position { line: 4, col: 16 },
+        })
+    );
 }
 
 #[test]
