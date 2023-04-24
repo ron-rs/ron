@@ -176,7 +176,7 @@ impl<'de> Deserializer<'de> {
 
             let value = guard_recursion! { self =>
                 visitor
-                    .visit_map(CommaSeparated::new(b')', self))
+                    .visit_map(CommaSeparated::new(Terminator::Struct, self))
                     .map_err(|err| {
                         struct_error_name(
                             err,
@@ -525,7 +525,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         if self.bytes.consume("[") {
             let value = guard_recursion! { self =>
-                visitor.visit_seq(CommaSeparated::new(b']', self))?
+                visitor.visit_seq(CommaSeparated::new(Terminator::Seq, self))?
             };
             self.bytes.skip_ws()?;
 
@@ -548,7 +548,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             self.newtype_variant = false;
 
             let value = guard_recursion! { self =>
-                visitor.visit_seq(CommaSeparated::new(b')', self))?
+                visitor.visit_seq(CommaSeparated::new(Terminator::Tuple, self))?
             };
             self.bytes.skip_ws()?;
 
@@ -587,9 +587,22 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         self.newtype_variant = false;
 
+        struct VisitorExpecting<V>(V);
+        impl<'de, V: Visitor<'de>> std::fmt::Display for VisitorExpecting<&'_ V> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                self.0.expecting(f)
+            }
+        }
+
+        let terminator = if VisitorExpecting(&visitor).to_string().starts_with("struct ") {
+            Terminator::MapAsStruct
+        } else {
+            Terminator::Map
+        };
+
         if self.bytes.consume("{") {
             let value = guard_recursion! { self =>
-                visitor.visit_map(CommaSeparated::new(b'}', self))?
+                visitor.visit_map(CommaSeparated::new(terminator, self))?
             };
             self.bytes.skip_ws()?;
 
@@ -666,14 +679,28 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Terminator {
+    Map, MapAsStruct, Tuple, Struct, Seq
+}
+impl Terminator {
+    fn as_byte(self) -> u8 {
+        match self {
+            Terminator::Map | Terminator::MapAsStruct => b'}',
+            Terminator::Tuple | Terminator::Struct => b')',
+            Terminator::Seq => b']',
+        }
+    }
+}
+
 struct CommaSeparated<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
-    terminator: u8,
+    terminator: Terminator,
     had_comma: bool,
 }
 
 impl<'a, 'de> CommaSeparated<'a, 'de> {
-    fn new(terminator: u8, de: &'a mut Deserializer<'de>) -> Self {
+    fn new(terminator: Terminator, de: &'a mut Deserializer<'de>) -> Self {
         CommaSeparated {
             de,
             terminator,
@@ -686,7 +713,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
 
         match (
             self.had_comma,
-            self.de.bytes.peek_or_eof()? != self.terminator,
+            self.de.bytes.peek_or_eof()? != self.terminator.as_byte(),
         ) {
             // Trailing comma, maybe has a next element
             (true, has_element) => Ok(has_element),
@@ -725,12 +752,17 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         K: DeserializeSeed<'de>,
     {
         if self.has_element()? {
-            if self.terminator == b')' {
-                guard_recursion! { self.de =>
-                    seed.deserialize(&mut IdDeserializer::new(&mut *self.de)).map(Some)
-                }
-            } else {
-                guard_recursion! { self.de => seed.deserialize(&mut *self.de).map(Some) }
+            match self.terminator {
+                Terminator::Struct =>
+                    guard_recursion! { self.de =>
+                        seed.deserialize(&mut IdDeserializer::new(false, &mut *self.de)).map(Some)
+                    },
+                Terminator::MapAsStruct =>
+                    guard_recursion! { self.de =>
+                        seed.deserialize(&mut IdDeserializer::new(true, &mut *self.de)).map(Some)
+                    },
+                _ =>
+                    guard_recursion! { self.de => seed.deserialize(&mut *self.de).map(Some) },
             }
         } else {
             Ok(None)
