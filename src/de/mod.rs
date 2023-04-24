@@ -1,5 +1,9 @@
 /// Deserialization module.
-use std::{borrow::Cow, io, str};
+use std::{
+    borrow::Cow,
+    io::{self, Write},
+    str,
+};
 
 use base64::Engine;
 use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
@@ -585,16 +589,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.newtype_variant = false;
+        // Detect `#[serde(flatten)]` as a struct deserialised as a map
+        const SERDE_FLATTEN_CANARY: &[u8] = b"struct ";
 
         struct VisitorExpecting<V>(V);
         impl<'de, V: Visitor<'de>> std::fmt::Display for VisitorExpecting<&'_ V> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                self.0.expecting(f)
+            fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                self.0.expecting(fmt)
             }
         }
 
-        let terminator = if VisitorExpecting(&visitor).to_string().starts_with("struct ") {
+        self.newtype_variant = false;
+
+        let mut cursor = std::io::Cursor::new([0u8; SERDE_FLATTEN_CANARY.len()]);
+        let _ = write!(cursor, "{}", VisitorExpecting(&visitor));
+        let terminator = if cursor.into_inner() == SERDE_FLATTEN_CANARY {
             Terminator::MapAsStruct
         } else {
             Terminator::Map
@@ -681,7 +690,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Terminator {
-    Map, MapAsStruct, Tuple, Struct, Seq
+    Map,
+    MapAsStruct,
+    Tuple,
+    Struct,
+    Seq,
 }
 impl Terminator {
     fn as_byte(self) -> u8 {
@@ -753,16 +766,13 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     {
         if self.has_element()? {
             match self.terminator {
-                Terminator::Struct =>
-                    guard_recursion! { self.de =>
-                        seed.deserialize(&mut IdDeserializer::new(false, &mut *self.de)).map(Some)
-                    },
-                Terminator::MapAsStruct =>
-                    guard_recursion! { self.de =>
-                        seed.deserialize(&mut IdDeserializer::new(true, &mut *self.de)).map(Some)
-                    },
-                _ =>
-                    guard_recursion! { self.de => seed.deserialize(&mut *self.de).map(Some) },
+                Terminator::Struct => guard_recursion! { self.de =>
+                    seed.deserialize(&mut IdDeserializer::new(false, &mut *self.de)).map(Some)
+                },
+                Terminator::MapAsStruct => guard_recursion! { self.de =>
+                    seed.deserialize(&mut IdDeserializer::new(true, &mut *self.de)).map(Some)
+                },
+                _ => guard_recursion! { self.de => seed.deserialize(&mut *self.de).map(Some) },
             }
         } else {
             Ok(None)
