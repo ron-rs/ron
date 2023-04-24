@@ -601,10 +601,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         self.newtype_variant = false;
 
-        let mut buffer = [0u8; SERDE_FLATTEN_CANARY.len()];
-        let mut cursor = std::io::Cursor::new(&mut buffer as &mut [u8]);
-        let _ = write!(cursor, "{}", VisitorExpecting(&visitor));
-        let terminator = if buffer == SERDE_FLATTEN_CANARY {
+        let mut canary_buffer = [0u8; SERDE_FLATTEN_CANARY.len()];
+        let _ = write!(canary_buffer.as_mut(), "{}", VisitorExpecting(&visitor));
+        let terminator = if canary_buffer == SERDE_FLATTEN_CANARY {
             Terminator::MapAsStruct
         } else {
             Terminator::Map
