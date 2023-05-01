@@ -696,6 +696,7 @@ enum Terminator {
     Struct,
     Seq,
 }
+
 impl Terminator {
     fn as_byte(self) -> u8 {
         match self {
