@@ -14,6 +14,7 @@ bitflags! {
 }
 
 option_set! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     struct TestBad: UpperCamel + u8 {
         const ONE = 1;
         const TWO = 1 << 1;
