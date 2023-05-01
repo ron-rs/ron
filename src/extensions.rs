@@ -1,7 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 
 bitflags::bitflags! {
-    #[derive(Serialize, Deserialize)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     pub struct Extensions: usize {
         const UNWRAP_NEWTYPES = 0x1;
         const IMPLICIT_SOME = 0x2;

@@ -2,7 +2,7 @@
 use std::{borrow::Cow, io, str};
 
 use base64::Engine;
-use serde::de::{self, DeserializeSeed, Deserializer as SerdeError, Visitor};
+use serde::de::{self, DeserializeSeed, Deserializer as _, Visitor};
 
 use self::{id::IdDeserializer, tag::TagDeserializer};
 pub use crate::error::{Error, Position, SpannedError};
