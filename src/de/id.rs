@@ -4,11 +4,12 @@ use super::{Deserializer, Error, Result};
 
 pub struct IdDeserializer<'a, 'b: 'a> {
     d: &'a mut Deserializer<'b>,
+    map_as_struct: bool,
 }
 
 impl<'a, 'b: 'a> IdDeserializer<'a, 'b> {
-    pub fn new(d: &'a mut Deserializer<'b>) -> Self {
-        IdDeserializer { d }
+    pub fn new(map_as_struct: bool, d: &'a mut Deserializer<'b>) -> Self {
+        IdDeserializer { d, map_as_struct }
     }
 }
 
@@ -19,7 +20,14 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
     where
         V: Visitor<'b>,
     {
-        self.d.deserialize_identifier(visitor)
+        if self.map_as_struct {
+            self.d.bytes.expect_byte(b'"', Error::ExpectedString)?;
+        }
+        let result = self.d.deserialize_identifier(visitor);
+        if self.map_as_struct {
+            self.d.bytes.expect_byte(b'"', Error::ExpectedStringEnd)?;
+        }
+        result
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>

@@ -107,7 +107,10 @@ Note the following advantages of RON over JSON:
 RON is not designed to be a fully self-describing format (unlike JSON) and is thus not guaranteed to work when [`deserialize_any`](https://docs.rs/serde/latest/serde/trait.Deserializer.html#tymethod.deserialize_any) is used instead of its typed alternatives. In particular, the following Serde attributes are not yet supported:
 - `#[serde(tag = "type")]`, i.e. internally tagged enums
 - `#[serde(untagged)]`, i.e. untagged enums
-- `#[serde(flatten)]`, i.e. flattening an inner struct into its outer container
+
+Furthermore, `#[serde(flatten)]` only has limited support and relies on a small hack [^serde-flatten-hack]. Specifically, flattened structs are only serialised as maps and deserialised from maps. However, this limited implementation supports full roundtripping.
+
+[^serde-flatten-hack]: Deserialising a flattened struct from a map requires that the struct's [`Visitor::expecting`](https://docs.rs/serde/latest/serde/de/trait.Visitor.html#tymethod.expecting) implementation formats a string starting with `"struct "`. This is the case for automatically-derived [`Deserialize`](https://docs.rs/serde/latest/serde/de/trait.Deserialize.html) impls on structs.
 
 ## RON syntax overview
 
