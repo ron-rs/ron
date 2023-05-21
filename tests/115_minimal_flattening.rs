@@ -322,3 +322,30 @@ AllOptional({
 
     assert_eq!(de, val);
 }
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AvailableCards {
+    pub left: u8,
+    pub right: u8,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+struct MapProperties {
+    #[serde(flatten)]
+    cards: AvailableCards,
+}
+
+#[test]
+fn test_issue_456() {
+    let map_properties = MapProperties {
+        cards: AvailableCards {
+            ..Default::default()
+        },
+    };
+    let ron = ron::to_string(&map_properties).unwrap();
+
+    let de: MapProperties = ron::from_str(&ron).unwrap();
+
+    assert_eq!(map_properties, de);
+}

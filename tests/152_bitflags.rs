@@ -1,4 +1,4 @@
-use bitflags::*;
+use bitflags::bitflags;
 use option_set::option_set;
 
 bitflags! {
