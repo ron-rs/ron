@@ -17,7 +17,7 @@ readme = "README.md"
 homepage = "https://github.com/ron-rs/ron"
 repository = "https://github.com/ron-rs/ron"
 documentation = "https://docs.rs/ron/"
-rust-version = "1.57.0"
+rust-version = "1.64.0"
 
 [features]
 default = []
@@ -26,7 +26,7 @@ integer128 = []
 [dependencies]
 base64 = "0.21"
 bitflags = { version = "2.0", features = ["serde"] }
-indexmap = { version = "1.9", features = ["serde-1"], optional = true }
+indexmap = { version = "2.0", features = ["serde"], optional = true }
 # serde supports i128/u128 from 1.0.60 onwards
 serde = "1.0.60"
 serde_derive = "1.0"
