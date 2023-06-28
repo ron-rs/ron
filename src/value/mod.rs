@@ -80,6 +80,19 @@ impl Map {
     pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> + DoubleEndedIterator {
         self.0.values_mut()
     }
+
+    /// Retains only the elements specified by the `keep` predicate.
+    ///
+    /// In other words, remove all pairs `(k, v)` for which `keep(&k, &mut v)`
+    /// returns `false`.
+    ///
+    /// The elements are visited in iteration order.
+    pub fn retain<F>(&mut self, keep: F)
+    where
+        F: FnMut(&Value, &mut Value) -> bool,
+    {
+        self.0.retain(keep);
+    }
 }
 
 impl FromIterator<(Value, Value)> for Map {
