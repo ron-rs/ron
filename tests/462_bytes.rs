@@ -1,6 +1,7 @@
 #[test]
 fn test_deserialise_byte_slice() {
-    let ron = ron::to_string(&[0_u8, 1_u8, 2_u8, 3_u8]).unwrap();
+    let val: &[u8] = &[0_u8, 1_u8, 2_u8, 3_u8];
+    let ron = ron::to_string(val).unwrap();
     assert_eq!(ron, "[0,1,2,3]");
 
     // deserialising a byte slice from a byte sequence should fail
