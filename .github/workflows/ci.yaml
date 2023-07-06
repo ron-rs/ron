@@ -84,7 +84,7 @@ jobs:
           profile: minimal
           components: llvm-tools-preview
           override: true
-      - run: cargo install grcov --force --locked
+      - run: cargo install grcov --force
         env:
           CARGO_TARGET_DIR: target/
       - run: |
