@@ -2,7 +2,6 @@
 [package]
 name = "ron-fuzz"
 version = "0.0.0"
-authors = ["Automatically generated"]
 publish = false
 edition = "2018"
 
@@ -10,10 +9,10 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
+arbitrary = { version = "1.0", features = ["derive"] }
 libfuzzer-sys = "0.4"
-
-[dependencies.ron]
-path = ".."
+ron = { path = "..", features = ["integer128"] }
+serde = { version = "1.0", features = ["derive"] }
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -22,5 +21,11 @@ members = ["."]
 [[bin]]
 name = "from_str"
 path = "fuzz_targets/from_str.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "arbitrary"
+path = "fuzz_targets/arbitrary.rs"
 test = false
 doc = false
