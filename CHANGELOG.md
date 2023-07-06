@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Depend on `serde_derive` directly to potentially enable more compilation parallelism ([#441](https://github.com/ron-rs/ron/pull/441))
 - Breaking: Bump `bitflags` dependency to 2.0, changes `serde` impls of `Extensions` ([#443](https://github.com/ron-rs/ron/pull/443))
 - Add `Map::retain` method ([#460](https://github.com/ron-rs/ron/pull/460))
+- Bump MSRV to 1.64.0 and bump dependency: `indexmap` to 2.0 ([#459](https://github.com/ron-rs/ron/pull/459))
 
 ## [0.8.0] - 2022-08-17
 - Add `integer128` feature that guards `i128` and `u128` ([#304](https://github.com/ron-rs/ron/pull/304), [#351](https://github.com/ron-rs/ron/pull/351))
