@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `compact_maps` and `compact_structs` options to `PrettyConfig` to allow serialising maps and structs on a single line ([#448](https://github.com/ron-rs/ron/pull/448))
 - Add minimal support for `#[serde(flatten)]` with roundtripping through RON maps ([#455](https://github.com/ron-rs/ron/pull/455))
 - Breaking: Bump `bitflags` dependency to 2.0, changes `serde` impls of `Extensions` ([#443](https://github.com/ron-rs/ron/pull/443))
+- Bump MSRV to 1.64.0 and bump dependency: `indexmap` to 2.0 ([#459](https://github.com/ron-rs/ron/pull/459))
 
 ## [0.8.0] - 2022-08-17
 
