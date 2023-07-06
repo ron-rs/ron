@@ -2,7 +2,10 @@
 use std::{borrow::Cow, io, str};
 
 use base64::Engine;
-use serde::de::{self, DeserializeSeed, Deserializer as _, Visitor};
+use serde::{
+    de::{self, DeserializeSeed, Deserializer as _, Visitor},
+    Deserialize,
+};
 
 use self::{id::IdDeserializer, tag::TagDeserializer};
 pub use crate::error::{Error, Position, SpannedError};
@@ -401,6 +404,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        if let Some(b'[') = self.bytes.peek() {
+            let bytes = Vec::<u8>::deserialize(self)?;
+            return visitor.visit_byte_buf(bytes);
+        }
+
         let res = {
             let string = self.bytes.string()?;
             let base64_str = match string {

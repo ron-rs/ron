@@ -1,4 +1,4 @@
-
-target
-corpus
-artifacts
+/artifacts
+/corpus
+/target
+/Cargo.lock
