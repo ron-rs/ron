@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use arbitrary::{Arbitrary, Unstructured};
 use libfuzzer_sys::fuzz_target;
@@ -37,10 +38,12 @@ enum SerdeData<'a> {
     I32(i32),
     I64(i64),
     I128(i128),
+    ISize(isize),
     U8(u8),
     U16(u16),
     U32(u32),
     U128(u128),
+    USize(usize),
     F32(F32),
     F64(F64),
     Char(char),
@@ -50,20 +53,41 @@ enum SerdeData<'a> {
     #[serde(borrow)]
     Bytes(Cow<'a, [u8]>),
     ByteBuf(Vec<u8>),
-    Option(Option<Box<Self>>),
+    Option(#[arbitrary(with = arbitrary_recursion_guard)] Option<Box<Self>>),
     Unit(()),
     #[serde(borrow)]
-    Map(SerdeMap<'a>),
-    Seq(Vec<Self>),
+    Map(#[arbitrary(with = arbitrary_recursion_guard)] SerdeMap<'a>),
+    Seq(#[arbitrary(with = arbitrary_recursion_guard)] Vec<Self>),
     #[serde(borrow)]
-    Enum(SerdeEnum<'a>),
+    Enum(#[arbitrary(with = arbitrary_recursion_guard)] SerdeEnum<'a>),
     #[serde(borrow)]
-    Struct(SerdeStruct<'a>),
+    Struct(#[arbitrary(with = arbitrary_recursion_guard)] SerdeStruct<'a>),
+}
+
+fn arbitrary_recursion_guard<'a, T: Arbitrary<'a> + Default>(
+    u: &mut Unstructured<'a>,
+) -> arbitrary::Result<T> {
+    static RECURSION_DEPTH: AtomicUsize = AtomicUsize::new(0);
+
+    let max_depth = ron::Options::default()
+        .recursion_limit
+        .map_or(256, |limit| limit * 2);
+
+    let result = if RECURSION_DEPTH.fetch_add(1, Ordering::Relaxed) < max_depth {
+        T::arbitrary(u)
+    } else {
+        Ok(T::default())
+    };
+
+    RECURSION_DEPTH.fetch_sub(1, Ordering::Relaxed);
+
+    result
 }
 
 #[allow(clippy::enum_variant_names)]
-#[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Arbitrary)]
+#[derive(Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize, Arbitrary)]
 enum SerdeEnum<'a> {
+    #[default]
     UnitVariant,
     #[serde(borrow)]
     NewtypeVariant(Box<SerdeData<'a>>),
@@ -84,6 +108,12 @@ enum SerdeStruct<'a> {
     Tuple(SerdeTupleStruct<'a>),
     #[serde(borrow)]
     Struct(SerdeStructStruct<'a>),
+}
+
+impl<'a> Default for SerdeStruct<'a> {
+    fn default() -> Self {
+        Self::Unit(SerdeUnitStruct)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Arbitrary)]
@@ -152,7 +182,7 @@ impl Hash for F64 {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Arbitrary)]
+#[derive(Debug, Default, PartialEq, Eq, Hash, Arbitrary)]
 struct SerdeMap<'a>(Vec<(SerdeData<'a>, SerdeData<'a>)>);
 
 impl<'a> Serialize for SerdeMap<'a> {
