@@ -476,7 +476,7 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn serialize_unescaped_or_raw_str(&mut self, value: &str) -> io::Result<()> {
-        if value.contains('"') {
+        if value.contains('"') || value.contains('\\') {
             let (_, num_consecutive_hashes) =
                 value.chars().fold((0, 0), |(count, max), c| match c {
                     '#' => (count + 1, max.max(count + 1)),

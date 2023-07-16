@@ -546,7 +546,7 @@ impl<'a> Bytes<'a> {
                     Ok(false)
                 }
             })
-            .fold(Ok(true), |acc, x| acc.and_then(|val| x.map(|x| x && val)))
+            .try_fold(true, |acc, x| x.map(|x| acc && x))
     }
 
     pub fn eat_byte(&mut self) -> Result<u8> {
@@ -650,9 +650,9 @@ impl<'a> Bytes<'a> {
         // If the next two bytes signify the start of a raw string literal,
         // return an error.
         let length = if next == b'r' {
-            match self.bytes.get(1).ok_or(Error::Eof)? {
-                b'"' => return Err(Error::ExpectedIdentifier),
-                b'#' => {
+            match self.bytes.get(1) {
+                Some(b'"') => return Err(Error::ExpectedIdentifier),
+                Some(b'#') => {
                     let after_next = self.bytes.get(2).copied().unwrap_or_default();
                     // Note: it's important to check this before advancing forward, so that
                     // the value-type deserializer can fall back to parsing it differently.

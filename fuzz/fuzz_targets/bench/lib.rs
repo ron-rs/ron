@@ -1,20 +1,25 @@
 use std::convert::TryFrom;
+use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use arbitrary::{Arbitrary, Unstructured};
+use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
+use serde::Deserializer;
 use serde::{
     ser::{
         SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
         SerializeTupleStruct, SerializeTupleVariant,
     },
-    Serialize, Serializer,
+    Deserialize, Serialize, Serializer,
 };
 
 use ron::{extensions::Extensions, ser::PrettyConfig};
 
 pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeData> {
     if let Ok(typed_value) = TypedSerdeData::arbitrary(&mut Unstructured::new(data)) {
-        let _ron = match ron::to_string(&typed_value) {
+        let ron = match ron::Options::default()
+            .to_string_pretty(&typed_value, typed_value.pretty_config())
+        {
             Ok(ron) => ron,
             // Erroring on deep recursion is better than crashing on a stack overflow
             Err(ron::error::Error::ExceededRecursionLimit) => return None,
@@ -24,6 +29,26 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             Err(ron::error::Error::ExpectedRawValue) => return None,
             // Everything else is actually a bug we want to find
             Err(err) => panic!("{:?} -! {:?}", typed_value, err),
+        };
+        if let Err(err) = ron::Options::default().from_str::<ron::Value>(&ron) {
+            match err.code {
+                // Erroring on deep recursion is better than crashing on a stack overflow
+                ron::error::Error::ExceededRecursionLimit => return None,
+                // FIXME: temporarily allow unimplemented cases to pass
+                ron::error::Error::Message(msg) if msg == "fuzz-unimplemented-fuzz" => return None,
+                // Everything else is actually a bug we want to find
+                err => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
+            }
+        };
+        if let Err(err) = ron::Options::default().from_str_seed(&ron, &typed_value) {
+            match err.code {
+                // Erroring on deep recursion is better than crashing on a stack overflow
+                ron::error::Error::ExceededRecursionLimit => return None,
+                // FIXME: temporarily allow unimplemented cases to pass
+                ron::error::Error::Message(msg) if msg == "fuzz-unimplemented-fuzz" => return None,
+                // Everything else is actually a bug we want to find
+                err => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
+            }
         };
         // TODO: also do typed deserialise
         Some(typed_value)
@@ -108,6 +133,18 @@ impl Serialize for TypedSerdeData {
     }
 }
 
+impl<'a, 'de> DeserializeSeed<'de> for &'a TypedSerdeData {
+    type Value = ();
+
+    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
+        BorrowedTypedSerdeData {
+            ty: &self.ty,
+            value: &self.value,
+        }
+        .deserialize(deserializer)
+    }
+}
+
 unsafe fn to_static(s: &str) -> &'static str {
     &*(s as *const str)
 }
@@ -115,24 +152,24 @@ unsafe fn to_static(s: &str) -> &'static str {
 impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match (self.ty, self.value) {
-            (SerdeDataType::Unit, SerdeDataValue::Unit) => serializer.serialize_unit(),
-            (SerdeDataType::Bool, SerdeDataValue::Bool(v)) => serializer.serialize_bool(*v),
-            (SerdeDataType::I8, SerdeDataValue::I8(v)) => serializer.serialize_i8(*v),
-            (SerdeDataType::I16, SerdeDataValue::I16(v)) => serializer.serialize_i16(*v),
-            (SerdeDataType::I32, SerdeDataValue::I32(v)) => serializer.serialize_i32(*v),
-            (SerdeDataType::I64, SerdeDataValue::I64(v)) => serializer.serialize_i64(*v),
-            (SerdeDataType::I128, SerdeDataValue::I128(v)) => serializer.serialize_i128(*v),
+            (SerdeDataType::Unit, SerdeDataValue::Unit) => ().serialize(serializer),
+            (SerdeDataType::Bool, SerdeDataValue::Bool(v)) => v.serialize(serializer),
+            (SerdeDataType::I8, SerdeDataValue::I8(v)) => v.serialize(serializer),
+            (SerdeDataType::I16, SerdeDataValue::I16(v)) => v.serialize(serializer),
+            (SerdeDataType::I32, SerdeDataValue::I32(v)) => v.serialize(serializer),
+            (SerdeDataType::I64, SerdeDataValue::I64(v)) => v.serialize(serializer),
+            (SerdeDataType::I128, SerdeDataValue::I128(v)) => v.serialize(serializer),
             (SerdeDataType::ISize, SerdeDataValue::ISize(v)) => v.serialize(serializer),
-            (SerdeDataType::U8, SerdeDataValue::U8(v)) => serializer.serialize_u8(*v),
-            (SerdeDataType::U16, SerdeDataValue::U16(v)) => serializer.serialize_u16(*v),
-            (SerdeDataType::U32, SerdeDataValue::U32(v)) => serializer.serialize_u32(*v),
-            (SerdeDataType::U64, SerdeDataValue::U64(v)) => serializer.serialize_u64(*v),
-            (SerdeDataType::U128, SerdeDataValue::U128(v)) => serializer.serialize_u128(*v),
+            (SerdeDataType::U8, SerdeDataValue::U8(v)) => v.serialize(serializer),
+            (SerdeDataType::U16, SerdeDataValue::U16(v)) => v.serialize(serializer),
+            (SerdeDataType::U32, SerdeDataValue::U32(v)) => v.serialize(serializer),
+            (SerdeDataType::U64, SerdeDataValue::U64(v)) => v.serialize(serializer),
+            (SerdeDataType::U128, SerdeDataValue::U128(v)) => v.serialize(serializer),
             (SerdeDataType::USize, SerdeDataValue::USize(v)) => v.serialize(serializer),
-            (SerdeDataType::F32, SerdeDataValue::F32(v)) => serializer.serialize_f32(*v),
-            (SerdeDataType::F64, SerdeDataValue::F64(v)) => serializer.serialize_f64(*v),
-            (SerdeDataType::Char, SerdeDataValue::Char(v)) => serializer.serialize_char(*v),
-            (SerdeDataType::String, SerdeDataValue::String(v)) => serializer.serialize_str(v),
+            (SerdeDataType::F32, SerdeDataValue::F32(v)) => v.serialize(serializer),
+            (SerdeDataType::F64, SerdeDataValue::F64(v)) => v.serialize(serializer),
+            (SerdeDataType::Char, SerdeDataValue::Char(v)) => v.serialize(serializer),
+            (SerdeDataType::String, SerdeDataValue::String(v)) => v.serialize(serializer),
             (SerdeDataType::ByteBuf, SerdeDataValue::ByteBuf(v)) => serializer.serialize_bytes(v),
             (SerdeDataType::Option { inner: ty }, SerdeDataValue::Option { inner: value }) => {
                 if let Some(value) = value {
@@ -304,6 +341,360 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                 }
             }
             _ => Err(serde::ser::Error::custom("invalid serde data")),
+        }
+    }
+}
+
+impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
+    type Value = ();
+
+    fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
+        fn deserialize_matching<
+            'de,
+            T: Deserialize<'de> + fmt::Debug + PartialEq,
+            D: Deserializer<'de>,
+        >(
+            deserializer: D,
+            check: &T,
+        ) -> Result<(), D::Error> {
+            let value = T::deserialize(deserializer)?;
+
+            if value == *check {
+                Ok(())
+            } else {
+                Err(serde::de::Error::custom(format!(
+                    "expected {:?} found {:?}",
+                    check, value
+                )))
+            }
+        }
+
+        match (self.ty, self.value) {
+            (SerdeDataType::Unit, SerdeDataValue::Unit) => deserialize_matching(deserializer, &()),
+            (SerdeDataType::Bool, SerdeDataValue::Bool(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::I8, SerdeDataValue::I8(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::I16, SerdeDataValue::I16(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::I32, SerdeDataValue::I32(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::I64, SerdeDataValue::I64(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::I128, SerdeDataValue::I128(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::ISize, SerdeDataValue::ISize(v)) => {
+                deserialize_matching(deserializer, v)
+            }
+            (SerdeDataType::U8, SerdeDataValue::U8(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::U16, SerdeDataValue::U16(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::U32, SerdeDataValue::U32(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::U64, SerdeDataValue::U64(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::U128, SerdeDataValue::U128(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::USize, SerdeDataValue::USize(v)) => {
+                deserialize_matching(deserializer, v)
+            }
+            (SerdeDataType::F32, SerdeDataValue::F32(v)) => {
+                let value = f32::deserialize(deserializer)?;
+
+                if (v.is_nan() && value.is_nan()) || (value == *v) {
+                    Ok(())
+                } else {
+                    Err(serde::de::Error::custom(format!(
+                        "expected {:?} found {:?}",
+                        v, value
+                    )))
+                }
+            }
+            (SerdeDataType::F64, SerdeDataValue::F64(v)) => {
+                let value = f64::deserialize(deserializer)?;
+
+                if (v.is_nan() && value.is_nan()) || (value == *v) {
+                    Ok(())
+                } else {
+                    Err(serde::de::Error::custom(format!(
+                        "expected {:?} found {:?}",
+                        v, value
+                    )))
+                }
+            }
+            (SerdeDataType::Char, SerdeDataValue::Char(v)) => deserialize_matching(deserializer, v),
+            (SerdeDataType::String, SerdeDataValue::String(v)) => {
+                deserialize_matching(deserializer, v)
+            }
+            (SerdeDataType::ByteBuf, SerdeDataValue::ByteBuf(v)) => {
+                struct BytesVisitor<'a> {
+                    value: &'a [u8],
+                }
+
+                impl<'a, 'de> Visitor<'de> for BytesVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a byte array")
+                    }
+
+                    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                        self.visit_bytes(v.as_bytes())
+                    }
+
+                    fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                        if v == self.value {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected {:?} found {:?}",
+                                self.value, v
+                            )))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_bytes(BytesVisitor { value: v })
+            }
+            (SerdeDataType::Option { inner: ty }, SerdeDataValue::Option { inner: value }) => {
+                struct OptionVisitor<'a> {
+                    ty: &'a SerdeDataType,
+                    value: Option<&'a SerdeDataValue>,
+                }
+
+                impl<'a, 'de> Visitor<'de> for OptionVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("an option")
+                    }
+
+                    fn visit_some<D: Deserializer<'de>>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error> {
+                        if let Some(expected) = self.value {
+                            BorrowedTypedSerdeData {
+                                ty: self.ty,
+                                value: expected,
+                            }
+                            .deserialize(deserializer)
+                        } else {
+                            Err(serde::de::Error::custom("expected None found Some(...)"))
+                        }
+                    }
+
+                    fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+                        if self.value.is_none() {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected {:?} found None",
+                                self.value
+                            )))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_option(OptionVisitor {
+                    ty,
+                    value: value.as_deref(),
+                })
+            }
+            (SerdeDataType::Array { kind, len }, SerdeDataValue::Seq { elems }) => {
+                struct ArrayVisitor<'a> {
+                    kind: &'a SerdeDataType,
+                    elems: &'a [SerdeDataValue],
+                }
+
+                impl<'a, 'de> Visitor<'de> for ArrayVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_fmt(format_args!("an array of length {}", self.elems.len()))
+                    }
+
+                    fn visit_seq<A: SeqAccess<'de>>(
+                        self,
+                        mut seq: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        for expected in self.elems {
+                            seq.next_element_seed(BorrowedTypedSerdeData {
+                                ty: self.kind,
+                                value: expected,
+                            })?;
+                        }
+                        Ok(())
+                    }
+                }
+
+                if elems.len() != *len {
+                    return Err(serde::de::Error::custom("mismatch array len"));
+                }
+
+                deserializer.deserialize_tuple(*len, ArrayVisitor { kind, elems })
+            }
+            (SerdeDataType::Tuple { elems: tys }, SerdeDataValue::Seq { elems: values }) => {
+                struct TupleVisitor<'a> {
+                    tys: &'a [SerdeDataType],
+                    values: &'a [SerdeDataValue],
+                }
+
+                impl<'a, 'de> Visitor<'de> for TupleVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_fmt(format_args!("a tuple of size {}", self.values.len()))
+                    }
+
+                    fn visit_seq<A: SeqAccess<'de>>(
+                        self,
+                        mut seq: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        for (ty, expected) in self.tys.iter().zip(self.values.iter()) {
+                            seq.next_element_seed(BorrowedTypedSerdeData {
+                                ty,
+                                value: expected,
+                            })?;
+                        }
+                        Ok(())
+                    }
+                }
+
+                if values.len() != tys.len() {
+                    return Err(serde::de::Error::custom("mismatch tuple len"));
+                }
+
+                deserializer.deserialize_tuple(tys.len(), TupleVisitor { tys, values })
+            }
+            (SerdeDataType::Vec { item }, SerdeDataValue::Seq { elems }) => {
+                struct VecVisitor<'a> {
+                    item: &'a SerdeDataType,
+                    elems: &'a [SerdeDataValue],
+                }
+
+                impl<'a, 'de> Visitor<'de> for VecVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a sequence")
+                    }
+
+                    fn visit_seq<A: SeqAccess<'de>>(
+                        self,
+                        mut seq: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        for expected in self.elems {
+                            seq.next_element_seed(BorrowedTypedSerdeData {
+                                ty: self.item,
+                                value: expected,
+                            })?;
+                        }
+                        Ok(())
+                    }
+                }
+
+                deserializer.deserialize_seq(VecVisitor { item, elems })
+            }
+            (SerdeDataType::Map { key, value }, SerdeDataValue::Map { elems }) => {
+                struct MapVisitor<'a> {
+                    key: &'a SerdeDataType,
+                    value: &'a SerdeDataType,
+                    elems: &'a [(SerdeDataValue, SerdeDataValue)],
+                }
+
+                impl<'a, 'de> Visitor<'de> for MapVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a map")
+                    }
+
+                    fn visit_map<A: MapAccess<'de>>(
+                        self,
+                        mut map: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        for (ekey, eval) in self.elems {
+                            map.next_entry_seed(
+                                BorrowedTypedSerdeData {
+                                    ty: self.key,
+                                    value: ekey,
+                                },
+                                BorrowedTypedSerdeData {
+                                    ty: self.value,
+                                    value: eval,
+                                },
+                            )?;
+                        }
+                        Ok(())
+                    }
+                }
+
+                deserializer.deserialize_map(MapVisitor { key, value, elems })
+            }
+            (SerdeDataType::UnitStruct { name }, SerdeDataValue::UnitStruct) => {
+                struct UnitStructVisitor<'a> {
+                    name: &'a str,
+                }
+
+                impl<'a, 'de> Visitor<'de> for UnitStructVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_fmt(format_args!("the unit struct {}", self.name))
+                    }
+
+                    fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+                        Ok(())
+                    }
+                }
+
+                deserializer
+                    .deserialize_unit_struct(unsafe { to_static(name) }, UnitStructVisitor { name })
+            }
+            (SerdeDataType::Newtype { name, inner }, SerdeDataValue::Newtype { inner: value }) => {
+                struct NewtypeVisitor<'a> {
+                    name: &'a str,
+                    inner: &'a SerdeDataType,
+                    value: &'a SerdeDataValue,
+                }
+
+                impl<'a, 'de> Visitor<'de> for NewtypeVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_fmt(format_args!("the newtype struct {}", self.name))
+                    }
+
+                    fn visit_newtype_struct<D: Deserializer<'de>>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error> {
+                        BorrowedTypedSerdeData {
+                            ty: self.inner,
+                            value: self.value,
+                        }
+                        .deserialize(deserializer)
+                    }
+                }
+
+                deserializer.deserialize_newtype_struct(
+                    unsafe { to_static(name) },
+                    NewtypeVisitor { name, inner, value },
+                )
+            }
+            (
+                SerdeDataType::TupleStruct { name, fields },
+                SerdeDataValue::Struct { fields: values },
+            ) => {
+                let _ = (name, fields, values);
+                Err(serde::de::Error::custom("fuzz-unimplemented-fuzz"))
+            }
+            (SerdeDataType::Struct { name, fields }, SerdeDataValue::Struct { fields: values }) => {
+                let _ = (name, fields, values);
+                Err(serde::de::Error::custom("fuzz-unimplemented-fuzz"))
+            }
+            (
+                SerdeDataType::Enum { name, variants },
+                SerdeDataValue::Enum {
+                    variant: variant_index,
+                    value,
+                },
+            ) => {
+                let _ = (name, variants, variant_index, value);
+                Err(serde::de::Error::custom("fuzz-unimplemented-fuzz"))
+            }
+            _ => Err(serde::de::Error::custom("invalid serde data")),
         }
     }
 }
