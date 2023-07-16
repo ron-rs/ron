@@ -92,7 +92,6 @@ pub enum Error {
     SuggestRawIdentifier(String),
     ExpectedRawValue,
     ExceededRecursionLimit,
-    UnsupportedSelfDescribingUnwrappedSomeNewtypeVariant,
 }
 
 impl fmt::Display for SpannedError {
@@ -253,7 +252,6 @@ impl fmt::Display for Error {
             ),
             Error::ExpectedRawValue => f.write_str("Expected a `ron::value::RawValue`"),
             Error::ExceededRecursionLimit => f.write_str("Exceeded recursion limit, try increasing the limit and using `serde_stacker` to protect against a stack overflow"),
-            Error::UnsupportedSelfDescribingUnwrappedSomeNewtypeVariant => f.write_str("Unsupported deserialize of `Some(...)` inside an untyped, self-describing `deserialize_any` call while the `unwrap_variant_newtypes` extension is enabled"),
         }
     }
 }
