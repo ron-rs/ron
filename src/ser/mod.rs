@@ -386,25 +386,25 @@ impl<W: io::Write> Serializer<W> {
     fn separate_tuple_members(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.separate_tuple_members)
+            .map_or(false, |(ref config, _)| config.separate_tuple_members)
     }
 
     fn compact_arrays(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.compact_arrays)
+            .map_or(false, |(ref config, _)| config.compact_arrays)
     }
 
     fn compact_structs(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.compact_structs)
+            .map_or(false, |(ref config, _)| config.compact_structs)
     }
 
     fn compact_maps(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.compact_maps)
+            .map_or(false, |(ref config, _)| config.compact_maps)
     }
 
     fn extensions(&self) -> Extensions {
@@ -412,13 +412,13 @@ impl<W: io::Write> Serializer<W> {
             | self
                 .pretty
                 .as_ref()
-                .map_or(Extensions::empty(), |&(ref config, _)| config.extensions)
+                .map_or(Extensions::empty(), |(ref config, _)| config.extensions)
     }
 
     fn escape_strings(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(true, |&(ref config, _)| config.escape_strings)
+            .map_or(true, |(ref config, _)| config.escape_strings)
     }
 
     fn start_indent(&mut self) -> Result<()> {
@@ -512,14 +512,19 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn write_identifier(&mut self, name: &str) -> Result<()> {
-        if name.is_empty() || !name.as_bytes().iter().copied().all(is_ident_raw_char) {
-            return Err(Error::InvalidIdentifier(name.into()));
-        }
+        self.validate_identifier(name)?;
         let mut bytes = name.as_bytes().iter().copied();
         if !bytes.next().map_or(false, is_ident_first_char) || !bytes.all(is_ident_other_char) {
             self.output.write_all(b"r#")?;
         }
         self.output.write_all(name.as_bytes())?;
+        Ok(())
+    }
+
+    fn validate_identifier(&self, name: &str) -> Result<()> {
+        if name.is_empty() || !name.as_bytes().iter().copied().all(is_ident_raw_char) {
+            return Err(Error::InvalidIdentifier(name.into()));
+        }
         Ok(())
     }
 
@@ -687,11 +692,18 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
             Ok(())
         } else {
+            self.validate_identifier(name)?;
             self.serialize_unit()
         }
     }
 
-    fn serialize_unit_variant(self, _: &'static str, _: u32, variant: &'static str) -> Result<()> {
+    fn serialize_unit_variant(
+        self,
+        name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<()> {
+        self.validate_identifier(name)?;
         self.write_identifier(variant)?;
 
         Ok(())
@@ -708,11 +720,15 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) || self.newtype_variant {
             self.newtype_variant = false;
 
+            self.validate_identifier(name)?;
+
             return guard_recursion! { self => value.serialize(&mut *self) };
         }
 
         if self.struct_names() {
             self.write_identifier(name)?;
+        } else {
+            self.validate_identifier(name)?;
         }
 
         self.output.write_all(b"(")?;
@@ -723,14 +739,15 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_newtype_variant<T>(
         self,
-        _: &'static str,
-        _: u32,
+        name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         value: &T,
     ) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
+        self.validate_identifier(name)?;
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
@@ -790,6 +807,8 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     ) -> Result<Self::SerializeTupleStruct> {
         if self.struct_names() && !self.newtype_variant {
             self.write_identifier(name)?;
+        } else {
+            self.validate_identifier(name)?;
         }
 
         self.serialize_tuple(len)
@@ -797,13 +816,14 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_tuple_variant(
         self,
-        _: &'static str,
-        _: u32,
+        name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         self.newtype_variant = false;
 
+        self.validate_identifier(name)?;
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
@@ -839,8 +859,12 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         if !old_newtype_variant {
             if self.struct_names() {
                 self.write_identifier(name)?;
+            } else {
+                self.validate_identifier(name)?;
             }
             self.output.write_all(b"(")?;
+        } else {
+            self.validate_identifier(name)?;
         }
 
         if !self.compact_structs() {
@@ -853,13 +877,14 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_struct_variant(
         self,
-        _: &'static str,
-        _: u32,
+        name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         self.newtype_variant = false;
 
+        self.validate_identifier(name)?;
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
