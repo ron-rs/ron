@@ -327,6 +327,8 @@ pub struct Serializer<W: io::Write> {
     is_empty: Option<bool>,
     newtype_variant: bool,
     recursion_limit: Option<usize>,
+    // Tracks the number of opened implicit `Some`s, set to 0 on backtracking
+    implicit_some_depth: usize,
 }
 
 impl<W: io::Write> Serializer<W> {
@@ -380,6 +382,7 @@ impl<W: io::Write> Serializer<W> {
             is_empty: None,
             newtype_variant: false,
             recursion_limit: options.recursion_limit,
+            implicit_some_depth: 0,
         })
     }
 
@@ -655,7 +658,17 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_none(self) -> Result<()> {
+        // We no longer need to keep track of the depth
+        let implicit_some_depth = self.implicit_some_depth;
+        self.implicit_some_depth = 0;
+
+        for _ in 0..implicit_some_depth {
+            self.output.write_all(b"Some(")?;
+        }
         self.output.write_all(b"None")?;
+        for _ in 0..implicit_some_depth {
+            self.output.write_all(b")")?;
+        }
 
         Ok(())
     }
@@ -665,11 +678,15 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         T: ?Sized + Serialize,
     {
         let implicit_some = self.extensions().contains(Extensions::IMPLICIT_SOME);
-        if !implicit_some {
+        if implicit_some {
+            self.implicit_some_depth += 1;
+        } else {
             self.output.write_all(b"Some(")?;
         }
         guard_recursion! { self => value.serialize(&mut *self)? };
-        if !implicit_some {
+        if implicit_some {
+            self.implicit_some_depth = 0;
+        } else {
             self.output.write_all(b")")?;
         }
 
@@ -680,8 +697,6 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         if !self.newtype_variant {
             self.output.write_all(b"()")?;
         }
-
-        self.newtype_variant = false;
 
         Ok(())
     }
@@ -731,9 +746,12 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.validate_identifier(name)?;
         }
 
+        self.implicit_some_depth = 0;
+
         self.output.write_all(b"(")?;
         guard_recursion! { self => value.serialize(&mut *self)? };
         self.output.write_all(b")")?;
+
         Ok(())
     }
 
@@ -754,6 +772,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = self
             .extensions()
             .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
+        self.implicit_some_depth = 0;
 
         guard_recursion! { self => value.serialize(&mut *self)? };
 
@@ -765,6 +784,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         self.output.write_all(b"[")?;
 
@@ -786,6 +806,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         let old_newtype_variant = self.newtype_variant;
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         if !old_newtype_variant {
             self.output.write_all(b"(")?;
@@ -822,6 +843,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         self.validate_identifier(name)?;
         self.write_identifier(variant)?;
@@ -838,6 +860,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         self.output.write_all(b"{")?;
 
@@ -855,6 +878,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         let old_newtype_variant = self.newtype_variant;
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         if !old_newtype_variant {
             if self.struct_names() {
@@ -883,6 +907,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         self.validate_identifier(name)?;
         self.write_identifier(variant)?;
