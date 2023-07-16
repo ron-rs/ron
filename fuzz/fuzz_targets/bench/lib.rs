@@ -10,6 +10,8 @@ use serde::{
     Serialize, Serializer,
 };
 
+use ron::{extensions::Extensions, ser::PrettyConfig};
+
 pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeData> {
     if let Ok(typed_value) = TypedSerdeData::arbitrary(&mut Unstructured::new(data)) {
         let _ron = match ron::to_string(&typed_value) {
@@ -30,10 +32,65 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
     }
 }
 
+#[derive(Debug, PartialEq, Arbitrary)]
+struct ArbitraryPrettyConfig {
+    /// Limit the pretty-ness up to the given depth.
+    depth_limit: usize,
+    // Whether to emit struct names
+    struct_names: bool,
+    /// Separate tuple members with indentation
+    separate_tuple_members: bool,
+    /// Enumerate array items in comments
+    enumerate_arrays: bool,
+    #[arbitrary(with = arbitrary_ron_extensions)]
+    /// Enable extensions. Only configures 'implicit_some',
+    ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
+    extensions: Extensions,
+    /// Enable compact arrays, which do not insert new lines and indentation
+    ///  between the elements of an array
+    compact_arrays: bool,
+    /// Whether to serialize strings as escaped strings,
+    ///  or fall back onto raw strings if necessary.
+    escape_strings: bool,
+    /// Enable compact structs, which do not insert new lines and indentation
+    ///  between the fields of a struct
+    compact_structs: bool,
+    /// Enable compact maps, which do not insert new lines and indentation
+    ///  between the entries of a struct
+    compact_maps: bool,
+}
+
+fn arbitrary_ron_extensions(u: &mut Unstructured) -> arbitrary::Result<Extensions> {
+    Extensions::from_bits(usize::arbitrary(u)?).ok_or(arbitrary::Error::IncorrectFormat)
+}
+
+impl From<ArbitraryPrettyConfig> for PrettyConfig {
+    fn from(arbitrary: ArbitraryPrettyConfig) -> Self {
+        Self::default()
+            .depth_limit(arbitrary.depth_limit)
+            .struct_names(arbitrary.struct_names)
+            .separate_tuple_members(arbitrary.separate_tuple_members)
+            .enumerate_arrays(arbitrary.enumerate_arrays)
+            .extensions(arbitrary.extensions)
+            .compact_arrays(arbitrary.compact_arrays)
+            .escape_strings(arbitrary.escape_strings)
+            .compact_structs(arbitrary.compact_structs)
+            .compact_maps(arbitrary.compact_maps)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct TypedSerdeData {
+    pretty_config: PrettyConfig,
     ty: SerdeDataType,
     value: SerdeDataValue,
+}
+
+impl TypedSerdeData {
+    #[allow(dead_code)]
+    pub fn pretty_config(&self) -> PrettyConfig {
+        self.pretty_config.clone()
+    }
 }
 
 struct BorrowedTypedSerdeData<'a> {
@@ -253,9 +310,14 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
 
 impl<'a> Arbitrary<'a> for TypedSerdeData {
     fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+        let pretty_config = ArbitraryPrettyConfig::arbitrary(u)?.into();
         let ty = SerdeDataType::arbitrary(u)?;
-        let data = ty.arbitrary_value(u)?;
-        Ok(Self { ty, value: data })
+        let value = ty.arbitrary_value(u)?;
+        Ok(Self {
+            pretty_config,
+            ty,
+            value,
+        })
     }
 }
 

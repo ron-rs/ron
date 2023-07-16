@@ -21,11 +21,7 @@ fn main() -> anyhow::Result<()> {
         if let Some(typed_data) = typed_data::roundtrip_arbitrary_typed_ron_or_panic(&data) {
             println!(
                 "{path:?}\n{}\n",
-                ron::ser::to_string_pretty(
-                    &typed_data,
-                    ron::ser::PrettyConfig::default().struct_names(true)
-                )
-                .unwrap()
+                ron::ser::to_string_pretty(&typed_data, typed_data.pretty_config()).unwrap()
             );
         }
     }
