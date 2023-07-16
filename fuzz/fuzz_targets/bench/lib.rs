@@ -34,10 +34,16 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
                 ron::error::Error::ExceededRecursionLimit => return None,
+                // FIXME: deserialising `Some(...)` inside `deserialize_any` with
+                //  `unwrap_variant_newtypes` enabled is unsupported, since `Some`
+                //  is special-cased by `deserialize_any`
+                ron::error::Error::UnsupportedSelfDescribingUnwrappedSomeNewtypeVariant => {
+                    return None
+                }
                 // FIXME: temporarily allow unimplemented cases to pass
                 ron::error::Error::Message(msg) if msg == "fuzz-unimplemented-fuzz" => return None,
                 // Everything else is actually a bug we want to find
-                err => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
+                _ => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
             }
         };
         if let Err(err) = ron::Options::default().from_str_seed(&ron, &typed_value) {
@@ -47,7 +53,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 // FIXME: temporarily allow unimplemented cases to pass
                 ron::error::Error::Message(msg) if msg == "fuzz-unimplemented-fuzz" => return None,
                 // Everything else is actually a bug we want to find
-                err => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
+                _ => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
             }
         };
         // TODO: also do typed deserialise

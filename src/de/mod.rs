@@ -253,6 +253,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         } else if self.bytes.consume_ident("false") {
             return visitor.visit_bool(false);
         } else if self.bytes.check_ident("Some") {
+            if self
+                .bytes
+                .exts
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
+            {
+                return Err(Error::UnsupportedSelfDescribingUnwrappedSomeNewtypeVariant);
+            }
             return self.deserialize_option(visitor);
         } else if self.bytes.consume_ident("None") {
             return visitor.visit_none();
@@ -466,7 +473,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         } {
             self.bytes.skip_ws()?;
 
+            self.newtype_variant = self
+                .bytes
+                .exts
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
+
             let v = guard_recursion! { self => visitor.visit_some(&mut *self)? };
+
+            self.newtype_variant = false;
 
             self.bytes.comma()?;
 

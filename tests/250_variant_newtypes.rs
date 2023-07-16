@@ -400,11 +400,8 @@ fn assert_eq_serialize_roundtrip<
     value: S,
     extensions: Extensions,
 ) {
-    assert_eq!(
-        from_str::<S>(
-            &to_string_pretty(&value, PrettyConfig::default().extensions(extensions)).unwrap()
-        )
-        .unwrap(),
-        value,
-    );
+    let ron = to_string_pretty(&value, PrettyConfig::default().extensions(extensions)).unwrap();
+    let result = from_str::<S>(&ron);
+
+    assert_eq!(result.as_ref(), Ok(&value), "{}", ron,);
 }
