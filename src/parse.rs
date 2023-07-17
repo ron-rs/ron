@@ -299,6 +299,10 @@ impl<'a> Bytes<'a> {
                         } else if x >= min_i32 && x <= max_i32 {
                             Ok(AnyNum::I32(x as i32))
                         } else if x >= min_i64 && x <= max_i64 {
+                            #[cfg_attr(
+                                not(feature = "integer128"),
+                                allow(clippy::unnecessary_cast)
+                            )]
                             Ok(AnyNum::I64(x as i64))
                         } else {
                             #[cfg(feature = "integer128")]
@@ -327,6 +331,10 @@ impl<'a> Bytes<'a> {
                         } else if x <= max_u32 {
                             Ok(AnyNum::U32(x as u32))
                         } else if x <= max_u64 {
+                            #[cfg_attr(
+                                not(feature = "integer128"),
+                                allow(clippy::unnecessary_cast)
+                            )]
                             Ok(AnyNum::U64(x as u64))
                         } else {
                             #[cfg(feature = "integer128")]
