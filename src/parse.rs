@@ -427,17 +427,67 @@ impl<'a> Bytes<'a> {
             .map_or(false, |&b| is_ident_other_char(b))
     }
 
-    /// Should only be used on a working copy
-    pub fn check_tuple_struct(mut self) -> Result<bool> {
-        if self.identifier().is_err() {
-            // if there's no field ident, this is a tuple struct
-            return Ok(true);
+    pub fn check_struct_type(&mut self) -> Result<StructType> {
+        fn check_struct_type_inner(bytes: &mut Bytes) -> Result<StructType> {
+            if !bytes.consume("(") {
+                return Ok(StructType::Unit);
+            }
+
+            bytes.skip_ws()?;
+
+            if bytes.identifier().is_ok() {
+                bytes.skip_ws()?;
+
+                match bytes.peek() {
+                    // Definitely a struct with named fields
+                    Some(b':') => return Ok(StructType::Named),
+                    // Definitely a tuple struct with fields
+                    Some(b',') => return Ok(StructType::Tuple),
+                    // Either a newtype or a tuple struct
+                    Some(b')') => return Ok(StructType::NewtypeOrTuple),
+                    // Something else, let's investigate further
+                    _ => (),
+                };
+            }
+
+            let mut braces = 1;
+            let mut comma = false;
+
+            // Skip ahead to see if the value is followed by a comma
+            while braces > 0 {
+                // Skip spurious braces in comments and strings
+                bytes.skip_ws()?;
+                let _ = bytes.string();
+
+                let c = bytes.eat_byte()?;
+                if c == b'(' || c == b'[' || c == b'{' {
+                    braces += 1;
+                } else if c == b')' || c == b']' || c == b'}' {
+                    braces -= 1;
+                } else if c == b',' && braces == 1 {
+                    comma = true;
+                    break;
+                }
+            }
+
+            if comma {
+                Ok(StructType::Tuple)
+            } else {
+                Ok(StructType::NewtypeOrTuple)
+            }
         }
 
-        self.skip_ws()?;
+        // Create a temporary working copy
+        let mut bytes = *self;
 
-        // if there is no colon after the ident, this can only be a unit struct
-        self.eat_byte().map(|c| c != b':')
+        let result = check_struct_type_inner(&mut bytes);
+
+        if result.is_err() {
+            // Adjust the error span to fit the working copy
+            *self = bytes;
+        }
+
+        result
     }
 
     /// Only returns true if the char after `ident` cannot belong
@@ -994,6 +1044,13 @@ impl_num!(u8 u16 u32 u64 i8 i16 i32 i64);
 pub enum ParsedStr<'a> {
     Allocated(String),
     Slice(&'a str),
+}
+
+pub enum StructType {
+    NewtypeOrTuple,
+    Tuple,
+    Named,
+    Unit,
 }
 
 #[cfg(test)]
