@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Non-API] Breaking: Bump `bitflags` dependency to 2.0, changes `serde` impls of `Extensions` ([#443](https://github.com/ron-rs/ron/pull/443))
 - Add `Map::retain` method ([#460](https://github.com/ron-rs/ron/pull/460))
 - Bump MSRV to 1.64.0 and bump dependency: `indexmap` to 2.0 ([#459](https://github.com/ron-rs/ron/pull/459))
+- Add minimal roundtripping support for `#[serde(tag = "tag")]`, `#[serde(tag = "tag", content = "content")]`, and `#[serde(untagged)]` enums ([#451](https://github.com/ron-rs/ron/pull/451))
 
 ## [0.8.0] - 2022-08-17
 
