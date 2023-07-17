@@ -681,9 +681,9 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         if implicit_some {
             self.implicit_some_depth += 1;
         } else {
-            // Some is explicitly not a newtype variant, since
-            // `deserialize_any` cannot handle "Some(a: 42)"
-            self.newtype_variant = false;
+            self.newtype_variant = self
+                .extensions()
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
             self.output.write_all(b"Some(")?;
         }
         guard_recursion! { self => value.serialize(&mut *self)? };
@@ -691,6 +691,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.implicit_some_depth = 0;
         } else {
             self.output.write_all(b")")?;
+            self.newtype_variant = false;
         }
 
         Ok(())

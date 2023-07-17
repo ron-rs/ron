@@ -435,9 +435,16 @@ impl<'a> Bytes<'a> {
             .map_or(false, |&b| is_ident_other_char(b))
     }
 
-    pub fn check_struct_type(&mut self) -> Result<StructType> {
-        fn check_struct_type_inner(bytes: &mut Bytes) -> Result<StructType> {
-            if !bytes.consume("(") {
+    /// Check which type of struct we are currently parsing.
+    ///
+    /// Setting `no_unit` to `true` skips an initial check for unit structs,
+    ///  and means that any leading opening bracket is not considered to open
+    ///  a (tuple) struct but to be part of the structs inner contents.
+    /// Setting `no_unit` to `false` detects (tuple) structs by a leading
+    ///  opening bracket and reports a unit struct otherwise.
+    pub fn check_struct_type(&mut self, no_unit: bool) -> Result<StructType> {
+        fn check_struct_type_inner(bytes: &mut Bytes, no_unit: bool) -> Result<StructType> {
+            if !no_unit && !bytes.consume("(") {
                 return Ok(StructType::Unit);
             }
 
@@ -458,14 +465,21 @@ impl<'a> Bytes<'a> {
                 };
             }
 
-            let mut braces = 1;
+            let mut braces = 1_usize;
             let mut comma = false;
 
             // Skip ahead to see if the value is followed by a comma
             while braces > 0 {
-                // Skip spurious braces in comments and strings
+                // Skip spurious braces in comments, strings, and characters
                 bytes.skip_ws()?;
-                let _ = bytes.string();
+                let mut bytes_copy = *bytes;
+                if bytes_copy.char().is_ok() {
+                    *bytes = bytes_copy;
+                }
+                let mut bytes_copy = *bytes;
+                if bytes_copy.string().is_ok() {
+                    *bytes = bytes_copy;
+                }
 
                 let c = bytes.eat_byte()?;
                 if c == b'(' || c == b'[' || c == b'{' {
@@ -488,7 +502,7 @@ impl<'a> Bytes<'a> {
         // Create a temporary working copy
         let mut bytes = *self;
 
-        let result = check_struct_type_inner(&mut bytes);
+        let result = check_struct_type_inner(&mut bytes, no_unit);
 
         if result.is_err() {
             // Adjust the error span to fit the working copy

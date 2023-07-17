@@ -229,7 +229,7 @@ fn test_deserialise_tuple_newtypes() {
     );
     assert_eq!(
         from_str::<TestEnum>(
-            r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeOption(Some((a: 4, b: false)))"#
+            r#"#![enable(unwrap_variant_newtypes)] TupleNewtypeOption(Some(a: 4, b: false))"#
         )
         .unwrap(),
         TestEnum::TupleNewtypeOption(Some(Struct { a: 4, b: false })),
