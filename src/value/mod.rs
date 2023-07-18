@@ -149,7 +149,7 @@ impl PartialEq for Map {
 
 impl PartialOrd for Map {
     fn partial_cmp(&self, other: &Map) -> Option<Ordering> {
-        self.iter().partial_cmp(other.iter())
+        Some(self.cmp(other))
     }
 }
 
@@ -324,12 +324,7 @@ impl Hash for Float {
 /// ```
 impl PartialOrd for Float {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match (self.0.is_nan(), other.0.is_nan()) {
-            (true, true) => Some(Ordering::Equal),
-            (true, false) => Some(Ordering::Less),
-            (false, true) => Some(Ordering::Greater),
-            _ => self.0.partial_cmp(&other.0),
-        }
+        Some(self.cmp(other))
     }
 }
 
@@ -340,7 +335,7 @@ impl PartialOrd for Float {
 /// See the [`PartialEq`] implementation.
 impl Ord for Float {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("Bug: Contract violation")
+        self.0.total_cmp(&other.0)
     }
 }
 
