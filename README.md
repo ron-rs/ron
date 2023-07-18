@@ -29,8 +29,8 @@ GameConfig( // optional struct name
         // Uncomment to enable WASD controls
         /*
         "W": Up,
-        "A": Down,
-        "S": Left,
+        "S": Down,
+        "A": Left,
         "D": Right,
         */
     },
