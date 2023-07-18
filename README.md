@@ -18,23 +18,23 @@ GameConfig( // optional struct name
     window_size: (800, 600),
     window_title: "PAC-MAN",
     fullscreen: false,
-    
+
     mouse_sensitivity: 1.4,
     key_bindings: {
         "up": Up,
         "down": Down,
         "left": Left,
         "right": Right,
-        
+
         // Uncomment to enable WASD controls
         /*
         "W": Up,
-        "A": Down,
-        "S": Left,
+        "S": Down,
+        "A": Left,
         "D": Right,
         */
     },
-    
+
     difficulty_options: (
         start_difficulty: Easy,
         adaptive: false,
@@ -146,7 +146,7 @@ struct MyStruct {
 
 fn main() {
     let x: MyStruct = ron::from_str("(boolean: true, float: 1.23)").unwrap();
-    
+
     println!("RON: {}", ron::to_string(&x).unwrap());
 
     println!("Pretty RON: {}", ron::ser::to_string_pretty(
