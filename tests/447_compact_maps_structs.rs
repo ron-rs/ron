@@ -25,7 +25,7 @@ fn compact_structs() {
 
 #[test]
 fn compact_maps() {
-    let m: BTreeMap<&str, i32> = BTreeMap::from_iter([("a", 4), ("b", 2)].into_iter());
+    let m: BTreeMap<&str, i32> = BTreeMap::from_iter([("a", 4), ("b", 2)]);
 
     assert_eq!(to_string(&m).unwrap(), "{\"a\":4,\"b\":2}");
     assert_eq!(
