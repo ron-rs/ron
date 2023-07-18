@@ -677,12 +677,164 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                 SerdeDataType::TupleStruct { name, fields },
                 SerdeDataValue::Struct { fields: values },
             ) => {
-                let _ = (name, fields, values);
-                Err(serde::de::Error::custom("fuzz-unimplemented-fuzz"))
+                struct TupleStructVisitor<'a> {
+                    name: &'a str,
+                    fields: &'a [SerdeDataType],
+                    values: &'a [SerdeDataValue],
+                }
+
+                impl<'a, 'de> Visitor<'de> for TupleStructVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_fmt(format_args!("the tuple struct {}", self.name))
+                    }
+
+                    fn visit_seq<A: SeqAccess<'de>>(
+                        self,
+                        mut seq: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        for (ty, expected) in self.fields.iter().zip(self.values.iter()) {
+                            seq.next_element_seed(BorrowedTypedSerdeData {
+                                ty,
+                                value: expected,
+                            })?;
+                        }
+                        Ok(())
+                    }
+                }
+
+                if values.len() != fields.len() {
+                    return Err(serde::de::Error::custom("mismatch tuple struct fields len"));
+                }
+
+                deserializer.deserialize_tuple_struct(
+                    unsafe { to_static(name) },
+                    fields.len(),
+                    TupleStructVisitor {
+                        name,
+                        fields,
+                        values,
+                    },
+                )
             }
             (SerdeDataType::Struct { name, fields }, SerdeDataValue::Struct { fields: values }) => {
-                let _ = (name, fields, values);
-                Err(serde::de::Error::custom("fuzz-unimplemented-fuzz"))
+                struct FieldIdentifierVisitor<'a> {
+                    field: &'a str,
+                    index: u64,
+                }
+
+                impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a field identifier")
+                    }
+
+                    fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
+                        if v == self.index {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected field index {} found {}",
+                                self.index, v
+                            )))
+                        }
+                    }
+
+                    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                        if v == self.field {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected field identifier {} found {}",
+                                self.field, v
+                            )))
+                        }
+                    }
+
+                    fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                        if v == self.field.as_bytes() {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected field identifier {:?} found {:?}",
+                                self.field.as_bytes(),
+                                v
+                            )))
+                        }
+                    }
+                }
+
+                impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
+                    type Value = ();
+
+                    fn deserialize<D: Deserializer<'de>>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error> {
+                        deserializer.deserialize_identifier(self)
+                    }
+                }
+
+                struct StructVisitor<'a> {
+                    name: &'a str,
+                    fields: &'a [(String, SerdeDataType)],
+                    values: &'a [SerdeDataValue],
+                }
+
+                impl<'a, 'de> Visitor<'de> for StructVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_fmt(format_args!("the struct {}", self.name))
+                    }
+
+                    fn visit_seq<A: SeqAccess<'de>>(
+                        self,
+                        mut seq: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        for ((_, ty), expected) in self.fields.iter().zip(self.values.iter()) {
+                            seq.next_element_seed(BorrowedTypedSerdeData {
+                                ty,
+                                value: expected,
+                            })?;
+                        }
+                        Ok(())
+                    }
+
+                    fn visit_map<A: MapAccess<'de>>(
+                        self,
+                        mut map: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        for ((index, (field, ty)), expected) in
+                            (0..).zip(self.fields.iter()).zip(self.values.iter())
+                        {
+                            map.next_entry_seed(
+                                FieldIdentifierVisitor { field, index },
+                                BorrowedTypedSerdeData {
+                                    ty,
+                                    value: expected,
+                                },
+                            )?;
+                        }
+                        Ok(())
+                    }
+                }
+
+                if values.len() != fields.len() {
+                    return Err(serde::de::Error::custom("mismatch struct fields len"));
+                }
+
+                deserializer.deserialize_struct(
+                    unsafe { to_static(name) },
+                    &[], // FIXME: fields,
+                    StructVisitor {
+                        name,
+                        fields,
+                        values,
+                    },
+                )
             }
             (
                 SerdeDataType::Enum { name, variants },
