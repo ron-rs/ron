@@ -3,7 +3,7 @@ use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use arbitrary::{Arbitrary, Unstructured};
-use serde::de::{DeserializeSeed, MapAccess, SeqAccess, Visitor};
+use serde::de::{DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::Deserializer;
 use serde::{
     ser::{
@@ -34,8 +34,6 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
                 ron::error::Error::ExceededRecursionLimit => return None,
-                // FIXME: temporarily allow unimplemented cases to pass
-                ron::error::Error::Message(msg) if msg == "fuzz-unimplemented-fuzz" => return None,
                 // Everything else is actually a bug we want to find
                 _ => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
             }
@@ -44,8 +42,6 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
                 ron::error::Error::ExceededRecursionLimit => return None,
-                // FIXME: temporarily allow unimplemented cases to pass
-                ron::error::Error::Message(msg) if msg == "fuzz-unimplemented-fuzz" => return None,
                 // Everything else is actually a bug we want to find
                 _ => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
             }
@@ -105,13 +101,13 @@ impl From<ArbitraryPrettyConfig> for PrettyConfig {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct TypedSerdeData {
+pub struct TypedSerdeData<'a> {
     pretty_config: PrettyConfig,
-    ty: SerdeDataType,
-    value: SerdeDataValue,
+    ty: SerdeDataType<'a>,
+    value: SerdeDataValue<'a>,
 }
 
-impl TypedSerdeData {
+impl<'a> TypedSerdeData<'a> {
     #[allow(dead_code)]
     pub fn pretty_config(&self) -> PrettyConfig {
         self.pretty_config.clone()
@@ -119,11 +115,11 @@ impl TypedSerdeData {
 }
 
 struct BorrowedTypedSerdeData<'a> {
-    ty: &'a SerdeDataType,
-    value: &'a SerdeDataValue,
+    ty: &'a SerdeDataType<'a>,
+    value: &'a SerdeDataValue<'a>,
 }
 
-impl Serialize for TypedSerdeData {
+impl<'a> Serialize for TypedSerdeData<'a> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         BorrowedTypedSerdeData {
             ty: &self.ty,
@@ -133,7 +129,7 @@ impl Serialize for TypedSerdeData {
     }
 }
 
-impl<'a, 'de> DeserializeSeed<'de> for &'a TypedSerdeData {
+impl<'a, 'de> DeserializeSeed<'de> for &TypedSerdeData<'a> {
     type Value = ();
 
     fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
@@ -145,8 +141,12 @@ impl<'a, 'de> DeserializeSeed<'de> for &'a TypedSerdeData {
     }
 }
 
-unsafe fn to_static(s: &str) -> &'static str {
-    &*(s as *const str)
+unsafe fn to_static_str(s: &str) -> &'static str {
+    std::mem::transmute(s)
+}
+
+unsafe fn to_static_str_slice(s: &[&str]) -> &'static [&'static str] {
+    std::mem::transmute(s)
 }
 
 impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
@@ -224,11 +224,11 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                 map.end()
             }
             (SerdeDataType::UnitStruct { name }, SerdeDataValue::UnitStruct) => {
-                serializer.serialize_unit_struct(unsafe { to_static(name) })
+                serializer.serialize_unit_struct(unsafe { to_static_str(name) })
             }
             (SerdeDataType::Newtype { name, inner }, SerdeDataValue::Newtype { inner: value }) => {
                 serializer.serialize_newtype_struct(
-                    unsafe { to_static(name) },
+                    unsafe { to_static_str(name) },
                     &BorrowedTypedSerdeData { ty: inner, value },
                 )
             }
@@ -242,23 +242,23 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                     ));
                 }
 
-                let mut tuple =
-                    serializer.serialize_tuple_struct(unsafe { to_static(name) }, fields.len())?;
+                let mut tuple = serializer
+                    .serialize_tuple_struct(unsafe { to_static_str(name) }, fields.len())?;
                 for (ty, data) in fields.iter().zip(values.iter()) {
                     tuple.serialize_field(&BorrowedTypedSerdeData { ty, value: data })?;
                 }
                 tuple.end()
             }
             (SerdeDataType::Struct { name, fields }, SerdeDataValue::Struct { fields: values }) => {
-                if values.len() != fields.len() {
+                if values.len() != fields.0.len() || values.len() != fields.1.len() {
                     return Err(serde::ser::Error::custom("mismatch struct fields len"));
                 }
 
                 let mut r#struct =
-                    serializer.serialize_struct(unsafe { to_static(name) }, fields.len())?;
-                for ((field, ty), data) in fields.iter().zip(values.iter()) {
+                    serializer.serialize_struct(unsafe { to_static_str(name) }, values.len())?;
+                for ((field, ty), data) in fields.0.iter().zip(fields.1.iter()).zip(values.iter()) {
                     r#struct.serialize_field(
-                        unsafe { to_static(field) },
+                        unsafe { to_static_str(field) },
                         &BorrowedTypedSerdeData { ty, value: data },
                     )?;
                 }
@@ -271,25 +271,28 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                     value,
                 },
             ) => {
-                let (variant, ty) = match variants.get(*variant_index as usize) {
-                    Some(variant) => variant,
-                    None => return Err(serde::ser::Error::custom("out of bounds variant index")),
+                let (variant, ty) = match (
+                    variants.0.get(*variant_index as usize),
+                    variants.1.get(*variant_index as usize),
+                ) {
+                    (Some(variant), Some(ty)) => (variant, ty),
+                    _ => return Err(serde::ser::Error::custom("out of bounds variant index")),
                 };
 
                 match (ty, value) {
                     (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit) => serializer
                         .serialize_unit_variant(
-                            unsafe { to_static(name) },
+                            unsafe { to_static_str(name) },
                             *variant_index,
-                            unsafe { to_static(variant) },
+                            unsafe { to_static_str(variant) },
                         ),
                     (
                         SerdeDataVariantType::Newtype { inner: ty },
                         SerdeDataVariantValue::Newtype { inner: value },
                     ) => serializer.serialize_newtype_variant(
-                        unsafe { to_static(name) },
+                        unsafe { to_static_str(name) },
                         *variant_index,
-                        unsafe { to_static(variant) },
+                        unsafe { to_static_str(variant) },
                         &BorrowedTypedSerdeData { ty, value },
                     ),
                     (
@@ -303,9 +306,9 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                         }
 
                         let mut tuple = serializer.serialize_tuple_variant(
-                            unsafe { to_static(name) },
+                            unsafe { to_static_str(name) },
                             *variant_index,
-                            unsafe { to_static(variant) },
+                            unsafe { to_static_str(variant) },
                             fields.len(),
                         )?;
                         for (ty, data) in fields.iter().zip(values.iter()) {
@@ -317,21 +320,23 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                         SerdeDataVariantType::Struct { fields },
                         SerdeDataVariantValue::Struct { fields: values },
                     ) => {
-                        if values.len() != fields.len() {
+                        if values.len() != fields.0.len() || values.len() != fields.1.len() {
                             return Err(serde::ser::Error::custom(
                                 "mismatch struct variant fields len",
                             ));
                         }
 
                         let mut r#struct = serializer.serialize_struct_variant(
-                            unsafe { to_static(name) },
+                            unsafe { to_static_str(name) },
                             *variant_index,
-                            unsafe { to_static(variant) },
-                            fields.len(),
+                            unsafe { to_static_str(variant) },
+                            values.len(),
                         )?;
-                        for ((field, ty), data) in fields.iter().zip(values.iter()) {
+                        for ((field, ty), data) in
+                            fields.0.iter().zip(fields.1.iter()).zip(values.iter())
+                        {
                             r#struct.serialize_field(
-                                unsafe { to_static(field) },
+                                unsafe { to_static_str(field) },
                                 &BorrowedTypedSerdeData { ty, value: data },
                             )?;
                         }
@@ -414,7 +419,30 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
             }
             (SerdeDataType::Char, SerdeDataValue::Char(v)) => deserialize_matching(deserializer, v),
             (SerdeDataType::String, SerdeDataValue::String(v)) => {
-                deserialize_matching(deserializer, v)
+                struct StringVisitor<'a> {
+                    value: &'a str,
+                }
+
+                impl<'a, 'de> Visitor<'de> for StringVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a string")
+                    }
+
+                    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                        if v == self.value {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected {:?} found {:?}",
+                                self.value, v
+                            )))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_str(StringVisitor { value: v })
             }
             (SerdeDataType::ByteBuf, SerdeDataValue::ByteBuf(v)) => {
                 struct BytesVisitor<'a> {
@@ -448,8 +476,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
             }
             (SerdeDataType::Option { inner: ty }, SerdeDataValue::Option { inner: value }) => {
                 struct OptionVisitor<'a> {
-                    ty: &'a SerdeDataType,
-                    value: Option<&'a SerdeDataValue>,
+                    ty: &'a SerdeDataType<'a>,
+                    value: Option<&'a SerdeDataValue<'a>>,
                 }
 
                 impl<'a, 'de> Visitor<'de> for OptionVisitor<'a> {
@@ -493,8 +521,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
             }
             (SerdeDataType::Array { kind, len }, SerdeDataValue::Seq { elems }) => {
                 struct ArrayVisitor<'a> {
-                    kind: &'a SerdeDataType,
-                    elems: &'a [SerdeDataValue],
+                    kind: &'a SerdeDataType<'a>,
+                    elems: &'a [SerdeDataValue<'a>],
                 }
 
                 impl<'a, 'de> Visitor<'de> for ArrayVisitor<'a> {
@@ -526,8 +554,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
             }
             (SerdeDataType::Tuple { elems: tys }, SerdeDataValue::Seq { elems: values }) => {
                 struct TupleVisitor<'a> {
-                    tys: &'a [SerdeDataType],
-                    values: &'a [SerdeDataValue],
+                    tys: &'a [SerdeDataType<'a>],
+                    values: &'a [SerdeDataValue<'a>],
                 }
 
                 impl<'a, 'de> Visitor<'de> for TupleVisitor<'a> {
@@ -559,8 +587,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
             }
             (SerdeDataType::Vec { item }, SerdeDataValue::Seq { elems }) => {
                 struct VecVisitor<'a> {
-                    item: &'a SerdeDataType,
-                    elems: &'a [SerdeDataValue],
+                    item: &'a SerdeDataType<'a>,
+                    elems: &'a [SerdeDataValue<'a>],
                 }
 
                 impl<'a, 'de> Visitor<'de> for VecVisitor<'a> {
@@ -588,9 +616,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
             }
             (SerdeDataType::Map { key, value }, SerdeDataValue::Map { elems }) => {
                 struct MapVisitor<'a> {
-                    key: &'a SerdeDataType,
-                    value: &'a SerdeDataType,
-                    elems: &'a [(SerdeDataValue, SerdeDataValue)],
+                    key: &'a SerdeDataType<'a>,
+                    value: &'a SerdeDataType<'a>,
+                    elems: &'a [(SerdeDataValue<'a>, SerdeDataValue<'a>)],
                 }
 
                 impl<'a, 'de> Visitor<'de> for MapVisitor<'a> {
@@ -639,14 +667,16 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
                 }
 
-                deserializer
-                    .deserialize_unit_struct(unsafe { to_static(name) }, UnitStructVisitor { name })
+                deserializer.deserialize_unit_struct(
+                    unsafe { to_static_str(name) },
+                    UnitStructVisitor { name },
+                )
             }
             (SerdeDataType::Newtype { name, inner }, SerdeDataValue::Newtype { inner: value }) => {
                 struct NewtypeVisitor<'a> {
                     name: &'a str,
-                    inner: &'a SerdeDataType,
-                    value: &'a SerdeDataValue,
+                    inner: &'a SerdeDataType<'a>,
+                    value: &'a SerdeDataValue<'a>,
                 }
 
                 impl<'a, 'de> Visitor<'de> for NewtypeVisitor<'a> {
@@ -669,7 +699,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                 }
 
                 deserializer.deserialize_newtype_struct(
-                    unsafe { to_static(name) },
+                    unsafe { to_static_str(name) },
                     NewtypeVisitor { name, inner, value },
                 )
             }
@@ -679,8 +709,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
             ) => {
                 struct TupleStructVisitor<'a> {
                     name: &'a str,
-                    fields: &'a [SerdeDataType],
-                    values: &'a [SerdeDataValue],
+                    fields: &'a [SerdeDataType<'a>],
+                    values: &'a [SerdeDataValue<'a>],
                 }
 
                 impl<'a, 'de> Visitor<'de> for TupleStructVisitor<'a> {
@@ -709,7 +739,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                 }
 
                 deserializer.deserialize_tuple_struct(
-                    unsafe { to_static(name) },
+                    unsafe { to_static_str(name) },
                     fields.len(),
                     TupleStructVisitor {
                         name,
@@ -779,8 +809,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
 
                 struct StructVisitor<'a> {
                     name: &'a str,
-                    fields: &'a [(String, SerdeDataType)],
-                    values: &'a [SerdeDataValue],
+                    fields: &'a [&'a str],
+                    tys: &'a [SerdeDataType<'a>],
+                    values: &'a [SerdeDataValue<'a>],
                 }
 
                 impl<'a, 'de> Visitor<'de> for StructVisitor<'a> {
@@ -794,7 +825,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut seq: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for ((_, ty), expected) in self.fields.iter().zip(self.values.iter()) {
+                        for (ty, expected) in self.tys.iter().zip(self.values.iter()) {
                             seq.next_element_seed(BorrowedTypedSerdeData {
                                 ty,
                                 value: expected,
@@ -807,8 +838,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut map: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for ((index, (field, ty)), expected) in
-                            (0..).zip(self.fields.iter()).zip(self.values.iter())
+                        for (((index, field), ty), expected) in (0..)
+                            .zip(self.fields.iter())
+                            .zip(self.tys.iter())
+                            .zip(self.values.iter())
                         {
                             map.next_entry_seed(
                                 FieldIdentifierVisitor { field, index },
@@ -822,16 +855,17 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
                 }
 
-                if values.len() != fields.len() {
+                if values.len() != fields.0.len() || values.len() != fields.1.len() {
                     return Err(serde::de::Error::custom("mismatch struct fields len"));
                 }
 
                 deserializer.deserialize_struct(
-                    unsafe { to_static(name) },
-                    &[], // FIXME: fields,
+                    unsafe { to_static_str(name) },
+                    unsafe { to_static_str_slice(&fields.0) },
                     StructVisitor {
                         name,
-                        fields,
+                        fields: &fields.0,
+                        tys: &fields.1,
                         values,
                     },
                 )
@@ -843,15 +877,338 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     value,
                 },
             ) => {
-                let _ = (name, variants, variant_index, value);
-                Err(serde::de::Error::custom("fuzz-unimplemented-fuzz"))
+                struct VariantIdentifierVisitor<'a> {
+                    variant: &'a str,
+                    index: u32,
+                }
+
+                impl<'a, 'de> Visitor<'de> for VariantIdentifierVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("a variant identifier")
+                    }
+
+                    fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<Self::Value, E> {
+                        if v == u64::from(self.index) {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected variant index {} found {}",
+                                self.index, v
+                            )))
+                        }
+                    }
+
+                    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                        if v == self.variant {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected variant identifier {} found {}",
+                                self.variant, v
+                            )))
+                        }
+                    }
+
+                    fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                        if v == self.variant.as_bytes() {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected variant identifier {:?} found {:?}",
+                                self.variant.as_bytes(),
+                                v
+                            )))
+                        }
+                    }
+                }
+
+                impl<'a, 'de> DeserializeSeed<'de> for VariantIdentifierVisitor<'a> {
+                    type Value = ();
+
+                    fn deserialize<D: Deserializer<'de>>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, D::Error> {
+                        deserializer.deserialize_identifier(self)
+                    }
+                }
+
+                struct EnumVisitor<'a> {
+                    name: &'a str,
+                    variant: &'a str,
+                    index: u32,
+                    ty: &'a SerdeDataVariantType<'a>,
+                    value: &'a SerdeDataVariantValue<'a>,
+                }
+
+                impl<'a, 'de> Visitor<'de> for EnumVisitor<'a> {
+                    type Value = ();
+
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_fmt(format_args!(
+                            "the variant {} of the enum {}",
+                            self.variant, self.name
+                        ))
+                    }
+
+                    fn visit_enum<A: EnumAccess<'de>>(
+                        self,
+                        data: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        let ((), variant) = data.variant_seed(VariantIdentifierVisitor {
+                            variant: self.variant,
+                            index: self.index,
+                        })?;
+
+                        match (self.ty, self.value) {
+                            (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit) => {
+                                variant.unit_variant()
+                            }
+                            (
+                                SerdeDataVariantType::Newtype { inner: ty },
+                                SerdeDataVariantValue::Newtype { inner: value },
+                            ) => variant.newtype_variant_seed(BorrowedTypedSerdeData { ty, value }),
+                            (
+                                SerdeDataVariantType::Tuple { fields },
+                                SerdeDataVariantValue::Struct { fields: values },
+                            ) => {
+                                struct TupleVariantVisitor<'a> {
+                                    variant: &'a str,
+                                    fields: &'a [SerdeDataType<'a>],
+                                    values: &'a [SerdeDataValue<'a>],
+                                }
+
+                                impl<'a, 'de> Visitor<'de> for TupleVariantVisitor<'a> {
+                                    type Value = ();
+
+                                    fn expecting(
+                                        &self,
+                                        formatter: &mut fmt::Formatter,
+                                    ) -> fmt::Result {
+                                        formatter.write_fmt(format_args!(
+                                            "the tuple variant {}",
+                                            self.variant
+                                        ))
+                                    }
+
+                                    fn visit_seq<A: SeqAccess<'de>>(
+                                        self,
+                                        mut seq: A,
+                                    ) -> Result<Self::Value, A::Error>
+                                    {
+                                        for (ty, expected) in
+                                            self.fields.iter().zip(self.values.iter())
+                                        {
+                                            seq.next_element_seed(BorrowedTypedSerdeData {
+                                                ty,
+                                                value: expected,
+                                            })?;
+                                        }
+                                        Ok(())
+                                    }
+                                }
+
+                                if values.len() != fields.len() {
+                                    return Err(serde::de::Error::custom(
+                                        "mismatch tuple struct variant fields len",
+                                    ));
+                                }
+
+                                variant.tuple_variant(
+                                    fields.len(),
+                                    TupleVariantVisitor {
+                                        variant: self.variant,
+                                        fields,
+                                        values,
+                                    },
+                                )
+                            }
+                            (
+                                SerdeDataVariantType::Struct { fields },
+                                SerdeDataVariantValue::Struct { fields: values },
+                            ) => {
+                                struct FieldIdentifierVisitor<'a> {
+                                    field: &'a str,
+                                    index: u64,
+                                }
+
+                                impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
+                                    type Value = ();
+
+                                    fn expecting(
+                                        &self,
+                                        formatter: &mut fmt::Formatter,
+                                    ) -> fmt::Result {
+                                        formatter.write_str("a field identifier")
+                                    }
+
+                                    fn visit_u64<E: serde::de::Error>(
+                                        self,
+                                        v: u64,
+                                    ) -> Result<Self::Value, E>
+                                    {
+                                        if v == self.index {
+                                            Ok(())
+                                        } else {
+                                            Err(serde::de::Error::custom(format!(
+                                                "expected field index {} found {}",
+                                                self.index, v
+                                            )))
+                                        }
+                                    }
+
+                                    fn visit_str<E: serde::de::Error>(
+                                        self,
+                                        v: &str,
+                                    ) -> Result<Self::Value, E>
+                                    {
+                                        if v == self.field {
+                                            Ok(())
+                                        } else {
+                                            Err(serde::de::Error::custom(format!(
+                                                "expected field identifier {} found {}",
+                                                self.field, v
+                                            )))
+                                        }
+                                    }
+
+                                    fn visit_bytes<E: serde::de::Error>(
+                                        self,
+                                        v: &[u8],
+                                    ) -> Result<Self::Value, E>
+                                    {
+                                        if v == self.field.as_bytes() {
+                                            Ok(())
+                                        } else {
+                                            Err(serde::de::Error::custom(format!(
+                                                "expected field identifier {:?} found {:?}",
+                                                self.field.as_bytes(),
+                                                v
+                                            )))
+                                        }
+                                    }
+                                }
+
+                                impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
+                                    type Value = ();
+
+                                    fn deserialize<D: Deserializer<'de>>(
+                                        self,
+                                        deserializer: D,
+                                    ) -> Result<Self::Value, D::Error>
+                                    {
+                                        deserializer.deserialize_identifier(self)
+                                    }
+                                }
+
+                                struct StructVariantVisitor<'a> {
+                                    variant: &'a str,
+                                    fields: &'a [&'a str],
+                                    tys: &'a [SerdeDataType<'a>],
+                                    values: &'a [SerdeDataValue<'a>],
+                                }
+
+                                impl<'a, 'de> Visitor<'de> for StructVariantVisitor<'a> {
+                                    type Value = ();
+
+                                    fn expecting(
+                                        &self,
+                                        formatter: &mut fmt::Formatter,
+                                    ) -> fmt::Result {
+                                        formatter.write_fmt(format_args!(
+                                            "the struct variant {}",
+                                            self.variant
+                                        ))
+                                    }
+
+                                    fn visit_seq<A: SeqAccess<'de>>(
+                                        self,
+                                        mut seq: A,
+                                    ) -> Result<Self::Value, A::Error>
+                                    {
+                                        for (ty, expected) in
+                                            self.tys.iter().zip(self.values.iter())
+                                        {
+                                            seq.next_element_seed(BorrowedTypedSerdeData {
+                                                ty,
+                                                value: expected,
+                                            })?;
+                                        }
+                                        Ok(())
+                                    }
+
+                                    fn visit_map<A: MapAccess<'de>>(
+                                        self,
+                                        mut map: A,
+                                    ) -> Result<Self::Value, A::Error>
+                                    {
+                                        for (((index, field), ty), expected) in (0..)
+                                            .zip(self.fields.iter())
+                                            .zip(self.tys.iter())
+                                            .zip(self.values.iter())
+                                        {
+                                            map.next_entry_seed(
+                                                FieldIdentifierVisitor { field, index },
+                                                BorrowedTypedSerdeData {
+                                                    ty,
+                                                    value: expected,
+                                                },
+                                            )?;
+                                        }
+                                        Ok(())
+                                    }
+                                }
+
+                                if values.len() != fields.0.len() || values.len() != fields.1.len()
+                                {
+                                    return Err(serde::de::Error::custom(
+                                        "mismatch struct fields len",
+                                    ));
+                                }
+
+                                variant.struct_variant(
+                                    unsafe { to_static_str_slice(&fields.0) },
+                                    StructVariantVisitor {
+                                        variant: self.variant,
+                                        fields: &fields.0,
+                                        tys: &fields.1,
+                                        values,
+                                    },
+                                )
+                            }
+                            _ => Err(serde::de::Error::custom("invalid serde enum data")),
+                        }
+                    }
+                }
+
+                let (variant, ty) = match (
+                    variants.0.get(*variant_index as usize),
+                    variants.1.get(*variant_index as usize),
+                ) {
+                    (Some(variant), Some(ty)) => (variant, ty),
+                    _ => return Err(serde::de::Error::custom("out of bounds variant index")),
+                };
+
+                deserializer.deserialize_enum(
+                    unsafe { to_static_str(name) },
+                    unsafe { to_static_str_slice(&variants.0) },
+                    EnumVisitor {
+                        name,
+                        variant,
+                        index: *variant_index,
+                        ty,
+                        value,
+                    },
+                )
             }
             _ => Err(serde::de::Error::custom("invalid serde data")),
         }
     }
 }
 
-impl<'a> Arbitrary<'a> for TypedSerdeData {
+impl<'a> Arbitrary<'a> for TypedSerdeData<'a> {
     fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
         let pretty_config = ArbitraryPrettyConfig::arbitrary(u)?.into();
         let ty = SerdeDataType::arbitrary(u)?;
@@ -865,7 +1222,7 @@ impl<'a> Arbitrary<'a> for TypedSerdeData {
 }
 
 #[derive(Debug, Default, PartialEq, Arbitrary)]
-enum SerdeDataValue {
+enum SerdeDataValue<'a> {
     #[default]
     Unit,
     Bool(bool),
@@ -884,8 +1241,8 @@ enum SerdeDataValue {
     F32(f32),
     F64(f64),
     Char(char),
-    String(String),
-    ByteBuf(Vec<u8>),
+    String(&'a str),
+    ByteBuf(&'a [u8]),
     Option {
         #[arbitrary(with = arbitrary_recursion_guard)]
         inner: Option<Box<Self>>,
@@ -910,12 +1267,12 @@ enum SerdeDataValue {
     Enum {
         variant: u32,
         #[arbitrary(with = arbitrary_recursion_guard)]
-        value: SerdeDataVariantValue,
+        value: SerdeDataVariantValue<'a>,
     },
 }
 
 #[derive(Debug, Default, PartialEq, Arbitrary)]
-enum SerdeDataType {
+enum SerdeDataType<'a> {
     #[default]
     Unit,
     Bool,
@@ -961,32 +1318,35 @@ enum SerdeDataType {
         value: Box<Self>,
     },
     UnitStruct {
-        name: String,
+        name: &'a str,
     },
     Newtype {
-        name: String,
+        name: &'a str,
         #[arbitrary(with = arbitrary_recursion_guard)]
         inner: Box<Self>,
     },
     TupleStruct {
-        name: String,
+        name: &'a str,
         #[arbitrary(with = arbitrary_recursion_guard)]
         fields: Vec<Self>,
     },
     Struct {
-        name: String,
-        #[arbitrary(with = arbitrary_recursion_guard)]
-        fields: Vec<(String, Self)>,
+        name: &'a str,
+        #[arbitrary(with = arbitrary_str_tuple_vec_recursion_guard)]
+        fields: (Vec<&'a str>, Vec<Self>),
     },
     Enum {
-        name: String,
-        #[arbitrary(with = arbitrary_recursion_guard)]
-        variants: Vec<(String, SerdeDataVariantType)>,
+        name: &'a str,
+        #[arbitrary(with = arbitrary_str_tuple_vec_recursion_guard)]
+        variants: (Vec<&'a str>, Vec<SerdeDataVariantType<'a>>),
     },
 }
 
-impl SerdeDataType {
-    fn arbitrary_value(&self, u: &mut Unstructured) -> arbitrary::Result<SerdeDataValue> {
+impl<'a> SerdeDataType<'a> {
+    fn arbitrary_value<'u>(
+        &self,
+        u: &mut Unstructured<'u>,
+    ) -> arbitrary::Result<SerdeDataValue<'u>> {
         match self {
             SerdeDataType::Unit => Ok(SerdeDataValue::Unit),
             SerdeDataType::Bool => Ok(SerdeDataValue::Bool(bool::arbitrary(u)?)),
@@ -1005,8 +1365,8 @@ impl SerdeDataType {
             SerdeDataType::F32 => Ok(SerdeDataValue::F32(f32::arbitrary(u)?)),
             SerdeDataType::F64 => Ok(SerdeDataValue::F64(f64::arbitrary(u)?)),
             SerdeDataType::Char => Ok(SerdeDataValue::Char(char::arbitrary(u)?)),
-            SerdeDataType::String => Ok(SerdeDataValue::String(String::arbitrary(u)?)),
-            SerdeDataType::ByteBuf => Ok(SerdeDataValue::ByteBuf(Vec::<u8>::arbitrary(u)?)),
+            SerdeDataType::String => Ok(SerdeDataValue::String(<&str>::arbitrary(u)?)),
+            SerdeDataType::ByteBuf => Ok(SerdeDataValue::ByteBuf(<&[u8]>::arbitrary(u)?)),
             SerdeDataType::Option { inner } => {
                 let value = match Option::<()>::arbitrary(u)? {
                     Some(_) => Some(Box::new(inner.arbitrary_value(u)?)),
@@ -1060,15 +1420,15 @@ impl SerdeDataType {
                 Ok(SerdeDataValue::Struct { fields: tuple })
             }
             SerdeDataType::Struct { name: _, fields } => {
-                let mut r#struct = Vec::with_capacity(fields.len());
-                for (_, ty) in fields {
+                let mut r#struct = Vec::with_capacity(fields.1.len());
+                for ty in &fields.1 {
                     r#struct.push(ty.arbitrary_value(u)?);
                 }
                 Ok(SerdeDataValue::Struct { fields: r#struct })
             }
             SerdeDataType::Enum { name: _, variants } => {
-                let variant_index = u.choose_index(variants.len())?;
-                let (_, ty) = match variants.get(variant_index) {
+                let variant_index = u.choose_index(variants.1.len())?;
+                let ty = match variants.1.get(variant_index) {
                     Some(variant) => variant,
                     None => return Err(arbitrary::Error::EmptyChoose),
                 };
@@ -1088,8 +1448,8 @@ impl SerdeDataType {
                         SerdeDataVariantValue::Struct { fields: tuple }
                     }
                     SerdeDataVariantType::Struct { fields } => {
-                        let mut r#struct = Vec::with_capacity(fields.len());
-                        for (_, ty) in fields {
+                        let mut r#struct = Vec::with_capacity(fields.1.len());
+                        for ty in &fields.1 {
                             r#struct.push(ty.arbitrary_value(u)?);
                         }
                         SerdeDataVariantValue::Struct { fields: r#struct }
@@ -1106,42 +1466,42 @@ impl SerdeDataType {
 }
 
 #[derive(Debug, Default, PartialEq, Arbitrary)]
-enum SerdeDataVariantType {
+enum SerdeDataVariantType<'a> {
     #[default]
     Unit,
     Newtype {
         #[arbitrary(with = arbitrary_recursion_guard)]
-        inner: Box<SerdeDataType>,
+        inner: Box<SerdeDataType<'a>>,
     },
     Tuple {
         #[arbitrary(with = arbitrary_recursion_guard)]
-        fields: Vec<SerdeDataType>,
+        fields: Vec<SerdeDataType<'a>>,
     },
     Struct {
-        #[arbitrary(with = arbitrary_recursion_guard)]
-        fields: Vec<(String, SerdeDataType)>,
+        #[arbitrary(with = arbitrary_str_tuple_vec_recursion_guard)]
+        fields: (Vec<&'a str>, Vec<SerdeDataType<'a>>),
     },
 }
 
 #[derive(Debug, Default, PartialEq, Arbitrary)]
-enum SerdeDataVariantValue {
+enum SerdeDataVariantValue<'a> {
     #[default]
     Unit,
     Newtype {
         #[arbitrary(with = arbitrary_recursion_guard)]
-        inner: Box<SerdeDataValue>,
+        inner: Box<SerdeDataValue<'a>>,
     },
     Struct {
         #[arbitrary(with = arbitrary_recursion_guard)]
-        fields: Vec<SerdeDataValue>,
+        fields: Vec<SerdeDataValue<'a>>,
     },
 }
+
+static RECURSION_DEPTH: AtomicUsize = AtomicUsize::new(0);
 
 fn arbitrary_recursion_guard<'a, T: Arbitrary<'a> + Default>(
     u: &mut Unstructured<'a>,
 ) -> arbitrary::Result<T> {
-    static RECURSION_DEPTH: AtomicUsize = AtomicUsize::new(0);
-
     let max_depth = ron::Options::default()
         .recursion_limit
         .map_or(256, |limit| limit * 2);
@@ -1150,6 +1510,33 @@ fn arbitrary_recursion_guard<'a, T: Arbitrary<'a> + Default>(
         T::arbitrary(u)
     } else {
         Ok(T::default())
+    };
+
+    RECURSION_DEPTH.fetch_sub(1, Ordering::Relaxed);
+
+    result
+}
+
+fn arbitrary_str_tuple_vec_recursion_guard<'a, T: Arbitrary<'a>>(
+    u: &mut Unstructured<'a>,
+) -> arbitrary::Result<(Vec<&'a str>, Vec<T>)> {
+    let max_depth = ron::Options::default()
+        .recursion_limit
+        .map_or(256, |limit| limit * 2);
+
+    let result = if RECURSION_DEPTH.fetch_add(1, Ordering::Relaxed) < max_depth {
+        let len = u.arbitrary_len::<(&str, T)>()?;
+        let mut s = Vec::with_capacity(len);
+        let mut v = Vec::with_capacity(len);
+
+        for _ in 0..len {
+            s.push(<&str>::arbitrary(u)?);
+            v.push(T::arbitrary(u)?);
+        }
+
+        Ok((s, v))
+    } else {
+        Ok((Vec::new(), Vec::new()))
     };
 
     RECURSION_DEPTH.fetch_sub(1, Ordering::Relaxed);
