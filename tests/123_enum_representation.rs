@@ -108,14 +108,14 @@ fn test_adjacently_a_ser() {
         bar: 2,
         different: Inner::Foo,
     };
-    let e = "(type:\"VariantA\",content:(foo:1,bar:2,different:Foo))";
+    let e = "(type:VariantA,content:(foo:1,bar:2,different:Foo))";
     test_ser(&v, e);
 }
 
 #[test]
 fn test_adjacently_b_ser() {
     let v = EnumStructAdjacently::VariantB { foo: 1, bar: 2 };
-    let e = "(type:\"VariantB\",content:(foo:1,bar:2))";
+    let e = "(type:VariantB,content:(foo:1,bar:2))";
     test_ser(&v, e);
 }
 
@@ -175,7 +175,7 @@ fn test_internally_b_de() {
 
 #[test]
 fn test_adjacently_a_de() {
-    let s = "(type:\"VariantA\",content:(foo:1,bar:2,different:Foo))";
+    let s = "(type:VariantA,content:(foo:1,bar:2,different:Foo))";
     let e = EnumStructAdjacently::VariantA {
         foo: 1,
         bar: 2,
@@ -186,7 +186,7 @@ fn test_adjacently_a_de() {
 
 #[test]
 fn test_adjacently_b_de() {
-    let s = "(type:\"VariantB\",content:(foo:1,bar:2))";
+    let s = "(type:VariantB,content:(foo:1,bar:2))";
     let e = EnumStructAdjacently::VariantB { foo: 1, bar: 2 };
     test_de(s, e);
 }
