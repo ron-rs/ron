@@ -165,7 +165,7 @@ fn test_enum_in_adjacently_tagged_roundtrip() {
 
     let ron = ron::to_string(&outer).unwrap();
 
-    assert_eq!(ron, "(tag:\"Variant\",c:(field:Unit))");
+    assert_eq!(ron, "(tag:Variant,c:(field:Unit))");
 
     let de = ron::from_str::<OuterEnumAdjacent>(&ron);
 
@@ -178,7 +178,7 @@ fn test_enum_in_adjacently_tagged_roundtrip() {
 
     let ron = ron::to_string(&outer).unwrap();
 
-    assert_eq!(ron, "(tag:\"Sum\",c:(field:Newtype(true),value:42))");
+    assert_eq!(ron, "(tag:Sum,c:(field:Newtype(true),value:42))");
 
     let de = ron::from_str::<OuterEnumAdjacent>(&ron);
 
@@ -191,7 +191,7 @@ fn test_enum_in_adjacently_tagged_roundtrip() {
 
     let ron = ron::to_string(&outer).unwrap();
 
-    assert_eq!(ron, "(tag:\"Sum\",c:(field:Tuple(true,24),value:42))");
+    assert_eq!(ron, "(tag:Sum,c:(field:Tuple(true,24),value:42))");
 
     let de = ron::from_str::<OuterEnumAdjacent>(&ron);
 
@@ -204,7 +204,7 @@ fn test_enum_in_adjacently_tagged_roundtrip() {
 
     let ron = ron::to_string(&outer).unwrap();
 
-    assert_eq!(ron, "(tag:\"Sum\",c:(field:Struct(field:'🦀'),value:42))");
+    assert_eq!(ron, "(tag:Sum,c:(field:Struct(field:'🦀'),value:42))");
 
     let de = ron::from_str::<OuterEnumAdjacent>(&ron);
 
