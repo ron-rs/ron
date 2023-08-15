@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump MSRV to 1.64.0 and bump dependency: `indexmap` to 2.0 ([#459](https://github.com/ron-rs/ron/pull/459))
 
 ## [0.8.0] - 2022-08-17
+
+- Bump dependencies: `bitflags` to 1.3, `indexmap` to 1.9 ([#399](https://github.com/ron-rs/ron/pull/399))
 - Add `integer128` feature that guards `i128` and `u128` ([#304](https://github.com/ron-rs/ron/pull/304), [#351](https://github.com/ron-rs/ron/pull/351))
 - Fix issue [#265](https://github.com/ron-rs/ron/issues/265) with better missing comma error ([#353](https://github.com/ron-rs/ron/pull/353))
 - Fix issue [#301](https://github.com/ron-rs/ron/issues/301) with better error messages ([#354](https://github.com/ron-rs/ron/pull/354))
