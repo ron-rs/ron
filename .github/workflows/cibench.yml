@@ -25,3 +25,4 @@ jobs:
         with:
           cwd: fuzz
           benchName: bench
+          branchName: ${{ github.base_ref }}
