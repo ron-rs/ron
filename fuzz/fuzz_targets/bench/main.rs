@@ -1,37 +1,35 @@
 use std::fs;
-use std::path::PathBuf;
 
 use anyhow::Context;
-use clap::Parser;
+use criterion::{black_box, Criterion};
 
 #[path = "lib.rs"]
 mod typed_data;
 
 fn main() -> anyhow::Result<()> {
-    let Cli { corpus } = Cli::parse();
+    let mut criterion = Criterion::default().configure_from_args();
 
-    if !corpus.is_dir() {
-        anyhow::bail!("{corpus:?} is not a directory");
-    }
-
-    for entry in fs::read_dir(&corpus).context("could not iterate over corpus")? {
+    for entry in fs::read_dir("corpus/arbitrary").context("could not iterate over corpus")? {
         let path = entry.context("invalid corpus entry")?.path();
         let data = fs::read(&path).context("could not read corpus entry")?;
 
         if let Some(typed_data) = typed_data::roundtrip_arbitrary_typed_ron_or_panic(&data) {
+            println!("{:=^80}", "");
             println!(
-                "{path:?}\n{}\n",
+                "{}",
                 ron::ser::to_string_pretty(&typed_data, typed_data.pretty_config()).unwrap()
             );
+            println!("{:=^80}", "");
+
+            criterion.bench_function(&format!("{:?}", path), |b| {
+                b.iter(|| {
+                    black_box(typed_data::roundtrip_arbitrary_typed_ron_or_panic(&data));
+                })
+            });
         }
     }
 
-    Ok(())
-}
+    criterion.final_summary();
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-struct Cli {
-    /// Sets the directory of the fuzzing corpus
-    corpus: PathBuf,
+    Ok(())
 }

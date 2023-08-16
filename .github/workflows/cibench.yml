@@ -1,0 +1,26 @@
+name: CIBench
+on: [pull_request]
+jobs:
+  bench:
+    name: Benchmark
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: bench
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Download the corpus
+        run: |
+          wget https://storage.googleapis.com/ron-backup.clusterfuzz-external.appspot.com/corpus/libFuzzer/ron_arbitrary/public.zip
+          unzip public.zip fuzz/corpus/arbitrary
+          rm public.zip
+      - uses: boa-dev/criterion-compare-action@v3
+        with:
+          cwd: fuzz
+          benchName: bench

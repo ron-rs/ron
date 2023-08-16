@@ -13,8 +13,8 @@ arbitrary = { version = "1.0", features = ["derive"] }
 libfuzzer-sys = "0.4"
 ron = { path = "..", features = ["integer128"] }
 serde = { version = "1.0", features = ["derive"] }
-clap = { version = "4.0", features = ["derive"] }
 anyhow = { version = "1.0" }
+criterion = { version = "0.5" }
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -32,8 +32,7 @@ path = "fuzz_targets/arbitrary.rs"
 test = false
 doc = false
 
-[[bin]]
+[[bench]]
 name = "bench"
 path = "fuzz_targets/bench/main.rs"
-test = false
-doc = false
+harness = false
