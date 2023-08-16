@@ -56,7 +56,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
 #[derive(Debug, PartialEq, Arbitrary)]
 struct ArbitraryPrettyConfig {
     /// Limit the pretty-ness up to the given depth.
-    depth_limit: usize,
+    depth_limit: u8,
     // Whether to emit struct names
     struct_names: bool,
     /// Separate tuple members with indentation
@@ -88,7 +88,7 @@ fn arbitrary_ron_extensions(u: &mut Unstructured) -> arbitrary::Result<Extension
 impl From<ArbitraryPrettyConfig> for PrettyConfig {
     fn from(arbitrary: ArbitraryPrettyConfig) -> Self {
         Self::default()
-            .depth_limit(arbitrary.depth_limit)
+            .depth_limit(arbitrary.depth_limit.into())
             .struct_names(arbitrary.struct_names)
             .separate_tuple_members(arbitrary.separate_tuple_members)
             .enumerate_arrays(arbitrary.enumerate_arrays)
@@ -111,6 +111,14 @@ impl<'a> TypedSerdeData<'a> {
     #[allow(dead_code)]
     pub fn pretty_config(&self) -> PrettyConfig {
         self.pretty_config.clone()
+    }
+
+    pub fn ty(&self) -> &SerdeDataType<'a> {
+        &self.ty
+    }
+
+    pub fn value(&self) -> &SerdeDataValue<'a> {
+        &self.value
     }
 }
 
@@ -1221,8 +1229,8 @@ impl<'a> Arbitrary<'a> for TypedSerdeData<'a> {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Arbitrary)]
-enum SerdeDataValue<'a> {
+#[derive(Debug, Default, PartialEq, Arbitrary, Serialize)]
+pub enum SerdeDataValue<'a> {
     #[default]
     Unit,
     Bool(bool),
@@ -1271,8 +1279,8 @@ enum SerdeDataValue<'a> {
     },
 }
 
-#[derive(Debug, Default, PartialEq, Arbitrary)]
-enum SerdeDataType<'a> {
+#[derive(Debug, Default, PartialEq, Arbitrary, Serialize)]
+pub enum SerdeDataType<'a> {
     #[default]
     Unit,
     Bool,
@@ -1465,8 +1473,8 @@ impl<'a> SerdeDataType<'a> {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Arbitrary)]
-enum SerdeDataVariantType<'a> {
+#[derive(Debug, Default, PartialEq, Arbitrary, Serialize)]
+pub enum SerdeDataVariantType<'a> {
     #[default]
     Unit,
     Newtype {
@@ -1483,8 +1491,8 @@ enum SerdeDataVariantType<'a> {
     },
 }
 
-#[derive(Debug, Default, PartialEq, Arbitrary)]
-enum SerdeDataVariantValue<'a> {
+#[derive(Debug, Default, PartialEq, Arbitrary, Serialize)]
+pub enum SerdeDataVariantValue<'a> {
     #[default]
     Unit,
     Newtype {
