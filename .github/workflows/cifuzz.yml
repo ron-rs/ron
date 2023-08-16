@@ -18,6 +18,8 @@ jobs:
         fuzz-seconds: 300
         dry-run: false
         language: rust
+    - name: Find corpus
+      run: ls -alR
     - name: Upload Crash
       uses: actions/upload-artifact@v3
       if: failure() && steps.build.outcome == 'success'
