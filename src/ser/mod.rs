@@ -77,7 +77,7 @@ struct Pretty {
 ///     // definitely superior (okay, just joking)
 ///     .indentor("\t".to_owned());
 /// ```
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 #[non_exhaustive]
 pub struct PrettyConfig {
