@@ -6,24 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- Add `Map::retain` method ([#460](https://github.com/ron-rs/ron/pull/460))
-- Add CIFuzz GitHub action
+- Add `ron::value::RawValue` helper type which can (de)serialize any valid RON ([#407](https://github.com/ron-rs/ron/pull/407))
+- Add `escape_strings` option to `PrettyConfig` to allow serialising with or without escaping ([#426](https://github.com/ron-rs/ron/pull/426))
+- Add CIFuzz GitHub action ([#429](https://github.com/ron-rs/ron/pull/429))
+- Add `compact_maps` and `compact_structs` options to `PrettyConfig` to allow serialising maps and structs on a single line ([#448](https://github.com/ron-rs/ron/pull/448))
+- Add minimal support for `#[serde(flatten)]` with roundtripping through RON maps ([#455](https://github.com/ron-rs/ron/pull/455))
+- Add minimal roundtripping support for `#[serde(tag = "tag")]`, `#[serde(tag = "tag", content = "content")]`, and `#[serde(untagged)]` enums ([#451](https://github.com/ron-rs/ron/pull/451))
+
+## [0.8.1] - 2023-08-17
+
 - Fix issues [#277](https://github.com/ron-rs/ron/issues/277) and [#405](https://github.com/ron-rs/ron/issues/405) with `Value::Map` `IntoIter` and extraneous item check for `Value::Seq` ([#406](https://github.com/ron-rs/ron/pull/406))
 - Fix issue [#401](https://github.com/ron-rs/ron/issues/401) with correct raw struct name identifier parsing ([#402](https://github.com/ron-rs/ron/pull/402))
-- Add `ron::value::RawValue` helper type which can (de)serialize any valid RON ([#407](https://github.com/ron-rs/ron/pull/407))
 - Fix issue [#410](https://github.com/ron-rs/ron/issues/410) trailing comma parsing in tuples and `Some` ([#412](https://github.com/ron-rs/ron/pull/412))
 - Error instead of panic when deserializing non-identifiers as field names ([#415](https://github.com/ron-rs/ron/pull/415))
-- Breaking: Fix issue [#307](https://github.com/ron-rs/ron/issues/307) stack overflow with explicit recursion limits in serialising and deserialising ([#420](https://github.com/ron-rs/ron/pull/420))
+- [Non-API] Breaking: Fix issue [#307](https://github.com/ron-rs/ron/issues/307) stack overflow with explicit recursion limits in serialising and deserialising ([#420](https://github.com/ron-rs/ron/pull/420))
 - Fix issue [#423](https://github.com/ron-rs/ron/issues/423) deserialising an identifier into a borrowed str ([#424](https://github.com/ron-rs/ron/pull/424))
-- Add `escape_strings` option to `PrettyConfig` to allow serialising with or without escaping ([#426](https://github.com/ron-rs/ron/pull/426))
 - Bump MSRV to 1.57.0 and bump dependency: `base64` to 0.20 ([#431](https://github.com/ron-rs/ron/pull/431))
 - Bump dependency `base64` to 0.21 ([#433](https://github.com/ron-rs/ron/pull/433))
 - Depend on `serde_derive` directly to potentially enable more compilation parallelism ([#441](https://github.com/ron-rs/ron/pull/441))
-- Add `compact_maps` and `compact_structs` options to `PrettyConfig` to allow serialising maps and structs on a single line ([#448](https://github.com/ron-rs/ron/pull/448))
-- Add minimal support for `#[serde(flatten)]` with roundtripping through RON maps ([#455](https://github.com/ron-rs/ron/pull/455))
-- Breaking: Bump `bitflags` dependency to 2.0, changes `serde` impls of `Extensions` ([#443](https://github.com/ron-rs/ron/pull/443))
+- [Non-API] Breaking: Bump `bitflags` dependency to 2.0, changes `serde` impls of `Extensions` ([#443](https://github.com/ron-rs/ron/pull/443))
+- Add `Map::retain` method ([#460](https://github.com/ron-rs/ron/pull/460))
 - Bump MSRV to 1.64.0 and bump dependency: `indexmap` to 2.0 ([#459](https://github.com/ron-rs/ron/pull/459))
-- Add minimal roundtripping support for `#[serde(tag = "tag")]`, `#[serde(tag = "tag", content = "content")]`, and `#[serde(untagged)]` enums ([#451](https://github.com/ron-rs/ron/pull/451))
 
 ## [0.8.0] - 2022-08-17
 
