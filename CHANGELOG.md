@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix parsing `r` as a self-describing struct or variant name (and not the start of a raw string) ([#465](https://github.com/ron-rs/ron/pull/465))
 - Fix serialising raw strings containing a literal backslash ([#465](https://github.com/ron-rs/ron/pull/465))
 - Fix serialising `None` inside a stack of nested `Option`s with `#![enable(implicit_some)]` enabled ([#465](https://github.com/ron-rs/ron/pull/465))
+- [Non-API] Breaking: Treat `Some` like a newtype variant with `unwrap_variant_newtypes` ([#465](https://github.com/ron-rs/ron/pull/465))
 - Fix deserialising deserialising `A('/')` into a `ron::Value` ([#465](https://github.com/ron-rs/ron/pull/465))
 - Update the arbitrary fuzzer to check arbitrary serde data types, values, and `ron::ser::PrettyConfig`s ([#465](https://github.com/ron-rs/ron/pull/465))
 - Add a benchmark for PRs that runs over the latest fuzzer corpus ([#465](https://github.com/ron-rs/ron/pull/465))
