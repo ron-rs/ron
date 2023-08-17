@@ -18,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        rust: [1.56.0, stable, nightly]
+        rust: [1.64.0, stable, nightly]
 
     steps:
       - uses: actions/checkout@v3
@@ -84,7 +84,7 @@ jobs:
           profile: minimal
           components: llvm-tools-preview
           override: true
-      - run: cargo install grcov --force --locked
+      - run: cargo install grcov --force
         env:
           CARGO_TARGET_DIR: target/
       - run: |
