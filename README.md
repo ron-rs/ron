@@ -119,7 +119,8 @@ While data structures with any of these attributes should roundtrip through RON,
 ## RON syntax overview
 
 * Numbers: `42`, `3.14`, `0xFF`, `0b0110`
-* Strings: `"Hello"`, `"with\\escapes\n"`, `r#"raw string, great for regex\."#`
+* Strings: `"Hello"`, ``"with\\escapes\n"`, `r#"raw string, great for regex\."#``
+* Byte Strings: `b"Hello"`, `b"with \x65\x73\x63\x61\x70\x65\x73\n"`, `br#"raw, too"#`
 * Booleans: `true`, `false`
 * Chars: `'e'`, `'\n'`
 * Optionals: `Some("string")`, `Some(Some(1.34))`, `None`
