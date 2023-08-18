@@ -30,7 +30,7 @@ fn v_9_deprecated_base64_bytes_support() {
             small: vec![1, 2],
             large: vec![1, 2, 3, 4, 5, 6]
         }),
-        ron::from_str("BytesStruct( small:[1, 2], large:\"AQIDBAUG\" )"),
+        ron::from_str("BytesStruct( small:[1, 2], large:r\"AQIDBAUG\" )"),
     );
 
     // Invalid base64
@@ -88,4 +88,38 @@ fn rusty_byte_string() {
         &*ron::from_str::<bytes::Bytes>("b\"Hello \\x01 \\u{2}!\"").unwrap(),
         b"Hello \x01 \x02!",
     );
+
+    rusty_byte_string_roundtrip(b"hello", "b\"hello\"", "b\"hello\"");
+    rusty_byte_string_roundtrip(b"\"", "b\"\\\"\"", "br#\"\"\"#");
+    rusty_byte_string_roundtrip(b"\"#", "b\"\\\"#\"", "br##\"\"#\"##");
+    rusty_byte_string_roundtrip(b"\n", "b\"\\n\"", "b\"\n\"");
+}
+
+fn rusty_byte_string_roundtrip(bytes: &[u8], ron: &str, ron_raw: &str) {
+    let ser_list = ron::to_string(bytes).unwrap();
+    let de_list: Vec<u8> = ron::from_str(&ser_list).unwrap();
+    assert_eq!(de_list, bytes);
+
+    let ser = ron::to_string(&bytes::Bytes::copy_from_slice(bytes)).unwrap();
+    assert_eq!(ser, ron);
+
+    let ser_non_raw = ron::ser::to_string_pretty(
+        &bytes::Bytes::copy_from_slice(bytes),
+        ron::ser::PrettyConfig::default(),
+    )
+    .unwrap();
+    assert_eq!(ser_non_raw, ron);
+
+    let ser_raw = ron::ser::to_string_pretty(
+        &bytes::Bytes::copy_from_slice(bytes),
+        ron::ser::PrettyConfig::default().escape_strings(false),
+    )
+    .unwrap();
+    assert_eq!(ser_raw, ron_raw);
+
+    let de: bytes::Bytes = ron::from_str(&ser).unwrap();
+    assert_eq!(de, bytes);
+
+    let de_raw: bytes::Bytes = ron::from_str(&ser_raw).unwrap();
+    assert_eq!(de_raw, bytes);
 }
