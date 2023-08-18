@@ -325,7 +325,8 @@ impl de::Error for Error {
                     Str(s) => write!(f, "the string {:?}", s),
                     Bytes(b) => write!(f, "the bytes b\"{}\"", {
                         b.iter()
-                            .flat_map(|b| char::from(*b).escape_default())
+                            .flat_map(|c| std::ascii::escape_default(*c))
+                            .map(char::from)
                             .collect::<String>()
                     }),
                     Unit => write!(f, "a unit value"),
