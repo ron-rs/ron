@@ -979,8 +979,8 @@ impl<'a> Bytes<'a> {
             };
 
             Error::InvalidValueForType {
-                expected: format!("Rusty byte string b\"{}\"", byte_str),
-                found: format!("ambiguous base64 string {:?}", base64_str),
+                expected: format!("the Rusty byte string b\"{}\"", byte_str),
+                found: format!("the ambiguous base64 string {:?}", base64_str),
             }
         }
 
@@ -1616,5 +1616,23 @@ mod tests {
 
         assert_eq!(bytes.bytes(), b"24  ");
         assert_eq!(bytes.pre_ws_bytes(), b"       /*bye*/ 24  ");
+    }
+
+    #[test]
+    fn v0_10_base64_deprecation_error() {
+        let err = crate::from_str::<bytes::Bytes>("\"SGVsbG8gcm9uIQ==\"").unwrap_err();
+
+        assert_eq!(
+            err,
+            SpannedError {
+                code: Error::InvalidValueForType {
+                    expected: String::from("the Rusty byte string b\"Hello ron!\""),
+                    found: String::from("the ambiguous base64 string \"SGVsbG8gcm9uIQ==\"")
+                },
+                position: Position { line: 1, col: 19 },
+            }
+        );
+
+        assert_eq!(format!("{}", err.code), "Expected the Rusty byte string b\"Hello ron!\" but found the ambiguous base64 string \"SGVsbG8gcm9uIQ==\" instead");
     }
 }
