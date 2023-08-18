@@ -123,6 +123,17 @@ fn test_byte_stream() {
         "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)"
     );
 
+    let large = vec![0x01, 0x02, 0x03, 0x04];
+    let large = serde_bytes::Bytes::new(&large);
+    assert_eq!(to_string(&large).unwrap(), "b\"\\x01\\x02\\x03\\x04\"");
+
+    let large = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
+    let large = serde_bytes::Bytes::new(&large);
+    assert_eq!(
+        to_string(&large).unwrap(),
+        "b\"\\x01\\x02\\x03\\x04\\x05\\x06\""
+    );
+
     let large = vec![255u8; 64];
     let large = serde_bytes::Bytes::new(&large);
     assert_eq!(
