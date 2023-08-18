@@ -22,7 +22,7 @@ pub enum Error {
     Message(String),
     #[deprecated(
         since = "0.9.0",
-        note = "ambiguous base64 byte strings are replaced by strongly typed b\"\""
+        note = "ambiguous base64 byte strings are replaced by strongly typed Rusty b\"byte strings\""
     )]
     Base64Error(base64::DecodeError),
     Eof,
@@ -51,7 +51,6 @@ pub enum Error {
     ExpectedUnit,
     ExpectedString,
     ExpectedByteString,
-    ExpectedByteStringFoundBase64,
     ExpectedStringEnd,
     ExpectedIdentifier,
 
@@ -161,7 +160,6 @@ impl fmt::Display for Error {
             Error::ExpectedUnit => f.write_str("Expected unit"),
             Error::ExpectedString => f.write_str("Expected string"),
             Error::ExpectedByteString => f.write_str("Expected byte string"),
-            Error::ExpectedByteStringFoundBase64 => f.write_str("Expected byte string but found base64 string, try a Rusty byte string literal (or enable the `deprecated_base64_byte_string` extension)"),
             Error::ExpectedStringEnd => f.write_str("Expected end of string"),
             Error::ExpectedIdentifier => f.write_str("Expected identifier"),
             Error::InvalidEscape(s) => f.write_str(s),
@@ -323,7 +321,7 @@ impl de::Error for Error {
                     Float(n) => write!(f, "the floating point number `{}`", n),
                     Char(c) => write!(f, "the UTF-8 character `{}`", c),
                     Str(s) => write!(f, "the string {:?}", s),
-                    Bytes(b) => write!(f, "the bytes b\"{}\"", {
+                    Bytes(b) => write!(f, "the byte string b\"{}\"", {
                         b.iter()
                             .flat_map(|c| std::ascii::escape_default(*c))
                             .map(char::from)

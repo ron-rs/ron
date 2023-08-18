@@ -5,18 +5,11 @@ use std::{
     str::{from_utf8, from_utf8_unchecked, FromStr, Utf8Error},
 };
 
-use base64::{
-    engine::general_purpose::{GeneralPurpose, STANDARD},
-    Engine,
-};
-
 use crate::{
     error::{Error, Position, Result, SpannedError, SpannedResult},
     extensions::Extensions,
     value::Number,
 };
-
-pub const BASE64_ENGINE: GeneralPurpose = STANDARD;
 
 // We have the following char categories.
 const INT_CHAR: u8 = 1 << 0; // [0-9A-Fa-f_]
@@ -968,33 +961,56 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
-        if self.consume("\"") {
-            let base64_result = self.escaped_string()?.try_into();
+        fn expected_byte_string_found_base64(
+            base64_str: &ParsedStr,
+            byte_str: &ParsedByteStr,
+        ) -> Error {
+            let byte_str = match &byte_str {
+                ParsedByteStr::Allocated(b) => b.as_slice(),
+                ParsedByteStr::Slice(b) => b,
+            }
+            .iter()
+            .flat_map(|c| std::ascii::escape_default(*c))
+            .map(char::from)
+            .collect::<String>();
+            let base64_str = match &base64_str {
+                ParsedStr::Allocated(s) => s.as_str(),
+                ParsedStr::Slice(s) => s,
+            };
 
-            #[allow(deprecated)]
-            if self
-                .exts
-                .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS)
-            {
+            Error::InvalidValueForType {
+                expected: format!("Rusty byte string b\"{}\"", byte_str),
+                found: format!("ambiguous base64 string {:?}", base64_str),
+            }
+        }
+
+        if self.consume("\"") {
+            let base64_str = self.escaped_string()?;
+            let base64_result = ParsedByteStr::try_from_base64(base64_str.clone());
+
+            if cfg!(not(test)) {
+                // FIXME @juntyr: remove in v0.10
+                #[allow(deprecated)]
                 base64_result.map_err(Error::Base64Error)
             } else {
                 match base64_result {
-                    Ok(_) => Err(Error::ExpectedByteStringFoundBase64),
+                    // FIXME @juntyr: enable in v0.10
+                    Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
                     Err(_) => Err(Error::ExpectedByteString),
                 }
             }
         } else if self.consume("r") {
-            let base64_result = self.raw_string()?.try_into();
+            let base64_str = self.raw_string()?;
+            let base64_result = ParsedByteStr::try_from_base64(base64_str.clone());
 
-            #[allow(deprecated)]
-            if self
-                .exts
-                .contains(Extensions::DEPRECATED_BASE64_BYTE_STRINGS)
-            {
+            if cfg!(not(test)) {
+                // FIXME @juntyr: remove in v0.10
+                #[allow(deprecated)]
                 base64_result.map_err(Error::Base64Error)
             } else {
                 match base64_result {
-                    Ok(_) => Err(Error::ExpectedByteStringFoundBase64),
+                    // FIXME @juntyr: enable in v0.10
+                    Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
                     Err(_) => Err(Error::ExpectedByteString),
                 }
             }
@@ -1042,7 +1058,7 @@ impl<'a> Bytes<'a> {
     fn escaped_string(&mut self) -> Result<ParsedStr<'a>> {
         match self.escaped_byte_buf(EscapeEncoding::Utf8) {
             Ok((bytes, advance)) => {
-                let string = bytes.try_into().map_err(Error::from)?;
+                let string = ParsedStr::try_from_bytes(bytes).map_err(Error::from)?;
                 let _ = self.advance(advance);
                 Ok(string)
             }
@@ -1053,7 +1069,7 @@ impl<'a> Bytes<'a> {
     fn raw_string(&mut self) -> Result<ParsedStr<'a>> {
         match self.raw_byte_buf() {
             Ok((bytes, advance)) => {
-                let string = bytes.try_into().map_err(Error::from)?;
+                let string = ParsedStr::try_from_bytes(bytes).map_err(Error::from)?;
                 let _ = self.advance(advance);
                 Ok(string)
             }
@@ -1503,12 +1519,6 @@ impl Float for ParsedFloat {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum ParsedStr<'a> {
-    Allocated(String),
-    Slice(&'a str),
-}
-
 pub enum StructType {
     NewtypeOrTuple,
     Tuple,
@@ -1527,36 +1537,37 @@ pub enum TupleMode {
 }
 
 #[derive(Clone, Debug)]
+pub enum ParsedStr<'a> {
+    Allocated(String),
+    Slice(&'a str),
+}
+
+#[derive(Clone, Debug)]
 pub enum ParsedByteStr<'a> {
     Allocated(Vec<u8>),
     Slice(&'a [u8]),
 }
 
-impl<'a> TryFrom<ParsedStr<'a>> for ParsedByteStr<'a> {
-    type Error = base64::DecodeError;
-
-    fn try_from(str: ParsedStr<'a>) -> Result<Self, Self::Error> {
-        let base64_str = match &str {
-            ParsedStr::Allocated(string) => string.as_str(),
-            ParsedStr::Slice(str) => str,
-        };
-
-        BASE64_ENGINE
-            .decode(base64_str)
-            .map(ParsedByteStr::Allocated)
-    }
-}
-
-impl<'a> TryFrom<ParsedByteStr<'a>> for ParsedStr<'a> {
-    type Error = Utf8Error;
-
-    fn try_from(bytes: ParsedByteStr<'a>) -> Result<Self, Self::Error> {
+impl<'a> ParsedStr<'a> {
+    pub fn try_from_bytes(bytes: ParsedByteStr<'a>) -> Result<Self, Utf8Error> {
         match bytes {
             ParsedByteStr::Allocated(byte_buf) => Ok(ParsedStr::Allocated(
                 String::from_utf8(byte_buf).map_err(|e| e.utf8_error())?,
             )),
             ParsedByteStr::Slice(bytes) => Ok(ParsedStr::Slice(from_utf8(bytes)?)),
         }
+    }
+}
+
+impl<'a> ParsedByteStr<'a> {
+    pub fn try_from_base64(str: ParsedStr<'a>) -> Result<Self, base64::DecodeError> {
+        let base64_str = match &str {
+            ParsedStr::Allocated(string) => string.as_str(),
+            ParsedStr::Slice(str) => str,
+        };
+
+        base64::engine::Engine::decode(&base64::engine::general_purpose::STANDARD, base64_str)
+            .map(ParsedByteStr::Allocated)
     }
 }
 

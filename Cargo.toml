@@ -24,7 +24,7 @@ default = []
 integer128 = []
 
 [dependencies]
-# TODO @juntyr remove base64 after 0.9
+# FIXME @juntyr remove base64 once old byte strings are fully deprecated
 base64 = "0.21"
 bitflags = { version = "2.0", features = ["serde"] }
 indexmap = { version = "2.0", features = ["serde"], optional = true }
