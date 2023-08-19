@@ -161,26 +161,100 @@ type MapInner = indexmap::IndexMap<Value, Value>;
 /// A wrapper for a number, which can be either [`f64`] or [`i64`].
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Number {
-    Integer(i64),
-    Float(Float),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    #[cfg(feature = "integer128")]
+    I128(i128),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    #[cfg(feature = "integer128")]
+    U128(u128),
+    F32(F32),
+    F64(F64),
 }
 
-/// A wrapper for [`f64`], which guarantees that the inner value
-/// is finite and thus implements [`Eq`], [`Hash`] and [`Ord`].
-#[derive(Copy, Clone, Debug)]
-pub struct Float(f64);
+macro_rules! float_ty {
+    ($ty:ident($float:ty)) => {
+        #[doc = concat!("A wrapper for [`", stringify!($float), "`], which implements [`Eq`], [`Hash`] and [`Ord`].")]
+        #[derive(Copy, Clone, Debug)]
+        pub struct $ty($float);
 
-impl Float {
-    /// Construct a new [`Float`].
-    pub fn new(v: f64) -> Self {
-        Float(v)
-    }
+        impl $ty {
+            #[doc = concat!("Construct a new [`", stringify!($ty), "`].")]
+            pub fn new(v: $float) -> Self {
+                $ty(v)
+            }
 
-    /// Returns the wrapped float.
-    pub fn get(self) -> f64 {
-        self.0
-    }
+            #[doc = concat!("Returns the wrapped ", stringify!($float), "`].")]
+            pub fn get(self) -> $float {
+                self.0
+            }
+        }
+
+        /// Partial equality comparison
+        #[doc = concat!("In order to be able to use [`", stringify!($ty), "`] as a mapping key, floating values")]
+        #[doc = concat!("use [`", stringify!($float), "::total_ord`] for a total order comparison.")]
+        ///
+        /// See the [`Ord`] implementation.
+        impl PartialEq for $ty {
+            fn eq(&self, other: &Self) -> bool {
+                self.cmp(other).is_eq()
+            }
+        }
+
+        /// Equality comparison
+        #[doc = concat!("In order to be able to use [`", stringify!($ty), "`] as a mapping key, floating values")]
+        #[doc = concat!("use [`", stringify!($float), "::total_ord`] for a total order comparison.")]
+        ///
+        /// See the [`Ord`] implementation.
+        impl Eq for $ty {}
+
+        impl Hash for $ty {
+            fn hash<H: Hasher>(&self, state: &mut H) {
+                if self.0.is_nan() {
+                    // Ensure that there is only one NAN bit pattern
+                    <$float>::NAN.to_bits().hash(state);
+                } else {
+                    self.0.to_bits().hash(state);
+                }
+            }
+        }
+
+        /// Partial ordering comparison
+        #[doc = concat!("In order to be able to use [`", stringify!($ty), "`] as a mapping key, floating values")]
+        #[doc = concat!("use [`", stringify!($float), "::total_ord`] for a total order comparison.")]
+        ///
+        /// See the [`Ord`] implementation.
+        impl PartialOrd for $ty {
+            fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+
+        /// Ordering comparison
+        #[doc = concat!("In order to be able to use [`", stringify!($ty), "`] as a mapping key, floating values")]
+        #[doc = concat!("use [`", stringify!($float), "::total_ord`] for a total order comparison.")]
+        ///
+        /// ```
+        #[doc = concat!("use ron::value::`", stringify!($ty), ";")]
+        #[doc = concat!("assert!(", stringify!($ty), "::new(", stringify!($float), "::NAN > ", stringify!($ty), "::new(", stringify!($float), "::INFINITY));")]
+        #[doc = concat!("assert!(", stringify!($ty), "::new(-", stringify!($float), "::NAN < ", stringify!($ty), "::new(", stringify!($float), "::NEG_INFINITY));")]
+        #[doc = concat!("assert!(", stringify!($ty), "::new(", stringify!($float), "::NAN == ", stringify!($ty), "::new(", stringify!($float), "::NAN));")]
+        /// ```
+        impl Ord for $ty {
+            fn cmp(&self, other: &Self) -> Ordering {
+                self.0.total_cmp(&other.0)
+            }
+        }
+    };
 }
+
+float_ty! { F32(f64) }
+float_ty! { F64(f64) }
 
 impl Number {
     /// Construct a new number.
@@ -252,94 +326,42 @@ impl Number {
     ) -> T {
         match self {
             Number::Integer(i) => integer_fn(i),
-            Number::Float(Float(f)) => float_fn(f),
+            // Number::Float(Float(f)) => float_fn(f),
         }
     }
 }
 
-impl From<f64> for Number {
-    fn from(f: f64) -> Number {
-        Number::Float(Float(f))
-    }
-}
-
-impl From<i64> for Number {
-    fn from(i: i64) -> Number {
-        Number::Integer(i)
-    }
-}
-
-impl From<i32> for Number {
-    fn from(i: i32) -> Number {
-        Number::Integer(i64::from(i))
-    }
-}
-
-/// The following [`Number`] conversion checks if the integer fits losslessly
-/// into an [`i64`], before constructing a [`Number::Integer`] variant.
-/// If not, the conversion defaults to [`Number::Float`].
-
-impl From<u64> for Number {
-    fn from(i: u64) -> Number {
-        if i <= std::i64::MAX as u64 {
-            Number::Integer(i as i64)
-        } else {
-            Number::new(i as f64)
+macro_rules! number_from_impl {
+    (Number::$variant:ident($wrap:ident($ty:ty))) => {
+        impl From<$ty> for Number {
+            fn from(v: $ty) -> Number {
+                Number::$variant($wrap(v))
+            }
         }
-    }
+    };
+    (Number::$variant:ident($ty:ty)) => {
+        impl From<$ty> for Number {
+            fn from(v: $ty) -> Number {
+                Number::$variant(v)
+            }
+        }
+    };
 }
 
-/// Partial equality comparison
-/// In order to be able to use [`Number`] as a mapping key, floating values
-/// use [`f64::total_ord`] for a total order comparison.
-///
-/// See the [`Ord`] implementation.
-impl PartialEq for Float {
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Equal
-    }
-}
-
-/// Equality comparison
-/// In order to be able to use [`Float`] as a mapping key, floating values
-/// use [`f64::total_ord`] for a total order comparison.
-///
-/// See the [`Ord`] implementation.
-impl Eq for Float {}
-
-impl Hash for Float {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.0.to_bits());
-    }
-}
-
-/// Partial ordering comparison
-/// In order to be able to use [`Number`] as a mapping key, floating values
-/// use [`f64::total_ord`] for a total order comparison.
-///
-/// See the [`Ord`] implementation.
-impl PartialOrd for Float {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-/// Ordering comparison
-/// In order to be able to use [`Float`] as a mapping key, floating values
-/// use [`f64::total_ord`] for a total order comparison.
-/// See the [`PartialEq`] implementation.
-///
-/// ```
-/// use ron::value::Number;
-/// assert!(Number::new(std::f64::NAN) > Number::new(std::f64::INFINITY));
-/// assert!(Number::new(-std::f64::NAN) < Number::new(std::f64::NEG_INFINITY));
-/// assert_eq!(Number::new(std::f64::NAN), Number::new(std::f64::NAN));
-/// ```
-impl Ord for Float {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0.total_cmp(&other.0)
-    }
-}
+number_from_impl!{ Number::I8(i8) }
+number_from_impl!{ Number::I16(i16) }
+number_from_impl!{ Number::I32(i32) }
+number_from_impl!{ Number::I64(i64) }
+#[cfg(feature = "integer128")]
+number_from_impl!{ Number::I128(i128) }
+number_from_impl!{ Number::U8(u8) }
+number_from_impl!{ Number::U16(u16) }
+number_from_impl!{ Number::U32(u32) }
+number_from_impl!{ Number::U64(u64) }
+#[cfg(feature = "integer128")]
+number_from_impl!{ Number::U128(u128) }
+number_from_impl!{ Number::F32(F32(f32)) }
+number_from_impl!{ Number::F64(F64(f64)) }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Value {
@@ -402,7 +424,7 @@ impl<'de> Deserializer<'de> for Value {
                 }
             }
             Value::Number(Number::Float(ref f)) => visitor.visit_f64(f.get()),
-            Value::Number(Number::Integer(i)) => visitor.visit_i64(i),
+            // Value::Number(Number::Integer(i)) => visitor.visit_i64(i),
             Value::Option(Some(o)) => visitor.visit_some(*o),
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
