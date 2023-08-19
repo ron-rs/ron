@@ -4,7 +4,8 @@ use serde_derive::Deserialize;
 use crate::{
     de::from_str,
     error::{Error, Position, SpannedError, SpannedResult},
-    parse::{AnyNum, Bytes},
+    parse::Bytes,
+    value::Number,
 };
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -345,7 +346,7 @@ fn test_numbers() {
     );
 }
 
-fn de_any_number(s: &str) -> AnyNum {
+fn de_any_number(s: &str) -> Number {
     let mut bytes = Bytes::new(s.as_bytes()).unwrap();
 
     bytes.any_num().unwrap()
@@ -353,11 +354,11 @@ fn de_any_number(s: &str) -> AnyNum {
 
 #[test]
 fn test_any_number_precision() {
-    assert_eq!(de_any_number("1"), AnyNum::U8(1));
-    assert_eq!(de_any_number("+1"), AnyNum::I8(1));
-    assert_eq!(de_any_number("-1"), AnyNum::I8(-1));
-    assert_eq!(de_any_number("-1.0"), AnyNum::F32(-1.0));
-    assert_eq!(de_any_number("1."), AnyNum::F32(1.));
-    assert_eq!(de_any_number("-1."), AnyNum::F32(-1.));
-    assert_eq!(de_any_number("0.3"), AnyNum::F64(0.3));
+    assert_eq!(de_any_number("1"), Number::U8(1));
+    assert_eq!(de_any_number("+1"), Number::I8(1));
+    assert_eq!(de_any_number("-1"), Number::I8(-1));
+    assert_eq!(de_any_number("-1.0"), Number::F32((-1.0).into()));
+    assert_eq!(de_any_number("1."), Number::F32((1.).into()));
+    assert_eq!(de_any_number("-1."), Number::F32((-1.).into()));
+    assert_eq!(de_any_number("0.3"), Number::F64((0.3).into()));
 }

@@ -2,7 +2,7 @@
 fn roundtrip_value_float_with_decimals() {
     let v: ron::Value = ron::from_str("1.0").unwrap();
 
-    assert_eq!(v, ron::Value::Number(1.0_f64.into()));
+    assert_eq!(v, ron::Value::Number(1.0_f32.into()));
 
     let ser = ron::ser::to_string(&v).unwrap();
 
@@ -15,7 +15,7 @@ fn roundtrip_value_float_with_decimals() {
 #[allow(clippy::float_cmp)]
 fn roundtrip_value_float_into() {
     let v: ron::Value = ron::from_str("1.0").unwrap();
-    assert_eq!(v, ron::Value::Number(1.0_f64.into()));
+    assert_eq!(v, ron::Value::Number(1.0_f32.into()));
 
     let ser = ron::ser::to_string(&v).unwrap();
 

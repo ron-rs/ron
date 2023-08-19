@@ -17,7 +17,8 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{AnyNum, Bytes, NewtypeMode, ParsedStr, StructType, TupleMode, BASE64_ENGINE},
+    parse::{Bytes, NewtypeMode, ParsedStr, StructType, TupleMode, BASE64_ENGINE},
+    value::Number,
 };
 
 mod id;
@@ -315,23 +316,23 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
             b'0'..=b'9' | b'+' | b'-' => {
-                let any_num: AnyNum = self.bytes.any_num()?;
+                let any_num = self.bytes.any_num()?;
 
                 match any_num {
-                    AnyNum::F32(x) => visitor.visit_f32(x),
-                    AnyNum::F64(x) => visitor.visit_f64(x),
-                    AnyNum::I8(x) => visitor.visit_i8(x),
-                    AnyNum::U8(x) => visitor.visit_u8(x),
-                    AnyNum::I16(x) => visitor.visit_i16(x),
-                    AnyNum::U16(x) => visitor.visit_u16(x),
-                    AnyNum::I32(x) => visitor.visit_i32(x),
-                    AnyNum::U32(x) => visitor.visit_u32(x),
-                    AnyNum::I64(x) => visitor.visit_i64(x),
-                    AnyNum::U64(x) => visitor.visit_u64(x),
+                    Number::F32(x) => visitor.visit_f32(x.get()),
+                    Number::F64(x) => visitor.visit_f64(x.get()),
+                    Number::I8(x) => visitor.visit_i8(x),
+                    Number::U8(x) => visitor.visit_u8(x),
+                    Number::I16(x) => visitor.visit_i16(x),
+                    Number::U16(x) => visitor.visit_u16(x),
+                    Number::I32(x) => visitor.visit_i32(x),
+                    Number::U32(x) => visitor.visit_u32(x),
+                    Number::I64(x) => visitor.visit_i64(x),
+                    Number::U64(x) => visitor.visit_u64(x),
                     #[cfg(feature = "integer128")]
-                    AnyNum::I128(x) => visitor.visit_i128(x),
+                    Number::I128(x) => visitor.visit_i128(x),
                     #[cfg(feature = "integer128")]
-                    AnyNum::U128(x) => visitor.visit_u128(x),
+                    Number::U128(x) => visitor.visit_u128(x),
                 }
             }
             b'.' => self.deserialize_f64(visitor),

@@ -49,6 +49,27 @@ impl<'de> Visitor<'de> for ValueVisitor {
         Ok(Value::Bool(v))
     }
 
+    fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Value::Number(Number::new(v)))
+    }
+
+    fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Value::Number(Number::new(v)))
+    }
+
+    fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Value::Number(Number::new(v)))
+    }
+
     fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
     where
         E: Error,
@@ -61,7 +82,28 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         E: Error,
     {
-        self.visit_f64(v as f64)
+        Ok(Value::Number(Number::new(v)))
+    }
+
+    fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Value::Number(Number::new(v)))
+    }
+
+    fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Value::Number(Number::new(v)))
+    }
+
+    fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Value::Number(Number::new(v)))
     }
 
     fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
@@ -76,7 +118,14 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         E: Error,
     {
-        self.visit_f64(v as f64)
+        Ok(Value::Number(Number::new(v)))
+    }
+
+    fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(Value::Number(Number::new(v)))
     }
 
     fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
@@ -210,9 +259,9 @@ mod tests {
         assert_eq!(
             eval("(3, 4.0, 5.0)"),
             Value::Seq(vec![
-                Value::Number(Number::new(3)),
-                Value::Number(Number::new(4.0)),
-                Value::Number(Number::new(5.0)),
+                Value::Number(Number::U8(3)),
+                Value::Number(Number::F32(4.0.into())),
+                Value::Number(Number::F32(5.0.into())),
             ],),
         );
     }
@@ -223,9 +272,9 @@ mod tests {
             eval("(true, 3, 4, 5.0)"),
             Value::Seq(vec![
                 Value::Bool(true),
-                Value::Number(Number::new(3)),
-                Value::Number(Number::new(4)),
-                Value::Number(Number::new(5.0)),
+                Value::Number(Number::U8(3)),
+                Value::Number(Number::U8(4)),
+                Value::Number(Number::F32(5.0.into())),
             ]),
         );
     }
@@ -279,11 +328,11 @@ mod tests {
                     vec![
                         (
                             Value::String("width".to_owned()),
-                            Value::Number(Number::new(20)),
+                            Value::Number(Number::U8(20)),
                         ),
                         (
                             Value::String("height".to_owned()),
-                            Value::Number(Number::new(5)),
+                            Value::Number(Number::U8(5)),
                         ),
                         (
                             Value::String("name".to_owned()),
@@ -297,11 +346,11 @@ mod tests {
                     vec![
                         (
                             Value::String("width".to_owned()),
-                            Value::Number(Number::new(10.0)),
+                            Value::Number(Number::F32(10.0.into())),
                         ),
                         (
                             Value::String("height".to_owned()),
-                            Value::Number(Number::new(10.0)),
+                            Value::Number(Number::F32(10.0.into())),
                         ),
                         (
                             Value::String("name".to_owned()),
@@ -313,15 +362,15 @@ mod tests {
                                 vec![
                                     (
                                         Value::String("Enemy1".to_owned()),
-                                        Value::Number(Number::new(3)),
+                                        Value::Number(Number::U8(3)),
                                     ),
                                     (
                                         Value::String("Enemy2".to_owned()),
-                                        Value::Number(Number::new(5)),
+                                        Value::Number(Number::U8(5)),
                                     ),
                                     (
                                         Value::String("Enemy3".to_owned()),
-                                        Value::Number(Number::new(7)),
+                                        Value::Number(Number::U8(7)),
                                     ),
                                 ]
                                 .into_iter()
