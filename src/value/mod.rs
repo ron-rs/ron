@@ -82,20 +82,7 @@ impl<'de> Deserializer<'de> for Value {
                     })
                 }
             }
-            Value::Number(Number::I8(v)) => visitor.visit_i8(v),
-            Value::Number(Number::I16(v)) => visitor.visit_i16(v),
-            Value::Number(Number::I32(v)) => visitor.visit_i32(v),
-            Value::Number(Number::I64(v)) => visitor.visit_i64(v),
-            #[cfg(feature = "integer128")]
-            Value::Number(Number::I128(v)) => visitor.visit_i128(v),
-            Value::Number(Number::U8(v)) => visitor.visit_u8(v),
-            Value::Number(Number::U16(v)) => visitor.visit_u16(v),
-            Value::Number(Number::U32(v)) => visitor.visit_u32(v),
-            Value::Number(Number::U64(v)) => visitor.visit_u64(v),
-            #[cfg(feature = "integer128")]
-            Value::Number(Number::U128(v)) => visitor.visit_u128(v),
-            Value::Number(Number::F32(v)) => visitor.visit_f32(v.get()),
-            Value::Number(Number::F64(v)) => visitor.visit_f64(v.get()),
+            Value::Number(number) => number.visit(visitor),
             Value::Option(Some(o)) => visitor.visit_some(*o),
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),

@@ -232,12 +232,10 @@ impl<'a> Bytes<'a> {
         res
     }
 
-    pub fn any_num(&mut self) -> Result<Number> {
-        // We are not doing float comparisons here in the traditional sense.
-        // Instead, this code checks if a f64 fits inside an f32.
-        #[allow(clippy::float_cmp)]
+    pub fn any_number(&mut self) -> Result<Number> {
         fn any_float(f: f64) -> Result<Number> {
-            if f == f64::from(f as f32) {
+            // total_cmp ensures that NANs are treated properly
+            if f.total_cmp(&f64::from(f as f32)).is_eq() {
                 Ok(Number::F32((f as f32).into()))
             } else {
                 Ok(Number::F64(f.into()))
@@ -246,15 +244,14 @@ impl<'a> Bytes<'a> {
 
         let bytes_backup = self.bytes;
 
-        let first_byte = self.peek_or_eof()?;
-        let is_signed = first_byte == b'-' || first_byte == b'+';
+        let is_negative = self.peek_or_eof()? == b'-';
         let is_float = self.next_bytes_is_float();
 
         if is_float {
             let f = self.float::<f64>()?;
 
             any_float(f)
-        } else if is_signed {
+        } else if is_negative {
             match self.signed_integer::<LargeSInt>() {
                 Ok(x) => {
                     if let Ok(x) = i8::try_from(x) {
@@ -856,6 +853,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn unsigned_integer<T: Num>(&mut self) -> Result<T> {
+        // Allow an optional leading `+` before the unsigned integer
+        self.consume("+");
         self.any_integer(1)
     }
 

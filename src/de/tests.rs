@@ -349,16 +349,20 @@ fn test_numbers() {
 fn de_any_number(s: &str) -> Number {
     let mut bytes = Bytes::new(s.as_bytes()).unwrap();
 
-    bytes.any_num().unwrap()
+    bytes.any_number().unwrap()
 }
 
 #[test]
 fn test_any_number_precision() {
     assert_eq!(de_any_number("1"), Number::U8(1));
-    assert_eq!(de_any_number("+1"), Number::I8(1));
+    assert_eq!(de_any_number("+1"), Number::U8(1));
     assert_eq!(de_any_number("-1"), Number::I8(-1));
     assert_eq!(de_any_number("-1.0"), Number::F32((-1.0).into()));
     assert_eq!(de_any_number("1."), Number::F32((1.).into()));
     assert_eq!(de_any_number("-1."), Number::F32((-1.).into()));
     assert_eq!(de_any_number("0.3"), Number::F64((0.3).into()));
+    assert_eq!(de_any_number("NaN"), Number::F32(f32::NAN.into()));
+    assert_eq!(de_any_number("-NaN"), Number::F32((-f32::NAN).into()));
+    assert_eq!(de_any_number("inf"), Number::F32(f32::INFINITY.into()));
+    assert_eq!(de_any_number("-inf"), Number::F32(f32::NEG_INFINITY.into()));
 }

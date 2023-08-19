@@ -3,6 +3,8 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+use serde::{de::Visitor, Serialize, Serializer};
+
 /// A wrapper for any numeric primitive type in Rust
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 pub enum Number {
@@ -20,6 +22,51 @@ pub enum Number {
     U128(u128),
     F32(F32),
     F64(F64),
+}
+
+impl Serialize for Number {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::I8(v) => serializer.serialize_i8(*v),
+            Self::I16(v) => serializer.serialize_i16(*v),
+            Self::I32(v) => serializer.serialize_i32(*v),
+            Self::I64(v) => serializer.serialize_i64(*v),
+            #[cfg(feature = "integer128")]
+            Self::I128(v) => serializer.serialize_i128(*v),
+            Self::U8(v) => serializer.serialize_u8(*v),
+            Self::U16(v) => serializer.serialize_u16(*v),
+            Self::U32(v) => serializer.serialize_u32(*v),
+            Self::U64(v) => serializer.serialize_u64(*v),
+            #[cfg(feature = "integer128")]
+            Self::U128(v) => serializer.serialize_u128(*v),
+            Self::F32(v) => serializer.serialize_f32(v.get()),
+            Self::F64(v) => serializer.serialize_f64(v.get()),
+        }
+    }
+}
+
+impl Number {
+    pub fn visit<'de, V: Visitor<'de>, E: serde::de::Error>(
+        &self,
+        visitor: V,
+    ) -> Result<V::Value, E> {
+        match self {
+            Self::I8(v) => visitor.visit_i8(*v),
+            Self::I16(v) => visitor.visit_i16(*v),
+            Self::I32(v) => visitor.visit_i32(*v),
+            Self::I64(v) => visitor.visit_i64(*v),
+            #[cfg(feature = "integer128")]
+            Self::I128(v) => visitor.visit_i128(*v),
+            Self::U8(v) => visitor.visit_u8(*v),
+            Self::U16(v) => visitor.visit_u16(*v),
+            Self::U32(v) => visitor.visit_u32(*v),
+            Self::U64(v) => visitor.visit_u64(*v),
+            #[cfg(feature = "integer128")]
+            Self::U128(v) => visitor.visit_u128(*v),
+            Self::F32(v) => visitor.visit_f32(v.get()),
+            Self::F64(v) => visitor.visit_f64(v.get()),
+        }
+    }
 }
 
 macro_rules! float_ty {
@@ -66,12 +113,7 @@ macro_rules! float_ty {
 
         impl Hash for $ty {
             fn hash<H: Hasher>(&self, state: &mut H) {
-                if self.0.is_nan() {
-                    // Ensure that there is only one NAN bit pattern
-                    <$float>::NAN.to_bits().hash(state);
-                } else {
-                    self.0.to_bits().hash(state);
-                }
+                self.0.to_bits().hash(state);
             }
         }
 
@@ -176,3 +218,28 @@ number_from_impl! { Number::U64(u64) }
 number_from_impl! { Number::U128(u128) }
 number_from_impl! { Number::F32(F32(f32)) }
 number_from_impl! { Number::F64(F64(f64)) }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    use super::*;
+
+    fn hash<T: Hash>(v: &T) -> u64 {
+        let mut state = DefaultHasher::new();
+        v.hash(&mut state);
+        state.finish()
+    }
+
+    #[test]
+    fn test_nan() {
+        assert_eq!(F32(f32::NAN), F32(f32::NAN));
+        assert_eq!(F32(-f32::NAN), F32(-f32::NAN));
+        assert_ne!(F32(f32::NAN), F32(-f32::NAN));
+
+        assert_eq!(hash(&F32(f32::NAN)), hash(&F32(f32::NAN)));
+        assert_eq!(hash(&F32(-f32::NAN)), hash(&F32(-f32::NAN)));
+        assert_ne!(hash(&F32(f32::NAN)), hash(&F32(-f32::NAN)));
+    }
+}
