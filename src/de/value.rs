@@ -297,9 +297,9 @@ mod tests {
         assert_eq!(
             eval("(inf, -inf, NaN)"),
             Value::Seq(vec![
-                Value::Number(Number::new(std::f64::INFINITY)),
-                Value::Number(Number::new(std::f64::NEG_INFINITY)),
-                Value::Number(Number::new(std::f64::NAN)),
+                Value::Number(Number::new(std::f32::INFINITY)),
+                Value::Number(Number::new(std::f32::NEG_INFINITY)),
+                Value::Number(Number::new(std::f32::NAN)),
             ]),
         );
     }

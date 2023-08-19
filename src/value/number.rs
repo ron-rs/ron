@@ -71,9 +71,13 @@ impl Number {
 
 macro_rules! float_ty {
     ($ty:ident($float:ty)) => {
-        #[doc = concat!("A wrapper for [`", stringify!($float), "`], which implements [`Eq`], [`Hash`] and [`Ord`].")]
+        #[doc = concat!(
+                    "A wrapper for [`", stringify!($float), "`], which implements [`Eq`], ",
+                    "[`Hash`] and [`Ord`] using [`", stringify!($float), "::total_cmp`] ",
+                    "for a total order comparison",
+                )]
         #[derive(Copy, Clone, Debug)]
-        pub struct $ty($float);
+        pub struct $ty(pub $float);
 
         impl $ty {
             #[doc = concat!("Construct a new [`", stringify!($ty), "`].")]
@@ -81,7 +85,7 @@ macro_rules! float_ty {
                 Self(v)
             }
 
-            #[doc = concat!("Returns the wrapped ", stringify!($float), "`].")]
+            #[doc = concat!("Returns the wrapped [`", stringify!($float), "`].")]
             pub fn get(self) -> $float {
                 self.0
             }
@@ -94,8 +98,12 @@ macro_rules! float_ty {
         }
 
         /// Partial equality comparison
-        #[doc = concat!("In order to be able to use [`", stringify!($ty), "`] as a mapping key, floating values")]
-        #[doc = concat!("use [`", stringify!($float), "::total_ord`] for a total order comparison.")]
+        ///
+        #[doc = concat!(
+                    "In order to be able to use [`", stringify!($ty), "`] as a mapping key, ",
+                    "floating values use [`", stringify!($float), "::total_cmp`] for a total ",
+                    "order comparison.",
+                )]
         ///
         /// See the [`Ord`] implementation.
         impl PartialEq for $ty {
@@ -105,8 +113,12 @@ macro_rules! float_ty {
         }
 
         /// Equality comparison
-        #[doc = concat!("In order to be able to use [`", stringify!($ty), "`] as a mapping key, floating values")]
-        #[doc = concat!("use [`", stringify!($float), "::total_ord`] for a total order comparison.")]
+        ///
+        #[doc = concat!(
+                    "In order to be able to use [`", stringify!($ty), "`] as a mapping key, ",
+                    "floating values use [`", stringify!($float), "::total_cmp`] for a total ",
+                    "order comparison.",
+                )]
         ///
         /// See the [`Ord`] implementation.
         impl Eq for $ty {}
@@ -118,8 +130,12 @@ macro_rules! float_ty {
         }
 
         /// Partial ordering comparison
-        #[doc = concat!("In order to be able to use [`", stringify!($ty), "`] as a mapping key, floating values")]
-        #[doc = concat!("use [`", stringify!($float), "::total_ord`] for a total order comparison.")]
+        ///
+        #[doc = concat!(
+                    "In order to be able to use [`", stringify!($ty), "`] as a mapping key, ",
+                    "floating values use [`", stringify!($float), "::total_cmp`] for a total ",
+                    "order comparison.",
+                )]
         ///
         /// See the [`Ord`] implementation.
         impl PartialOrd for $ty {
@@ -129,14 +145,27 @@ macro_rules! float_ty {
         }
 
         /// Ordering comparison
-        #[doc = concat!("In order to be able to use [`", stringify!($ty), "`] as a mapping key, floating values")]
-        #[doc = concat!("use [`", stringify!($float), "::total_ord`] for a total order comparison.")]
+        ///
+        #[doc = concat!(
+                    "In order to be able to use [`", stringify!($ty), "`] as a mapping key, ",
+                    "floating values use [`", stringify!($float), "::total_cmp`] for a total ",
+                    "order comparison.",
+                )]
         ///
         /// ```
         #[doc = concat!("use ron::value::", stringify!($ty), ";")]
-        #[doc = concat!("assert!(", stringify!($ty), "::new(", stringify!($float), "::NAN) > ", stringify!($ty), "::new(", stringify!($float), "::INFINITY));")]
-        #[doc = concat!("assert!(", stringify!($ty), "::new(-", stringify!($float), "::NAN) < ", stringify!($ty), "::new(", stringify!($float), "::NEG_INFINITY));")]
-        #[doc = concat!("assert!(", stringify!($ty), "::new(", stringify!($float), "::NAN) == ", stringify!($ty), "::new(", stringify!($float), "::NAN));")]
+        #[doc = concat!(
+                    "assert!(", stringify!($ty), "::new(", stringify!($float), "::NAN) > ",
+                    stringify!($ty), "::new(", stringify!($float), "::INFINITY));",
+                )]
+        #[doc = concat!(
+                    "assert!(", stringify!($ty), "::new(-", stringify!($float), "::NAN) < ",
+                    stringify!($ty), "::new(", stringify!($float), "::NEG_INFINITY));",
+                )]
+        #[doc = concat!(
+                    "assert!(", stringify!($ty), "::new(", stringify!($float), "::NAN) == ",
+                    stringify!($ty), "::new(", stringify!($float), "::NAN));",
+                )]
         /// ```
         impl Ord for $ty {
             fn cmp(&self, other: &Self) -> Ordering {
