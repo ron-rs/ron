@@ -435,16 +435,32 @@ impl<'a> Bytes<'a> {
             .map_or(false, |&b| is_ident_other_char(b))
     }
 
-    /// Check which type of struct we are currently parsing.
+    /// Check which type of struct we are currently parsing. The parsing state
+    ///  is only changed in case of an error, to provide a better position.
     ///
-    /// Setting `no_unit` to `true` skips an initial check for unit structs,
+    /// [`NewtypeMode::NoParensMeanUnit`] detects (tuple) structs by a leading
+    ///  opening bracket and reports a unit struct otherwise.
+    /// [`NewtypeMode::InsideNewtype`] skips an initial check for unit structs,
     ///  and means that any leading opening bracket is not considered to open
     ///  a (tuple) struct but to be part of the structs inner contents.
-    /// Setting `no_unit` to `false` detects (tuple) structs by a leading
-    ///  opening bracket and reports a unit struct otherwise.
-    pub fn check_struct_type(&mut self, no_unit: bool) -> Result<StructType> {
-        fn check_struct_type_inner(bytes: &mut Bytes, no_unit: bool) -> Result<StructType> {
-            if !no_unit && !bytes.consume("(") {
+    ///
+    /// [`TupleMode::ImpreciseTupleOrNewtype`] only performs a cheap, O(1),
+    ///  single-identifier lookahead check to distinguish tuple structs from
+    ///  non-tuple structs.
+    /// [`TupleMode::DifferentiateNewtype`] performs an expensive, O(N), look-
+    ///  ahead over the entire next value tree, which can span the entirety of
+    ///  the remaining document in the worst case.
+    pub fn check_struct_type(
+        &mut self,
+        newtype: NewtypeMode,
+        tuple: TupleMode,
+    ) -> Result<StructType> {
+        fn check_struct_type_inner(
+            bytes: &mut Bytes,
+            newtype: NewtypeMode,
+            tuple: TupleMode,
+        ) -> Result<StructType> {
+            if matches!(newtype, NewtypeMode::NoParensMeanUnit) && !bytes.consume("(") {
                 return Ok(StructType::Unit);
             }
 
@@ -463,6 +479,10 @@ impl<'a> Bytes<'a> {
                     // Something else, let's investigate further
                     _ => (),
                 };
+            }
+
+            if matches!(tuple, TupleMode::ImpreciseTupleOrNewtype) {
+                return Ok(StructType::NewtypeOrTuple);
             }
 
             let mut braces = 1_usize;
@@ -502,7 +522,7 @@ impl<'a> Bytes<'a> {
         // Create a temporary working copy
         let mut bytes = *self;
 
-        let result = check_struct_type_inner(&mut bytes, no_unit);
+        let result = check_struct_type_inner(&mut bytes, newtype, tuple);
 
         if result.is_err() {
             // Adjust the error span to fit the working copy
@@ -1073,6 +1093,16 @@ pub enum StructType {
     Tuple,
     Named,
     Unit,
+}
+
+pub enum NewtypeMode {
+    NoParensMeanUnit,
+    InsideNewtype,
+}
+
+pub enum TupleMode {
+    ImpreciseTupleOrNewtype,
+    DifferentiateNewtype,
 }
 
 #[cfg(test)]

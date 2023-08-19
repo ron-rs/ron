@@ -18,4 +18,27 @@ fn deserialise_value_with_unwrap_some_newtype_variant() {
             .collect()
         ))))),
     );
+    assert_eq!(
+        ron::from_str("#![enable(unwrap_variant_newtypes)] Some(42, true)"),
+        Ok(ron::Value::Option(Some(Box::new(ron::Value::Seq(vec![
+            ron::Value::Number(42.into()),
+            ron::Value::Bool(true)
+        ]))))),
+    );
+    assert_eq!(
+        ron::from_str("#![enable(unwrap_variant_newtypes)] Some(42,)"),
+        Ok(ron::Value::Option(Some(Box::new(ron::Value::Seq(vec![
+            ron::Value::Number(42.into())
+        ]))))),
+    );
+    assert_eq!(
+        ron::from_str("#![enable(unwrap_variant_newtypes)] Some()"),
+        Ok(ron::Value::Option(Some(Box::new(ron::Value::Unit)))),
+    );
+    assert_eq!(
+        ron::from_str("#![enable(unwrap_variant_newtypes)] Some(42)"),
+        Ok(ron::Value::Option(Some(Box::new(ron::Value::Number(
+            42.into()
+        ))))),
+    );
 }
