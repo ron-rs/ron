@@ -360,9 +360,37 @@ fn test_any_number_precision() {
     assert_eq!(de_any_number("-1.0"), Number::F32((-1.0).into()));
     assert_eq!(de_any_number("1."), Number::F32((1.).into()));
     assert_eq!(de_any_number("-1."), Number::F32((-1.).into()));
+    assert_eq!(de_any_number(".3"), Number::F64((0.3).into()));
+    assert_eq!(de_any_number("-.3"), Number::F64((-0.3).into()));
+    assert_eq!(de_any_number("+.3"), Number::F64((0.3).into()));
     assert_eq!(de_any_number("0.3"), Number::F64((0.3).into()));
     assert_eq!(de_any_number("NaN"), Number::F32(f32::NAN.into()));
     assert_eq!(de_any_number("-NaN"), Number::F32((-f32::NAN).into()));
     assert_eq!(de_any_number("inf"), Number::F32(f32::INFINITY.into()));
     assert_eq!(de_any_number("-inf"), Number::F32(f32::NEG_INFINITY.into()));
+
+    macro_rules! test_min {
+        ($($ty:ty),*) => {
+            $(assert_eq!(
+                de_any_number(&format!("{}", <$ty>::MIN)),
+                Number::from(<$ty>::MIN),
+            );)*
+        };
+    }
+
+    macro_rules! test_max {
+        ($($ty:ty),*) => {
+            $(assert_eq!(
+                de_any_number(&format!("{}", <$ty>::MAX)),
+                Number::from(<$ty>::MAX),
+            );)*
+        };
+    }
+
+    test_min! { i8, i16, i32, i64, f64 }
+    test_max! { u8, u16, u32, u64, f64 }
+    #[cfg(feature = "integer128")]
+    test_min! { i128 }
+    #[cfg(feature = "integer128")]
+    test_max! { u128 }
 }
