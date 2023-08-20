@@ -244,70 +244,67 @@ impl<'a> Bytes<'a> {
 
         let bytes_backup = self.bytes;
 
-        let is_negative = self.peek_or_eof()? == b'-';
-        let is_float = self.next_bytes_is_float();
-
-        if is_float {
-            let f = self.float::<f64>()?;
-
-            any_float(f)
-        } else if is_negative {
-            match self.signed_integer::<LargeSInt>() {
-                Ok(x) => {
-                    if let Ok(x) = i8::try_from(x) {
-                        Ok(Number::I8(x))
-                    } else if let Ok(x) = i16::try_from(x) {
-                        Ok(Number::I16(x))
-                    } else if let Ok(x) = i32::try_from(x) {
-                        Ok(Number::I32(x))
-                    } else {
-                        #[cfg(not(feature = "integer128"))]
-                        {
-                            Ok(Number::I64(x))
-                        }
-                        #[cfg(feature = "integer128")]
-                        if let Ok(x) = i64::try_from(x) {
-                            Ok(Number::I64(x))
-                        } else {
-                            Ok(Number::I128(x))
-                        }
-                    }
-                }
-                Err(_) => {
-                    self.bytes = bytes_backup;
-
-                    any_float(self.float::<f64>()?)
-                }
-            }
-        } else {
-            match self.unsigned_integer::<LargeUInt>() {
-                Ok(x) => {
-                    if let Ok(x) = u8::try_from(x) {
-                        Ok(Number::U8(x))
-                    } else if let Ok(x) = u16::try_from(x) {
-                        Ok(Number::U16(x))
-                    } else if let Ok(x) = u32::try_from(x) {
-                        Ok(Number::U32(x))
-                    } else {
-                        #[cfg(not(feature = "integer128"))]
-                        {
-                            Ok(Number::U64(x))
-                        }
-                        #[cfg(feature = "integer128")]
-                        if let Ok(x) = u64::try_from(x) {
-                            Ok(Number::U64(x))
-                        } else {
-                            Ok(Number::U128(x))
-                        }
-                    }
-                }
-                Err(_) => {
-                    self.bytes = bytes_backup;
-
-                    any_float(self.float::<f64>()?)
-                }
-            }
+        if self.next_bytes_is_float() {
+            return any_float(self.float::<f64>()?);
         }
+
+        let is_negative = match self.peek_or_eof()? {
+            b'+' => {
+                let _ = self.advance_single();
+                false
+            }
+            b'-' => {
+                let _ = self.advance_single();
+                true
+            }
+            _ => false,
+        };
+
+        if is_negative {
+            if let Ok(x) = self.any_integer::<LargeSInt>(-1) {
+                return if let Ok(x) = i8::try_from(x) {
+                    Ok(Number::I8(x))
+                } else if let Ok(x) = i16::try_from(x) {
+                    Ok(Number::I16(x))
+                } else if let Ok(x) = i32::try_from(x) {
+                    Ok(Number::I32(x))
+                } else {
+                    #[cfg(not(feature = "integer128"))]
+                    {
+                        Ok(Number::I64(x))
+                    }
+                    #[cfg(feature = "integer128")]
+                    if let Ok(x) = i64::try_from(x) {
+                        Ok(Number::I64(x))
+                    } else {
+                        Ok(Number::I128(x))
+                    }
+                };
+            }
+        } else if let Ok(x) = self.any_integer::<LargeUInt>(1) {
+            return if let Ok(x) = u8::try_from(x) {
+                Ok(Number::U8(x))
+            } else if let Ok(x) = u16::try_from(x) {
+                Ok(Number::U16(x))
+            } else if let Ok(x) = u32::try_from(x) {
+                Ok(Number::U32(x))
+            } else {
+                #[cfg(not(feature = "integer128"))]
+                {
+                    Ok(Number::U64(x))
+                }
+                #[cfg(feature = "integer128")]
+                if let Ok(x) = u64::try_from(x) {
+                    Ok(Number::U64(x))
+                } else {
+                    Ok(Number::U128(x))
+                }
+            };
+        }
+
+        // Fall-back to parse an out-of-range integer as a float
+        self.bytes = bytes_backup;
+        any_float(self.float::<f64>()?)
     }
 
     pub fn bool(&mut self) -> Result<bool> {
