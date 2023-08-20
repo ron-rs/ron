@@ -832,7 +832,7 @@ impl<'a> Bytes<'a> {
             match self.bytes.get(1) {
                 Some(b'"') => return Err(Error::ExpectedIdentifier),
                 Some(b'r') => match self.bytes.get(2) {
-                    Some(b'"') => return Err(Error::ExpectedIdentifier),
+                    Some(b'#' | b'"') => return Err(Error::ExpectedIdentifier),
                     Some(_) | None => (),
                 },
                 Some(_) | None => (),

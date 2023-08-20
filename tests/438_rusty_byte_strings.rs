@@ -155,6 +155,69 @@ fn fuzzer_failures() {
         .unwrap(),
         "b\"{\x00\x00\x00\x00\""
     );
+
+    // `br#` should be parsed as the start of a byte string, not the identifier `br` and a `#`
+    assert_eq!(
+        ron::from_str(r##"br#"""#"##),
+        Ok(ron::Value::Bytes(vec![34]))
+    );
+    assert_eq!(
+        ron::from_str(r##"{"error": br#"""#}"##),
+        Ok(ron::Value::Map(
+            [(
+                ron::Value::String(String::from("error")),
+                ron::Value::Bytes(vec![34])
+            )]
+            .into_iter()
+            .collect()
+        ))
+    );
+    assert_eq!(
+        ron::from_str(
+            r##"#![enable(unwrap_newtypes)]
+    #![enable(unwrap_variant_newtypes)]
+    Some({"error": br#"""#})
+    "##
+        ),
+        Ok(ron::Value::Option(Some(Box::new(ron::Value::Map(
+            [(
+                ron::Value::String(String::from("error")),
+                ron::Value::Bytes(vec![34])
+            )]
+            .into_iter()
+            .collect()
+        )))))
+    );
+
+    // `br"` should be parsed as the start of a byte string, not the identifier `br` and a `"`
+    assert_eq!(ron::from_str(r#"br"""#), Ok(ron::Value::Bytes(vec![])));
+    assert_eq!(
+        ron::from_str(r#"{"error": br""}"#),
+        Ok(ron::Value::Map(
+            [(
+                ron::Value::String(String::from("error")),
+                ron::Value::Bytes(vec![])
+            )]
+            .into_iter()
+            .collect()
+        ))
+    );
+    assert_eq!(
+        ron::from_str(
+            r#"#![enable(unwrap_newtypes)]
+    #![enable(unwrap_variant_newtypes)]
+    Some({"error": br""})
+    "#
+        ),
+        Ok(ron::Value::Option(Some(Box::new(ron::Value::Map(
+            [(
+                ron::Value::String(String::from("error")),
+                ron::Value::Bytes(vec![])
+            )]
+            .into_iter()
+            .collect()
+        )))))
+    );
 }
 
 #[test]
