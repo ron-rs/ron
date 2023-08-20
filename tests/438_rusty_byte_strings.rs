@@ -123,3 +123,75 @@ fn rusty_byte_string_roundtrip(bytes: &[u8], ron: &str, ron_raw: &str) {
     let de_raw: bytes::Bytes = ron::from_str(&ser_raw).unwrap();
     assert_eq!(de_raw, bytes);
 }
+
+#[test]
+fn fuzzer_failures() {
+    assert_eq!(
+        ron::to_string(&bytes::Bytes::copy_from_slice(&[
+            123, 0, 0, 0, 0, 214, 214, 214, 214, 214
+        ]))
+        .unwrap(),
+        r#"b"{\x00\x00\x00\x00\xd6\xd6\xd6\xd6\xd6""#
+    );
+    // Need to fall back to escaping so no invalid UTF-8 is produced
+    assert_eq!(
+        ron::ser::to_string_pretty(
+            &bytes::Bytes::copy_from_slice(&[123, 0, 0, 0, 0, 214, 214, 214, 214, 214]),
+            ron::ser::PrettyConfig::default().escape_strings(false)
+        )
+        .unwrap(),
+        r#"b"{\x00\x00\x00\x00\xd6\xd6\xd6\xd6\xd6""#
+    );
+
+    assert_eq!(
+        ron::to_string(&bytes::Bytes::copy_from_slice(&[123, 0, 0, 0, 0])).unwrap(),
+        r#"b"{\x00\x00\x00\x00""#
+    );
+    assert_eq!(
+        ron::ser::to_string_pretty(
+            &bytes::Bytes::copy_from_slice(&[123, 0, 0, 0, 0]),
+            ron::ser::PrettyConfig::default().escape_strings(false)
+        )
+        .unwrap(),
+        "b\"{\x00\x00\x00\x00\""
+    );
+}
+
+#[test]
+fn serialize_backslash_byte_string() {
+    check_roundtrip('\\', r"'\\'", r"'\\'");
+    check_roundtrip(
+        bytes::Bytes::copy_from_slice(b"\\"),
+        r#"b"\\""#,
+        "br#\"\\\"#",
+    );
+}
+
+fn check_roundtrip<
+    T: PartialEq + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned,
+>(
+    val: T,
+    cmp: &str,
+    cmp_raw: &str,
+) {
+    let ron = ron::to_string(&val).unwrap();
+    assert_eq!(ron, cmp);
+
+    let ron_escaped =
+        ron::ser::to_string_pretty(&val, ron::ser::PrettyConfig::default().escape_strings(true))
+            .unwrap();
+    assert_eq!(ron_escaped, cmp);
+
+    let ron_raw = ron::ser::to_string_pretty(
+        &val,
+        ron::ser::PrettyConfig::default().escape_strings(false),
+    )
+    .unwrap();
+    assert_eq!(ron_raw, cmp_raw);
+
+    let de = ron::from_str::<T>(&ron).unwrap();
+    assert_eq!(de, val);
+
+    let de_raw = ron::from_str::<T>(&ron_raw).unwrap();
+    assert_eq!(de_raw, val);
+}

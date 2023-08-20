@@ -546,7 +546,7 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn serialize_unescaped_or_raw_byte_str(&mut self, value: &[u8]) -> io::Result<()> {
-        if value.contains(&b'"') {
+        if value.contains(&b'"') || value.contains(&b'\\') {
             let (_, num_consecutive_hashes) =
                 value.iter().fold((0, 0), |(count, max), c| match c {
                     b'#' => (count + 1, max.max(count + 1)),
@@ -756,7 +756,8 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
-        if self.escape_strings() {
+        // We need to fall back to escaping if the byte string would be invalid UTF-8
+        if self.escape_strings() || std::str::from_utf8(v).is_err() {
             self.serialize_escaped_byte_str(v)?;
         } else {
             self.serialize_unescaped_or_raw_byte_str(v)?;
