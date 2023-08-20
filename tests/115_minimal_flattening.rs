@@ -174,7 +174,7 @@ fn test_flatten_rest() {
             let mut map = HashMap::new();
             map.insert(
                 String::from("third"),
-                ron::Value::Number(ron::value::Number::from(3)),
+                ron::Value::Number(ron::value::Number::U8(3)),
             );
             map
         },
@@ -202,7 +202,7 @@ fn test_flatten_rest() {
             let mut map = HashMap::new();
             map.insert(
                 String::from("third"),
-                ron::Value::Number(ron::value::Number::from(3)),
+                ron::Value::Number(ron::value::Number::U8(3)),
             );
             map
         },

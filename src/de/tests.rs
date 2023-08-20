@@ -4,7 +4,8 @@ use serde_derive::Deserialize;
 use crate::{
     de::from_str,
     error::{Error, Position, SpannedError, SpannedResult},
-    parse::{AnyNum, Bytes},
+    parse::Bytes,
+    value::Number,
 };
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -345,19 +346,86 @@ fn test_numbers() {
     );
 }
 
-fn de_any_number(s: &str) -> AnyNum {
+fn check_de_any_number<
+    T: Copy + PartialEq + std::fmt::Debug + Into<Number> + serde::de::DeserializeOwned,
+>(
+    s: &str,
+    cmp: T,
+) {
     let mut bytes = Bytes::new(s.as_bytes()).unwrap();
+    let number = bytes.any_number().unwrap();
 
-    bytes.any_num().unwrap()
+    assert_eq!(number, Number::new(cmp));
+    assert_eq!(
+        Number::new(super::from_str::<T>(s).unwrap()),
+        Number::new(cmp)
+    );
 }
 
 #[test]
 fn test_any_number_precision() {
-    assert_eq!(de_any_number("1"), AnyNum::U8(1));
-    assert_eq!(de_any_number("+1"), AnyNum::I8(1));
-    assert_eq!(de_any_number("-1"), AnyNum::I8(-1));
-    assert_eq!(de_any_number("-1.0"), AnyNum::F32(-1.0));
-    assert_eq!(de_any_number("1."), AnyNum::F32(1.));
-    assert_eq!(de_any_number("-1."), AnyNum::F32(-1.));
-    assert_eq!(de_any_number("0.3"), AnyNum::F64(0.3));
+    check_de_any_number("1", 1_u8);
+    check_de_any_number("+1", 1_u8);
+    check_de_any_number("-1", -1_i8);
+    check_de_any_number("-1.0", -1.0_f32);
+    check_de_any_number("1.", 1.0_f32);
+    check_de_any_number("-1.", -1.0_f32);
+    check_de_any_number(".3", 0.3_f64);
+    check_de_any_number("-.3", -0.3_f64);
+    check_de_any_number("+.3", 0.3_f64);
+    check_de_any_number("0.3", 0.3_f64);
+    check_de_any_number("NaN", f32::NAN);
+    check_de_any_number("-NaN", -f32::NAN);
+    check_de_any_number("inf", f32::INFINITY);
+    check_de_any_number("-inf", f32::NEG_INFINITY);
+
+    macro_rules! test_min {
+        ($($ty:ty),*) => {
+            $(check_de_any_number(&format!("{}", <$ty>::MIN), <$ty>::MIN);)*
+        };
+    }
+
+    macro_rules! test_max {
+        ($($ty:ty),*) => {
+            $(check_de_any_number(&format!("{}", <$ty>::MAX), <$ty>::MAX);)*
+        };
+    }
+
+    test_min! { i8, i16, i32, i64, f64 }
+    test_max! { u8, u16, u32, u64, f64 }
+    #[cfg(feature = "integer128")]
+    test_min! { i128 }
+    #[cfg(feature = "integer128")]
+    test_max! { u128 }
+}
+
+#[test]
+fn test_value_special_floats() {
+    use crate::{from_str, value::Number, Value};
+
+    assert_eq!(
+        from_str("NaN"),
+        Ok(Value::Number(Number::F32(f32::NAN.into())))
+    );
+    assert_eq!(
+        from_str("+NaN"),
+        Ok(Value::Number(Number::F32(f32::NAN.into())))
+    );
+    assert_eq!(
+        from_str("-NaN"),
+        Ok(Value::Number(Number::F32((-f32::NAN).into())))
+    );
+
+    assert_eq!(
+        from_str("inf"),
+        Ok(Value::Number(Number::F32(f32::INFINITY.into())))
+    );
+    assert_eq!(
+        from_str("+inf"),
+        Ok(Value::Number(Number::F32(f32::INFINITY.into())))
+    );
+    assert_eq!(
+        from_str("-inf"),
+        Ok(Value::Number(Number::F32(f32::NEG_INFINITY.into())))
+    );
 }

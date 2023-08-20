@@ -88,6 +88,9 @@ jobs:
         env:
           CARGO_TARGET_DIR: target/
       - run: |
+          cargo test --all-targets
+          cargo test --features integer128 --all-targets
+          cargo test --features indexmap --all-targets
           cargo test --all-features --all-targets
           grcov . -s . --binary-path ./target/debug/ \
             -t cobertura -o cobertura.xml --branch \

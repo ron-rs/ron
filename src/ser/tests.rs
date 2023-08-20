@@ -1,5 +1,7 @@
 use serde_derive::Serialize;
 
+use crate::Number;
+
 use super::to_string;
 
 #[derive(Serialize)]
@@ -144,4 +146,45 @@ fn rename() {
 
     assert_eq!(to_string(&Foo::D2).unwrap(), "r#2d");
     assert_eq!(to_string(&Foo::TriangleList).unwrap(), "r#triangle-list");
+}
+
+#[test]
+fn test_any_number_precision() {
+    check_ser_any_number(1_u8);
+    check_ser_any_number(-1_i8);
+    check_ser_any_number(1_f32);
+    check_ser_any_number(-1_f32);
+    check_ser_any_number(0.3_f64);
+    check_ser_any_number(f32::NAN);
+    check_ser_any_number(-f32::NAN);
+    check_ser_any_number(f32::INFINITY);
+    check_ser_any_number(f32::NEG_INFINITY);
+
+    macro_rules! test_min_max {
+        ($ty:ty) => {
+            check_ser_any_number(<$ty>::MIN);
+            check_ser_any_number(<$ty>::MAX);
+        };
+        ($($ty:ty),*) => {
+            $(test_min_max! { $ty })*
+        };
+    }
+
+    test_min_max! { i8, i16, i32, i64, u8, u16, u32, u64, f32, f64 }
+    #[cfg(feature = "integer128")]
+    test_min_max! { i128, u128 }
+}
+
+fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display + serde::Serialize>(n: T) {
+    let mut fmt = format!("{}", n);
+    if !fmt.contains('.')
+        && std::any::type_name::<T>().contains('f')
+        && !fmt.contains("NaN")
+        && !fmt.contains("inf")
+    {
+        fmt.push_str(".0");
+    }
+
+    assert_eq!(super::to_string(&n.into()).unwrap(), fmt);
+    assert_eq!(super::to_string(&n).unwrap(), fmt);
 }

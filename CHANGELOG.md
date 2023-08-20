@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix deserialising deserialising `A('/')` into a `ron::Value` ([#465](https://github.com/ron-rs/ron/pull/465))
 - Update the arbitrary fuzzer to check arbitrary serde data types, values, and `ron::ser::PrettyConfig`s ([#465](https://github.com/ron-rs/ron/pull/465))
 - Add a benchmark for PRs that runs over the latest fuzzer corpus ([#465](https://github.com/ron-rs/ron/pull/465))
+- Fix issue [#445](https://github.com/ron-rs/ron/issues/445) and allow parsing `+unsigned` as an unsigned int ([#479](https://github.com/ron-rs/ron/pull/479))
+- Breaking: Expand the `value::Number` enum to explicitly encode all possible number types ([#479](https://github.com/ron-rs/ron/pull/479))
 
 ## [0.8.1] - 2023-08-17
 

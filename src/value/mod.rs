@@ -1,345 +1,21 @@
 //! Value module.
 
-use std::{
-    cmp::{Eq, Ordering},
-    hash::{Hash, Hasher},
-    iter::FromIterator,
-    ops::{Index, IndexMut},
-};
+use std::{cmp::Eq, hash::Hash};
 
 use serde::{
     de::{DeserializeOwned, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor},
     forward_to_deserialize_any,
 };
-use serde_derive::{Deserialize, Serialize};
 
 use crate::{de::Error, error::Result};
 
+mod map;
+mod number;
 pub(crate) mod raw;
 
+pub use map::Map;
+pub use number::{Number, F32, F64};
 pub use raw::RawValue;
-
-/// A [`Value`] to [`Value`] map.
-///
-/// This structure either uses a [BTreeMap](std::collections::BTreeMap) or the
-/// [IndexMap](indexmap::IndexMap) internally.
-/// The latter can be used by enabling the `indexmap` feature. This can be used
-/// to preserve the order of the parsed map.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(transparent)]
-pub struct Map(MapInner);
-
-impl Map {
-    /// Creates a new, empty [`Map`].
-    pub fn new() -> Map {
-        Default::default()
-    }
-
-    /// Returns the number of elements in the map.
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns `true` if `self.len() == 0`, `false` otherwise.
-    pub fn is_empty(&self) -> bool {
-        self.0.len() == 0
-    }
-
-    /// Inserts a new element, returning the previous element with this `key` if
-    /// there was any.
-    pub fn insert(&mut self, key: Value, value: Value) -> Option<Value> {
-        self.0.insert(key, value)
-    }
-
-    /// Removes an element by its `key`.
-    pub fn remove(&mut self, key: &Value) -> Option<Value> {
-        self.0.remove(key)
-    }
-
-    /// Iterate all key-value pairs.
-    pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> + DoubleEndedIterator {
-        self.0.iter()
-    }
-
-    /// Iterate all key-value pairs mutably.
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Value, &mut Value)> + DoubleEndedIterator {
-        self.0.iter_mut()
-    }
-
-    /// Iterate all keys.
-    pub fn keys(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
-        self.0.keys()
-    }
-
-    /// Iterate all values.
-    pub fn values(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
-        self.0.values()
-    }
-
-    /// Iterate all values mutably.
-    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> + DoubleEndedIterator {
-        self.0.values_mut()
-    }
-
-    /// Retains only the elements specified by the `keep` predicate.
-    ///
-    /// In other words, remove all pairs `(k, v)` for which `keep(&k, &mut v)`
-    /// returns `false`.
-    ///
-    /// The elements are visited in iteration order.
-    pub fn retain<F>(&mut self, keep: F)
-    where
-        F: FnMut(&Value, &mut Value) -> bool,
-    {
-        self.0.retain(keep);
-    }
-}
-
-impl FromIterator<(Value, Value)> for Map {
-    fn from_iter<T: IntoIterator<Item = (Value, Value)>>(iter: T) -> Self {
-        Map(MapInner::from_iter(iter))
-    }
-}
-
-impl IntoIterator for Map {
-    type Item = (Value, Value);
-
-    type IntoIter = <MapInner as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-/// Note: equality is only given if both values and order of values match
-impl Eq for Map {}
-
-impl Hash for Map {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.iter().for_each(|x| x.hash(state));
-    }
-}
-
-impl Index<&Value> for Map {
-    type Output = Value;
-
-    fn index(&self, index: &Value) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<&Value> for Map {
-    fn index_mut(&mut self, index: &Value) -> &mut Self::Output {
-        self.0.get_mut(index).expect("no entry found for key")
-    }
-}
-
-impl Ord for Map {
-    fn cmp(&self, other: &Map) -> Ordering {
-        self.iter().cmp(other.iter())
-    }
-}
-
-/// Note: equality is only given if both values and order of values match
-impl PartialEq for Map {
-    fn eq(&self, other: &Map) -> bool {
-        self.iter().zip(other.iter()).all(|(a, b)| a == b)
-    }
-}
-
-impl PartialOrd for Map {
-    fn partial_cmp(&self, other: &Map) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-#[cfg(not(feature = "indexmap"))]
-type MapInner = std::collections::BTreeMap<Value, Value>;
-#[cfg(feature = "indexmap")]
-type MapInner = indexmap::IndexMap<Value, Value>;
-
-/// A wrapper for a number, which can be either [`f64`] or [`i64`].
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
-pub enum Number {
-    Integer(i64),
-    Float(Float),
-}
-
-/// A wrapper for [`f64`], which guarantees that the inner value
-/// is finite and thus implements [`Eq`], [`Hash`] and [`Ord`].
-#[derive(Copy, Clone, Debug)]
-pub struct Float(f64);
-
-impl Float {
-    /// Construct a new [`Float`].
-    pub fn new(v: f64) -> Self {
-        Float(v)
-    }
-
-    /// Returns the wrapped float.
-    pub fn get(self) -> f64 {
-        self.0
-    }
-}
-
-impl Number {
-    /// Construct a new number.
-    pub fn new(v: impl Into<Number>) -> Self {
-        v.into()
-    }
-
-    /// Returns the [`f64`] representation of the [`Number`] regardless of
-    /// whether the number is stored as a float or integer.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use ron::value::Number;
-    /// let i = Number::new(5);
-    /// let f = Number::new(2.0);
-    /// assert_eq!(i.into_f64(), 5.0);
-    /// assert_eq!(f.into_f64(), 2.0);
-    /// ```
-    pub fn into_f64(self) -> f64 {
-        self.map_to(|i| i as f64, |f| f)
-    }
-
-    /// If the [`Number`] is a float, return it. Otherwise return [`None`].
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use ron::value::Number;
-    /// let i = Number::new(5);
-    /// let f = Number::new(2.0);
-    /// assert_eq!(i.as_f64(), None);
-    /// assert_eq!(f.as_f64(), Some(2.0));
-    /// ```
-    pub fn as_f64(self) -> Option<f64> {
-        self.map_to(|_| None, Some)
-    }
-
-    /// If the [`Number`] is an integer, return it. Otherwise return [`None`].
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use ron::value::Number;
-    /// let i = Number::new(5);
-    /// let f = Number::new(2.0);
-    /// assert_eq!(i.as_i64(), Some(5));
-    /// assert_eq!(f.as_i64(), None);
-    /// ```
-    pub fn as_i64(self) -> Option<i64> {
-        self.map_to(Some, |_| None)
-    }
-
-    /// Map this number to a single type using the appropriate closure.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use ron::value::Number;
-    /// let i = Number::new(5);
-    /// let f = Number::new(2.0);
-    /// assert!(i.map_to(|i| i > 3, |f| f > 3.0));
-    /// assert!(!f.map_to(|i| i > 3, |f| f > 3.0));
-    /// ```
-    pub fn map_to<T>(
-        self,
-        integer_fn: impl FnOnce(i64) -> T,
-        float_fn: impl FnOnce(f64) -> T,
-    ) -> T {
-        match self {
-            Number::Integer(i) => integer_fn(i),
-            Number::Float(Float(f)) => float_fn(f),
-        }
-    }
-}
-
-impl From<f64> for Number {
-    fn from(f: f64) -> Number {
-        Number::Float(Float(f))
-    }
-}
-
-impl From<i64> for Number {
-    fn from(i: i64) -> Number {
-        Number::Integer(i)
-    }
-}
-
-impl From<i32> for Number {
-    fn from(i: i32) -> Number {
-        Number::Integer(i64::from(i))
-    }
-}
-
-/// The following [`Number`] conversion checks if the integer fits losslessly
-/// into an [`i64`], before constructing a [`Number::Integer`] variant.
-/// If not, the conversion defaults to [`Number::Float`].
-
-impl From<u64> for Number {
-    fn from(i: u64) -> Number {
-        if i <= std::i64::MAX as u64 {
-            Number::Integer(i as i64)
-        } else {
-            Number::new(i as f64)
-        }
-    }
-}
-
-/// Partial equality comparison
-/// In order to be able to use [`Number`] as a mapping key, floating values
-/// use [`f64::total_ord`] for a total order comparison.
-///
-/// See the [`Ord`] implementation.
-impl PartialEq for Float {
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp(other) == Ordering::Equal
-    }
-}
-
-/// Equality comparison
-/// In order to be able to use [`Float`] as a mapping key, floating values
-/// use [`f64::total_ord`] for a total order comparison.
-///
-/// See the [`Ord`] implementation.
-impl Eq for Float {}
-
-impl Hash for Float {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u64(self.0.to_bits());
-    }
-}
-
-/// Partial ordering comparison
-/// In order to be able to use [`Number`] as a mapping key, floating values
-/// use [`f64::total_ord`] for a total order comparison.
-///
-/// See the [`Ord`] implementation.
-impl PartialOrd for Float {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-/// Ordering comparison
-/// In order to be able to use [`Float`] as a mapping key, floating values
-/// use [`f64::total_ord`] for a total order comparison.
-/// See the [`PartialEq`] implementation.
-///
-/// ```
-/// use ron::value::Number;
-/// assert!(Number::new(std::f64::NAN) > Number::new(std::f64::INFINITY));
-/// assert!(Number::new(-std::f64::NAN) < Number::new(std::f64::NEG_INFINITY));
-/// assert_eq!(Number::new(std::f64::NAN), Number::new(std::f64::NAN));
-/// ```
-impl Ord for Float {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0.total_cmp(&other.0)
-    }
-}
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Value {
@@ -369,9 +45,14 @@ impl<'de> Deserializer<'de> for Value {
     type Error = Error;
 
     forward_to_deserialize_any! {
-        bool f32 f64 char str string bytes
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string bytes
         byte_buf option unit unit_struct newtype_struct seq tuple
         tuple_struct map struct enum identifier ignored_any
+    }
+
+    #[cfg(feature = "integer128")]
+    forward_to_deserialize_any! {
+        i128 u128
     }
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -401,8 +82,7 @@ impl<'de> Deserializer<'de> for Value {
                     })
                 }
             }
-            Value::Number(Number::Float(ref f)) => visitor.visit_f64(f.get()),
-            Value::Number(Number::Integer(i)) => visitor.visit_i64(i),
+            Value::Number(number) => number.visit(visitor),
             Value::Option(Some(o)) => visitor.visit_some(*o),
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
@@ -410,7 +90,7 @@ impl<'de> Deserializer<'de> for Value {
                 let old_len = seq.len();
 
                 seq.reverse();
-                let value = visitor.visit_seq(Seq { seq: &mut seq })?;
+                let value = visitor.visit_seq(SeqAccessor { seq: &mut seq })?;
 
                 if seq.is_empty() {
                     Ok(value)
@@ -424,67 +104,27 @@ impl<'de> Deserializer<'de> for Value {
             Value::Unit => visitor.visit_unit(),
         }
     }
+}
 
-    fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
+struct SeqAccessor<'a> {
+    seq: &'a mut Vec<Value>,
+}
+
+impl<'a, 'de> SeqAccess<'de> for SeqAccessor<'a> {
+    type Error = Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
     where
-        V: Visitor<'de>,
+        T: DeserializeSeed<'de>,
     {
-        self.deserialize_i64(visitor)
+        // The `Vec` is reversed, so we can pop to get the originally first element
+        self.seq
+            .pop()
+            .map_or(Ok(None), |v| seed.deserialize(v).map(Some))
     }
 
-    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        self.deserialize_i64(visitor)
-    }
-
-    fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        self.deserialize_i64(visitor)
-    }
-
-    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        match self {
-            Value::Number(Number::Integer(i)) => visitor.visit_i64(i),
-            v => Err(Error::Message(format!("Expected a number, got {:?}", v))),
-        }
-    }
-
-    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        self.deserialize_u64(visitor)
-    }
-
-    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        self.deserialize_u64(visitor)
-    }
-
-    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        self.deserialize_u64(visitor)
-    }
-
-    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        match self {
-            Value::Number(Number::Integer(i)) => visitor.visit_u64(i as u64),
-            v => Err(Error::Message(format!("Expected a number, got {:?}", v))),
-        }
+    fn size_hint(&self) -> Option<usize> {
+        Some(self.seq.len())
     }
 }
 
@@ -522,28 +162,6 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
 
     fn size_hint(&self) -> Option<usize> {
         Some(self.items.len())
-    }
-}
-
-struct Seq<'a> {
-    seq: &'a mut Vec<Value>,
-}
-
-impl<'a, 'de> SeqAccess<'de> for Seq<'a> {
-    type Error = Error;
-
-    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
-    where
-        T: DeserializeSeed<'de>,
-    {
-        // The `Vec` is reversed, so we can pop to get the originally first element
-        self.seq
-            .pop()
-            .map_or(Ok(None), |v| seed.deserialize(v).map(Some))
-    }
-
-    fn size_hint(&self) -> Option<usize> {
-        Some(self.seq.len())
     }
 }
 

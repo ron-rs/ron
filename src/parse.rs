@@ -10,6 +10,7 @@ use base64::engine::general_purpose::{GeneralPurpose, STANDARD};
 use crate::{
     error::{Error, Position, Result, SpannedError, SpannedResult},
     extensions::Extensions,
+    value::Number,
 };
 
 pub const BASE64_ENGINE: GeneralPurpose = STANDARD;
@@ -87,24 +88,6 @@ pub const fn is_ident_raw_char(c: u8) -> bool {
 
 const fn is_whitespace_char(c: u8) -> bool {
     ENCODINGS[c as usize] & WHITESPACE_CHAR != 0
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum AnyNum {
-    F32(f32),
-    F64(f64),
-    I8(i8),
-    U8(u8),
-    I16(i16),
-    U16(u16),
-    I32(i32),
-    U32(u32),
-    I64(i64),
-    U64(u64),
-    #[cfg(feature = "integer128")]
-    I128(i128),
-    #[cfg(feature = "integer128")]
-    U128(u128),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -249,112 +232,79 @@ impl<'a> Bytes<'a> {
         res
     }
 
-    pub fn any_num(&mut self) -> Result<AnyNum> {
-        // We are not doing float comparisons here in the traditional sense.
-        // Instead, this code checks if a f64 fits inside an f32.
-        #[allow(clippy::float_cmp)]
-        fn any_float(f: f64) -> Result<AnyNum> {
-            if f == f64::from(f as f32) {
-                Ok(AnyNum::F32(f as f32))
+    pub fn any_number(&mut self) -> Result<Number> {
+        fn any_float(f: f64) -> Result<Number> {
+            // total_cmp ensures that NANs are treated properly
+            if f.total_cmp(&f64::from(f as f32)).is_eq() {
+                Ok(Number::F32((f as f32).into()))
             } else {
-                Ok(AnyNum::F64(f))
+                Ok(Number::F64(f.into()))
             }
         }
 
         let bytes_backup = self.bytes;
 
-        let first_byte = self.peek_or_eof()?;
-        let is_signed = first_byte == b'-' || first_byte == b'+';
-        let is_float = self.next_bytes_is_float();
-
-        if is_float {
-            let f = self.float::<f64>()?;
-
-            any_float(f)
-        } else {
-            let max_u8 = LargeUInt::from(std::u8::MAX);
-            let max_u16 = LargeUInt::from(std::u16::MAX);
-            let max_u32 = LargeUInt::from(std::u32::MAX);
-            #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
-            let max_u64 = LargeUInt::from(std::u64::MAX);
-
-            let min_i8 = LargeSInt::from(std::i8::MIN);
-            let max_i8 = LargeSInt::from(std::i8::MAX);
-            let min_i16 = LargeSInt::from(std::i16::MIN);
-            let max_i16 = LargeSInt::from(std::i16::MAX);
-            let min_i32 = LargeSInt::from(std::i32::MIN);
-            let max_i32 = LargeSInt::from(std::i32::MAX);
-            #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
-            let min_i64 = LargeSInt::from(std::i64::MIN);
-            #[cfg_attr(not(feature = "integer128"), allow(clippy::useless_conversion))]
-            let max_i64 = LargeSInt::from(std::i64::MAX);
-
-            if is_signed {
-                match self.signed_integer::<LargeSInt>() {
-                    Ok(x) => {
-                        if x >= min_i8 && x <= max_i8 {
-                            Ok(AnyNum::I8(x as i8))
-                        } else if x >= min_i16 && x <= max_i16 {
-                            Ok(AnyNum::I16(x as i16))
-                        } else if x >= min_i32 && x <= max_i32 {
-                            Ok(AnyNum::I32(x as i32))
-                        } else if x >= min_i64 && x <= max_i64 {
-                            #[cfg_attr(
-                                not(feature = "integer128"),
-                                allow(clippy::unnecessary_cast)
-                            )]
-                            Ok(AnyNum::I64(x as i64))
-                        } else {
-                            #[cfg(feature = "integer128")]
-                            {
-                                Ok(AnyNum::I128(x))
-                            }
-                            #[cfg(not(feature = "integer128"))]
-                            {
-                                Ok(AnyNum::I64(x))
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        self.bytes = bytes_backup;
-
-                        any_float(self.float::<f64>()?)
-                    }
-                }
-            } else {
-                match self.unsigned_integer::<LargeUInt>() {
-                    Ok(x) => {
-                        if x <= max_u8 {
-                            Ok(AnyNum::U8(x as u8))
-                        } else if x <= max_u16 {
-                            Ok(AnyNum::U16(x as u16))
-                        } else if x <= max_u32 {
-                            Ok(AnyNum::U32(x as u32))
-                        } else if x <= max_u64 {
-                            #[cfg_attr(
-                                not(feature = "integer128"),
-                                allow(clippy::unnecessary_cast)
-                            )]
-                            Ok(AnyNum::U64(x as u64))
-                        } else {
-                            #[cfg(feature = "integer128")]
-                            {
-                                Ok(AnyNum::U128(x))
-                            }
-                            #[cfg(not(feature = "integer128"))]
-                            {
-                                Ok(AnyNum::U64(x))
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        self.bytes = bytes_backup;
-
-                        any_float(self.float::<f64>()?)
-                    }
-                }
-            }
+        if self.next_bytes_is_float() {
+            return any_float(self.float::<f64>()?);
         }
+
+        let is_negative = match self.peek_or_eof()? {
+            b'+' => {
+                let _ = self.advance_single();
+                false
+            }
+            b'-' => {
+                let _ = self.advance_single();
+                true
+            }
+            _ => false,
+        };
+
+        if is_negative {
+            if let Ok(x) = self.any_integer::<LargeSInt>(-1) {
+                return if let Ok(x) = i8::try_from(x) {
+                    Ok(Number::I8(x))
+                } else if let Ok(x) = i16::try_from(x) {
+                    Ok(Number::I16(x))
+                } else if let Ok(x) = i32::try_from(x) {
+                    Ok(Number::I32(x))
+                } else {
+                    #[cfg(not(feature = "integer128"))]
+                    {
+                        Ok(Number::I64(x))
+                    }
+                    #[cfg(feature = "integer128")]
+                    if let Ok(x) = i64::try_from(x) {
+                        Ok(Number::I64(x))
+                    } else {
+                        Ok(Number::I128(x))
+                    }
+                };
+            }
+        } else if let Ok(x) = self.any_integer::<LargeUInt>(1) {
+            return if let Ok(x) = u8::try_from(x) {
+                Ok(Number::U8(x))
+            } else if let Ok(x) = u16::try_from(x) {
+                Ok(Number::U16(x))
+            } else if let Ok(x) = u32::try_from(x) {
+                Ok(Number::U32(x))
+            } else {
+                #[cfg(not(feature = "integer128"))]
+                {
+                    Ok(Number::U64(x))
+                }
+                #[cfg(feature = "integer128")]
+                if let Ok(x) = u64::try_from(x) {
+                    Ok(Number::U64(x))
+                } else {
+                    Ok(Number::U128(x))
+                }
+            };
+        }
+
+        // Fall-back to parse an out-of-range integer as a float
+        self.bytes = bytes_backup;
+        any_float(self.float::<f64>()?)
     }
 
     pub fn bool(&mut self) -> Result<bool> {
@@ -900,6 +850,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn unsigned_integer<T: Num>(&mut self) -> Result<T> {
+        // Allow an optional leading `+` before the unsigned integer
+        self.consume("+");
         self.any_integer(1)
     }
 

@@ -40,7 +40,7 @@ For the extension names see the [`extensions.md`][exts] document.
 ## Value
 
 ```ebnf
-value = unsigned | signed | float | string | char | bool | option | list | map | tuple | struct | enum_variant;
+value = integer | float | string | char | bool | option | list | map | tuple | struct | enum_variant;
 ```
 
 ## Numbers
@@ -50,7 +50,7 @@ digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 hex_digit = "A" | "a" | "B" | "b" | "C" | "c" | "D" | "d" | "E" | "e" | "F" | "f";
 unsigned = (["0", ("b" | "o")], digit, { digit | '_' } |
              "0x", (digit | hex_digit), { digit | hex_digit | '_' });
-signed = ["+" | "-"], unsigned;
+integer = ["+" | "-"], unsigned;
 float = ["+" | "-"], ("inf" | "NaN" | float_num);
 float_num = (float_int | float_std | float_frac), [float_exp];
 float_int = digit, { digit };

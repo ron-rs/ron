@@ -17,7 +17,7 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{AnyNum, Bytes, NewtypeMode, ParsedStr, StructType, TupleMode, BASE64_ENGINE},
+    parse::{Bytes, NewtypeMode, ParsedStr, StructType, TupleMode, BASE64_ENGINE},
 };
 
 mod id;
@@ -294,11 +294,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         } else if self.bytes.consume("()") {
             return visitor.visit_unit();
         } else if self.bytes.consume_ident("inf") {
-            return visitor.visit_f64(std::f64::INFINITY);
-        } else if self.bytes.consume_ident("-inf") {
-            return visitor.visit_f64(std::f64::NEG_INFINITY);
+            return visitor.visit_f32(std::f32::INFINITY);
         } else if self.bytes.consume_ident("NaN") {
-            return visitor.visit_f64(std::f64::NAN);
+            return visitor.visit_f32(std::f32::NAN);
         }
 
         // `identifier` does not change state if it fails
@@ -314,27 +312,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'(' => self.handle_any_struct(visitor, None),
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_map(visitor),
-            b'0'..=b'9' | b'+' | b'-' => {
-                let any_num: AnyNum = self.bytes.any_num()?;
-
-                match any_num {
-                    AnyNum::F32(x) => visitor.visit_f32(x),
-                    AnyNum::F64(x) => visitor.visit_f64(x),
-                    AnyNum::I8(x) => visitor.visit_i8(x),
-                    AnyNum::U8(x) => visitor.visit_u8(x),
-                    AnyNum::I16(x) => visitor.visit_i16(x),
-                    AnyNum::U16(x) => visitor.visit_u16(x),
-                    AnyNum::I32(x) => visitor.visit_i32(x),
-                    AnyNum::U32(x) => visitor.visit_u32(x),
-                    AnyNum::I64(x) => visitor.visit_i64(x),
-                    AnyNum::U64(x) => visitor.visit_u64(x),
-                    #[cfg(feature = "integer128")]
-                    AnyNum::I128(x) => visitor.visit_i128(x),
-                    #[cfg(feature = "integer128")]
-                    AnyNum::U128(x) => visitor.visit_u128(x),
-                }
-            }
-            b'.' => self.deserialize_f64(visitor),
+            b'0'..=b'9' | b'+' | b'-' | b'.' => self.bytes.any_number()?.visit(visitor),
             b'"' | b'r' => self.deserialize_string(visitor),
             b'\'' => self.deserialize_char(visitor),
             other => Err(Error::UnexpectedByte(other as char)),

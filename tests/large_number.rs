@@ -14,15 +14,16 @@ fn test_large_number() {
 
 #[test]
 fn test_large_integer_to_float() {
-    use ron::value::Float;
-    let test_var = std::i64::MAX as u64 + 1;
-    let expected = test_var as f64; // Is exactly representable by f64
-    let test_ser = ron::ser::to_string(&test_var).unwrap();
-    assert_eq!(test_ser, test_var.to_string());
+    use ron::value::Number;
+    let test_var = std::u64::MAX as u128 + 1;
+    let test_ser = test_var.to_string();
     let test_deser = ron::de::from_str::<Value>(&test_ser);
 
+    #[cfg(not(feature = "integer128"))]
     assert_eq!(
         test_deser.unwrap(),
-        Value::Number(Number::Float(Float::new(expected))),
+        Value::Number(Number::F32((test_var as f32).into())), // f64 representation matches f32
     );
+    #[cfg(feature = "integer128")]
+    assert_eq!(test_deser.unwrap(), Value::Number(Number::U128(test_var)),);
 }
