@@ -346,44 +346,48 @@ fn test_numbers() {
     );
 }
 
-fn de_any_number(s: &str) -> Number {
+fn check_de_any_number<
+    T: Copy + PartialEq + std::fmt::Debug + Into<Number> + serde::de::DeserializeOwned,
+>(
+    s: &str,
+    cmp: T,
+) {
     let mut bytes = Bytes::new(s.as_bytes()).unwrap();
+    let number = bytes.any_number().unwrap();
 
-    bytes.any_number().unwrap()
+    assert_eq!(number, Number::new(cmp));
+    assert_eq!(
+        Number::new(super::from_str::<T>(s).unwrap()),
+        Number::new(cmp)
+    );
 }
 
 #[test]
 fn test_any_number_precision() {
-    assert_eq!(de_any_number("1"), Number::U8(1));
-    assert_eq!(de_any_number("+1"), Number::U8(1));
-    assert_eq!(de_any_number("-1"), Number::I8(-1));
-    assert_eq!(de_any_number("-1.0"), Number::F32((-1.0).into()));
-    assert_eq!(de_any_number("1."), Number::F32((1.).into()));
-    assert_eq!(de_any_number("-1."), Number::F32((-1.).into()));
-    assert_eq!(de_any_number(".3"), Number::F64((0.3).into()));
-    assert_eq!(de_any_number("-.3"), Number::F64((-0.3).into()));
-    assert_eq!(de_any_number("+.3"), Number::F64((0.3).into()));
-    assert_eq!(de_any_number("0.3"), Number::F64((0.3).into()));
-    assert_eq!(de_any_number("NaN"), Number::F32(f32::NAN.into()));
-    assert_eq!(de_any_number("-NaN"), Number::F32((-f32::NAN).into()));
-    assert_eq!(de_any_number("inf"), Number::F32(f32::INFINITY.into()));
-    assert_eq!(de_any_number("-inf"), Number::F32(f32::NEG_INFINITY.into()));
+    check_de_any_number("1", 1_u8);
+    check_de_any_number("+1", 1_u8);
+    check_de_any_number("-1", -1_i8);
+    check_de_any_number("-1.0", -1.0_f32);
+    check_de_any_number("1.", 1.0_f32);
+    check_de_any_number("-1.", -1.0_f32);
+    check_de_any_number(".3", 0.3_f64);
+    check_de_any_number("-.3", -0.3_f64);
+    check_de_any_number("+.3", 0.3_f64);
+    check_de_any_number("0.3", 0.3_f64);
+    check_de_any_number("NaN", f32::NAN);
+    check_de_any_number("-NaN", -f32::NAN);
+    check_de_any_number("inf", f32::INFINITY);
+    check_de_any_number("-inf", f32::NEG_INFINITY);
 
     macro_rules! test_min {
         ($($ty:ty),*) => {
-            $(assert_eq!(
-                de_any_number(&format!("{}", <$ty>::MIN)),
-                Number::from(<$ty>::MIN),
-            );)*
+            $(check_de_any_number(&format!("{}", <$ty>::MIN), <$ty>::MIN);)*
         };
     }
 
     macro_rules! test_max {
         ($($ty:ty),*) => {
-            $(assert_eq!(
-                de_any_number(&format!("{}", <$ty>::MAX)),
-                Number::from(<$ty>::MAX),
-            );)*
+            $(check_de_any_number(&format!("{}", <$ty>::MAX), <$ty>::MAX);)*
         };
     }
 

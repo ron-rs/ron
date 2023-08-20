@@ -175,7 +175,7 @@ fn test_any_number_precision() {
     test_min_max! { i128, u128 }
 }
 
-fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display>(n: T) {
+fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display + serde::Serialize>(n: T) {
     let mut fmt = format!("{}", n);
     if !fmt.contains('.')
         && std::any::type_name::<T>().contains('f')
@@ -185,5 +185,6 @@ fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display>(n: T) {
         fmt.push_str(".0");
     }
 
-    assert_eq!(crate::to_string(&n.into()).unwrap(), fmt);
+    assert_eq!(super::to_string(&n.into()).unwrap(), fmt);
+    assert_eq!(super::to_string(&n).unwrap(), fmt);
 }
