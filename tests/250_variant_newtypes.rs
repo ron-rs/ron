@@ -287,6 +287,30 @@ fn test_deserialise_tuple_newtypes() {
 }
 
 #[test]
+fn test_newtype_some() {
+    assert_eq!(
+        from_str::<Option<Struct>>(r#"Some((a: 4, b: false))"#).unwrap(),
+        Some(Struct { a: 4, b: false }),
+    );
+
+    assert_eq!(
+        from_str::<Option<Struct>>(r#"Some(a: 4, b: false)"#)
+            .unwrap_err()
+            .code,
+        Error::ExpectedDifferentStructName {
+            expected: "Struct",
+            found: String::from("a"),
+        },
+    );
+
+    assert_eq!(
+        from_str::<Option<Struct>>(r#"#![enable(unwrap_variant_newtypes)] Some(a: 4, b: false)"#)
+            .unwrap(),
+        Some(Struct { a: 4, b: false }),
+    );
+}
+
+#[test]
 fn test_serialise_non_newtypes() {
     assert_eq_serialize_roundtrip(TestEnum::Unit, Extensions::UNWRAP_VARIANT_NEWTYPES);
 
@@ -400,11 +424,8 @@ fn assert_eq_serialize_roundtrip<
     value: S,
     extensions: Extensions,
 ) {
-    assert_eq!(
-        from_str::<S>(
-            &to_string_pretty(&value, PrettyConfig::default().extensions(extensions)).unwrap()
-        )
-        .unwrap(),
-        value,
-    );
+    let ron = to_string_pretty(&value, PrettyConfig::default().extensions(extensions)).unwrap();
+    let result = from_str::<S>(&ron);
+
+    assert_eq!(result.as_ref(), Ok(&value), "{}", ron,);
 }

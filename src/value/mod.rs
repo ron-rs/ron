@@ -149,7 +149,7 @@ impl PartialEq for Map {
 
 impl PartialOrd for Map {
     fn partial_cmp(&self, other: &Map) -> Option<Ordering> {
-        self.iter().partial_cmp(other.iter())
+        Some(self.cmp(other))
     }
 }
 
@@ -290,19 +290,21 @@ impl From<u64> for Number {
 }
 
 /// Partial equality comparison
-/// In order to be able to use [`Number`] as a mapping key, NaN floating values
-/// wrapped in [`Float`] are equal to each other. It is not the case for
-/// underlying [`f64`] values itself.
+/// In order to be able to use [`Number`] as a mapping key, floating values
+/// use [`f64::total_ord`] for a total order comparison.
+///
+/// See the [`Ord`] implementation.
 impl PartialEq for Float {
     fn eq(&self, other: &Self) -> bool {
-        self.0.is_nan() && other.0.is_nan() || self.0 == other.0
+        self.cmp(other) == Ordering::Equal
     }
 }
 
 /// Equality comparison
-/// In order to be able to use [`Float`] as a mapping key, NaN floating values
-/// wrapped in [`Float`] are equal to each other. It is not the case for
-/// underlying [`f64`] values itself.
+/// In order to be able to use [`Float`] as a mapping key, floating values
+/// use [`f64::total_ord`] for a total order comparison.
+///
+/// See the [`Ord`] implementation.
 impl Eq for Float {}
 
 impl Hash for Float {
@@ -312,35 +314,30 @@ impl Hash for Float {
 }
 
 /// Partial ordering comparison
-/// In order to be able to use [`Number`] as a mapping key, NaN floating values
-/// wrapped in [`Number`] are equal to each other and are less then any other
-/// floating value. It is not the case for the underlying [`f64`] values
-/// themselves.
+/// In order to be able to use [`Number`] as a mapping key, floating values
+/// use [`f64::total_ord`] for a total order comparison.
 ///
-/// ```
-/// use ron::value::Number;
-/// assert!(Number::new(std::f64::NAN) < Number::new(std::f64::NEG_INFINITY));
-/// assert_eq!(Number::new(std::f64::NAN), Number::new(std::f64::NAN));
-/// ```
+/// See the [`Ord`] implementation.
 impl PartialOrd for Float {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match (self.0.is_nan(), other.0.is_nan()) {
-            (true, true) => Some(Ordering::Equal),
-            (true, false) => Some(Ordering::Less),
-            (false, true) => Some(Ordering::Greater),
-            _ => self.0.partial_cmp(&other.0),
-        }
+        Some(self.cmp(other))
     }
 }
 
 /// Ordering comparison
-/// In order to be able to use [`Float`] as a mapping key, NaN floating values
-/// wrapped in [`Float`] are equal to each other and are less then any other
-/// floating value. It is not the case for underlying [`f64`] values itself.
+/// In order to be able to use [`Float`] as a mapping key, floating values
+/// use [`f64::total_ord`] for a total order comparison.
 /// See the [`PartialEq`] implementation.
+///
+/// ```
+/// use ron::value::Number;
+/// assert!(Number::new(std::f64::NAN) > Number::new(std::f64::INFINITY));
+/// assert!(Number::new(-std::f64::NAN) < Number::new(std::f64::NEG_INFINITY));
+/// assert_eq!(Number::new(std::f64::NAN), Number::new(std::f64::NAN));
+/// ```
 impl Ord for Float {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).expect("Bug: Contract violation")
+        self.0.total_cmp(&other.0)
     }
 }
 

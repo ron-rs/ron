@@ -77,7 +77,7 @@ struct Pretty {
 ///     // definitely superior (okay, just joking)
 ///     .indentor("\t".to_owned());
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 #[non_exhaustive]
 pub struct PrettyConfig {
@@ -327,6 +327,8 @@ pub struct Serializer<W: io::Write> {
     is_empty: Option<bool>,
     newtype_variant: bool,
     recursion_limit: Option<usize>,
+    // Tracks the number of opened implicit `Some`s, set to 0 on backtracking
+    implicit_some_depth: usize,
 }
 
 impl<W: io::Write> Serializer<W> {
@@ -380,31 +382,32 @@ impl<W: io::Write> Serializer<W> {
             is_empty: None,
             newtype_variant: false,
             recursion_limit: options.recursion_limit,
+            implicit_some_depth: 0,
         })
     }
 
     fn separate_tuple_members(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.separate_tuple_members)
+            .map_or(false, |(ref config, _)| config.separate_tuple_members)
     }
 
     fn compact_arrays(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.compact_arrays)
+            .map_or(false, |(ref config, _)| config.compact_arrays)
     }
 
     fn compact_structs(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.compact_structs)
+            .map_or(false, |(ref config, _)| config.compact_structs)
     }
 
     fn compact_maps(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(false, |&(ref config, _)| config.compact_maps)
+            .map_or(false, |(ref config, _)| config.compact_maps)
     }
 
     fn extensions(&self) -> Extensions {
@@ -412,13 +415,13 @@ impl<W: io::Write> Serializer<W> {
             | self
                 .pretty
                 .as_ref()
-                .map_or(Extensions::empty(), |&(ref config, _)| config.extensions)
+                .map_or(Extensions::empty(), |(ref config, _)| config.extensions)
     }
 
     fn escape_strings(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(true, |&(ref config, _)| config.escape_strings)
+            .map_or(true, |(ref config, _)| config.escape_strings)
     }
 
     fn start_indent(&mut self) -> Result<()> {
@@ -476,7 +479,7 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn serialize_unescaped_or_raw_str(&mut self, value: &str) -> io::Result<()> {
-        if value.contains('"') {
+        if value.contains('"') || value.contains('\\') {
             let (_, num_consecutive_hashes) =
                 value.chars().fold((0, 0), |(count, max), c| match c {
                     '#' => (count + 1, max.max(count + 1)),
@@ -512,14 +515,19 @@ impl<W: io::Write> Serializer<W> {
     }
 
     fn write_identifier(&mut self, name: &str) -> Result<()> {
-        if name.is_empty() || !name.as_bytes().iter().copied().all(is_ident_raw_char) {
-            return Err(Error::InvalidIdentifier(name.into()));
-        }
+        self.validate_identifier(name)?;
         let mut bytes = name.as_bytes().iter().copied();
         if !bytes.next().map_or(false, is_ident_first_char) || !bytes.all(is_ident_other_char) {
             self.output.write_all(b"r#")?;
         }
         self.output.write_all(name.as_bytes())?;
+        Ok(())
+    }
+
+    fn validate_identifier(&self, name: &str) -> Result<()> {
+        if name.is_empty() || !name.as_bytes().iter().copied().all(is_ident_raw_char) {
+            return Err(Error::InvalidIdentifier(name.into()));
+        }
         Ok(())
     }
 
@@ -650,7 +658,17 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_none(self) -> Result<()> {
+        // We no longer need to keep track of the depth
+        let implicit_some_depth = self.implicit_some_depth;
+        self.implicit_some_depth = 0;
+
+        for _ in 0..implicit_some_depth {
+            self.output.write_all(b"Some(")?;
+        }
         self.output.write_all(b"None")?;
+        for _ in 0..implicit_some_depth {
+            self.output.write_all(b")")?;
+        }
 
         Ok(())
     }
@@ -660,12 +678,20 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         T: ?Sized + Serialize,
     {
         let implicit_some = self.extensions().contains(Extensions::IMPLICIT_SOME);
-        if !implicit_some {
+        if implicit_some {
+            self.implicit_some_depth += 1;
+        } else {
+            self.newtype_variant = self
+                .extensions()
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
             self.output.write_all(b"Some(")?;
         }
         guard_recursion! { self => value.serialize(&mut *self)? };
-        if !implicit_some {
+        if implicit_some {
+            self.implicit_some_depth = 0;
+        } else {
             self.output.write_all(b")")?;
+            self.newtype_variant = false;
         }
 
         Ok(())
@@ -676,8 +702,6 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.output.write_all(b"()")?;
         }
 
-        self.newtype_variant = false;
-
         Ok(())
     }
 
@@ -687,11 +711,18 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
             Ok(())
         } else {
+            self.validate_identifier(name)?;
             self.serialize_unit()
         }
     }
 
-    fn serialize_unit_variant(self, _: &'static str, _: u32, variant: &'static str) -> Result<()> {
+    fn serialize_unit_variant(
+        self,
+        name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<()> {
+        self.validate_identifier(name)?;
         self.write_identifier(variant)?;
 
         Ok(())
@@ -708,35 +739,44 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) || self.newtype_variant {
             self.newtype_variant = false;
 
+            self.validate_identifier(name)?;
+
             return guard_recursion! { self => value.serialize(&mut *self) };
         }
 
         if self.struct_names() {
             self.write_identifier(name)?;
+        } else {
+            self.validate_identifier(name)?;
         }
+
+        self.implicit_some_depth = 0;
 
         self.output.write_all(b"(")?;
         guard_recursion! { self => value.serialize(&mut *self)? };
         self.output.write_all(b")")?;
+
         Ok(())
     }
 
     fn serialize_newtype_variant<T>(
         self,
-        _: &'static str,
-        _: u32,
+        name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         value: &T,
     ) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
+        self.validate_identifier(name)?;
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
         self.newtype_variant = self
             .extensions()
             .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
+        self.implicit_some_depth = 0;
 
         guard_recursion! { self => value.serialize(&mut *self)? };
 
@@ -748,6 +788,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         self.output.write_all(b"[")?;
 
@@ -769,6 +810,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         let old_newtype_variant = self.newtype_variant;
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         if !old_newtype_variant {
             self.output.write_all(b"(")?;
@@ -790,6 +832,8 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     ) -> Result<Self::SerializeTupleStruct> {
         if self.struct_names() && !self.newtype_variant {
             self.write_identifier(name)?;
+        } else {
+            self.validate_identifier(name)?;
         }
 
         self.serialize_tuple(len)
@@ -797,13 +841,15 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_tuple_variant(
         self,
-        _: &'static str,
-        _: u32,
+        name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
+        self.validate_identifier(name)?;
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 
@@ -818,6 +864,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         self.output.write_all(b"{")?;
 
@@ -835,12 +882,17 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         let old_newtype_variant = self.newtype_variant;
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
         if !old_newtype_variant {
             if self.struct_names() {
                 self.write_identifier(name)?;
+            } else {
+                self.validate_identifier(name)?;
             }
             self.output.write_all(b"(")?;
+        } else {
+            self.validate_identifier(name)?;
         }
 
         if !self.compact_structs() {
@@ -853,13 +905,15 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_struct_variant(
         self,
-        _: &'static str,
-        _: u32,
+        name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         self.newtype_variant = false;
+        self.implicit_some_depth = 0;
 
+        self.validate_identifier(name)?;
         self.write_identifier(variant)?;
         self.output.write_all(b"(")?;
 

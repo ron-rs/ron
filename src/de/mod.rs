@@ -17,7 +17,7 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{AnyNum, Bytes, ParsedStr, StructType, BASE64_ENGINE},
+    parse::{AnyNum, Bytes, NewtypeMode, ParsedStr, StructType, TupleMode, BASE64_ENGINE},
 };
 
 mod id;
@@ -154,7 +154,17 @@ impl<'de> Deserializer<'de> {
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
 
-        match (self.bytes.check_struct_type()?, ident) {
+        match (
+            self.bytes.check_struct_type(
+                NewtypeMode::NoParensMeanUnit,
+                if old_serde_content_newtype {
+                    TupleMode::DifferentiateNewtype // separate match on NewtypeOrTuple below
+                } else {
+                    TupleMode::ImpreciseTupleOrNewtype // Tuple and NewtypeOrTuple match equally
+                },
+            )?,
+            ident,
+        ) {
             (StructType::Unit, Some(ident)) if is_serde_content => {
                 // serde's Content type needs the ident for unit variants
                 visitor.visit_str(ident)
@@ -244,9 +254,34 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        // Newtype variants can only be unwrapped if we receive information
-        //  about the wrapped type - with `deserialize_any` we don't
-        self.newtype_variant = false;
+        if self.newtype_variant {
+            if let Some(b')') = self.bytes.peek() {
+                // newtype variant wraps the unit type / a unit struct without name
+                return self.deserialize_unit(visitor);
+            }
+
+            match self
+                .bytes
+                .check_struct_type(NewtypeMode::InsideNewtype, TupleMode::DifferentiateNewtype)?
+            {
+                StructType::Named => {
+                    // newtype variant wraps a named struct
+                    // giving no name results in worse errors but is necessary here
+                    return self.handle_struct_after_name("", visitor);
+                }
+                StructType::Tuple => {
+                    // newtype variant wraps a tuple (struct)
+                    // first argument is technically incorrect, but ignored anyway
+                    return self.deserialize_tuple(0, visitor);
+                }
+                /* StructType::NewtypeOrTuple */
+                // StructType::Unit is impossible with NewtypeMode::InsideNewtype
+                _ => {
+                    // continue as usual with the inner content of the newtype variant
+                    self.newtype_variant = false;
+                }
+            }
+        }
 
         if self.bytes.consume_ident("true") {
             return visitor.visit_bool(true);
@@ -466,7 +501,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         } {
             self.bytes.skip_ws()?;
 
+            self.newtype_variant = self
+                .bytes
+                .exts
+                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
+
             let v = guard_recursion! { self => visitor.visit_some(&mut *self)? };
+
+            self.newtype_variant = false;
 
             self.bytes.comma()?;
 

@@ -299,6 +299,10 @@ impl<'a> Bytes<'a> {
                         } else if x >= min_i32 && x <= max_i32 {
                             Ok(AnyNum::I32(x as i32))
                         } else if x >= min_i64 && x <= max_i64 {
+                            #[cfg_attr(
+                                not(feature = "integer128"),
+                                allow(clippy::unnecessary_cast)
+                            )]
                             Ok(AnyNum::I64(x as i64))
                         } else {
                             #[cfg(feature = "integer128")]
@@ -327,6 +331,10 @@ impl<'a> Bytes<'a> {
                         } else if x <= max_u32 {
                             Ok(AnyNum::U32(x as u32))
                         } else if x <= max_u64 {
+                            #[cfg_attr(
+                                not(feature = "integer128"),
+                                allow(clippy::unnecessary_cast)
+                            )]
                             Ok(AnyNum::U64(x as u64))
                         } else {
                             #[cfg(feature = "integer128")]
@@ -427,9 +435,32 @@ impl<'a> Bytes<'a> {
             .map_or(false, |&b| is_ident_other_char(b))
     }
 
-    pub fn check_struct_type(&mut self) -> Result<StructType> {
-        fn check_struct_type_inner(bytes: &mut Bytes) -> Result<StructType> {
-            if !bytes.consume("(") {
+    /// Check which type of struct we are currently parsing. The parsing state
+    ///  is only changed in case of an error, to provide a better position.
+    ///
+    /// [`NewtypeMode::NoParensMeanUnit`] detects (tuple) structs by a leading
+    ///  opening bracket and reports a unit struct otherwise.
+    /// [`NewtypeMode::InsideNewtype`] skips an initial check for unit structs,
+    ///  and means that any leading opening bracket is not considered to open
+    ///  a (tuple) struct but to be part of the structs inner contents.
+    ///
+    /// [`TupleMode::ImpreciseTupleOrNewtype`] only performs a cheap, O(1),
+    ///  single-identifier lookahead check to distinguish tuple structs from
+    ///  non-tuple structs.
+    /// [`TupleMode::DifferentiateNewtype`] performs an expensive, O(N), look-
+    ///  ahead over the entire next value tree, which can span the entirety of
+    ///  the remaining document in the worst case.
+    pub fn check_struct_type(
+        &mut self,
+        newtype: NewtypeMode,
+        tuple: TupleMode,
+    ) -> Result<StructType> {
+        fn check_struct_type_inner(
+            bytes: &mut Bytes,
+            newtype: NewtypeMode,
+            tuple: TupleMode,
+        ) -> Result<StructType> {
+            if matches!(newtype, NewtypeMode::NoParensMeanUnit) && !bytes.consume("(") {
                 return Ok(StructType::Unit);
             }
 
@@ -450,14 +481,25 @@ impl<'a> Bytes<'a> {
                 };
             }
 
-            let mut braces = 1;
+            if matches!(tuple, TupleMode::ImpreciseTupleOrNewtype) {
+                return Ok(StructType::NewtypeOrTuple);
+            }
+
+            let mut braces = 1_usize;
             let mut comma = false;
 
             // Skip ahead to see if the value is followed by a comma
             while braces > 0 {
-                // Skip spurious braces in comments and strings
+                // Skip spurious braces in comments, strings, and characters
                 bytes.skip_ws()?;
-                let _ = bytes.string();
+                let mut bytes_copy = *bytes;
+                if bytes_copy.char().is_ok() {
+                    *bytes = bytes_copy;
+                }
+                let mut bytes_copy = *bytes;
+                if bytes_copy.string().is_ok() {
+                    *bytes = bytes_copy;
+                }
 
                 let c = bytes.eat_byte()?;
                 if c == b'(' || c == b'[' || c == b'{' {
@@ -480,7 +522,7 @@ impl<'a> Bytes<'a> {
         // Create a temporary working copy
         let mut bytes = *self;
 
-        let result = check_struct_type_inner(&mut bytes);
+        let result = check_struct_type_inner(&mut bytes, newtype, tuple);
 
         if result.is_err() {
             // Adjust the error span to fit the working copy
@@ -546,7 +588,7 @@ impl<'a> Bytes<'a> {
                     Ok(false)
                 }
             })
-            .fold(Ok(true), |acc, x| acc.and_then(|val| x.map(|x| x && val)))
+            .try_fold(true, |acc, x| x.map(|x| acc && x))
     }
 
     pub fn eat_byte(&mut self) -> Result<u8> {
@@ -650,9 +692,9 @@ impl<'a> Bytes<'a> {
         // If the next two bytes signify the start of a raw string literal,
         // return an error.
         let length = if next == b'r' {
-            match self.bytes.get(1).ok_or(Error::Eof)? {
-                b'"' => return Err(Error::ExpectedIdentifier),
-                b'#' => {
+            match self.bytes.get(1) {
+                Some(b'"') => return Err(Error::ExpectedIdentifier),
+                Some(b'#') => {
                     let after_next = self.bytes.get(2).copied().unwrap_or_default();
                     // Note: it's important to check this before advancing forward, so that
                     // the value-type deserializer can fall back to parsing it differently.
@@ -1051,6 +1093,16 @@ pub enum StructType {
     Tuple,
     Named,
     Unit,
+}
+
+pub enum NewtypeMode {
+    NoParensMeanUnit,
+    InsideNewtype,
+}
+
+pub enum TupleMode {
+    ImpreciseTupleOrNewtype,
+    DifferentiateNewtype,
 }
 
 #[cfg(test)]
