@@ -2,7 +2,7 @@
 
 use std::{
     char::from_u32 as char_from_u32,
-    str::{from_utf8, from_utf8_unchecked, FromStr},
+    str::{from_utf8, FromStr},
 };
 
 use base64::engine::general_purpose::{GeneralPurpose, STANDARD};
@@ -184,52 +184,54 @@ impl<'a> Bytes<'a> {
             return Err(Error::ExpectedInteger);
         }
 
-        let s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
-
-        if s.as_bytes()[0] == b'_' {
+        if self.bytes[0] == b'_' {
             return Err(Error::UnderscoreAtBeginning);
         }
 
         fn calc_num<T: Num>(
-            bytes: &Bytes,
-            s: &str,
+            bytes: &mut Bytes,
+            b: &[u8],
             base: u8,
             mut f: impl FnMut(&mut T, u8) -> bool,
         ) -> Result<T> {
             let mut num_acc = T::from_u8(0);
 
-            for &byte in s.as_bytes() {
+            for (i, &byte) in b.iter().enumerate() {
                 if byte == b'_' {
                     continue;
                 }
 
                 if num_acc.checked_mul_ext(base) {
+                    let _ = bytes.advance(b.len());
                     return Err(Error::IntegerOutOfBounds);
                 }
 
                 let digit = bytes.decode_hex(byte)?;
 
                 if digit >= base {
-                    return Err(Error::ExpectedInteger);
+                    let _ = bytes.advance(i);
+                    return Err(Error::InvalidIntegerDigit {
+                        digit: char::from(byte),
+                        base,
+                    });
                 }
 
                 if f(&mut num_acc, digit) {
+                    let _ = bytes.advance(b.len());
                     return Err(Error::IntegerOutOfBounds);
                 }
             }
 
+            let _ = bytes.advance(b.len());
+
             Ok(num_acc)
         }
 
-        let res = if sign > 0 {
-            calc_num(self, s, base, T::checked_add_ext)
+        if sign > 0 {
+            calc_num(self, &self.bytes[0..num_bytes], base, T::checked_add_ext)
         } else {
-            calc_num(self, s, base, T::checked_sub_ext)
-        };
-
-        let _ = self.advance(num_bytes);
-
-        res
+            calc_num(self, &self.bytes[0..num_bytes], base, T::checked_sub_ext)
+        }
     }
 
     pub fn any_number(&mut self) -> Result<Number> {
@@ -610,15 +612,33 @@ impl<'a> Bytes<'a> {
 
         let num_bytes = self.next_bytes_contained_in(is_float_char);
 
-        // Since `rustc` allows `1_0.0_1`, lint against underscores in floats
-        if let Some(err_bytes) = self.bytes[0..num_bytes].iter().position(|b| *b == b'_') {
-            let _ = self.advance(err_bytes);
-
-            return Err(Error::FloatUnderscore);
+        if num_bytes == 0 {
+            return Err(Error::ExpectedFloat);
         }
 
-        let s = unsafe { from_utf8_unchecked(&self.bytes[0..num_bytes]) };
-        let res = FromStr::from_str(s).map_err(|_| Error::ExpectedFloat);
+        if self.peek_or_eof()? == b'_' {
+            return Err(Error::UnderscoreAtBeginning);
+        }
+
+        let mut f = String::with_capacity(num_bytes);
+        let mut allow_underscore = false;
+
+        for (i, b) in self.bytes[0..num_bytes].iter().enumerate() {
+            match *b {
+                b'_' if allow_underscore => continue,
+                b'_' => {
+                    let _ = self.advance(i);
+                    return Err(Error::FloatUnderscore);
+                }
+                b'0'..=b'9' | b'e' | b'E' => allow_underscore = true,
+                b'.' => allow_underscore = false,
+                _ => (),
+            }
+
+            f.push(char::from(*b));
+        }
+
+        let res = FromStr::from_str(&f).map_err(|_| Error::ExpectedFloat);
 
         let _ = self.advance(num_bytes);
 

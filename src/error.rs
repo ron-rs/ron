@@ -52,6 +52,10 @@ pub enum Error {
     InvalidEscape(&'static str),
 
     IntegerOutOfBounds,
+    InvalidIntegerDigit {
+        digit: char,
+        base: u8,
+    },
 
     NoSuchExtension(String),
 
@@ -152,13 +156,16 @@ impl fmt::Display for Error {
             Error::ExpectedIdentifier => f.write_str("Expected identifier"),
             Error::InvalidEscape(s) => f.write_str(s),
             Error::IntegerOutOfBounds => f.write_str("Integer is out of bounds"),
+            Error::InvalidIntegerDigit { digit, base } => {
+                write!(f, "Invalid digit {:?} for base {} integers", digit, base)
+            },
             Error::NoSuchExtension(ref name) => {
                 write!(f, "No RON extension named {}", Identifier(name))
             }
             Error::Utf8Error(ref e) => fmt::Display::fmt(e, f),
             Error::UnclosedBlockComment => f.write_str("Unclosed block comment"),
             Error::UnderscoreAtBeginning => {
-                f.write_str("Unexpected leading underscore in an integer")
+                f.write_str("Unexpected leading underscore in a number")
             }
             Error::UnexpectedByte(ref byte) => write!(f, "Unexpected byte {:?}", byte),
             Error::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
