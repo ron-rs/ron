@@ -110,6 +110,8 @@ pub struct PrettyConfig {
     /// Enable compact maps, which do not insert new lines and indentation
     ///  between the entries of a struct
     pub compact_maps: bool,
+    /// Enable explicit number type suffixes like `1_u16`
+    pub number_suffixes: bool,
 }
 
 impl PrettyConfig {
@@ -291,6 +293,37 @@ impl PrettyConfig {
 
         self
     }
+
+    /// Configures whether numbers should be printed without (`false`) or
+    /// with (`true`) their explicit type suffixes.
+    ///
+    /// When `false`, the integer `12345_u16` will serialize to
+    /// ```ignore
+    /// 12345
+    /// # ;
+    /// ```
+    /// and the float `12345.6789_f64` will serialize to
+    /// ```ignore
+    /// 12345.6789
+    /// # ;
+    /// ```
+    /// When `true`, the integer `12345_u16` will serialize to
+    /// ```ignore
+    /// 12345_u16
+    /// # ;
+    /// ```
+    /// and the float `12345.6789_f64` will serialize to
+    /// ```ignore
+    /// 12345.6789_f64
+    /// # ;
+    /// ```
+    ///
+    /// Default: `false`
+    pub fn number_suffixes(mut self, number_suffixes: bool) -> Self {
+        self.number_suffixes = number_suffixes;
+
+        self
+    }
 }
 
 impl Default for PrettyConfig {
@@ -312,6 +345,7 @@ impl Default for PrettyConfig {
             escape_strings: true,
             compact_structs: false,
             compact_maps: false,
+            number_suffixes: false,
         }
     }
 }
@@ -410,6 +444,12 @@ impl<W: io::Write> Serializer<W> {
             .map_or(false, |(ref config, _)| config.compact_maps)
     }
 
+    fn number_suffixes(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |(ref config, _)| config.number_suffixes)
+    }
+
     fn extensions(&self) -> Extensions {
         self.default_extensions
             | self
@@ -500,16 +540,24 @@ impl<W: io::Write> Serializer<W> {
         Ok(())
     }
 
-    fn serialize_sint(&mut self, value: impl Into<LargeSInt>) -> Result<()> {
+    fn serialize_sint(&mut self, value: impl Into<LargeSInt>, suffix: &str) -> Result<()> {
         // TODO optimize
         write!(self.output, "{}", value.into())?;
+
+        if self.number_suffixes() {
+            write!(self.output, "_{}", suffix)?;
+        }
 
         Ok(())
     }
 
-    fn serialize_uint(&mut self, value: impl Into<LargeUInt>) -> Result<()> {
+    fn serialize_uint(&mut self, value: impl Into<LargeUInt>, suffix: &str) -> Result<()> {
         // TODO optimize
         write!(self.output, "{}", value.into())?;
+
+        if self.number_suffixes() {
+            write!(self.output, "_{}", suffix)?;
+        }
 
         Ok(())
     }
@@ -576,60 +624,80 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
-        self.serialize_sint(v)
+        self.serialize_sint(v, "i8")
     }
 
     fn serialize_i16(self, v: i16) -> Result<()> {
-        self.serialize_sint(v)
+        self.serialize_sint(v, "i16")
     }
 
     fn serialize_i32(self, v: i32) -> Result<()> {
-        self.serialize_sint(v)
+        self.serialize_sint(v, "i32")
     }
 
     fn serialize_i64(self, v: i64) -> Result<()> {
-        self.serialize_sint(v)
+        self.serialize_sint(v, "i64")
     }
 
     #[cfg(feature = "integer128")]
     fn serialize_i128(self, v: i128) -> Result<()> {
-        self.serialize_sint(v)
+        self.serialize_sint(v, "i128")
     }
 
     fn serialize_u8(self, v: u8) -> Result<()> {
-        self.serialize_uint(v)
+        self.serialize_uint(v, "u8")
     }
 
     fn serialize_u16(self, v: u16) -> Result<()> {
-        self.serialize_uint(v)
+        self.serialize_uint(v, "u16")
     }
 
     fn serialize_u32(self, v: u32) -> Result<()> {
-        self.serialize_uint(v)
+        self.serialize_uint(v, "u32")
     }
 
     fn serialize_u64(self, v: u64) -> Result<()> {
-        self.serialize_uint(v)
+        self.serialize_uint(v, "u64")
     }
 
     #[cfg(feature = "integer128")]
     fn serialize_u128(self, v: u128) -> Result<()> {
-        self.serialize_uint(v)
+        self.serialize_uint(v, "u128")
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
+        if v.is_nan() && v.is_sign_negative() {
+            write!(self.output, "-")?;
+        }
+
         write!(self.output, "{}", v)?;
+
         if v.fract() == 0.0 {
             write!(self.output, ".0")?;
         }
+
+        if self.number_suffixes() {
+            write!(self.output, "_f32")?;
+        }
+
         Ok(())
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
+        if v.is_nan() && v.is_sign_negative() {
+            write!(self.output, "-")?;
+        }
+
         write!(self.output, "{}", v)?;
+
         if v.fract() == 0.0 {
             write!(self.output, ".0")?;
         }
+
+        if self.number_suffixes() {
+            write!(self.output, "_f64")?;
+        }
+
         Ok(())
     }
 

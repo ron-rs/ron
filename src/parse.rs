@@ -235,20 +235,14 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn any_number(&mut self) -> Result<Number> {
-        fn any_float(f: f64) -> Result<Number> {
-            // total_cmp ensures that NANs are treated properly
-            if f.total_cmp(&f64::from(f as f32)).is_eq() {
-                Ok(Number::F32((f as f32).into()))
-            } else {
-                Ok(Number::F64(f.into()))
-            }
-        }
-
-        let bytes_backup = self.bytes;
-
         if self.next_bytes_is_float() {
-            return any_float(self.float::<f64>()?);
+            return match self.any_float(DesireFloat::Any)? {
+                ParsedFloat::F32(v) => Ok(Number::F32(v.into())),
+                ParsedFloat::F64(v) => Ok(Number::F64(v.into())),
+            };
         }
+
+        let bytes_backup = *self;
 
         let is_negative = match self.peek_or_eof()? {
             b'+' => {
@@ -261,6 +255,68 @@ impl<'a> Bytes<'a> {
             }
             _ => false,
         };
+
+        let num_bytes = self.next_bytes_contained_in(is_int_char);
+
+        if let Some(b'i' | b'u') = self.bytes.get(num_bytes) {
+            let int_bytes_backup = *self;
+            let _ = self.advance(num_bytes);
+
+            let sign = if is_negative { -1 } else { 1 };
+
+            #[allow(clippy::never_loop)]
+            loop {
+                let res = if self.consume_ident("i8") {
+                    *self = int_bytes_backup;
+                    self.any_integer::<i8>(sign).map(Number::I8)
+                } else if self.consume_ident("i16") {
+                    *self = int_bytes_backup;
+                    self.any_integer::<i16>(sign).map(Number::I16)
+                } else if self.consume_ident("i32") {
+                    *self = int_bytes_backup;
+                    self.any_integer::<i32>(sign).map(Number::I32)
+                } else if self.consume_ident("i64") {
+                    *self = int_bytes_backup;
+                    self.any_integer::<i64>(sign).map(Number::I64)
+                } else if self.consume_ident("u8") {
+                    *self = int_bytes_backup;
+                    self.any_integer::<u8>(sign).map(Number::U8)
+                } else if self.consume_ident("u16") {
+                    *self = int_bytes_backup;
+                    self.any_integer::<u16>(sign).map(Number::U16)
+                } else if self.consume_ident("u32") {
+                    *self = int_bytes_backup;
+                    self.any_integer::<u32>(sign).map(Number::U32)
+                } else if self.consume_ident("u64") {
+                    *self = int_bytes_backup;
+                    self.any_integer::<u64>(sign).map(Number::U64)
+                } else {
+                    #[cfg(feature = "integer128")]
+                    if self.consume_ident("i128") {
+                        *self = int_bytes_backup;
+                        self.any_integer::<i128>(sign).map(Number::I128)
+                    } else if self.consume_ident("u128") {
+                        *self = int_bytes_backup;
+                        self.any_integer::<u128>(sign).map(Number::U128)
+                    } else {
+                        break;
+                    }
+                    #[cfg(not(feature = "integer128"))]
+                    {
+                        break;
+                    }
+                };
+
+                if !matches!(&res, Err(Error::UnderscoreAtBeginning | Error::InvalidIntegerDigit { .. })) {
+                    // Advance past the number suffix
+                    let _ = self.identifier();
+                }
+
+                return res;
+            }
+
+            *self = int_bytes_backup;
+        }
 
         if is_negative {
             if let Ok(x) = self.any_integer::<LargeSInt>(-1) {
@@ -304,9 +360,13 @@ impl<'a> Bytes<'a> {
             };
         }
 
+        *self = bytes_backup;
+
         // Fall-back to parse an out-of-range integer as a float
-        self.bytes = bytes_backup;
-        any_float(self.float::<f64>()?)
+        match self.any_float(DesireFloat::Any)? {
+            ParsedFloat::F32(v) => Ok(Number::F32(v.into())),
+            ParsedFloat::F64(v) => Ok(Number::F64(v.into())),
+        }
     }
 
     pub fn bool(&mut self) -> Result<bool> {
@@ -600,13 +660,41 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    pub fn float<T>(&mut self) -> Result<T>
-    where
-        T: FromStr,
-    {
-        for literal in &["inf", "+inf", "-inf", "NaN", "+NaN", "-NaN"] {
+    pub fn any_float(&mut self, desire: DesireFloat) -> Result<ParsedFloat> {
+        const F32_SUFFIX: &str = "_f32";
+        const F64_SUFFIX: &str = "_f64";
+
+        for (literal, value_f32, value_f64) in &[
+            ("inf", f32::INFINITY, f64::INFINITY),
+            ("+inf", f32::INFINITY, f64::INFINITY),
+            ("-inf", f32::NEG_INFINITY, f64::NEG_INFINITY),
+            ("NaN", f32::NAN, f64::NAN),
+            ("+NaN", f32::NAN, f64::NAN),
+            ("-NaN", -f32::NAN, -f64::NAN),
+        ] {
             if self.consume_ident(literal) {
-                return FromStr::from_str(literal).map_err(|_| unreachable!()); // must not fail
+                return match desire {
+                    // Prefer f32 over f64 for equivalent literal values
+                    DesireFloat::Any => Ok(ParsedFloat::F32(*value_f32)),
+                    DesireFloat::F32 => Ok(ParsedFloat::F32(*value_f32)),
+                    DesireFloat::F64 => Ok(ParsedFloat::F64(*value_f64)),
+                };
+            }
+
+            if self.bytes.starts_with(literal.as_bytes())
+                && self.bytes[F32_SUFFIX.len()..].starts_with(F32_SUFFIX.as_bytes())
+                && !self.check_ident_other_char(literal.len() + F32_SUFFIX.len())
+            {
+                let _ = self.advance(literal.len() + F32_SUFFIX.len());
+                return Ok(ParsedFloat::F32(*value_f32));
+            }
+
+            if self.bytes.starts_with(literal.as_bytes())
+                && self.bytes[F64_SUFFIX.len()..].starts_with(F64_SUFFIX.as_bytes())
+                && !self.check_ident_other_char(literal.len() + F64_SUFFIX.len())
+            {
+                let _ = self.advance(literal.len() + F64_SUFFIX.len());
+                return Ok(ParsedFloat::F64(*value_f64));
             }
         }
 
@@ -638,11 +726,30 @@ impl<'a> Bytes<'a> {
             f.push(char::from(*b));
         }
 
-        let res = FromStr::from_str(&f).map_err(|_| Error::ExpectedFloat);
+        let value = f64::from_str(&f).map_err(|_| Error::ExpectedFloat)?;
 
         let _ = self.advance(num_bytes);
 
-        res
+        if self.consume_ident("f32") {
+            return Ok(ParsedFloat::F32(value as f32));
+        }
+
+        if self.consume_ident("f64") {
+            return Ok(ParsedFloat::F64(value));
+        }
+
+        match desire {
+            // Prefer f32 over f64 for equivalent floating point values
+            DesireFloat::Any => {
+                if value.total_cmp(&f64::from(value as f32)).is_eq() {
+                    Ok(ParsedFloat::F32(value as f32))
+                } else {
+                    Ok(ParsedFloat::F64(value))
+                }
+            }
+            DesireFloat::F32 => Ok(ParsedFloat::F32(value as f32)),
+            DesireFloat::F64 => Ok(ParsedFloat::F64(value)),
+        }
     }
 
     pub fn identifier(&mut self) -> Result<&'a [u8]> {
@@ -864,9 +971,7 @@ impl<'a> Bytes<'a> {
     }
 
     fn test_for(&self, s: &str) -> bool {
-        s.bytes()
-            .enumerate()
-            .all(|(i, b)| self.bytes.get(i).map_or(false, |t| *t == b))
+        self.bytes.starts_with(s.as_bytes())
     }
 
     pub fn unsigned_integer<T: Num>(&mut self) -> Result<T> {
@@ -1053,6 +1158,17 @@ macro_rules! impl_num {
 impl_num!(u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 #[cfg(not(feature = "integer128"))]
 impl_num!(u8 u16 u32 u64 i8 i16 i32 i64);
+
+pub enum DesireFloat {
+    Any,
+    F32,
+    F64,
+}
+
+pub enum ParsedFloat {
+    F32(f32),
+    F64(f64),
+}
 
 #[derive(Clone, Debug)]
 pub enum ParsedStr<'a> {

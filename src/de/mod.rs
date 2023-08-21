@@ -17,7 +17,10 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{Bytes, NewtypeMode, ParsedStr, StructType, TupleMode, BASE64_ENGINE},
+    parse::{
+        Bytes, DesireFloat, NewtypeMode, ParsedFloat, ParsedStr, StructType, TupleMode,
+        BASE64_ENGINE,
+    },
 };
 
 mod id;
@@ -293,10 +296,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_none();
         } else if self.bytes.consume("()") {
             return visitor.visit_unit();
-        } else if self.bytes.consume_ident("inf") {
+        } else if self.bytes.consume_ident("inf") || self.bytes.consume_ident("inf_f32") {
             return visitor.visit_f32(std::f32::INFINITY);
-        } else if self.bytes.consume_ident("NaN") {
+        } else if self.bytes.consume_ident("inf_f64") {
+            return visitor.visit_f64(std::f64::INFINITY);
+        } else if self.bytes.consume_ident("NaN") || self.bytes.consume_ident("NaN_f32") {
             return visitor.visit_f32(std::f32::NAN);
+        } else if self.bytes.consume_ident("NaN_f64") {
+            return visitor.visit_f64(std::f64::NAN);
         }
 
         // `identifier` does not change state if it fails
@@ -402,14 +409,26 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_f32(self.bytes.float()?)
+        match self.bytes.any_float(DesireFloat::F32)? {
+            ParsedFloat::F32(v) => visitor.visit_f32(v),
+            ParsedFloat::F64(v) => Err(Error::InvalidValueForType {
+                expected: String::from("a 32-bit floating point number"),
+                found: format!("the specifically 64-bit floating point number `{}`", v),
+            }),
+        }
     }
 
     fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_f64(self.bytes.float()?)
+        match self.bytes.any_float(DesireFloat::F64)? {
+            ParsedFloat::F32(v) => Err(Error::InvalidValueForType {
+                expected: String::from("a 64-bit floating point number"),
+                found: format!("the specifically 32-bit floating point number `{}`", v),
+            }),
+            ParsedFloat::F64(v) => visitor.visit_f64(v),
+        }
     }
 
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
