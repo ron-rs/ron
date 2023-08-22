@@ -218,3 +218,14 @@ fn test_boxed_raw_value_deserialise_from_string() {
         ))
     );
 }
+
+#[test]
+fn test_fuzzer_found_issue() {
+    assert_eq!(
+        RawValue::from_ron(""),
+        Err(SpannedError {
+            code: Error::Eof,
+            position: Position { line: 1, col: 1 },
+        })
+    );
+}
