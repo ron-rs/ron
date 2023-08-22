@@ -293,13 +293,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_none();
         } else if self.bytes.consume("()") {
             return visitor.visit_unit();
-        } else if self.bytes.consume_ident("inf") || self.bytes.consume_ident("inf_f32") {
+        } else if self.bytes.consume_ident("inf") || self.bytes.consume_ident("inff32") {
             return visitor.visit_f32(std::f32::INFINITY);
-        } else if self.bytes.consume_ident("inf_f64") {
+        } else if self.bytes.consume_ident("inff64") {
             return visitor.visit_f64(std::f64::INFINITY);
-        } else if self.bytes.consume_ident("NaN") || self.bytes.consume_ident("NaN_f32") {
+        } else if self.bytes.consume_ident("NaN") || self.bytes.consume_ident("NaNf32") {
             return visitor.visit_f32(std::f32::NAN);
-        } else if self.bytes.consume_ident("NaN_f64") {
+        } else if self.bytes.consume_ident("NaNf64") {
             return visitor.visit_f64(std::f64::NAN);
         }
 

@@ -701,8 +701,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn any_float<T: Float>(&mut self) -> Result<T> {
-        const F32_SUFFIX: &str = "_f32";
-        const F64_SUFFIX: &str = "_f64";
+        const F32_SUFFIX: &str = "f32";
+        const F64_SUFFIX: &str = "f64";
 
         for (literal, value_f32, value_f64) in &[
             ("inf", f32::INFINITY, f64::INFINITY),
@@ -773,9 +773,9 @@ impl<'a> Bytes<'a> {
 
             #[allow(clippy::never_loop)]
             loop {
-                let res = if self.consume_ident("f32") {
+                let res = if self.consume_ident(F32_SUFFIX) {
                     f32::from_str(&f).map(ParsedFloat::F32)
-                } else if self.consume_ident("f64") {
+                } else if self.consume_ident(F64_SUFFIX) {
                     f64::from_str(&f).map(ParsedFloat::F64)
                 } else {
                     break;

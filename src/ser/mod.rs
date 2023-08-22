@@ -110,7 +110,7 @@ pub struct PrettyConfig {
     /// Enable compact maps, which do not insert new lines and indentation
     ///  between the entries of a struct
     pub compact_maps: bool,
-    /// Enable explicit number type suffixes like `1_u16`
+    /// Enable explicit number type suffixes like `1u16`
     pub number_suffixes: bool,
 }
 
@@ -297,24 +297,24 @@ impl PrettyConfig {
     /// Configures whether numbers should be printed without (`false`) or
     /// with (`true`) their explicit type suffixes.
     ///
-    /// When `false`, the integer `12345_u16` will serialize to
+    /// When `false`, the integer `12345u16` will serialize to
     /// ```ignore
     /// 12345
     /// # ;
     /// ```
-    /// and the float `12345.6789_f64` will serialize to
+    /// and the float `12345.6789f64` will serialize to
     /// ```ignore
     /// 12345.6789
     /// # ;
     /// ```
-    /// When `true`, the integer `12345_u16` will serialize to
+    /// When `true`, the integer `12345u16` will serialize to
     /// ```ignore
-    /// 12345_u16
+    /// 12345u16
     /// # ;
     /// ```
-    /// and the float `12345.6789_f64` will serialize to
+    /// and the float `12345.6789f64` will serialize to
     /// ```ignore
-    /// 12345.6789_f64
+    /// 12345.6789f64
     /// # ;
     /// ```
     ///
@@ -545,7 +545,7 @@ impl<W: io::Write> Serializer<W> {
         write!(self.output, "{}", value.into())?;
 
         if self.number_suffixes() {
-            write!(self.output, "_{}", suffix)?;
+            write!(self.output, "{}", suffix)?;
         }
 
         Ok(())
@@ -556,7 +556,7 @@ impl<W: io::Write> Serializer<W> {
         write!(self.output, "{}", value.into())?;
 
         if self.number_suffixes() {
-            write!(self.output, "_{}", suffix)?;
+            write!(self.output, "{}", suffix)?;
         }
 
         Ok(())
@@ -567,7 +567,7 @@ impl<W: io::Write> Serializer<W> {
         let mut bytes = name.as_bytes().iter().copied();
         if !bytes.next().map_or(false, is_ident_first_char)
             || !bytes.all(is_ident_other_char)
-            || ["inf", "inf_f32", "inf_f64", "NaN", "NaN_f32", "NaN_f64"].contains(&name)
+            || ["inf", "inff32", "inff64", "NaN", "NaNf32", "NaNf64"].contains(&name)
         {
             self.output.write_all(b"r#")?;
         }
@@ -680,7 +680,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         }
 
         if self.number_suffixes() {
-            write!(self.output, "_f32")?;
+            write!(self.output, "f32")?;
         }
 
         Ok(())
@@ -698,7 +698,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         }
 
         if self.number_suffixes() {
-            write!(self.output, "_f64")?;
+            write!(self.output, "f64")?;
         }
 
         Ok(())

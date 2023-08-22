@@ -157,21 +157,21 @@ fn value_number_suffix_roundtrip() {
         ron::Value::Number(ron::value::Number::new(-1_f32))
     );
 
-    check_number_roundtrip(f32::NAN, "_f32");
-    check_number_roundtrip(-f32::NAN, "_f32");
-    check_number_roundtrip(f32::INFINITY, "_f32");
-    check_number_roundtrip(f32::NEG_INFINITY, "_f32");
+    check_number_roundtrip(f32::NAN, "f32");
+    check_number_roundtrip(-f32::NAN, "f32");
+    check_number_roundtrip(f32::INFINITY, "f32");
+    check_number_roundtrip(f32::NEG_INFINITY, "f32");
 
-    check_number_roundtrip(f64::NAN, "_f64");
-    check_number_roundtrip(-f64::NAN, "_f64");
-    check_number_roundtrip(f64::INFINITY, "_f64");
-    check_number_roundtrip(f64::NEG_INFINITY, "_f64");
+    check_number_roundtrip(f64::NAN, "f64");
+    check_number_roundtrip(-f64::NAN, "f64");
+    check_number_roundtrip(f64::INFINITY, "f64");
+    check_number_roundtrip(f64::NEG_INFINITY, "f64");
 
     macro_rules! test_min_max {
         ($($ty:ty),*) => {
             $(
-                check_number_roundtrip(<$ty>::MIN, concat!("_", stringify!($ty)));
-                check_number_roundtrip(<$ty>::MAX, concat!("_", stringify!($ty)));
+                check_number_roundtrip(<$ty>::MIN, stringify!($ty));
+                check_number_roundtrip(<$ty>::MAX, stringify!($ty));
             )*
         };
     }
@@ -453,15 +453,15 @@ fn fuzzer_found_issues() {
     enum A {
         #[serde(rename = "inf")]
         Inf(bool),
-        #[serde(rename = "inf_f32")]
+        #[serde(rename = "inff32")]
         InfF32(bool),
-        #[serde(rename = "inf_f64")]
+        #[serde(rename = "inff64")]
         InfF64(bool),
         #[serde(rename = "NaN")]
         NaN(bool),
-        #[serde(rename = "NaN_f32")]
+        #[serde(rename = "NaNf32")]
         NaNF32(bool),
-        #[serde(rename = "NaN_f64")]
+        #[serde(rename = "NaNf64")]
         NaNF64(bool),
     }
 
@@ -477,33 +477,33 @@ fn fuzzer_found_issues() {
 
     assert_eq!(
         ron::to_string(&A::InfF32(false)).unwrap(),
-        "r#inf_f32(false)"
+        "r#inff32(false)"
     );
     assert_eq!(
-        ron::from_str::<A>("r#inf_f32(false)").unwrap(),
+        ron::from_str::<A>("r#inff32(false)").unwrap(),
         A::InfF32(false)
     );
     assert_eq!(
-        ron::from_str::<ron::Value>("inf_f32(false)").unwrap_err(),
+        ron::from_str::<ron::Value>("inff32(false)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 8 },
+            position: ron::error::Position { line: 1, col: 7 },
         }
     );
 
     assert_eq!(
         ron::to_string(&A::InfF64(false)).unwrap(),
-        "r#inf_f64(false)"
+        "r#inff64(false)"
     );
     assert_eq!(
-        ron::from_str::<A>("r#inf_f64(false)").unwrap(),
+        ron::from_str::<A>("r#inff64(false)").unwrap(),
         A::InfF64(false)
     );
     assert_eq!(
-        ron::from_str::<ron::Value>("inf_f64(false)").unwrap_err(),
+        ron::from_str::<ron::Value>("inff64(false)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 8 },
+            position: ron::error::Position { line: 1, col: 7 },
         }
     );
 
@@ -517,29 +517,29 @@ fn fuzzer_found_issues() {
         }
     );
 
-    assert_eq!(ron::to_string(&A::NaNF32(true)).unwrap(), "r#NaN_f32(true)");
+    assert_eq!(ron::to_string(&A::NaNF32(true)).unwrap(), "r#NaNf32(true)");
     assert_eq!(
-        ron::from_str::<A>("r#NaN_f32(true)").unwrap(),
+        ron::from_str::<A>("r#NaNf32(true)").unwrap(),
         A::NaNF32(true)
     );
     assert_eq!(
-        ron::from_str::<ron::Value>("NaN_f32(true)").unwrap_err(),
+        ron::from_str::<ron::Value>("NaNf32(true)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 8 },
+            position: ron::error::Position { line: 1, col: 7 },
         }
     );
 
-    assert_eq!(ron::to_string(&A::NaNF64(true)).unwrap(), "r#NaN_f64(true)");
+    assert_eq!(ron::to_string(&A::NaNF64(true)).unwrap(), "r#NaNf64(true)");
     assert_eq!(
-        ron::from_str::<A>("r#NaN_f64(true)").unwrap(),
+        ron::from_str::<A>("r#NaNf64(true)").unwrap(),
         A::NaNF64(true)
     );
     assert_eq!(
-        ron::from_str::<ron::Value>("NaN_f64(true)").unwrap_err(),
+        ron::from_str::<ron::Value>("NaNf64(true)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 8 },
+            position: ron::error::Position { line: 1, col: 7 },
         }
     );
 }
