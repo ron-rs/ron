@@ -444,3 +444,33 @@ fn check_number_type_mismatch<T: std::fmt::Debug + serde::de::DeserializeOwned>(
         panic!("{:?}", err.code);
     }
 }
+
+#[test]
+fn fuzzer_found_issues() {
+    #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
+    enum A {
+        #[serde(rename = "inf")]
+        Inf(bool),
+        NaN(bool),
+    }
+
+    assert_eq!(ron::to_string(&A::Inf(false)).unwrap(), "r#inf(false)");
+    assert_eq!(ron::from_str::<A>("r#inf(false)").unwrap(), A::Inf(false));
+    assert_eq!(
+        ron::from_str::<ron::Value>("inf(false)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 4 },
+        }
+    );
+
+    assert_eq!(ron::to_string(&A::NaN(true)).unwrap(), "r#NaN(true)");
+    assert_eq!(ron::from_str::<A>("r#NaN(true)").unwrap(), A::NaN(true));
+    assert_eq!(
+        ron::from_str::<ron::Value>("NaN(true)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 4 },
+        }
+    );
+}

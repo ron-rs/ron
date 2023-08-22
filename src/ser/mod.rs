@@ -565,7 +565,11 @@ impl<W: io::Write> Serializer<W> {
     fn write_identifier(&mut self, name: &str) -> Result<()> {
         self.validate_identifier(name)?;
         let mut bytes = name.as_bytes().iter().copied();
-        if !bytes.next().map_or(false, is_ident_first_char) || !bytes.all(is_ident_other_char) {
+        if !bytes.next().map_or(false, is_ident_first_char)
+            || !bytes.all(is_ident_other_char)
+            || name == "inf"
+            || name == "NaN"
+        {
             self.output.write_all(b"r#")?;
         }
         self.output.write_all(name.as_bytes())?;
