@@ -451,7 +451,16 @@ fn fuzzer_found_issues() {
     enum A {
         #[serde(rename = "inf")]
         Inf(bool),
+        #[serde(rename = "inf_f32")]
+        InfF32(bool),
+        #[serde(rename = "inf_f64")]
+        InfF64(bool),
+        #[serde(rename = "NaN")]
         NaN(bool),
+        #[serde(rename = "NaN_f32")]
+        NaNF32(bool),
+        #[serde(rename = "NaN_f64")]
+        NaNF64(bool),
     }
 
     assert_eq!(ron::to_string(&A::Inf(false)).unwrap(), "r#inf(false)");
@@ -464,6 +473,38 @@ fn fuzzer_found_issues() {
         }
     );
 
+    assert_eq!(
+        ron::to_string(&A::InfF32(false)).unwrap(),
+        "r#inf_f32(false)"
+    );
+    assert_eq!(
+        ron::from_str::<A>("r#inf_f32(false)").unwrap(),
+        A::InfF32(false)
+    );
+    assert_eq!(
+        ron::from_str::<ron::Value>("inf_f32(false)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 8 },
+        }
+    );
+
+    assert_eq!(
+        ron::to_string(&A::InfF64(false)).unwrap(),
+        "r#inf_f64(false)"
+    );
+    assert_eq!(
+        ron::from_str::<A>("r#inf_f64(false)").unwrap(),
+        A::InfF64(false)
+    );
+    assert_eq!(
+        ron::from_str::<ron::Value>("inf_f64(false)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 8 },
+        }
+    );
+
     assert_eq!(ron::to_string(&A::NaN(true)).unwrap(), "r#NaN(true)");
     assert_eq!(ron::from_str::<A>("r#NaN(true)").unwrap(), A::NaN(true));
     assert_eq!(
@@ -471,6 +512,32 @@ fn fuzzer_found_issues() {
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
             position: ron::error::Position { line: 1, col: 4 },
+        }
+    );
+
+    assert_eq!(ron::to_string(&A::NaNF32(true)).unwrap(), "r#NaN_f32(true)");
+    assert_eq!(
+        ron::from_str::<A>("r#NaN_f32(true)").unwrap(),
+        A::NaNF32(true)
+    );
+    assert_eq!(
+        ron::from_str::<ron::Value>("NaN_f32(true)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 8 },
+        }
+    );
+
+    assert_eq!(ron::to_string(&A::NaNF64(true)).unwrap(), "r#NaN_f64(true)");
+    assert_eq!(
+        ron::from_str::<A>("r#NaN_f64(true)").unwrap(),
+        A::NaNF64(true)
+    );
+    assert_eq!(
+        ron::from_str::<ron::Value>("NaN_f64(true)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 8 },
         }
     );
 }

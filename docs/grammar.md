@@ -60,8 +60,8 @@ unsigned_octal = "0o", digit_octal, { digit_octal | "_" };
 unsigned_hexadecimal = "0x", digit_hexadecimal, { digit_hexadecimal | "_" };
 unsigned_decimal = digit, { digit | "_" };
 
-float = ["+" | "-"], ("inf" | "NaN" | float_num);
-float_num = (float_int | float_std | float_frac), [float_exp], [float_suffix];
+float = ["+" | "-"], ("inf" | "NaN" | float_num), [float_suffix];
+float_num = (float_int | float_std | float_frac), [float_exp];
 float_int = digit, { digit | "_" };
 float_std = digit, { digit | "_" }, ".", [digit, { digit | "_" }];
 float_frac = ".", digit, { digit | "_" };
