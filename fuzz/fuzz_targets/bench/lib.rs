@@ -1417,9 +1417,22 @@ impl<'a> SerdeDataType<'a> {
                 Ok(SerdeDataValue::Map { elems: map })
             }
             SerdeDataType::UnitStruct { name: _ } => Ok(SerdeDataValue::UnitStruct),
-            SerdeDataType::Newtype { name: _, inner } => Ok(SerdeDataValue::Newtype {
-                inner: Box::new(inner.arbitrary_value(u)?),
-            }),
+            SerdeDataType::Newtype { name, inner } => {
+                let inner = inner.arbitrary_value(u)?;
+
+                // ron::value::RawValue cannot safely be constructed from syntactically invalid ron
+                if *name == "$ron::private::RawValue" {
+                    if let SerdeDataValue::String(ron) = &inner {
+                        if ron::value::RawValue::from_ron(ron).is_err() {
+                            return Err(arbitrary::Error::IncorrectFormat);
+                        }
+                    }
+                }
+
+                Ok(SerdeDataValue::Newtype {
+                    inner: Box::new(inner),
+                })
+            }
             SerdeDataType::TupleStruct { name: _, fields } => {
                 let mut tuple = Vec::with_capacity(fields.len());
                 for ty in fields {
