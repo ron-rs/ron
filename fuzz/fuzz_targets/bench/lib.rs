@@ -79,7 +79,7 @@ struct ArbitraryPrettyConfig {
     /// Enable compact maps, which do not insert new lines and indentation
     ///  between the entries of a struct
     compact_maps: bool,
-    /// Enable explicit number type suffixes like `1_u16`
+    /// Enable explicit number type suffixes like `1u16`
     number_suffixes: bool,
 }
 

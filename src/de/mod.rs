@@ -406,14 +406,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_f32(self.bytes.any_float()?)
+        visitor.visit_f32(self.bytes.float()?)
     }
 
     fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_f64(self.bytes.any_float()?)
+        visitor.visit_f64(self.bytes.float()?)
     }
 
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>

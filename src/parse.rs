@@ -363,7 +363,7 @@ impl<'a> Bytes<'a> {
 
     pub fn any_number(&mut self) -> Result<Number> {
         if self.next_bytes_is_float() {
-            return match self.any_float::<ParsedFloat>()? {
+            return match self.float::<ParsedFloat>()? {
                 ParsedFloat::F32(v) => Ok(Number::F32(v.into())),
                 ParsedFloat::F64(v) => Ok(Number::F64(v.into())),
             };
@@ -394,7 +394,7 @@ impl<'a> Bytes<'a> {
         *self = bytes_backup;
 
         // Fall-back to parse an out-of-range integer as a float
-        match self.any_float::<ParsedFloat>() {
+        match self.float::<ParsedFloat>() {
             Ok(ParsedFloat::F32(v)) if self.cursor >= integer_bytes.cursor => {
                 Ok(Number::F32(v.into()))
             }
@@ -700,7 +700,7 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    pub fn any_float<T: Float>(&mut self) -> Result<T> {
+    pub fn float<T: Float>(&mut self) -> Result<T> {
         const F32_SUFFIX: &str = "f32";
         const F64_SUFFIX: &str = "f64";
 
@@ -1130,7 +1130,7 @@ impl<'a> Bytes<'a> {
     }
 }
 
-pub trait Num: Sized {
+pub trait Num {
     fn from_u8(x: u8) -> Self;
 
     /// Returns `true` on overflow
