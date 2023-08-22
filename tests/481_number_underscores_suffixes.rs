@@ -381,7 +381,7 @@ fn number_type_mismatch() {
         Err(ron::error::SpannedError {
             code: ron::Error::InvalidValueForType {
                 expected: String::from("a 32-bit floating point number"),
-                found: String::from("the specifically 64-bit floating point number `1`")
+                found: String::from("1f64")
             },
             position: ron::error::Position { line: 1, col: 5 },
         })
@@ -392,7 +392,7 @@ fn number_type_mismatch() {
         Err(ron::error::SpannedError {
             code: ron::Error::InvalidValueForType {
                 expected: String::from("a 64-bit floating point number"),
-                found: String::from("the specifically 32-bit floating point number `1`")
+                found: String::from("1f32")
             },
             position: ron::error::Position { line: 1, col: 5 },
         })

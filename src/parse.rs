@@ -347,6 +347,7 @@ impl<'a> Bytes<'a> {
                     let _ = self.identifier();
                 }
 
+                // Safety: The bytes contain the ASCII-only integer and suffix
                 let integer_ron = unsafe {
                     from_utf8_unchecked(&bytes_backup[..bytes_backup.len() - suffix_bytes.len()])
                 };
@@ -362,7 +363,7 @@ impl<'a> Bytes<'a> {
 
     pub fn any_number(&mut self) -> Result<Number> {
         if self.next_bytes_is_float() {
-            return match self.any_float(DesireFloat::Any)? {
+            return match self.any_float::<ParsedFloat>()? {
                 ParsedFloat::F32(v) => Ok(Number::F32(v.into())),
                 ParsedFloat::F64(v) => Ok(Number::F64(v.into())),
             };
@@ -393,7 +394,7 @@ impl<'a> Bytes<'a> {
         *self = bytes_backup;
 
         // Fall-back to parse an out-of-range integer as a float
-        match self.any_float(DesireFloat::Any) {
+        match self.any_float::<ParsedFloat>() {
             Ok(ParsedFloat::F32(v)) if self.cursor >= integer_bytes.cursor => {
                 Ok(Number::F32(v.into()))
             }
@@ -699,7 +700,7 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    pub fn any_float(&mut self, desire: DesireFloat) -> Result<ParsedFloat> {
+    pub fn any_float<T: Float>(&mut self) -> Result<T> {
         const F32_SUFFIX: &str = "_f32";
         const F64_SUFFIX: &str = "_f64";
 
@@ -712,28 +713,29 @@ impl<'a> Bytes<'a> {
             ("-NaN", -f32::NAN, -f64::NAN),
         ] {
             if self.consume_ident(literal) {
-                return match desire {
-                    // Prefer f32 over f64 for equivalent literal values
-                    DesireFloat::Any => Ok(ParsedFloat::F32(*value_f32)),
-                    DesireFloat::F32 => Ok(ParsedFloat::F32(*value_f32)),
-                    DesireFloat::F64 => Ok(ParsedFloat::F64(*value_f64)),
-                };
+                return T::parse(literal);
             }
 
             if self.bytes.starts_with(literal.as_bytes())
                 && self.bytes[literal.len()..].starts_with(F32_SUFFIX.as_bytes())
                 && !self.check_ident_other_char(literal.len() + F32_SUFFIX.len())
             {
+                // Safety: The bytes contain the ASCII-only floating point literal and suffix
+                let float_ron =
+                    unsafe { from_utf8_unchecked(&self.bytes[..literal.len() + F32_SUFFIX.len()]) };
                 let _ = self.advance(literal.len() + F32_SUFFIX.len());
-                return Ok(ParsedFloat::F32(*value_f32));
+                return T::try_from_parsed_float(ParsedFloat::F32(*value_f32), float_ron);
             }
 
             if self.bytes.starts_with(literal.as_bytes())
                 && self.bytes[literal.len()..].starts_with(F64_SUFFIX.as_bytes())
                 && !self.check_ident_other_char(literal.len() + F64_SUFFIX.len())
             {
+                // Safety: The bytes contain the ASCII-only floating point literal and suffix
+                let float_ron =
+                    unsafe { from_utf8_unchecked(&self.bytes[..literal.len() + F64_SUFFIX.len()]) };
                 let _ = self.advance(literal.len() + F64_SUFFIX.len());
-                return Ok(ParsedFloat::F64(*value_f64));
+                return T::try_from_parsed_float(ParsedFloat::F64(*value_f64), float_ron);
             }
         }
 
@@ -765,30 +767,46 @@ impl<'a> Bytes<'a> {
             f.push(char::from(*b));
         }
 
-        let value = f64::from_str(&f).map_err(|_| Error::ExpectedFloat)?;
+        if let Some(b'f') = self.bytes.get(num_bytes) {
+            let bytes_backup = *self;
+            let _ = self.advance(num_bytes);
+
+            #[allow(clippy::never_loop)]
+            loop {
+                let res = if self.consume_ident("f32") {
+                    f32::from_str(&f).map(ParsedFloat::F32)
+                } else if self.consume_ident("f64") {
+                    f64::from_str(&f).map(ParsedFloat::F64)
+                } else {
+                    break;
+                };
+
+                let parsed = match res {
+                    Ok(parsed) => parsed,
+                    Err(_) => {
+                        *self = bytes_backup;
+                        return Err(Error::ExpectedFloat);
+                    }
+                };
+
+                // Safety: The bytes contain the ASCII-only floating point value and suffix
+                let float_ron = unsafe {
+                    from_utf8_unchecked(
+                        &bytes_backup.bytes[..bytes_backup.bytes.len() - self.bytes.len()],
+                    )
+                };
+
+                return T::try_from_parsed_float(parsed, float_ron);
+            }
+
+            *self = bytes_backup;
+        }
+
+        let value = T::parse(&f)?;
 
         let _ = self.advance(num_bytes);
 
-        if self.consume_ident("f32") {
-            return Ok(ParsedFloat::F32(value as f32));
-        }
-
-        if self.consume_ident("f64") {
-            return Ok(ParsedFloat::F64(value));
-        }
-
-        match desire {
-            // Prefer f32 over f64 for equivalent floating point values
-            DesireFloat::Any => {
-                if value.total_cmp(&f64::from(value as f32)).is_eq() {
-                    Ok(ParsedFloat::F32(value as f32))
-                } else {
-                    Ok(ParsedFloat::F64(value))
-                }
-            }
-            DesireFloat::F32 => Ok(ParsedFloat::F32(value as f32)),
-            DesireFloat::F64 => Ok(ParsedFloat::F64(value)),
-        }
+        Ok(value)
     }
 
     pub fn identifier(&mut self) -> Result<&'a [u8]> {
@@ -1186,7 +1204,6 @@ macro_rules! impl_integer {
                 bytes.parse_integer(sign)
             }
 
-            #[cold]
             fn try_from_parsed_integer(parsed: ParsedInteger, ron: &str) -> Result<Self> {
                 match parsed {
                     ParsedInteger::$wrap(v) => Ok(v),
@@ -1283,15 +1300,58 @@ impl Integer for ParsedInteger {
     }
 }
 
-pub enum DesireFloat {
-    Any,
-    F32,
-    F64,
+pub trait Float: Sized {
+    fn parse(float: &str) -> Result<Self>;
+
+    fn try_from_parsed_float(parsed: ParsedFloat, ron: &str) -> Result<Self>;
 }
+
+macro_rules! impl_float {
+    ($wrap:ident($ty:ty: $bits:expr)) => {
+        impl Float for $ty {
+            fn parse(float: &str) -> Result<Self> {
+                <$ty>::from_str(float).map_err(|_| Error::ExpectedFloat)
+            }
+
+            fn try_from_parsed_float(parsed: ParsedFloat, ron: &str) -> Result<Self> {
+                match parsed {
+                    ParsedFloat::$wrap(v) => Ok(v),
+                    _ => Err(Error::InvalidValueForType {
+                        expected: format!(
+                            "a {}-bit floating point number", $bits,
+                        ),
+                        found: String::from(ron),
+                    }),
+                }
+            }
+        }
+    };
+    ($($wraps:ident($tys:ty: $bits:expr))*) => {
+        $( impl_float!($wraps($tys: $bits)); )*
+    };
+}
+
+impl_float! { F32(f32: 32) F64(f64: 64) }
 
 pub enum ParsedFloat {
     F32(f32),
     F64(f64),
+}
+
+impl Float for ParsedFloat {
+    fn parse(float: &str) -> Result<Self> {
+        let value = f64::from_str(float).map_err(|_| Error::ExpectedFloat)?;
+
+        if value.total_cmp(&f64::from(value as f32)).is_eq() {
+            Ok(ParsedFloat::F32(value as f32))
+        } else {
+            Ok(ParsedFloat::F64(value))
+        }
+    }
+
+    fn try_from_parsed_float(parsed: ParsedFloat, _ron: &str) -> Result<Self> {
+        Ok(parsed)
+    }
 }
 
 #[derive(Clone, Debug)]

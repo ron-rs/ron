@@ -17,10 +17,7 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{
-        Bytes, DesireFloat, NewtypeMode, ParsedFloat, ParsedStr, StructType, TupleMode,
-        BASE64_ENGINE,
-    },
+    parse::{Bytes, NewtypeMode, ParsedStr, StructType, TupleMode, BASE64_ENGINE},
 };
 
 mod id;
@@ -409,26 +406,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.bytes.any_float(DesireFloat::F32)? {
-            ParsedFloat::F32(v) => visitor.visit_f32(v),
-            ParsedFloat::F64(v) => Err(Error::InvalidValueForType {
-                expected: String::from("a 32-bit floating point number"),
-                found: format!("the specifically 64-bit floating point number `{}`", v),
-            }),
-        }
+        visitor.visit_f32(self.bytes.any_float()?)
     }
 
     fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        match self.bytes.any_float(DesireFloat::F64)? {
-            ParsedFloat::F32(v) => Err(Error::InvalidValueForType {
-                expected: String::from("a 64-bit floating point number"),
-                found: format!("the specifically 32-bit floating point number `{}`", v),
-            }),
-            ParsedFloat::F64(v) => visitor.visit_f64(v),
-        }
+        visitor.visit_f64(self.bytes.any_float()?)
     }
 
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
