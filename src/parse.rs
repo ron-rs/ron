@@ -2,7 +2,7 @@
 
 use std::{
     char::from_u32 as char_from_u32,
-    str::{from_utf8, FromStr},
+    str::{from_utf8, from_utf8_unchecked, FromStr},
 };
 
 use base64::engine::general_purpose::{GeneralPurpose, STANDARD};
@@ -234,7 +234,9 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    pub fn any_integer(&mut self, desire: DesireInteger) -> Result<ParsedInteger> {
+    pub fn integer<T: Integer>(&mut self) -> Result<T> {
+        let bytes_backup = self.bytes;
+
         let is_negative = match self.peek_or_eof()? {
             b'+' => {
                 let _ = self.advance_single();
@@ -256,38 +258,78 @@ impl<'a> Bytes<'a> {
 
             #[allow(clippy::never_loop)]
             loop {
-                let res = if self.consume_ident("i8") {
+                let (res, suffix_bytes) = if self.consume_ident("i8") {
+                    let suffix_bytes = self.bytes;
                     *self = int_bytes_backup;
-                    self.parse_integer::<i8>(sign).map(ParsedInteger::I8)
+                    (
+                        self.parse_integer::<i8>(sign).map(ParsedInteger::I8),
+                        suffix_bytes,
+                    )
                 } else if self.consume_ident("i16") {
+                    let suffix_bytes = self.bytes;
                     *self = int_bytes_backup;
-                    self.parse_integer::<i16>(sign).map(ParsedInteger::I16)
+                    (
+                        self.parse_integer::<i16>(sign).map(ParsedInteger::I16),
+                        suffix_bytes,
+                    )
                 } else if self.consume_ident("i32") {
+                    let suffix_bytes = self.bytes;
                     *self = int_bytes_backup;
-                    self.parse_integer::<i32>(sign).map(ParsedInteger::I32)
+                    (
+                        self.parse_integer::<i32>(sign).map(ParsedInteger::I32),
+                        suffix_bytes,
+                    )
                 } else if self.consume_ident("i64") {
+                    let suffix_bytes = self.bytes;
                     *self = int_bytes_backup;
-                    self.parse_integer::<i64>(sign).map(ParsedInteger::I64)
+                    (
+                        self.parse_integer::<i64>(sign).map(ParsedInteger::I64),
+                        suffix_bytes,
+                    )
                 } else if self.consume_ident("u8") {
+                    let suffix_bytes = self.bytes;
                     *self = int_bytes_backup;
-                    self.parse_integer::<u8>(sign).map(ParsedInteger::U8)
+                    (
+                        self.parse_integer::<u8>(sign).map(ParsedInteger::U8),
+                        suffix_bytes,
+                    )
                 } else if self.consume_ident("u16") {
+                    let suffix_bytes = self.bytes;
                     *self = int_bytes_backup;
-                    self.parse_integer::<u16>(sign).map(ParsedInteger::U16)
+                    (
+                        self.parse_integer::<u16>(sign).map(ParsedInteger::U16),
+                        suffix_bytes,
+                    )
                 } else if self.consume_ident("u32") {
+                    let suffix_bytes = self.bytes;
                     *self = int_bytes_backup;
-                    self.parse_integer::<u32>(sign).map(ParsedInteger::U32)
+                    (
+                        self.parse_integer::<u32>(sign).map(ParsedInteger::U32),
+                        suffix_bytes,
+                    )
                 } else if self.consume_ident("u64") {
+                    let suffix_bytes = self.bytes;
                     *self = int_bytes_backup;
-                    self.parse_integer::<u64>(sign).map(ParsedInteger::U64)
+                    (
+                        self.parse_integer::<u64>(sign).map(ParsedInteger::U64),
+                        suffix_bytes,
+                    )
                 } else {
                     #[cfg(feature = "integer128")]
                     if self.consume_ident("i128") {
+                        let suffix_bytes = self.bytes;
                         *self = int_bytes_backup;
-                        self.parse_integer::<i128>(sign).map(ParsedInteger::I128)
+                        (
+                            self.parse_integer::<i128>(sign).map(ParsedInteger::I128),
+                            suffix_bytes,
+                        )
                     } else if self.consume_ident("u128") {
+                        let suffix_bytes = self.bytes;
                         *self = int_bytes_backup;
-                        self.parse_integer::<u128>(sign).map(ParsedInteger::U128)
+                        (
+                            self.parse_integer::<u128>(sign).map(ParsedInteger::U128),
+                            suffix_bytes,
+                        )
                     } else {
                         break;
                     }
@@ -305,75 +347,17 @@ impl<'a> Bytes<'a> {
                     let _ = self.identifier();
                 }
 
-                return res;
+                let integer_ron = unsafe {
+                    from_utf8_unchecked(&bytes_backup[..bytes_backup.len() - suffix_bytes.len()])
+                };
+
+                return res.and_then(|parsed| T::try_from_parsed_integer(parsed, integer_ron));
             }
 
             *self = int_bytes_backup;
         }
 
-        match desire {
-            DesireInteger::Any => (),
-            DesireInteger::I8 => return self.parse_integer::<i8>(sign).map(ParsedInteger::I8),
-            DesireInteger::I16 => return self.parse_integer::<i16>(sign).map(ParsedInteger::I16),
-            DesireInteger::I32 => return self.parse_integer::<i32>(sign).map(ParsedInteger::I32),
-            DesireInteger::I64 => return self.parse_integer::<i64>(sign).map(ParsedInteger::I64),
-            #[cfg(feature = "integer128")]
-            DesireInteger::I128 => {
-                return self.parse_integer::<i128>(sign).map(ParsedInteger::I128)
-            }
-            DesireInteger::U8 => return self.parse_integer::<u8>(sign).map(ParsedInteger::U8),
-            DesireInteger::U16 => return self.parse_integer::<u16>(sign).map(ParsedInteger::U16),
-            DesireInteger::U32 => return self.parse_integer::<u32>(sign).map(ParsedInteger::U32),
-            DesireInteger::U64 => return self.parse_integer::<u64>(sign).map(ParsedInteger::U64),
-            #[cfg(feature = "integer128")]
-            DesireInteger::U128 => {
-                return self.parse_integer::<u128>(sign).map(ParsedInteger::U128)
-            }
-        }
-
-        if is_negative {
-            let signed = self.parse_integer::<LargeSInt>(-1)?;
-
-            return if let Ok(x) = i8::try_from(signed) {
-                Ok(ParsedInteger::I8(x))
-            } else if let Ok(x) = i16::try_from(signed) {
-                Ok(ParsedInteger::I16(x))
-            } else if let Ok(x) = i32::try_from(signed) {
-                Ok(ParsedInteger::I32(x))
-            } else {
-                #[cfg(not(feature = "integer128"))]
-                {
-                    Ok(ParsedInteger::I64(signed))
-                }
-                #[cfg(feature = "integer128")]
-                if let Ok(x) = i64::try_from(signed) {
-                    Ok(ParsedInteger::I64(x))
-                } else {
-                    Ok(ParsedInteger::I128(signed))
-                }
-            };
-        }
-
-        let unsigned = self.parse_integer::<LargeUInt>(1)?;
-
-        if let Ok(x) = u8::try_from(unsigned) {
-            Ok(ParsedInteger::U8(x))
-        } else if let Ok(x) = u16::try_from(unsigned) {
-            Ok(ParsedInteger::U16(x))
-        } else if let Ok(x) = u32::try_from(unsigned) {
-            Ok(ParsedInteger::U32(x))
-        } else {
-            #[cfg(not(feature = "integer128"))]
-            {
-                Ok(ParsedInteger::U64(unsigned))
-            }
-            #[cfg(feature = "integer128")]
-            if let Ok(x) = u64::try_from(unsigned) {
-                Ok(ParsedInteger::U64(x))
-            } else {
-                Ok(ParsedInteger::U128(unsigned))
-            }
-        }
+        T::parse(self, sign)
     }
 
     pub fn any_number(&mut self) -> Result<Number> {
@@ -386,7 +370,7 @@ impl<'a> Bytes<'a> {
 
         let bytes_backup = *self;
 
-        let (integer_err, integer_bytes) = match self.any_integer(DesireInteger::Any) {
+        let (integer_err, integer_bytes) = match self.integer::<ParsedInteger>() {
             Ok(integer) => {
                 return match integer {
                     ParsedInteger::I8(v) => Ok(Number::I8(v)),
@@ -1128,7 +1112,7 @@ impl<'a> Bytes<'a> {
     }
 }
 
-pub trait Num {
+pub trait Num: Sized {
     fn from_u8(x: u8) -> Self;
 
     /// Returns `true` on overflow
@@ -1142,7 +1126,7 @@ pub trait Num {
 }
 
 macro_rules! impl_num {
-    ($ty:ident) => {
+    ($ty:ty) => {
         impl Num for $ty {
             fn from_u8(x: u8) -> Self {
                 x as $ty
@@ -1179,31 +1163,58 @@ macro_rules! impl_num {
             }
         }
     };
-    ($($tys:ident)*) => {
+    ($($tys:ty)*) => {
         $( impl_num!($tys); )*
     };
 }
 
-#[cfg(feature = "integer128")]
-impl_num!(u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
-#[cfg(not(feature = "integer128"))]
-impl_num!(u8 u16 u32 u64 i8 i16 i32 i64);
+impl_num! { i8 i16 i32 i64 u8 u16 u32 u64 }
 
-pub enum DesireInteger {
-    Any,
-    I8,
-    I16,
-    I32,
-    I64,
-    #[cfg(feature = "integer128")]
-    I128,
-    U8,
-    U16,
-    U32,
-    U64,
-    #[cfg(feature = "integer128")]
-    U128,
+#[cfg(feature = "integer128")]
+impl_num! { i128 u128 }
+
+pub trait Integer: Sized {
+    fn parse(bytes: &mut Bytes, sign: i8) -> Result<Self>;
+
+    fn try_from_parsed_integer(parsed: ParsedInteger, ron: &str) -> Result<Self>;
 }
+
+macro_rules! impl_integer {
+    ($wrap:ident($ty:ty)) => {
+        impl Integer for $ty {
+            fn parse(bytes: &mut Bytes, sign: i8) -> Result<Self> {
+                bytes.parse_integer(sign)
+            }
+
+            #[cold]
+            fn try_from_parsed_integer(parsed: ParsedInteger, ron: &str) -> Result<Self> {
+                match parsed {
+                    ParsedInteger::$wrap(v) => Ok(v),
+                    _ => Err(Error::InvalidValueForType {
+                        expected: format!(
+                            "a{} {}-bit {}signed integer",
+                            if <$ty>::BITS == 8 { "n" } else { "n" },
+                            <$ty>::BITS,
+                            if <$ty>::MIN == 0 { "un" } else { "" },
+                        ),
+                        found: String::from(ron),
+                    }),
+                }
+            }
+        }
+    };
+    ($($wraps:ident($tys:ty))*) => {
+        $( impl_integer!($wraps($tys)); )*
+    };
+}
+
+impl_integer! {
+    I8(i8) I16(i16) I32(i32) I64(i64)
+    U8(u8) U16(u16) U32(u32) U64(u64)
+}
+
+#[cfg(feature = "integer128")]
+impl_integer! { I128(i128) U128(u128) }
 
 pub enum ParsedInteger {
     I8(i8),
@@ -1220,24 +1231,55 @@ pub enum ParsedInteger {
     U128(u128),
 }
 
-impl ParsedInteger {
-    #[must_use]
-    #[cold]
-    pub fn into_error_found_message(self) -> String {
-        match self {
-            ParsedInteger::I8(v) => format!("the specifically 8-bit signed integer `{}`", v),
-            ParsedInteger::I16(v) => format!("the specifically 16-bit signed integer `{}`", v),
-            ParsedInteger::I32(v) => format!("the specifically 32-bit signed integer `{}`", v),
-            ParsedInteger::I64(v) => format!("the specifically 64-bit signed integer `{}`", v),
-            #[cfg(feature = "integer128")]
-            ParsedInteger::I128(v) => format!("the specifically 128-bit signed integer `{}`", v),
-            ParsedInteger::U8(v) => format!("the specifically 8-bit unsigned integer `{}`", v),
-            ParsedInteger::U16(v) => format!("the specifically 16-bit unsigned integer `{}`", v),
-            ParsedInteger::U32(v) => format!("the specifically 32-bit unsigned integer `{}`", v),
-            ParsedInteger::U64(v) => format!("the specifically 64-bit unsigned integer `{}`", v),
-            #[cfg(feature = "integer128")]
-            ParsedInteger::U128(v) => format!("the specifically 128-bit unsigned integer `{}`", v),
+impl Integer for ParsedInteger {
+    fn parse(bytes: &mut Bytes, sign: i8) -> Result<Self> {
+        if sign < 0 {
+            let signed = bytes.parse_integer::<LargeSInt>(-1)?;
+
+            return if let Ok(x) = i8::try_from(signed) {
+                Ok(ParsedInteger::I8(x))
+            } else if let Ok(x) = i16::try_from(signed) {
+                Ok(ParsedInteger::I16(x))
+            } else if let Ok(x) = i32::try_from(signed) {
+                Ok(ParsedInteger::I32(x))
+            } else {
+                #[cfg(not(feature = "integer128"))]
+                {
+                    Ok(ParsedInteger::I64(signed))
+                }
+                #[cfg(feature = "integer128")]
+                if let Ok(x) = i64::try_from(signed) {
+                    Ok(ParsedInteger::I64(x))
+                } else {
+                    Ok(ParsedInteger::I128(signed))
+                }
+            };
         }
+
+        let unsigned = bytes.parse_integer::<LargeUInt>(1)?;
+
+        if let Ok(x) = u8::try_from(unsigned) {
+            Ok(ParsedInteger::U8(x))
+        } else if let Ok(x) = u16::try_from(unsigned) {
+            Ok(ParsedInteger::U16(x))
+        } else if let Ok(x) = u32::try_from(unsigned) {
+            Ok(ParsedInteger::U32(x))
+        } else {
+            #[cfg(not(feature = "integer128"))]
+            {
+                Ok(ParsedInteger::U64(unsigned))
+            }
+            #[cfg(feature = "integer128")]
+            if let Ok(x) = u64::try_from(unsigned) {
+                Ok(ParsedInteger::U64(x))
+            } else {
+                Ok(ParsedInteger::U128(unsigned))
+            }
+        }
+    }
+
+    fn try_from_parsed_integer(parsed: ParsedInteger, _ron: &str) -> Result<Self> {
+        Ok(parsed)
     }
 }
 

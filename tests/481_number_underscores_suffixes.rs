@@ -362,7 +362,7 @@ fn number_type_mismatch() {
         Err(ron::error::SpannedError {
             code: ron::Error::InvalidValueForType {
                 expected: String::from("an 8-bit unsigned integer"),
-                found: String::from("the specifically 32-bit signed integer `1`")
+                found: String::from("1i32")
             },
             position: ron::error::Position { line: 1, col: 5 },
         })
@@ -423,12 +423,14 @@ fn number_type_mismatch() {
 }
 
 fn check_number_type_mismatch<T: std::fmt::Debug + serde::de::DeserializeOwned>(suffix: &str) {
+    let ron = format!("0{suffix}");
+
     if suffix.starts_with(std::any::type_name::<T>()) {
-        assert!(ron::from_str::<T>(&format!("0{suffix}")).is_ok());
+        assert!(ron::from_str::<T>(&ron).is_ok());
         return;
     }
 
-    let err = ron::from_str::<T>(&format!("0{suffix}")).unwrap_err();
+    let err = ron::from_str::<T>(&ron).unwrap_err();
 
     println!("{:?} {}", err, suffix);
 
@@ -440,7 +442,7 @@ fn check_number_type_mismatch<T: std::fmt::Debug + serde::de::DeserializeOwned>(
         }
     );
 
-    if !matches!(err.code, ron::Error::InvalidValueForType { .. }) {
+    if !matches!(&err.code, ron::Error::InvalidValueForType { found, .. } if found == &ron ) {
         panic!("{:?}", err.code);
     }
 }
