@@ -18,8 +18,8 @@ use crate::{
     extensions::Extensions,
     options::Options,
     parse::{
-        Bytes, DesireFloat, NewtypeMode, ParsedFloat, ParsedStr, StructType, TupleMode,
-        BASE64_ENGINE,
+        Bytes, DesireFloat, DesireInteger, NewtypeMode, ParsedFloat, ParsedInteger, ParsedStr,
+        StructType, TupleMode, BASE64_ENGINE,
     },
 };
 
@@ -337,28 +337,52 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i8(self.bytes.signed_integer()?)
+        match self.bytes.any_integer(DesireInteger::I8)? {
+            ParsedInteger::I8(v) => visitor.visit_i8(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("an 8-bit signed integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i16(self.bytes.signed_integer()?)
+        match self.bytes.any_integer(DesireInteger::I16)? {
+            ParsedInteger::I16(v) => visitor.visit_i16(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("a 16-bit signed integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i32(self.bytes.signed_integer()?)
+        match self.bytes.any_integer(DesireInteger::I32)? {
+            ParsedInteger::I32(v) => visitor.visit_i32(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("a 32-bit signed integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i64(self.bytes.signed_integer()?)
+        match self.bytes.any_integer(DesireInteger::I64)? {
+            ParsedInteger::I64(v) => visitor.visit_i64(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("a 64-bit signed integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     #[cfg(feature = "integer128")]
@@ -366,35 +390,65 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i128(self.bytes.signed_integer()?)
+        match self.bytes.any_integer(DesireInteger::I128)? {
+            ParsedInteger::I128(v) => visitor.visit_i128(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("a 128-bit signed integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u8(self.bytes.unsigned_integer()?)
+        match self.bytes.any_integer(DesireInteger::U8)? {
+            ParsedInteger::U8(v) => visitor.visit_u8(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("an 8-bit unsigned integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u16(self.bytes.unsigned_integer()?)
+        match self.bytes.any_integer(DesireInteger::U16)? {
+            ParsedInteger::U16(v) => visitor.visit_u16(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("a 16-bit unsigned integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u32(self.bytes.unsigned_integer()?)
+        match self.bytes.any_integer(DesireInteger::U32)? {
+            ParsedInteger::U32(v) => visitor.visit_u32(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("a 32-bit unsigned integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u64(self.bytes.unsigned_integer()?)
+        match self.bytes.any_integer(DesireInteger::U64)? {
+            ParsedInteger::U64(v) => visitor.visit_u64(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("a 64-bit unsigned integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     #[cfg(feature = "integer128")]
@@ -402,7 +456,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u128(self.bytes.unsigned_integer()?)
+        match self.bytes.any_integer(DesireInteger::U128)? {
+            ParsedInteger::U128(v) => visitor.visit_u128(v),
+            v => Err(Error::InvalidValueForType {
+                expected: String::from("a 128-bit unsigned integer"),
+                found: v.into_error_found_message(),
+            }),
+        }
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>

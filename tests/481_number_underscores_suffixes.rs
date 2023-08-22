@@ -181,7 +181,17 @@ fn value_number_suffix_roundtrip() {
     test_min_max! { i128, u128 }
 }
 
-fn check_number_roundtrip<T: Into<Number>>(n: T, suffix: &str) {
+fn check_number_roundtrip<
+    T: Copy
+        + Into<Number>
+        + serde::Serialize
+        + serde::de::DeserializeOwned
+        + PartialEq
+        + std::fmt::Debug,
+>(
+    n: T,
+    suffix: &str,
+) {
     let number = n.into();
     let ron = ron::ser::to_string_pretty(
         &number,
@@ -189,8 +199,18 @@ fn check_number_roundtrip<T: Into<Number>>(n: T, suffix: &str) {
     )
     .unwrap();
     assert!(ron.ends_with(suffix));
+
+    let ron =
+        ron::ser::to_string_pretty(&n, ron::ser::PrettyConfig::default().number_suffixes(true))
+            .unwrap();
+    assert!(ron.ends_with(suffix));
+
     let de: ron::Value = ron::from_str(&ron).unwrap();
     assert_eq!(de, ron::Value::Number(number));
+
+    let de: T = ron::from_str(&ron).unwrap();
+    let de_number = de.into();
+    assert_eq!(de_number, number);
 }
 
 #[test]
@@ -231,6 +251,43 @@ fn negative_unsigned() {
             position: ron::error::Position { line: 1, col: 7 },
         })
     );
+
+    assert_eq!(
+        ron::from_str::<u8>("-1u8"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::IntegerOutOfBounds,
+            position: ron::error::Position { line: 1, col: 5 },
+        })
+    );
+    assert_eq!(
+        ron::from_str::<u16>("-1u16"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::IntegerOutOfBounds,
+            position: ron::error::Position { line: 1, col: 6 },
+        })
+    );
+    assert_eq!(
+        ron::from_str::<u32>("-1u32"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::IntegerOutOfBounds,
+            position: ron::error::Position { line: 1, col: 6 },
+        })
+    );
+    assert_eq!(
+        ron::from_str::<u64>("-1u64"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::IntegerOutOfBounds,
+            position: ron::error::Position { line: 1, col: 6 },
+        })
+    );
+    #[cfg(feature = "integer128")]
+    assert_eq!(
+        ron::from_str::<u128>("-1u128"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::IntegerOutOfBounds,
+            position: ron::error::Position { line: 1, col: 7 },
+        })
+    );
 }
 
 #[test]
@@ -265,4 +322,125 @@ fn invalid_suffix() {
             position: ron::error::Position { line: 1, col: 2 },
         })
     );
+
+    assert_eq!(
+        ron::from_str::<u8>("1u7"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 2 },
+        })
+    );
+    assert_eq!(
+        ron::from_str::<f32>("1f17"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 2 },
+        })
+    );
+    #[cfg(not(feature = "integer128"))]
+    assert_eq!(
+        ron::from_str::<u64>("1u128"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 2 },
+        })
+    );
+    #[cfg(not(feature = "integer128"))]
+    assert_eq!(
+        ron::from_str::<i64>("1i128"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 2 },
+        })
+    );
+}
+
+#[test]
+fn number_type_mismatch() {
+    assert_eq!(
+        ron::from_str::<u8>("1i32"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::InvalidValueForType {
+                expected: String::from("an 8-bit unsigned integer"),
+                found: String::from("the specifically 32-bit signed integer `1`")
+            },
+            position: ron::error::Position { line: 1, col: 5 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<i64>("-1u8"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::IntegerOutOfBounds,
+            position: ron::error::Position { line: 1, col: 5 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<f32>("1f64"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::InvalidValueForType {
+                expected: String::from("a 32-bit floating point number"),
+                found: String::from("the specifically 64-bit floating point number `1`")
+            },
+            position: ron::error::Position { line: 1, col: 5 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<f64>("1f32"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::InvalidValueForType {
+                expected: String::from("a 64-bit floating point number"),
+                found: String::from("the specifically 32-bit floating point number `1`")
+            },
+            position: ron::error::Position { line: 1, col: 5 },
+        })
+    );
+
+    macro_rules! test_mismatch {
+        ($($ty:ty),*) => {
+            $(
+                check_number_type_mismatch::<$ty>("i8");
+                check_number_type_mismatch::<$ty>("i16");
+                check_number_type_mismatch::<$ty>("i32");
+                check_number_type_mismatch::<$ty>("i64");
+                #[cfg(feature = "integer128")]
+                check_number_type_mismatch::<$ty>("i128");
+                check_number_type_mismatch::<$ty>("u8");
+                check_number_type_mismatch::<$ty>("u16");
+                check_number_type_mismatch::<$ty>("u32");
+                check_number_type_mismatch::<$ty>("u64");
+                #[cfg(feature = "integer128")]
+                check_number_type_mismatch::<$ty>("u128");
+            )*
+        };
+    }
+
+    test_mismatch! { i8, i16, i32, i64, u8, u16, u32, u64 }
+    #[cfg(feature = "integer128")]
+    test_mismatch! { i128, u128 }
+}
+
+fn check_number_type_mismatch<T: std::fmt::Debug + serde::de::DeserializeOwned>(suffix: &str) {
+    if suffix.starts_with(std::any::type_name::<T>()) {
+        assert!(ron::from_str::<T>(&format!("0{suffix}")).is_ok());
+        return;
+    }
+
+    let err = ron::from_str::<T>(&format!("0{suffix}")).unwrap_err();
+
+    println!("{:?} {}", err, suffix);
+
+    assert_eq!(
+        err.position,
+        ron::error::Position {
+            line: 1,
+            col: 2 + suffix.len()
+        }
+    );
+
+    if !matches!(err.code, ron::Error::InvalidValueForType { .. }) {
+        panic!("{:?}", err.code);
+    }
 }
