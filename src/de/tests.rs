@@ -429,3 +429,9 @@ fn test_value_special_floats() {
         Ok(Value::Number(Number::F32(f32::NEG_INFINITY.into())))
     );
 }
+
+#[test]
+fn test_leading_whitespace() {
+    assert_eq!(from_str("  +1"), Ok(1_u8));
+    assert_eq!(from_str("  EmptyStruct1"), Ok(EmptyStruct1));
+}

@@ -95,6 +95,7 @@ pub struct Bytes<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
     bytes: &'a [u8],
+    pre_ws_bytes: &'a [u8],
     cursor: Position,
 }
 
@@ -112,6 +113,7 @@ impl<'a> Bytes<'a> {
         let mut b = Bytes {
             exts: Extensions::empty(),
             bytes,
+            pre_ws_bytes: bytes,
             cursor: Position { line: 1, col: 1 },
         };
 
@@ -900,6 +902,8 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
+        self.pre_ws_bytes = self.bytes;
+
         loop {
             while self.peek().map_or(false, is_whitespace_char) {
                 let _ = self.advance_single();
@@ -909,6 +913,10 @@ impl<'a> Bytes<'a> {
                 return Ok(());
             }
         }
+    }
+
+    pub fn pre_ws_bytes(&self) -> &'a [u8] {
+        self.pre_ws_bytes
     }
 
     pub fn peek(&self) -> Option<u8> {
