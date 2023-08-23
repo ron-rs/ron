@@ -30,6 +30,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             // Everything else is actually a bug we want to find
             Err(err) => panic!("{:?} -! {:?}", typed_value, err),
         };
+
         if let Err(err) = ron::Options::default().from_str::<ron::Value>(&ron) {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
@@ -38,6 +39,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 _ => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
             }
         };
+
         if let Err(err) = ron::Options::default().from_str_seed(&ron, &typed_value) {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
@@ -46,7 +48,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 _ => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
             }
         };
-        // TODO: also do typed deserialise
+
         Some(typed_value)
     } else {
         None
@@ -1422,19 +1424,23 @@ impl<'a> SerdeDataType<'a> {
                 Ok(SerdeDataValue::Seq { elems: tuple })
             }
             SerdeDataType::Vec { item } => {
-                let len = u.arbitrary_len::<SerdeDataValue>()?.min(4);
-                let mut vec = Vec::with_capacity(len);
-                for _ in 0..len {
+                let mut vec = Vec::new();
+                vec.push(item.arbitrary_value(u)?);
+
+                while u.arbitrary()? {
                     vec.push(item.arbitrary_value(u)?);
                 }
+
                 Ok(SerdeDataValue::Seq { elems: vec })
             }
             SerdeDataType::Map { key, value } => {
-                let len = u.arbitrary_len::<SerdeDataValue>()?.min(4);
-                let mut map = Vec::with_capacity(len);
-                for _ in 0..len {
+                let mut map = Vec::new();
+                map.push((key.arbitrary_value(u)?, value.arbitrary_value(u)?));
+
+                while u.arbitrary()? {
                     map.push((key.arbitrary_value(u)?, value.arbitrary_value(u)?));
                 }
+
                 Ok(SerdeDataValue::Map { elems: map })
             }
             SerdeDataType::UnitStruct { name: _ } => Ok(SerdeDataValue::UnitStruct),
@@ -1567,11 +1573,13 @@ fn arbitrary_str_tuple_vec_recursion_guard<'a, T: Arbitrary<'a>>(
         .map_or(256, |limit| limit * 2);
 
     let result = if RECURSION_DEPTH.fetch_add(1, Ordering::Relaxed) < max_depth {
-        let len = u.arbitrary_len::<(&str, T)>()?;
-        let mut s = Vec::with_capacity(len);
-        let mut v = Vec::with_capacity(len);
+        let mut s = Vec::new();
+        let mut v = Vec::new();
 
-        for _ in 0..len {
+        s.push(<&str>::arbitrary(u)?);
+        v.push(T::arbitrary(u)?);
+
+        while u.arbitrary()? {
             s.push(<&str>::arbitrary(u)?);
             v.push(T::arbitrary(u)?);
         }
