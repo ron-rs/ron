@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a benchmark for PRs that runs over the latest fuzzer corpus ([#465](https://github.com/ron-rs/ron/pull/465))
 - Fix issue [#445](https://github.com/ron-rs/ron/issues/445) and allow parsing `+unsigned` as an unsigned int ([#479](https://github.com/ron-rs/ron/pull/479))
 - Breaking: Expand the `value::Number` enum to explicitly encode all possible number types ([#479](https://github.com/ron-rs/ron/pull/479))
+- Allow parsing floating point literals with underscores ([#481](https://github.com/ron-rs/ron/pull/481))
+- Fix issue [#241](https://github.com/ron-rs/ron/issues/241) and allow parsing numbers with explicit type suffixes, e.g. `1u8` or `-1f32` ([#481](https://github.com/ron-rs/ron/pull/481))
+- Add `number_suffixes` option to `PrettyConfig` to allow serialising numbers with their explicit type suffix, e.g. `42i32` ([#481](https://github.com/ron-rs/ron/pull/481))
 
 ## [0.8.1] - 2023-08-17
 

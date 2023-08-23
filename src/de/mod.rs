@@ -293,10 +293,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_none();
         } else if self.bytes.consume("()") {
             return visitor.visit_unit();
-        } else if self.bytes.consume_ident("inf") {
+        } else if self.bytes.consume_ident("inf") || self.bytes.consume_ident("inff32") {
             return visitor.visit_f32(std::f32::INFINITY);
-        } else if self.bytes.consume_ident("NaN") {
+        } else if self.bytes.consume_ident("inff64") {
+            return visitor.visit_f64(std::f64::INFINITY);
+        } else if self.bytes.consume_ident("NaN") || self.bytes.consume_ident("NaNf32") {
             return visitor.visit_f32(std::f32::NAN);
+        } else if self.bytes.consume_ident("NaNf64") {
+            return visitor.visit_f64(std::f64::NAN);
         }
 
         // `identifier` does not change state if it fails
@@ -330,28 +334,28 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i8(self.bytes.signed_integer()?)
+        visitor.visit_i8(self.bytes.integer()?)
     }
 
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i16(self.bytes.signed_integer()?)
+        visitor.visit_i16(self.bytes.integer()?)
     }
 
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i32(self.bytes.signed_integer()?)
+        visitor.visit_i32(self.bytes.integer()?)
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i64(self.bytes.signed_integer()?)
+        visitor.visit_i64(self.bytes.integer()?)
     }
 
     #[cfg(feature = "integer128")]
@@ -359,35 +363,35 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i128(self.bytes.signed_integer()?)
+        visitor.visit_i128(self.bytes.integer()?)
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u8(self.bytes.unsigned_integer()?)
+        visitor.visit_u8(self.bytes.integer()?)
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u16(self.bytes.unsigned_integer()?)
+        visitor.visit_u16(self.bytes.integer()?)
     }
 
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u32(self.bytes.unsigned_integer()?)
+        visitor.visit_u32(self.bytes.integer()?)
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u64(self.bytes.unsigned_integer()?)
+        visitor.visit_u64(self.bytes.integer()?)
     }
 
     #[cfg(feature = "integer128")]
@@ -395,7 +399,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u128(self.bytes.unsigned_integer()?)
+        visitor.visit_u128(self.bytes.integer()?)
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>

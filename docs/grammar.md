@@ -47,16 +47,26 @@ value = integer | float | string | char | bool | option | list | map | tuple | s
 
 ```ebnf
 digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
-hex_digit = "A" | "a" | "B" | "b" | "C" | "c" | "D" | "d" | "E" | "e" | "F" | "f";
-unsigned = (["0", ("b" | "o")], digit, { digit | '_' } |
-             "0x", (digit | hex_digit), { digit | hex_digit | '_' });
-integer = ["+" | "-"], unsigned;
-float = ["+" | "-"], ("inf" | "NaN" | float_num);
+digit_binary = "0" | "1";
+digit_octal = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7";
+digit_hexadecimal = digit | "A" | "a" | "B" | "b" | "C" | "c" | "D" | "d" | "E" | "e" | "F" | "f";
+
+integer = ["+" | "-"], unsigned, [integer_suffix];
+integer_suffix = ("i", "u"), ("8", "16", "32", "64", "128");
+
+unsigned = unsigned_binary | unsigned_octal | unsigned_hexadecimal | unsigned_decimal;
+unsigned_binary = "0b", digit_binary, { digit_binary | "_" };
+unsigned_octal = "0o", digit_octal, { digit_octal | "_" };
+unsigned_hexadecimal = "0x", digit_hexadecimal, { digit_hexadecimal | "_" };
+unsigned_decimal = digit, { digit | "_" };
+
+float = ["+" | "-"], ("inf" | "NaN" | float_num), [float_suffix];
 float_num = (float_int | float_std | float_frac), [float_exp];
-float_int = digit, { digit };
-float_std = digit, { digit }, ".", {digit};
-float_frac = ".", digit, {digit};
-float_exp = ("e" | "E"), ["+" | "-"], digit, {digit};
+float_int = digit, { digit | "_" };
+float_std = digit, { digit | "_" }, ".", [digit, { digit | "_" }];
+float_frac = ".", digit, { digit | "_" };
+float_exp = ("e" | "E"), ["+" | "-"], { digit | "_" }, digit, { digit | "_" };
+float_suffix = "f", ("32", "64");
 ```
 
 ## String

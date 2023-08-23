@@ -155,10 +155,21 @@ fn test_any_number_precision() {
     check_ser_any_number(1_f32);
     check_ser_any_number(-1_f32);
     check_ser_any_number(0.3_f64);
-    check_ser_any_number(f32::NAN);
-    check_ser_any_number(-f32::NAN);
-    check_ser_any_number(f32::INFINITY);
-    check_ser_any_number(f32::NEG_INFINITY);
+
+    assert_eq!(super::to_string(&Number::new(f32::NAN)).unwrap(), "NaN");
+    assert_eq!(super::to_string(&f32::NAN).unwrap(), "NaN");
+    assert_eq!(super::to_string(&Number::new(-f32::NAN)).unwrap(), "-NaN");
+    assert_eq!(super::to_string(&(-f32::NAN)).unwrap(), "-NaN");
+    assert_eq!(
+        super::to_string(&Number::new(f32::INFINITY)).unwrap(),
+        "inf"
+    );
+    assert_eq!(super::to_string(&f32::INFINITY).unwrap(), "inf");
+    assert_eq!(
+        super::to_string(&Number::new(f32::NEG_INFINITY)).unwrap(),
+        "-inf"
+    );
+    assert_eq!(super::to_string(&f32::NEG_INFINITY).unwrap(), "-inf");
 
     macro_rules! test_min_max {
         ($ty:ty) => {
@@ -177,11 +188,7 @@ fn test_any_number_precision() {
 
 fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display + serde::Serialize>(n: T) {
     let mut fmt = format!("{}", n);
-    if !fmt.contains('.')
-        && std::any::type_name::<T>().contains('f')
-        && !fmt.contains("NaN")
-        && !fmt.contains("inf")
-    {
+    if !fmt.contains('.') && std::any::type_name::<T>().contains('f') {
         fmt.push_str(".0");
     }
 

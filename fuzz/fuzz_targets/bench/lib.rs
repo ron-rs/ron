@@ -84,6 +84,8 @@ struct ArbitraryPrettyConfig {
     /// Enable compact maps, which do not insert new lines and indentation
     ///  between the entries of a struct
     compact_maps: bool,
+    /// Enable explicit number type suffixes like `1u16`
+    number_suffixes: bool,
 }
 
 fn arbitrary_ron_extensions(u: &mut Unstructured) -> arbitrary::Result<Extensions> {
@@ -102,6 +104,7 @@ impl From<ArbitraryPrettyConfig> for PrettyConfig {
             .escape_strings(arbitrary.escape_strings)
             .compact_structs(arbitrary.compact_structs)
             .compact_maps(arbitrary.compact_maps)
+            .number_suffixes(arbitrary.number_suffixes)
     }
 }
 
