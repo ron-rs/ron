@@ -11,6 +11,7 @@ use crate::{
     options::Options,
 };
 
+// NOTE: Keep synchronised with fuzz/arbitrary::typed_data::RAW_VALUE_TOKEN
 pub(crate) const RAW_VALUE_TOKEN: &str = "$ron::private::RawValue";
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
