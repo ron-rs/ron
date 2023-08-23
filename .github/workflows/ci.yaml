@@ -89,12 +89,19 @@ jobs:
           mkdir -p "${HOME}/.local/bin"
           curl -sL https://github.com/mozilla/grcov/releases/download/v0.8.18/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf - -C "${HOME}/.local/bin"
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-      - name: Generate coverage report
+      - name: Generate the coverage data
         run: |
           cargo test --all-targets
           cargo test --features integer128 --all-targets
           cargo test --features indexmap --all-targets
           cargo test --all-features --all-targets
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: -Cinstrument-coverage
+          RUSTDOCFLAGS: -Cinstrument-coverage
+          LLVM_PROFILE_FILE: codecov-%p-%m.profraw
+      - name: Generate the coverage reports
+        run: |
           grcov . -s . --binary-path ./target/debug/deps \
             -t lcov -o codecov.lcov --branch \
             --keep-only "src/*" \
@@ -103,13 +110,30 @@ jobs:
             --excl-line GRCOV_EXCL_LINE \
             --excl-start GRCOV_EXCL_START \
             --excl-stop GRCOV_EXCL_STOP
-        env:
-          CARGO_INCREMENTAL: 0
-          RUSTFLAGS: -Cinstrument-coverage
-          RUSTDOCFLAGS: -Cinstrument-coverage
-          LLVM_PROFILE_FILE: codecov-%p-%m.profraw
-      - name: Upload coverage report
-        uses: coverallsapp/github-action@v2
+          grcov . -s . --binary-path ./target/debug/deps \
+            -t html --branch \
+            --keep-only "src/*" \
+            --keep-only "tests/*" \
+            --ignore-not-existing \
+            --excl-line GRCOV_EXCL_LINE \
+            --excl-start GRCOV_EXCL_START \
+            --excl-stop GRCOV_EXCL_STOP
+          rm -rf html/badges
+      - name: Summarise code coverage
+        uses: romeovs/lcov-reporter-action@v0.2.16
         with:
-          file: codecov.lcov
-          fail-on-error: true
+          lcov-file: codecov.lcov
+        if: github.event_name == 'pull_request'
+      - name: Upload the code coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage
+          path: html/
+        if: github.event_name == 'pull_request'
+      - name: Deploy the code coverage report
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./html
+          destination_dir: coverage
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
