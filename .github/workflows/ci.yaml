@@ -86,11 +86,11 @@ jobs:
           override: true
       - name: Download grcov
         run: |
-          mkdir -p "${HOME}/.local/bin"
-          curl -sL https://github.com/mozilla/grcov/releases/download/v0.8.18/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf - -C "${HOME}/.local/bin"
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          curl -sL https://github.com/mozilla/grcov/releases/download/v0.8.18/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
+          chmod +x ./grcov
       - name: Generate the coverage data
         run: |
+          cargo clean
           cargo test --all-targets
           cargo test --features integer128 --all-targets
           cargo test --features indexmap --all-targets
@@ -99,18 +99,18 @@ jobs:
           CARGO_INCREMENTAL: 0
           RUSTFLAGS: -Cinstrument-coverage
           RUSTDOCFLAGS: -Cinstrument-coverage
-          LLVM_PROFILE_FILE: codecov-%p-%m.profraw
+          LLVM_PROFILE_FILE: coverage/coverage-%p-%m.profraw
       - name: Generate the coverage reports
         run: |
-          grcov . -s . --binary-path ./target/debug/deps \
-            -t lcov -o codecov.lcov --branch \
+          ./grcov . -s . --binary-path ./target/debug/deps \
+            -t lcov -o coverage.lcov --branch \
             --keep-only "src/*" \
             --keep-only "tests/*" \
             --ignore-not-existing \
             --excl-line GRCOV_EXCL_LINE \
             --excl-start GRCOV_EXCL_START \
             --excl-stop GRCOV_EXCL_STOP
-          grcov . -s . --binary-path ./target/debug/deps \
+          ./grcov . -s . --binary-path ./target/debug/deps \
             -t html --branch \
             --keep-only "src/*" \
             --keep-only "tests/*" \
@@ -119,18 +119,11 @@ jobs:
             --excl-start GRCOV_EXCL_START \
             --excl-stop GRCOV_EXCL_STOP
           rm -rf html/badges
-      - name: Summarise the code coverage
-        uses: 06393993/lcov-reporter-action@master
+      - name: Upload the coverage report to codecov.io
+        uses: codecov/codecov-action@v1
         with:
-          title: Code Coverage
-          lcov-file: codecov.lcov
-          post-to: job-summary
-      - name: Upload the code coverage report
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage
-          path: html/
-        if: github.event_name == 'pull_request'
+          files: coverage.lcov
+          fail_ci_if_error: true
       - name: Deploy the code coverage report
         uses: peaceiris/actions-gh-pages@v3
         with:
