@@ -451,6 +451,14 @@ fn check_number_type_mismatch<T: std::fmt::Debug + serde::de::DeserializeOwned>(
 fn fuzzer_found_issues() {
     #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
     enum A {
+        #[serde(rename = "true")]
+        True(bool),
+        #[serde(rename = "false")]
+        False(bool),
+        #[serde(rename = "Some")]
+        Some(bool),
+        #[serde(rename = "None")]
+        None(bool),
         #[serde(rename = "inf")]
         Inf(bool),
         #[serde(rename = "inff32")]
@@ -464,6 +472,43 @@ fn fuzzer_found_issues() {
         #[serde(rename = "NaNf64")]
         NaNF64(bool),
     }
+
+    assert_eq!(ron::to_string(&A::True(false)).unwrap(), "r#true(false)");
+    assert_eq!(ron::from_str::<A>("r#true(false)").unwrap(), A::True(false));
+    assert_eq!(
+        ron::from_str::<ron::Value>("true(false)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 5 },
+        }
+    );
+
+    assert_eq!(ron::to_string(&A::False(true)).unwrap(), "r#false(true)");
+    assert_eq!(ron::from_str::<A>("r#false(true)").unwrap(), A::False(true));
+    assert_eq!(
+        ron::from_str::<ron::Value>("false(true)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 6 },
+        }
+    );
+
+    assert_eq!(ron::to_string(&A::Some(false)).unwrap(), "r#Some(false)");
+    assert_eq!(ron::from_str::<A>("r#Some(false)").unwrap(), A::Some(false));
+    assert_eq!(
+        ron::from_str::<ron::Value>("Some(false)").unwrap(),
+        ron::Value::Option(Some(Box::new(ron::Value::Bool(false)))),
+    );
+
+    assert_eq!(ron::to_string(&A::None(true)).unwrap(), "r#None(true)");
+    assert_eq!(ron::from_str::<A>("r#None(true)").unwrap(), A::None(true));
+    assert_eq!(
+        ron::from_str::<ron::Value>("None(true)").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::TrailingCharacters,
+            position: ron::error::Position { line: 1, col: 5 },
+        }
+    );
 
     assert_eq!(ron::to_string(&A::Inf(false)).unwrap(), "r#inf(false)");
     assert_eq!(ron::from_str::<A>("r#inf(false)").unwrap(), A::Inf(false));
