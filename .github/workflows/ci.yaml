@@ -119,16 +119,17 @@ jobs:
             --excl-start GRCOV_EXCL_START \
             --excl-stop GRCOV_EXCL_STOP
           rm -rf html/badges
-      - name: Summarise code coverage
-        uses: romeovs/lcov-reporter-action@v0.2.16
-        with:
-          lcov-file: codecov.lcov
-        if: github.event_name == 'pull_request'
       - name: Upload the code coverage report
         uses: actions/upload-artifact@v3
         with:
           name: coverage
           path: html/
+        if: github.event_name == 'pull_request'
+      - name: Summarise the code coverage
+        uses: romeovs/lcov-reporter-action@v0.2.16
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          lcov-file: codecov.lcov
         if: github.event_name == 'pull_request'
       - name: Deploy the code coverage report
         uses: peaceiris/actions-gh-pages@v3
