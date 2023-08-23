@@ -1,7 +1,7 @@
 # Rusty Object Notation
 
 [![CI](https://github.com/ron-rs/ron/actions/workflows/ci.yaml/badge.svg)](https://github.com/ron-rs/ron/actions/workflows/ci.yaml)
-[![codecov](https://img.shields.io/codecov/c/github/ron-rs/ron/codecov?token=x4Q5KA51Ul)](https://codecov.io/gh/ron-rs/ron)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fron-rs.github.io%2Fron%2Fcoverage%2Fcoverage.json)](https://ron-rs.github.io/ron/coverage/)
 [![Crates.io](https://img.shields.io/crates/v/ron.svg)](https://crates.io/crates/ron)
 [![MSRV](https://img.shields.io/badge/MSRV-1.64.0-orange)](https://github.com/ron-rs/ron)
 [![Docs](https://docs.rs/ron/badge.svg)](https://docs.rs/ron)
