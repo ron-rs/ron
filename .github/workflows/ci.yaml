@@ -11,10 +11,6 @@ on:
   schedule:
     - cron: '0 0 * * 0'
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   tests:
     name: Tests
@@ -115,14 +111,6 @@ jobs:
             --excl-start GRCOV_EXCL_START \
             --excl-stop GRCOV_EXCL_STOP
           grcov . -s . --binary-path ./target/debug/deps \
-            -t covdir -o covdir.json --branch \
-            --keep-only "src/*" \
-            --keep-only "tests/*" \
-            --ignore-not-existing \
-            --excl-line GRCOV_EXCL_LINE \
-            --excl-start GRCOV_EXCL_START \
-            --excl-stop GRCOV_EXCL_STOP
-          grcov . -s . --binary-path ./target/debug/deps \
             -t html --branch \
             --keep-only "src/*" \
             --keep-only "tests/*" \
@@ -131,31 +119,17 @@ jobs:
             --excl-start GRCOV_EXCL_START \
             --excl-stop GRCOV_EXCL_STOP
           rm -rf html/badges
+      - name: Summarise the code coverage
+        uses: 06393993/lcov-reporter-action@master
+        with:
+          title: Code Coverage
+          lcov-file: codecov.lcov
+          post-to: job-summary
       - name: Upload the code coverage report
         uses: actions/upload-artifact@v3
         with:
           name: coverage
           path: html/
-        if: github.event_name == 'pull_request'
-      - name: Generate the coverage report summary
-        uses: ecliptical/covdir-report-action@v0.1
-        with:
-          file: covdir.json
-          summary: 'true'
-          out: coverage.md
-        if: github.event_name == 'pull_request'
-      - name: Report coverage summary to the PR
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          hide_and_recreate: true
-          hide_classify: "OUTDATED"
-          path: coverage.md
-        if: github.event_name == 'pull_request'
-      - name: Summarise the code coverage
-        uses: romeovs/lcov-reporter-action@v0.2.16
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          lcov-file: codecov.lcov
         if: github.event_name == 'pull_request'
       - name: Deploy the code coverage report
         uses: peaceiris/actions-gh-pages@v3
