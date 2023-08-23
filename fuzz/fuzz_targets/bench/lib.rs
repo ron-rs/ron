@@ -53,6 +53,9 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
     }
 }
 
+// NOTE: Keep synchronised with ron::value::raw::RAW_VALUE_TOKEN
+const RAW_VALUE_TOKEN: &str = "$ron::private::RawValue";
+
 #[derive(Debug, PartialEq, Arbitrary)]
 struct ArbitraryPrettyConfig {
     /// Limit the pretty-ness up to the given depth.
@@ -703,6 +706,24 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             value: self.value,
                         }
                         .deserialize(deserializer)
+                    }
+
+                    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                        // ron::value::RawValue expects a visit_str call
+                        //  even though it's disguised as a newtype
+                        if self.name == RAW_VALUE_TOKEN {
+                            if let SerdeDataValue::String(ron) = &self.value {
+                                if v == *ron {
+                                    return Ok(());
+                                }
+                            }
+                        }
+
+                        // Fall back to the default implementation of visit_str
+                        Err(serde::de::Error::invalid_type(
+                            serde::de::Unexpected::Str(v),
+                            &self,
+                        ))
                     }
                 }
 
@@ -1421,7 +1442,7 @@ impl<'a> SerdeDataType<'a> {
                 let inner = inner.arbitrary_value(u)?;
 
                 // ron::value::RawValue cannot safely be constructed from syntactically invalid ron
-                if *name == "$ron::private::RawValue" {
+                if *name == RAW_VALUE_TOKEN {
                     if let SerdeDataValue::String(ron) = &inner {
                         if ron::value::RawValue::from_ron(ron).is_err() {
                             return Err(arbitrary::Error::IncorrectFormat);

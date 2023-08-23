@@ -228,4 +228,6 @@ fn test_fuzzer_found_issue() {
             position: Position { line: 1, col: 1 },
         })
     );
+
+    assert_eq!(ron::from_str("C"), RawValue::from_ron("C"));
 }
