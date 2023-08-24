@@ -95,6 +95,8 @@ pub struct Bytes<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
     bytes: &'a [u8],
+    pre_ws_bytes: &'a [u8],
+    last_ws_len: usize,
     cursor: Position,
 }
 
@@ -112,6 +114,8 @@ impl<'a> Bytes<'a> {
         let mut b = Bytes {
             exts: Extensions::empty(),
             bytes,
+            pre_ws_bytes: bytes,
+            last_ws_len: 0,
             cursor: Position { line: 1, col: 1 },
         };
 
@@ -900,15 +904,29 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
+        if (self.bytes.len() + self.last_ws_len) < self.pre_ws_bytes.len() {
+            // [[last whitespace] ... [bytese]] means the last whitespace
+            //  is disjoint from this one and we need to reset the pre ws
+            self.pre_ws_bytes = self.bytes;
+        }
+
         loop {
             while self.peek().map_or(false, is_whitespace_char) {
                 let _ = self.advance_single();
             }
 
             if !self.skip_comment()? {
-                return Ok(());
+                break;
             }
         }
+
+        self.last_ws_len = self.pre_ws_bytes.len() - self.bytes.len();
+
+        Ok(())
+    }
+
+    pub fn pre_ws_bytes(&self) -> &'a [u8] {
+        self.pre_ws_bytes
     }
 
     pub fn peek(&self) -> Option<u8> {
@@ -1385,5 +1403,30 @@ mod tests {
     fn decode_x10() {
         let mut bytes = Bytes::new(b"10").unwrap();
         assert_eq!(bytes.decode_ascii_escape(), Ok(0x10));
+    }
+
+    #[test]
+    fn track_prior_ws() {
+        const BYTES: &[u8] = b"   /*hey*/ 42       /*bye*/ 24  ";
+        let mut bytes = Bytes::new(BYTES).unwrap();
+
+        assert_eq!(bytes.bytes(), b"42       /*bye*/ 24  ");
+        assert_eq!(bytes.pre_ws_bytes(), BYTES);
+
+        bytes.skip_ws().unwrap();
+
+        assert_eq!(bytes.bytes(), b"42       /*bye*/ 24  ");
+        assert_eq!(bytes.pre_ws_bytes(), BYTES);
+
+        assert_eq!(bytes.integer::<u8>().unwrap(), 42);
+
+        assert_eq!(bytes.bytes(), b"       /*bye*/ 24  ");
+        assert_eq!(bytes.pre_ws_bytes(), BYTES);
+
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+
+        assert_eq!(bytes.bytes(), b"24  ");
+        assert_eq!(bytes.pre_ws_bytes(), b"       /*bye*/ 24  ");
     }
 }

@@ -728,7 +728,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         //  even though it's disguised as a newtype
                         if self.name == RAW_VALUE_TOKEN {
                             if let SerdeDataValue::String(ron) = &self.value {
-                                if v == *ron {
+                                // pretty serialising can add whitespace and comments
+                                //  before and after the raw value
+                                if v.contains(ron) {
                                     return Ok(());
                                 }
                             }

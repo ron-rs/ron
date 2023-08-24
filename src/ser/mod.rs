@@ -567,7 +567,11 @@ impl<W: io::Write> Serializer<W> {
         let mut bytes = name.as_bytes().iter().copied();
         if !bytes.next().map_or(false, is_ident_first_char)
             || !bytes.all(is_ident_other_char)
-            || ["inf", "inff32", "inff64", "NaN", "NaNf32", "NaNf64"].contains(&name)
+            || [
+                "true", "false", "Some", "None", "inf", "inff32", "inff64", "NaN", "NaNf32",
+                "NaNf64",
+            ]
+            .contains(&name)
         {
             self.output.write_all(b"r#")?;
         }

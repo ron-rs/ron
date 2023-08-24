@@ -74,6 +74,10 @@ impl<'de> Deserializer<'de> {
     pub fn span_error(&self, code: Error) -> SpannedError {
         self.bytes.span_error(code)
     }
+
+    pub fn extensions(&self) -> Extensions {
+        self.bytes.exts
+    }
 }
 
 /// A convenience function for building a deserializer
@@ -538,7 +542,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if name == crate::value::raw::RAW_VALUE_TOKEN {
-            let bytes_before = self.bytes.bytes();
+            let bytes_before = self.bytes.pre_ws_bytes();
             self.bytes.skip_ws()?;
             let _ignored = self.deserialize_ignored_any(serde::de::IgnoredAny)?;
             self.bytes.skip_ws()?;

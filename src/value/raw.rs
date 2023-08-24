@@ -74,15 +74,26 @@ impl RawValue {
     /// Helper function to validate a RON string and turn it into a
     /// [`RawValue`].
     pub fn from_ron(ron: &str) -> SpannedResult<&Self> {
-        Options::default()
-            .from_str::<&Self>(ron)
-            .map(|_| Self::from_borrowed_str(ron))
+        let mut deserializer = crate::Deserializer::from_str_with_options(ron, Options::default())?;
+
+        // raw values can be used everywhere but extensions cannot
+        if !deserializer.extensions().is_empty() {
+            return Err(deserializer.span_error(Error::Message(String::from(
+                "ron::value::RawValue cannot enable extensions",
+            ))));
+        }
+
+        let _ = <&Self>::deserialize(&mut deserializer).map_err(|e| deserializer.span_error(e))?;
+
+        deserializer.end().map_err(|e| deserializer.span_error(e))?;
+
+        Ok(Self::from_borrowed_str(ron))
     }
 
     /// Helper function to validate a RON string and turn it into a
     /// [`RawValue`].
     pub fn from_boxed_ron(ron: Box<str>) -> SpannedResult<Box<Self>> {
-        match Options::default().from_str::<&Self>(&ron) {
+        match Self::from_ron(&ron) {
             Ok(_) => Ok(Self::from_boxed_str(ron)),
             Err(err) => Err(err),
         }

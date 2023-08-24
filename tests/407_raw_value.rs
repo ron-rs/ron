@@ -23,21 +23,21 @@ fn test_raw_value_simple() {
 #[test]
 fn test_raw_value_inner() {
     let raw: WithRawValue = from_str("(a: false, b: [1, /* lol */ 2, 3])").unwrap();
-    assert_eq!(raw.b.get_ron(), "[1, /* lol */ 2, 3]");
+    assert_eq!(raw.b.get_ron(), " [1, /* lol */ 2, 3]");
     let ser = to_string(&raw).unwrap();
-    assert_eq!(ser, "(a:false,b:[1, /* lol */ 2, 3])");
+    assert_eq!(ser, "(a:false,b: [1, /* lol */ 2, 3])");
 }
 
 #[test]
 fn test_raw_value_comment() {
-    let raw: WithRawValue = from_str("(a: false, b: /* nope */ 4)").unwrap();
-    assert_eq!(raw.b.get_ron(), "4");
+    let raw: WithRawValue = from_str("(a: false, b: /* yeah */ 4)").unwrap();
+    assert_eq!(raw.b.get_ron(), " /* yeah */ 4");
 
     let raw: WithRawValue = from_str("(a: false, b: 4 /* yes */)").unwrap();
-    assert_eq!(raw.b.get_ron(), "4 /* yes */");
+    assert_eq!(raw.b.get_ron(), " 4 /* yes */");
 
     let raw: WithRawValue = from_str("(a: false, b: (/* this */ 4 /* too */))").unwrap();
-    assert_eq!(raw.b.get_ron(), "(/* this */ 4 /* too */)");
+    assert_eq!(raw.b.get_ron(), " (/* this */ 4 /* too */)");
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn test_raw_value_into_rust() {
         with,
         WithRawValue {
             a: false,
-            b: from_str("None").unwrap(),
+            b: from_str(" None").unwrap(),
         }
     );
 
@@ -230,4 +230,26 @@ fn test_fuzzer_found_issue() {
     );
 
     assert_eq!(ron::from_str("C"), RawValue::from_ron("C"));
+
+    assert_eq!(ron::from_str(" t "), RawValue::from_ron(" t "));
+
+    assert_eq!(
+        RawValue::from_ron("#![enable(implicit_some)] 42"),
+        Err(SpannedError {
+            code: Error::Message(String::from(
+                "ron::value::RawValue cannot enable extensions"
+            )),
+            position: Position { line: 1, col: 27 },
+        })
+    );
+
+    assert_eq!(
+        RawValue::from_boxed_ron(String::from("#![enable(implicit_some)] 42").into_boxed_str()),
+        Err(SpannedError {
+            code: Error::Message(String::from(
+                "ron::value::RawValue cannot enable extensions"
+            )),
+            position: Position { line: 1, col: 27 },
+        })
+    );
 }
