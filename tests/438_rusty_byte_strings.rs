@@ -218,6 +218,16 @@ fn fuzzer_failures() {
             .collect()
         )))))
     );
+
+    // Test that the struct type check for newtype variant unwrapping does
+    //  not enter inside a byte string to find a bad comment start
+    assert_eq!(
+        ron::from_str::<Option<ron::Value>>(
+            r#"#![enable(unwrap_variant_newtypes)] Some(b"\xff/not a comment")"#
+        )
+        .unwrap(),
+        Some(ron::Value::Bytes(b"\xff/not a comment".to_vec()))
+    );
 }
 
 #[test]

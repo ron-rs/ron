@@ -557,6 +557,10 @@ impl<'a> Bytes<'a> {
                 if bytes_copy.string().is_ok() {
                     *bytes = bytes_copy;
                 }
+                let mut bytes_copy = *bytes;
+                if bytes_copy.byte_string().is_ok() {
+                    *bytes = bytes_copy;
+                }
 
                 let c = bytes.eat_byte()?;
                 if c == b'(' || c == b'[' || c == b'{' {
