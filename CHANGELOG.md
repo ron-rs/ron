@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow parsing floating point literals with underscores ([#481](https://github.com/ron-rs/ron/pull/481))
 - Fix issue [#241](https://github.com/ron-rs/ron/issues/241) and allow parsing numbers with explicit type suffixes, e.g. `1u8` or `-1f32` ([#481](https://github.com/ron-rs/ron/pull/481))
 - Add `number_suffixes` option to `PrettyConfig` to allow serialising numbers with their explicit type suffix, e.g. `42i32` ([#481](https://github.com/ron-rs/ron/pull/481))
+- Allow `ron::value::RawValue` to capture any whitespace to the left and right of a ron value ([#487](https://github.com/ron-rs/ron/pull/487))
 
 ## [0.8.1] - 2023-08-17
 
