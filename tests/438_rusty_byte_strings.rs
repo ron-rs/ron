@@ -258,3 +258,56 @@ fn check_roundtrip<
     let de_raw = ron::from_str::<T>(&ron_raw).unwrap();
     assert_eq!(de_raw, val);
 }
+
+#[test]
+fn test_weird_escapes() {
+    assert_eq!(
+        ron::from_str::<String>(r#""\u{1F980}""#),
+        Ok(String::from("\u{1F980}"))
+    );
+    assert_eq!(
+        ron::from_str::<bytes::Bytes>(r#"b"\xf0\x9f\xa6\x80""#),
+        Ok(bytes::Bytes::copy_from_slice("\u{1F980}".as_bytes()))
+    );
+    assert_eq!(
+        ron::from_str::<String>(r#""\xf0\x9f\xa6\x80""#),
+        Ok(String::from("\u{1F980}"))
+    );
+    assert_eq!(
+        ron::from_str::<String>(r#""\xf0""#),
+        Err(SpannedError {
+            code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
+            position: Position { line: 1, col: 6 }
+        })
+    );
+    assert_eq!(
+        ron::from_str::<String>(r#""\xf0\x9f""#),
+        Err(SpannedError {
+            code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
+            position: Position { line: 1, col: 10 }
+        })
+    );
+    assert_eq!(
+        ron::from_str::<String>(r#""\xf0\x9f\x40""#),
+        Err(SpannedError {
+            code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
+            position: Position { line: 1, col: 14 }
+        })
+    );
+    assert_eq!(
+        ron::from_str::<String>(r#""\xf0\x9f\xa6""#),
+        Err(SpannedError {
+            code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
+            position: Position { line: 1, col: 14 }
+        })
+    );
+
+    assert_eq!(ron::from_str::<char>(r"'\u{1F980}'"), Ok('\u{1F980}'));
+    assert_eq!(
+        ron::from_str::<char>(r"'\xf0\x9f\xa6\x80'"),
+        Err(SpannedError {
+            code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
+            position: Position { line: 1, col: 6 }
+        })
+    );
+}

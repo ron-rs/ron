@@ -67,7 +67,7 @@ pub enum Error {
     UnclosedBlockComment,
     UnclosedLineComment,
     UnderscoreAtBeginning,
-    UnexpectedByte(char),
+    UnexpectedByte(u8),
 
     Utf8Error(Utf8Error),
     TrailingCharacters,
@@ -179,7 +179,11 @@ impl fmt::Display for Error {
             Error::UnderscoreAtBeginning => {
                 f.write_str("Unexpected leading underscore in a number")
             }
-            Error::UnexpectedByte(ref byte) => write!(f, "Unexpected byte {:?}", byte),
+            Error::UnexpectedByte(byte) => {
+                let escaped_byte = std::ascii::escape_default(byte)
+                    .map(char::from).collect::<String>();
+                write!(f, "Unexpected byte '{}'", escaped_byte)
+            },
             Error::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
             Error::InvalidValueForType {
                 ref expected,

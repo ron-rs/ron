@@ -229,7 +229,7 @@ mod tests {
     fn string() {
         assert_same::<String>(r#""hello world""#);
         assert_same::<String>(r#""this is a Rusty 🦀 string""#);
-        assert_same::<String>(r#""this is now valid UTF-8 \xf8\xa1\xa1\xa1\xa1""#);
+        assert_same::<String>(r#""this is now valid UTF-8 \xf0\x9f\xa6\x80""#);
     }
 
     #[test]

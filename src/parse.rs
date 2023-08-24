@@ -210,6 +210,7 @@ impl<'a> Bytes<'a> {
 
                 if digit >= base {
                     let _ = bytes.advance(i);
+                    // we know that the byte is an ASCII character here
                     return Err(Error::InvalidIntegerDigit {
                         digit: char::from(byte),
                         base,
@@ -433,8 +434,9 @@ impl<'a> Bytes<'a> {
         let c = if c == b'\\' {
             let _ = self.advance(1);
 
-            match self.parse_escape(EscapeEncoding::Utf8)? {
-                EscapeCharacter::Ascii(b) => b as char,
+            match self.parse_escape(EscapeEncoding::Utf8, true)? {
+                // we know that this byte is an ASCII character
+                EscapeCharacter::Ascii(b) => char::from(b),
                 EscapeCharacter::Utf8(c) => c,
             }
         } else {
@@ -767,6 +769,7 @@ impl<'a> Bytes<'a> {
                 _ => (),
             }
 
+            // we know that the byte is an ASCII character here
             f.push(char::from(*b));
         }
 
@@ -1100,7 +1103,7 @@ impl<'a> Bytes<'a> {
             loop {
                 let _ = self.advance(i + 1);
 
-                match self.parse_escape(encoding)? {
+                match self.parse_escape(encoding, false)? {
                     EscapeCharacter::Ascii(c) => s.push(c),
                     EscapeCharacter::Utf8(c) => match c.len_utf8() {
                         1 => s.push(c as u8),
@@ -1179,7 +1182,7 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    fn parse_escape(&mut self, encoding: EscapeEncoding) -> Result<EscapeCharacter> {
+    fn parse_escape(&mut self, encoding: EscapeEncoding, is_char: bool) -> Result<EscapeCharacter> {
         let c = match self.eat_byte()? {
             b'\'' => EscapeCharacter::Ascii(b'\''),
             b'"' => EscapeCharacter::Ascii(b'"'),
@@ -1189,11 +1192,46 @@ impl<'a> Bytes<'a> {
             b't' => EscapeCharacter::Ascii(b'\t'),
             b'0' => EscapeCharacter::Ascii(b'\0'),
             b'x' => {
-                let b = self.decode_ascii_escape()?;
-                match encoding {
-                    EscapeEncoding::Binary => EscapeCharacter::Ascii(b),
-                    EscapeEncoding::Utf8 => EscapeCharacter::Utf8(b as char),
+                // Fast exit for ascii escape in byte string
+                let b: u8 = self.decode_ascii_escape()?;
+                if let EscapeEncoding::Binary = encoding {
+                    return Ok(EscapeCharacter::Ascii(b));
                 }
+
+                // Fast exit for ascii character in UTF-8 string
+                let mut bytes = [b, 0, 0, 0];
+                if let Ok(Some(c)) = from_utf8(&bytes[..=0]).map(|s| s.chars().next()) {
+                    return Ok(EscapeCharacter::Utf8(c));
+                }
+
+                if is_char {
+                    // Character literals are not allowed to use multiple byte
+                    //  escapes to build a unicode character
+                    return Err(Error::InvalidEscape(
+                        "Not a valid byte-escaped Unicode character",
+                    ));
+                }
+
+                // UTF-8 character needs up to four bytes and we have already
+                //  consumed one, so at most three to go
+                for i in 1..4 {
+                    if !self.consume(r"\x") {
+                        return Err(Error::InvalidEscape(
+                            "Not a valid byte-escaped Unicode character",
+                        ));
+                    }
+
+                    bytes[i] = self.decode_ascii_escape()?;
+
+                    // Check if we now have a valid UTF-8 character
+                    if let Ok(Some(c)) = from_utf8(&bytes[..=i]).map(|s| s.chars().next()) {
+                        return Ok(EscapeCharacter::Utf8(c));
+                    }
+                }
+
+                return Err(Error::InvalidEscape(
+                    "Not a valid byte-escaped Unicode character",
+                ));
             }
             b'u' => {
                 self.expect_byte(b'{', Error::InvalidEscape("Missing { in Unicode escape"))?;
@@ -1227,7 +1265,9 @@ impl<'a> Bytes<'a> {
                     b'}',
                     Error::InvalidEscape("No } at the end of Unicode escape"),
                 )?;
-                let c = char_from_u32(bytes).ok_or(Error::InvalidEscape("Not a valid char"))?;
+                let c = char_from_u32(bytes).ok_or(Error::InvalidEscape(
+                    "Not a valid Unicode-escaped character",
+                ))?;
 
                 EscapeCharacter::Utf8(c)
             }
@@ -1281,7 +1321,7 @@ impl<'a> Bytes<'a> {
 
                     Ok(Some(Comment::Block))
                 }
-                b => Err(Error::UnexpectedByte(b as char)),
+                b => Err(Error::UnexpectedByte(b)),
             }
         } else {
             Ok(None)

@@ -323,7 +323,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'"' | b'r' => self.deserialize_string(visitor),
             b'b' => self.deserialize_byte_buf(visitor),
             b'\'' => self.deserialize_char(visitor),
-            other => Err(Error::UnexpectedByte(other as char)),
+            other => Err(Error::UnexpectedByte(other)),
         }
     }
 
