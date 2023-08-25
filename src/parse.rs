@@ -214,30 +214,6 @@ impl<'a> Parser<'a> {
     }
 
     #[must_use]
-    pub fn next_bytes_while_max(&self, max: usize, condition: fn(u8) -> bool) -> usize {
-        self.next_bytes_while_from_max(0, max, condition)
-    }
-
-    #[must_use]
-    pub fn next_bytes_while_from_max(
-        &self,
-        from: usize,
-        mut max: usize,
-        condition: fn(u8) -> bool,
-    ) -> usize {
-        self.src()[from..]
-            .as_bytes()
-            .iter()
-            .take_while(|&&b| {
-                max > 0 && {
-                    max -= 1;
-                    condition(b)
-                }
-            })
-            .count()
-    }
-
-    #[must_use]
     pub fn next_chars_while(&self, condition: fn(char) -> bool) -> usize {
         self.next_chars_while_from(0, condition)
     }
@@ -805,20 +781,20 @@ impl<'a> Parser<'a> {
         let mut f = String::with_capacity(num_bytes);
         let mut allow_underscore = false;
 
-        for (i, b) in self.src().as_bytes()[0..num_bytes].iter().enumerate() {
-            match *b {
-                b'_' if allow_underscore => continue,
-                b'_' => {
+        for (i, c) in self.src()[..num_bytes].char_indices() {
+            match c {
+                '_' if allow_underscore => continue,
+                '_' => {
                     self.advance(i);
                     return Err(Error::FloatUnderscore);
                 }
-                b'0'..=b'9' | b'e' | b'E' => allow_underscore = true,
-                b'.' => allow_underscore = false,
+                '0'..='9' | 'e' | 'E' => allow_underscore = true,
+                '.' => allow_underscore = false,
                 _ => (),
             }
 
             // we know that the byte is an ASCII character here
-            f.push(char::from(*b));
+            f.push(c);
         }
 
         if self.src()[num_bytes..].starts_with('f') {
@@ -1216,6 +1192,7 @@ impl<'a> Parser<'a> {
             return Err(Error::InvalidEscape("Non-hex digit found"));
         }
 
+        // c is an ASCII character that can be losslessly cast to u8
         match c as u8 {
             c @ b'0'..=b'9' => Ok(c - b'0'),
             c @ b'a'..=b'f' => Ok(10 + c - b'a'),
