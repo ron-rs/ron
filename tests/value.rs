@@ -10,11 +10,16 @@ use serde_derive::{Deserialize, Serialize};
 fn bool() {
     assert_eq!("true".parse(), Ok(Value::Bool(true)));
     assert_eq!("false".parse(), Ok(Value::Bool(false)));
+
+    assert_eq!(ron::to_string(&Value::Bool(true)).unwrap(), "true");
+    assert_eq!(ron::to_string(&Value::Bool(false)).unwrap(), "false");
 }
 
 #[test]
 fn char() {
     assert_eq!("'a'".parse(), Ok(Value::Char('a')));
+
+    assert_eq!(ron::to_string(&Value::Char('a')).unwrap(), "'a'");
 }
 
 #[test]
@@ -22,7 +27,11 @@ fn map() {
     let mut map = Map::new();
     map.insert(Value::Char('a'), Value::Number(Number::U8(1)));
     map.insert(Value::Char('b'), Value::Number(Number::new(2f32)));
-    assert_eq!("{ 'a': 1, 'b': 2.0 }".parse(), Ok(Value::Map(map)));
+    let map = Value::Map(map);
+
+    assert_eq!(ron::to_string(&map).unwrap(), "{'a':1,'b':2.0}");
+
+    assert_eq!("{ 'a': 1, 'b': 2.0 }".parse(), Ok(map));
 }
 
 #[test]
@@ -32,18 +41,38 @@ fn number() {
         "3.141592653589793".parse(),
         Ok(Value::Number(Number::new(f64::consts::PI)))
     );
+
+    assert_eq!(
+        ron::to_string(&Value::Number(Number::U8(42))).unwrap(),
+        "42"
+    );
+    assert_eq!(
+        ron::to_string(&Value::Number(Number::F64(f64::consts::PI.into()))).unwrap(),
+        "3.141592653589793"
+    );
 }
 
 #[test]
 fn option() {
     let opt = Some(Box::new(Value::Char('c')));
     assert_eq!("Some('c')".parse(), Ok(Value::Option(opt)));
+    assert_eq!("None".parse(), Ok(Value::Option(None)));
+
+    assert_eq!(
+        ron::to_string(&Value::Option(Some(Box::new(Value::Char('c'))))).unwrap(),
+        "Some('c')"
+    );
+    assert_eq!(ron::to_string(&Value::Option(None)).unwrap(), "None");
 }
 
 #[test]
 fn string() {
     let normal = "\"String\"";
     assert_eq!(normal.parse(), Ok(Value::String("String".into())));
+    assert_eq!(
+        ron::to_string(&Value::String("String".into())).unwrap(),
+        "\"String\""
+    );
 
     let raw = "r\"Raw String\"";
     assert_eq!(raw.parse(), Ok(Value::String("Raw String".into())));
@@ -62,15 +91,32 @@ fn string() {
         raw_multi_line.parse(),
         Ok(Value::String("Multi\nLine".into()))
     );
+    assert_eq!(
+        ron::to_string(&Value::String("Multi\nLine".into())).unwrap(),
+        "\"Multi\\nLine\""
+    );
+}
+
+#[test]
+fn byte_string() {
+    assert_eq!(
+        "b\"\\x01\\u{2}\\0\\x04\"".parse(),
+        Ok(Value::Bytes(vec![1, 2, 0, 4]))
+    );
+    assert_eq!(
+        ron::to_string(&Value::Bytes(vec![1, 2, 0, 4])).unwrap(),
+        "b\"\\x01\\x02\\x00\\x04\""
+    );
 }
 
 #[test]
 fn seq() {
-    let seq = vec![
+    let seq = Value::Seq(vec![
         Value::Number(Number::U8(1)),
         Value::Number(Number::new(2f32)),
-    ];
-    assert_eq!("[1, 2.0]".parse(), Ok(Value::Seq(seq)));
+    ]);
+    assert_eq!(ron::to_string(&seq).unwrap(), "[1,2.0]");
+    assert_eq!("[1, 2.0]".parse(), Ok(seq));
 
     let err = Value::Seq(vec![Value::Number(Number::new(1))])
         .into_rust::<[i32; 2]>()
@@ -115,6 +161,8 @@ fn unit() {
             position: Position { col: 1, line: 1 }
         })
     );
+
+    assert_eq!(ron::to_string(&Value::Unit).unwrap(), "()");
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
