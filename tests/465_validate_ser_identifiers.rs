@@ -2,7 +2,7 @@ use serde::ser::{SerializeStruct, SerializeStructVariant, Serializer};
 
 #[test]
 fn invalid_struct_name() {
-    let mut ser = ron::Serializer::new(Vec::new(), None).unwrap();
+    let mut ser = ron::Serializer::new(String::new(), None).unwrap();
 
     assert_eq!(
         ser.serialize_newtype_struct("", &true).err(),
@@ -22,7 +22,7 @@ fn invalid_struct_name() {
 
 #[test]
 fn invalid_enum_variant_name() {
-    let mut ser = ron::Serializer::new(Vec::new(), None).unwrap();
+    let mut ser = ron::Serializer::new(String::new(), None).unwrap();
 
     assert_eq!(
         ser.serialize_unit_variant("", 0, "A").err(),
@@ -67,7 +67,7 @@ fn invalid_enum_variant_name() {
 
 #[test]
 fn invalid_struct_field_name() {
-    let mut ser = ron::Serializer::new(Vec::new(), None).unwrap();
+    let mut ser = ron::Serializer::new(String::new(), None).unwrap();
 
     let mut r#struct = ser.serialize_struct("A", 2).unwrap();
     SerializeStruct::serialize_field(&mut r#struct, "A", &true).unwrap();

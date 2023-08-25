@@ -1,4 +1,4 @@
-use std::io;
+use std::fmt;
 
 use serde::{ser, ser::Serialize};
 use serde_derive::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use crate::{
     error::{Error, Result},
     extensions::Extensions,
     options::Options,
-    parse::{is_ident_first_char, is_ident_raw_char, LargeSInt, LargeUInt},
+    parse::{is_ident_first_char, is_ident_raw_char, is_whitespace_char, LargeSInt, LargeUInt},
 };
 
 mod raw;
@@ -22,7 +22,7 @@ mod value;
 /// if you want that, you can use [`to_writer_pretty`] instead.
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
-    W: io::Write,
+    W: fmt::Write,
     T: ?Sized + Serialize,
 {
     Options::default().to_writer(writer, value)
@@ -31,7 +31,7 @@ where
 /// Serializes `value` into `writer` in a pretty way.
 pub fn to_writer_pretty<W, T>(writer: W, value: &T, config: PrettyConfig) -> Result<()>
 where
-    W: io::Write,
+    W: fmt::Write,
     T: ?Sized + Serialize,
 {
     Options::default().to_writer_pretty(writer, value, config)
@@ -351,7 +351,7 @@ impl Default for PrettyConfig {
 ///
 /// You can just use [`to_string`] for deserializing a value.
 /// If you want it pretty-printed, take a look at [`to_string_pretty`].
-pub struct Serializer<W: io::Write> {
+pub struct Serializer<W: fmt::Write> {
     output: W,
     pretty: Option<(PrettyConfig, Pretty)>,
     default_extensions: Extensions,
@@ -362,7 +362,7 @@ pub struct Serializer<W: io::Write> {
     implicit_some_depth: usize,
 }
 
-impl<W: io::Write> Serializer<W> {
+impl<W: fmt::Write> Serializer<W> {
     /// Creates a new [`Serializer`].
     ///
     /// Most of the time you can just use [`to_string`] or
@@ -381,21 +381,37 @@ impl<W: io::Write> Serializer<W> {
         options: Options,
     ) -> Result<Self> {
         if let Some(conf) = &config {
+            if !conf.new_line.chars().all(is_whitespace_char) {
+                return Err(Error::Message(String::from(
+                    "Invalid non-whitespace PrettyConfig::new_line",
+                )));
+            }
+            if !conf.indentor.chars().all(is_whitespace_char) {
+                return Err(Error::Message(String::from(
+                    "Invalid non-whitespace PrettyConfig::indentor",
+                )));
+            }
+            if !conf.separator.chars().all(is_whitespace_char) {
+                return Err(Error::Message(String::from(
+                    "Invalid non-whitespace PrettyConfig::separator",
+                )));
+            }
+
             let non_default_extensions = !options.default_extensions;
 
             if (non_default_extensions & conf.extensions).contains(Extensions::IMPLICIT_SOME) {
-                writer.write_all(b"#![enable(implicit_some)]")?;
-                writer.write_all(conf.new_line.as_bytes())?;
+                writer.write_str("#![enable(implicit_some)]")?;
+                writer.write_str(&conf.new_line)?;
             };
             if (non_default_extensions & conf.extensions).contains(Extensions::UNWRAP_NEWTYPES) {
-                writer.write_all(b"#![enable(unwrap_newtypes)]")?;
-                writer.write_all(conf.new_line.as_bytes())?;
+                writer.write_str("#![enable(unwrap_newtypes)]")?;
+                writer.write_str(&conf.new_line)?;
             };
             if (non_default_extensions & conf.extensions)
                 .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
             {
-                writer.write_all(b"#![enable(unwrap_variant_newtypes)]")?;
-                writer.write_all(conf.new_line.as_bytes())?;
+                writer.write_str("#![enable(unwrap_variant_newtypes)]")?;
+                writer.write_str(&conf.new_line)?;
             };
         };
         Ok(Serializer {
@@ -468,32 +484,32 @@ impl<W: io::Write> Serializer<W> {
                 let is_empty = self.is_empty.unwrap_or(false);
 
                 if !is_empty {
-                    self.output.write_all(config.new_line.as_bytes())?;
+                    self.output.write_str(&config.new_line)?;
                 }
             }
         }
         Ok(())
     }
 
-    fn indent(&mut self) -> io::Result<()> {
+    fn indent(&mut self) -> fmt::Result {
         if let Some((ref config, ref pretty)) = self.pretty {
             if pretty.indent <= config.depth_limit {
                 for _ in 0..pretty.indent {
-                    self.output.write_all(config.indentor.as_bytes())?;
+                    self.output.write_str(&config.indentor)?;
                 }
             }
         }
         Ok(())
     }
 
-    fn end_indent(&mut self) -> io::Result<()> {
+    fn end_indent(&mut self) -> fmt::Result {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             if pretty.indent <= config.depth_limit {
                 let is_empty = self.is_empty.unwrap_or(false);
 
                 if !is_empty {
                     for _ in 1..pretty.indent {
-                        self.output.write_all(config.indentor.as_bytes())?;
+                        self.output.write_str(&config.indentor)?;
                     }
                 }
             }
@@ -504,66 +520,65 @@ impl<W: io::Write> Serializer<W> {
         Ok(())
     }
 
-    fn serialize_escaped_str(&mut self, value: &str) -> io::Result<()> {
-        self.output.write_all(b"\"")?;
+    fn serialize_escaped_str(&mut self, value: &str) -> fmt::Result {
+        self.output.write_str("\"")?;
         let mut scalar = [0u8; 4];
         for c in value.chars().flat_map(|c| c.escape_debug()) {
-            self.output
-                .write_all(c.encode_utf8(&mut scalar).as_bytes())?;
+            self.output.write_str(c.encode_utf8(&mut scalar))?;
         }
-        self.output.write_all(b"\"")?;
+        self.output.write_str("\"")?;
         Ok(())
     }
 
-    fn serialize_unescaped_or_raw_str(&mut self, value: &str) -> io::Result<()> {
+    fn serialize_unescaped_or_raw_str(&mut self, value: &str) -> fmt::Result {
         if value.contains('"') || value.contains('\\') {
             let (_, num_consecutive_hashes) =
                 value.chars().fold((0, 0), |(count, max), c| match c {
                     '#' => (count + 1, max.max(count + 1)),
                     _ => (0_usize, max),
                 });
-            let hashes = vec![b'#'; num_consecutive_hashes + 1];
-            self.output.write_all(b"r")?;
-            self.output.write_all(&hashes)?;
-            self.output.write_all(b"\"")?;
-            self.output.write_all(value.as_bytes())?;
-            self.output.write_all(b"\"")?;
-            self.output.write_all(&hashes)?;
+            let hashes = String::from_iter(std::iter::repeat('#').take(num_consecutive_hashes + 1));
+            self.output.write_char('r')?;
+            self.output.write_str(&hashes)?;
+            self.output.write_str("\"")?;
+            self.output.write_str(value)?;
+            self.output.write_str("\"")?;
+            self.output.write_str(&hashes)?;
         } else {
-            self.output.write_all(b"\"")?;
-            self.output.write_all(value.as_bytes())?;
-            self.output.write_all(b"\"")?;
+            self.output.write_str("\"")?;
+            self.output.write_str(value)?;
+            self.output.write_str("\"")?;
         }
         Ok(())
     }
 
-    fn serialize_escaped_byte_str(&mut self, value: &[u8]) -> io::Result<()> {
-        self.output.write_all(b"b\"")?;
+    fn serialize_escaped_byte_str(&mut self, value: &[u8]) -> fmt::Result {
+        self.output.write_str("b\"")?;
         for c in value.iter().flat_map(|c| std::ascii::escape_default(*c)) {
-            self.output.write_all(&[c])?;
+            self.output.write_char(char::from(c))?;
         }
-        self.output.write_all(b"\"")?;
+        self.output.write_str("\"")?;
         Ok(())
     }
 
-    fn serialize_unescaped_or_raw_byte_str(&mut self, value: &[u8]) -> io::Result<()> {
-        if value.contains(&b'"') || value.contains(&b'\\') {
+    fn serialize_unescaped_or_raw_byte_str(&mut self, value: &str) -> fmt::Result {
+        if value.contains('"') || value.contains('\\') {
             let (_, num_consecutive_hashes) =
-                value.iter().fold((0, 0), |(count, max), c| match c {
-                    b'#' => (count + 1, max.max(count + 1)),
+                value.chars().fold((0, 0), |(count, max), c| match c {
+                    '#' => (count + 1, max.max(count + 1)),
                     _ => (0_usize, max),
                 });
-            let hashes = vec![b'#'; num_consecutive_hashes + 1];
-            self.output.write_all(b"br")?;
-            self.output.write_all(&hashes)?;
-            self.output.write_all(b"\"")?;
-            self.output.write_all(value)?;
-            self.output.write_all(b"\"")?;
-            self.output.write_all(&hashes)?;
+            let hashes = String::from_iter(std::iter::repeat('#').take(num_consecutive_hashes + 1));
+            self.output.write_str("br")?;
+            self.output.write_str(&hashes)?;
+            self.output.write_str("\"")?;
+            self.output.write_str(value)?;
+            self.output.write_str("\"")?;
+            self.output.write_str(&hashes)?;
         } else {
-            self.output.write_all(b"b\"")?;
-            self.output.write_all(value)?;
-            self.output.write_all(b"\"")?;
+            self.output.write_str("b\"")?;
+            self.output.write_str(value)?;
+            self.output.write_str("\"")?;
         }
         Ok(())
     }
@@ -601,9 +616,9 @@ impl<W: io::Write> Serializer<W> {
             ]
             .contains(&name)
         {
-            self.output.write_all(b"r#")?;
+            self.output.write_str("r#")?;
         }
-        self.output.write_all(name.as_bytes())?;
+        self.output.write_str(name)?;
         Ok(())
     }
 
@@ -642,7 +657,7 @@ macro_rules! guard_recursion {
     }};
 }
 
-impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
+impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
     type Error = Error;
     type Ok = ();
     type SerializeMap = Compound<'a, W>;
@@ -654,7 +669,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     type SerializeTupleVariant = Compound<'a, W>;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
-        self.output.write_all(if v { b"true" } else { b"false" })?;
+        self.output.write_str(if v { "true" } else { "false" })?;
         Ok(())
     }
 
@@ -737,12 +752,12 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_char(self, v: char) -> Result<()> {
-        self.output.write_all(b"'")?;
+        self.output.write_char('\'')?;
         if v == '\\' || v == '\'' {
-            self.output.write_all(b"\\")?;
+            self.output.write_str("\\")?;
         }
         write!(self.output, "{}", v)?;
-        self.output.write_all(b"'")?;
+        self.output.write_char('\'')?;
         Ok(())
     }
 
@@ -758,11 +773,15 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
         // We need to fall back to escaping if the byte string would be invalid UTF-8
-        if self.escape_strings() || std::str::from_utf8(v).is_err() {
-            self.serialize_escaped_byte_str(v)?;
-        } else {
-            self.serialize_unescaped_or_raw_byte_str(v)?;
+        if !self.escape_strings() {
+            if let Ok(v) = std::str::from_utf8(v) {
+                return self
+                    .serialize_unescaped_or_raw_byte_str(v)
+                    .map_err(Error::from);
+            }
         }
+
+        self.serialize_escaped_byte_str(v)?;
 
         Ok(())
     }
@@ -773,11 +792,11 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.implicit_some_depth = 0;
 
         for _ in 0..implicit_some_depth {
-            self.output.write_all(b"Some(")?;
+            self.output.write_str("Some(")?;
         }
-        self.output.write_all(b"None")?;
+        self.output.write_str("None")?;
         for _ in 0..implicit_some_depth {
-            self.output.write_all(b")")?;
+            self.output.write_char(')')?;
         }
 
         Ok(())
@@ -794,13 +813,13 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             self.newtype_variant = self
                 .extensions()
                 .contains(Extensions::UNWRAP_VARIANT_NEWTYPES);
-            self.output.write_all(b"Some(")?;
+            self.output.write_str("Some(")?;
         }
         guard_recursion! { self => value.serialize(&mut *self)? };
         if implicit_some {
             self.implicit_some_depth = 0;
         } else {
-            self.output.write_all(b")")?;
+            self.output.write_char(')')?;
             self.newtype_variant = false;
         }
 
@@ -809,7 +828,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_unit(self) -> Result<()> {
         if !self.newtype_variant {
-            self.output.write_all(b"()")?;
+            self.output.write_str("()")?;
         }
 
         Ok(())
@@ -875,9 +894,9 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
         self.implicit_some_depth = 0;
 
-        self.output.write_all(b"(")?;
+        self.output.write_char('(')?;
         guard_recursion! { self => value.serialize(&mut *self)? };
-        self.output.write_all(b")")?;
+        self.output.write_char(')')?;
 
         Ok(())
     }
@@ -894,7 +913,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
     {
         self.validate_identifier(name)?;
         self.write_identifier(variant)?;
-        self.output.write_all(b"(")?;
+        self.output.write_char('(')?;
 
         self.newtype_variant = self
             .extensions()
@@ -905,7 +924,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
         self.newtype_variant = false;
 
-        self.output.write_all(b")")?;
+        self.output.write_char(')')?;
         Ok(())
     }
 
@@ -913,7 +932,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
-        self.output.write_all(b"[")?;
+        self.output.write_char('[')?;
 
         if !self.compact_arrays() {
             if let Some(len) = len {
@@ -936,7 +955,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.implicit_some_depth = 0;
 
         if !old_newtype_variant {
-            self.output.write_all(b"(")?;
+            self.output.write_char('(')?;
         }
 
         if self.separate_tuple_members() {
@@ -974,7 +993,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
         self.validate_identifier(name)?;
         self.write_identifier(variant)?;
-        self.output.write_all(b"(")?;
+        self.output.write_char('(')?;
 
         if self.separate_tuple_members() {
             self.is_empty = Some(len == 0);
@@ -989,7 +1008,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
-        self.output.write_all(b"{")?;
+        self.output.write_char('{')?;
 
         if !self.compact_maps() {
             if let Some(len) = len {
@@ -1013,7 +1032,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
             } else {
                 self.validate_identifier(name)?;
             }
-            self.output.write_all(b"(")?;
+            self.output.write_char('(')?;
         } else {
             self.validate_identifier(name)?;
         }
@@ -1038,7 +1057,7 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
 
         self.validate_identifier(name)?;
         self.write_identifier(variant)?;
-        self.output.write_all(b"(")?;
+        self.output.write_char('(')?;
 
         if !self.compact_structs() {
             self.is_empty = Some(len == 0);
@@ -1055,13 +1074,13 @@ enum State {
 }
 
 #[doc(hidden)]
-pub struct Compound<'a, W: io::Write> {
+pub struct Compound<'a, W: fmt::Write> {
     ser: &'a mut Serializer<W>,
     state: State,
     newtype_variant: bool,
 }
 
-impl<'a, W: io::Write> Compound<'a, W> {
+impl<'a, W: fmt::Write> Compound<'a, W> {
     fn try_new(ser: &'a mut Serializer<W>, newtype_variant: bool) -> Result<Self> {
         if let Some(limit) = &mut ser.recursion_limit {
             if let Some(new_limit) = limit.checked_sub(1) {
@@ -1079,7 +1098,7 @@ impl<'a, W: io::Write> Compound<'a, W> {
     }
 }
 
-impl<'a, W: io::Write> Drop for Compound<'a, W> {
+impl<'a, W: fmt::Write> Drop for Compound<'a, W> {
     fn drop(&mut self) {
         if let Some(limit) = &mut self.ser.recursion_limit {
             *limit = limit.saturating_add(1);
@@ -1087,7 +1106,7 @@ impl<'a, W: io::Write> Drop for Compound<'a, W> {
     }
 }
 
-impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
+impl<'a, W: fmt::Write> ser::SerializeSeq for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 
@@ -1098,12 +1117,12 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
         if let State::First = self.state {
             self.state = State::Rest;
         } else {
-            self.ser.output.write_all(b",")?;
+            self.ser.output.write_char(',')?;
             if let Some((ref config, ref mut pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit && !config.compact_arrays {
-                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                    self.ser.output.write_str(&config.new_line)?;
                 } else {
-                    self.ser.output.write_all(config.separator.as_bytes())?;
+                    self.ser.output.write_str(&config.separator)?;
                 }
             }
         }
@@ -1129,8 +1148,8 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
         if let State::Rest = self.state {
             if let Some((ref config, ref mut pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit && !config.compact_arrays {
-                    self.ser.output.write_all(b",")?;
-                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                    self.ser.output.write_char(',')?;
+                    self.ser.output.write_str(&config.new_line)?;
                 }
             }
         }
@@ -1144,12 +1163,12 @@ impl<'a, W: io::Write> ser::SerializeSeq for Compound<'a, W> {
         }
 
         // seq always disables `self.newtype_variant`
-        self.ser.output.write_all(b"]")?;
+        self.ser.output.write_char(']')?;
         Ok(())
     }
 }
 
-impl<'a, W: io::Write> ser::SerializeTuple for Compound<'a, W> {
+impl<'a, W: fmt::Write> ser::SerializeTuple for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 
@@ -1160,12 +1179,12 @@ impl<'a, W: io::Write> ser::SerializeTuple for Compound<'a, W> {
         if let State::First = self.state {
             self.state = State::Rest;
         } else {
-            self.ser.output.write_all(b",")?;
+            self.ser.output.write_char(',')?;
             if let Some((ref config, ref pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit && self.ser.separate_tuple_members() {
-                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                    self.ser.output.write_str(&config.new_line)?;
                 } else {
-                    self.ser.output.write_all(config.separator.as_bytes())?;
+                    self.ser.output.write_str(&config.separator)?;
                 }
             }
         }
@@ -1183,8 +1202,8 @@ impl<'a, W: io::Write> ser::SerializeTuple for Compound<'a, W> {
         if let State::Rest = self.state {
             if let Some((ref config, ref pretty)) = self.ser.pretty {
                 if self.ser.separate_tuple_members() && pretty.indent <= config.depth_limit {
-                    self.ser.output.write_all(b",")?;
-                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                    self.ser.output.write_char(',')?;
+                    self.ser.output.write_str(&config.new_line)?;
                 }
             }
         }
@@ -1193,7 +1212,7 @@ impl<'a, W: io::Write> ser::SerializeTuple for Compound<'a, W> {
         }
 
         if !self.newtype_variant {
-            self.ser.output.write_all(b")")?;
+            self.ser.output.write_char(')')?;
         }
 
         Ok(())
@@ -1201,7 +1220,7 @@ impl<'a, W: io::Write> ser::SerializeTuple for Compound<'a, W> {
 }
 
 // Same thing but for tuple structs.
-impl<'a, W: io::Write> ser::SerializeTupleStruct for Compound<'a, W> {
+impl<'a, W: fmt::Write> ser::SerializeTupleStruct for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 
@@ -1217,7 +1236,7 @@ impl<'a, W: io::Write> ser::SerializeTupleStruct for Compound<'a, W> {
     }
 }
 
-impl<'a, W: io::Write> ser::SerializeTupleVariant for Compound<'a, W> {
+impl<'a, W: fmt::Write> ser::SerializeTupleVariant for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 
@@ -1233,7 +1252,7 @@ impl<'a, W: io::Write> ser::SerializeTupleVariant for Compound<'a, W> {
     }
 }
 
-impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
+impl<'a, W: fmt::Write> ser::SerializeMap for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 
@@ -1244,13 +1263,13 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
         if let State::First = self.state {
             self.state = State::Rest;
         } else {
-            self.ser.output.write_all(b",")?;
+            self.ser.output.write_char(',')?;
 
             if let Some((ref config, ref pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit && !config.compact_maps {
-                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                    self.ser.output.write_str(&config.new_line)?;
                 } else {
-                    self.ser.output.write_all(config.separator.as_bytes())?;
+                    self.ser.output.write_str(&config.separator)?;
                 }
             }
         }
@@ -1266,10 +1285,10 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
     where
         T: ?Sized + Serialize,
     {
-        self.ser.output.write_all(b":")?;
+        self.ser.output.write_char(':')?;
 
         if let Some((ref config, _)) = self.ser.pretty {
-            self.ser.output.write_all(config.separator.as_bytes())?;
+            self.ser.output.write_str(&config.separator)?;
         }
 
         guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
@@ -1281,8 +1300,8 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
         if let State::Rest = self.state {
             if let Some((ref config, ref pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit && !config.compact_maps {
-                    self.ser.output.write_all(b",")?;
-                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                    self.ser.output.write_char(',')?;
+                    self.ser.output.write_str(&config.new_line)?;
                 }
             }
         }
@@ -1292,12 +1311,12 @@ impl<'a, W: io::Write> ser::SerializeMap for Compound<'a, W> {
         }
 
         // map always disables `self.newtype_variant`
-        self.ser.output.write_all(b"}")?;
+        self.ser.output.write_char('}')?;
         Ok(())
     }
 }
 
-impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
+impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 
@@ -1308,13 +1327,13 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
         if let State::First = self.state {
             self.state = State::Rest;
         } else {
-            self.ser.output.write_all(b",")?;
+            self.ser.output.write_char(',')?;
 
             if let Some((ref config, ref pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit && !config.compact_structs {
-                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                    self.ser.output.write_str(&config.new_line)?;
                 } else {
-                    self.ser.output.write_all(config.separator.as_bytes())?;
+                    self.ser.output.write_str(&config.separator)?;
                 }
             }
         }
@@ -1324,10 +1343,10 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
         }
 
         self.ser.write_identifier(key)?;
-        self.ser.output.write_all(b":")?;
+        self.ser.output.write_char(':')?;
 
         if let Some((ref config, _)) = self.ser.pretty {
-            self.ser.output.write_all(config.separator.as_bytes())?;
+            self.ser.output.write_str(&config.separator)?;
         }
 
         guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
@@ -1339,8 +1358,8 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
         if let State::Rest = self.state {
             if let Some((ref config, ref pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit && !config.compact_structs {
-                    self.ser.output.write_all(b",")?;
-                    self.ser.output.write_all(config.new_line.as_bytes())?;
+                    self.ser.output.write_char(',')?;
+                    self.ser.output.write_str(&config.new_line)?;
                 }
             }
         }
@@ -1350,13 +1369,13 @@ impl<'a, W: io::Write> ser::SerializeStruct for Compound<'a, W> {
         }
 
         if !self.newtype_variant {
-            self.ser.output.write_all(b")")?;
+            self.ser.output.write_char(')')?;
         }
         Ok(())
     }
 }
 
-impl<'a, W: io::Write> ser::SerializeStructVariant for Compound<'a, W> {
+impl<'a, W: fmt::Write> ser::SerializeStructVariant for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 

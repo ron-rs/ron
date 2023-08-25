@@ -1,6 +1,6 @@
 //! Roundtrip serde Options module.
 
-use std::io;
+use std::{fmt, io};
 
 use serde::{de, ser};
 use serde_derive::{Deserialize, Serialize};
@@ -170,7 +170,7 @@ impl Options {
     /// [`to_writer_pretty`][Self::to_writer_pretty] instead.
     pub fn to_writer<W, T>(&self, writer: W, value: &T) -> Result<()>
     where
-        W: io::Write,
+        W: fmt::Write,
         T: ?Sized + ser::Serialize,
     {
         let mut s = Serializer::with_options(writer, None, self.clone())?;
@@ -180,7 +180,7 @@ impl Options {
     /// Serializes `value` into `writer` in a pretty way.
     pub fn to_writer_pretty<W, T>(&self, writer: W, value: &T, config: PrettyConfig) -> Result<()>
     where
-        W: io::Write,
+        W: fmt::Write,
         T: ?Sized + ser::Serialize,
     {
         let mut s = Serializer::with_options(writer, Some(config), self.clone())?;
@@ -196,10 +196,10 @@ impl Options {
     where
         T: ?Sized + ser::Serialize,
     {
-        let mut output = Vec::new();
+        let mut output = String::new();
         let mut s = Serializer::with_options(&mut output, None, self.clone())?;
         value.serialize(&mut s)?;
-        Ok(String::from_utf8(output).expect("Ron should be utf-8"))
+        Ok(output)
     }
 
     /// Serializes `value` in the recommended RON layout in a pretty way.
@@ -207,9 +207,9 @@ impl Options {
     where
         T: ?Sized + ser::Serialize,
     {
-        let mut output = Vec::new();
+        let mut output = String::new();
         let mut s = Serializer::with_options(&mut output, Some(config), self.clone())?;
         value.serialize(&mut s)?;
-        Ok(String::from_utf8(output).expect("Ron should be utf-8"))
+        Ok(output)
     }
 }

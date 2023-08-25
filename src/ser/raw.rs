@@ -1,20 +1,20 @@
-use std::io;
+use std::fmt;
 
 use serde::{ser, Serialize};
 
 use super::{Error, Result, Serializer};
 
-pub struct RawValueSerializer<'a, W: io::Write> {
+pub struct RawValueSerializer<'a, W: fmt::Write> {
     ser: &'a mut Serializer<W>,
 }
 
-impl<'a, W: io::Write> RawValueSerializer<'a, W> {
+impl<'a, W: fmt::Write> RawValueSerializer<'a, W> {
     pub fn new(ser: &'a mut Serializer<W>) -> Self {
         Self { ser }
     }
 }
 
-impl<'a, W: io::Write> ser::Serializer for RawValueSerializer<'a, W> {
+impl<'a, W: fmt::Write> ser::Serializer for RawValueSerializer<'a, W> {
     type Error = Error;
     type Ok = ();
     type SerializeMap = ser::Impossible<(), Error>;
@@ -84,7 +84,7 @@ impl<'a, W: io::Write> ser::Serializer for RawValueSerializer<'a, W> {
     }
 
     fn serialize_str(self, ron: &str) -> Result<()> {
-        self.ser.output.write_all(ron.as_bytes())?;
+        self.ser.output.write_str(ron)?;
         Ok(())
     }
 

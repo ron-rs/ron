@@ -30,7 +30,7 @@ pub fn is_ident_raw_char(c: char) -> bool {
     matches!(c, '.' | '+' | '-') | is_xid_continue(c)
 }
 
-const fn is_whitespace_char(c: char) -> bool {
+pub const fn is_whitespace_char(c: char) -> bool {
     // TODO compare to using a bitmap
     // " \t\n\r\x0A\x0B\x0C\u{85}" could be added to the above map
     // for 200E to 2029 this could be done by casting to u16 and comparing first and second byte individually

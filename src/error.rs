@@ -23,6 +23,7 @@ pub type SpannedResult<T> = std::result::Result<T, SpannedError>;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Error {
+    Fmt,
     Io(String),
     Message(String),
     #[deprecated(
@@ -123,6 +124,7 @@ impl fmt::Display for SpannedError {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
+            Error::Fmt => f.write_str("Formatting RON failed"),
             Error::Io(ref s) => f.write_str(s),
             Error::Message(ref s) => f.write_str(s),
             #[allow(deprecated)]
@@ -411,6 +413,12 @@ impl StdError for Error {}
 impl From<Utf8Error> for Error {
     fn from(e: Utf8Error) -> Self {
         Error::Utf8Error(e)
+    }
+}
+
+impl From<fmt::Error> for Error {
+    fn from(_: fmt::Error) -> Self {
+        Error::Fmt
     }
 }
 
