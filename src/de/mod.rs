@@ -321,6 +321,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'{' => self.deserialize_map(visitor),
             b'0'..=b'9' | b'+' | b'-' | b'.' => self.bytes.any_number()?.visit(visitor),
             b'"' | b'r' => self.deserialize_string(visitor),
+            b'b' if matches!(self.bytes.bytes().get(1), Some(b'\'')) => {
+                self.bytes.any_number()?.visit(visitor)
+            }
             b'b' => self.deserialize_byte_buf(visitor),
             b'\'' => self.deserialize_char(visitor),
             other => Err(Error::UnexpectedByte(other)),

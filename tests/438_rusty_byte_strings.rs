@@ -228,6 +228,12 @@ fn fuzzer_failures() {
         .unwrap(),
         Some(ron::Value::Bytes(b"\xff/not a comment".to_vec()))
     );
+
+    // `b'` should be parsed as the start of a byte literal, not the identifier `b` and a `'`
+    assert_eq!(
+        ron::from_str(r"b'\xff'"),
+        Ok(ron::Value::Number(ron::value::Number::U8(b'\xff')))
+    );
 }
 
 #[test]
@@ -318,6 +324,66 @@ fn test_weird_escapes() {
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
             position: Position { line: 1, col: 6 }
+        })
+    );
+}
+
+#[test]
+fn byte_literal() {
+    assert_eq!(
+        ron::from_str("b'\0'"),
+        Ok(ron::Value::Number(ron::value::Number::U8(0)))
+    );
+    assert_eq!(
+        ron::from_str("b'\\0'"),
+        Ok(ron::Value::Number(ron::value::Number::U8(0)))
+    );
+
+    for b in 0..=255_u8 {
+        let default = std::ascii::escape_default(b)
+            .map(char::from)
+            .collect::<String>();
+        let lower = format!(r"\x{:02x}", b);
+        let upper = format!(r"\x{:02X}", b);
+
+        assert_eq!(
+            ron::from_str(&format!("b'{}'", default)),
+            Ok(ron::Value::Number(ron::value::Number::U8(b)))
+        );
+        assert_eq!(
+            ron::from_str(&format!("b'{}'", lower)),
+            Ok(ron::Value::Number(ron::value::Number::U8(b)))
+        );
+        assert_eq!(
+            ron::from_str(&format!("b'{}'", upper)),
+            Ok(ron::Value::Number(ron::value::Number::U8(b)))
+        );
+    }
+
+    assert_eq!(
+        ron::from_str::<u8>(r#"b'\u{0}'"#),
+        Err(ron::error::SpannedError {
+            code: ron::Error::InvalidEscape("Unexpected Unicode escape in byte literal"),
+            position: ron::error::Position { line: 1, col: 8 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<u8>(r#"b'🦀'"#),
+        Err(ron::error::SpannedError {
+            code: ron::Error::ExpectedByte,
+            position: ron::error::Position { line: 1, col: 4 },
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<i8>(r#"b'9'"#),
+        Err(ron::error::SpannedError {
+            code: ron::Error::InvalidValueForType {
+                expected: String::from("an 8-bit signed integer"),
+                found: String::from(r#"b'9'"#)
+            },
+            position: ron::error::Position { line: 1, col: 5 },
         })
     );
 }

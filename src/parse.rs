@@ -247,6 +247,32 @@ impl<'a> Bytes<'a> {
                 let _ = self.advance_single();
                 true
             }
+            b'b' if self.consume("b'") => {
+                // Parse a byte literal
+                let byte = match self.eat_byte()? {
+                    b'\\' => match self.parse_escape(EscapeEncoding::Binary, true)? {
+                        // we know that this byte is an ASCII character
+                        EscapeCharacter::Ascii(b) => b,
+                        EscapeCharacter::Utf8(_) => {
+                            return Err(Error::InvalidEscape(
+                                "Unexpected Unicode escape in byte literal",
+                            ))
+                        }
+                    },
+                    b => b,
+                };
+
+                if !self.consume("'") {
+                    return Err(Error::ExpectedByte);
+                }
+
+                // Safety: The byte contains the ASCII-only byte literal
+                let bytes_ron = unsafe {
+                    from_utf8_unchecked(&bytes_backup[..bytes_backup.len() - self.bytes.len()])
+                };
+
+                return T::try_from_parsed_integer(ParsedInteger::U8(byte), bytes_ron);
+            }
             _ => false,
         };
         let sign = if is_negative { -1 } else { 1 };
@@ -834,10 +860,10 @@ impl<'a> Bytes<'a> {
         }
 
         // If the next two bytes signify the start of a (raw) byte string
-        // literal, return an error.
+        //  literal, return an error.
         if next == b'b' {
             match self.bytes.get(1) {
-                Some(b'"') => return Err(Error::ExpectedIdentifier),
+                Some(b'"' | b'\'') => return Err(Error::ExpectedIdentifier),
                 Some(b'r') => match self.bytes.get(2) {
                     Some(b'#' | b'"') => return Err(Error::ExpectedIdentifier),
                     Some(_) | None => (),

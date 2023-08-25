@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix serialising reserved identifiers `true`, `false`, `Some`, `None`, `inf`[`f32`|`f64`], and `Nan`[`f32`|`f64`] ([#487](https://github.com/ron-rs/ron/pull/487))
 - Disallow unclosed line comments at the end of `ron::value::RawValue` ([#489](https://github.com/ron-rs/ron/pull/489))
 - **Format-Breaking:** Switch from base64-encoded to Rusty byte strings, still allow base64 deserialising for now ([#438](https://github.com/ron-rs/ron/pull/438))
+- Add support for byte literals as strongly typed unsigned 8-bit integers ([#438](https://github.com/ron-rs/ron/pull/438))
 
 ## [0.8.1] - 2023-08-17
 

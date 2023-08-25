@@ -40,7 +40,7 @@ For the extension names see the [`extensions.md`][exts] document.
 ## Value
 
 ```ebnf
-value = integer | float | string | byte_string | char | bool | option | list | map | tuple | struct | enum_variant;
+value = integer | byte | float | string | byte_string | char | bool | option | list | map | tuple | struct | enum_variant;
 ```
 
 ## Numbers
@@ -60,6 +60,8 @@ unsigned_octal = "0o", digit_octal, { digit_octal | "_" };
 unsigned_hexadecimal = "0x", digit_hexadecimal, { digit_hexadecimal | "_" };
 unsigned_decimal = digit, { digit | "_" };
 
+byte = ascii | ("\\", (escape_ascii | escape_byte));
+
 float = ["+" | "-"], ("inf" | "NaN" | float_num), [float_suffix];
 float_num = (float_int | float_std | float_frac), [float_exp];
 float_int = digit, { digit | "_" };
@@ -74,9 +76,13 @@ float_suffix = "f", ("32", "64");
 ```ebnf
 string = string_std | string_raw;
 string_std = "\"", { no_double_quotation_marks | string_escape }, "\"";
-string_escape = "\\", ("\"" | "\\" | "b" | "f" | "n" | "r" | "t" | ("u", unicode_hex));
+string_escape = "\\", (escape_ascii | escape_byte | escape_unicode);
 string_raw = "r", string_raw_content;
 string_raw_content = ("#", string_raw_content, "#") | "\"", { unicode_non_greedy }, "\"";
+
+escape_ascii = "'" | "\"" | "\\" | "n" | "r" | "t" | "0";
+escape_byte = "x", digit_hexadecimal, digit_hexadecimal;
+escape_unicode = "u", digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal]]]]];
 ```
 
 > Note: Raw strings start with an `r`, followed by n `#`s and a quotation mark
