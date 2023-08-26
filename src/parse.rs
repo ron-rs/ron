@@ -142,12 +142,12 @@ impl<'a> Parser<'a> {
         self.peek().ok_or(Error::Eof)
     }
 
-    pub fn peek2(&self) -> Option<char> {
-        self.src().chars().nth(1)
+    pub fn check_char(&self, c: char) -> bool {
+        self.src().starts_with(c)
     }
 
-    pub fn peek3(&self) -> Option<char> {
-        self.src().chars().nth(2)
+    pub fn check_str(&self, s: &str) -> bool {
+        self.src().starts_with(s)
     }
 
     pub fn src(&self) -> &'a str {
@@ -159,7 +159,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn consume_str(&mut self, s: &str) -> bool {
-        if self.src().starts_with(s) {
+        if self.check_str(s) {
             self.advance(s.len());
 
             true
@@ -168,14 +168,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn consume_char(&mut self, expected: char) -> bool {
-        if let Some(c) = self.peek() {
-            if c == expected {
-                let _ = self.next();
-                return true;
-            }
+    pub fn consume_char(&mut self, c: char) -> bool {
+        if self.check_char(c) {
+            self.advance(c.len_utf8());
+
+            true
+        } else {
+            false
         }
-        false
     }
 
     fn consume_all(&mut self, all: &[&str]) -> Result<bool> {
@@ -221,22 +221,12 @@ impl<'a> Parser<'a> {
 /// actual parsing of ron tokens
 impl<'a> Parser<'a> {
     fn parse_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
-        let base = if self.peek_or_eof()? == '0' {
-            match self.peek2() {
-                Some('x') => 16,
-                Some('b') => 2,
-                Some('o') => 8,
-                Some(_) | None => 10,
-            }
-        } else {
-            10
+        let base = match () {
+            _ if self.consume_str("0b") => 2,
+            _ if self.consume_str("0o") => 8,
+            _ if self.consume_str("0x") => 16,
+            _ => 10,
         };
-
-        if base != 10 {
-            // If we have `0x45A` for example,
-            // cut it to `45A`.
-            self.advance(2);
-        }
 
         let num_bytes = self.next_chars_while(is_int_char);
 
@@ -244,9 +234,7 @@ impl<'a> Parser<'a> {
             return Err(Error::ExpectedInteger);
         }
 
-        let s = &self.src()[..num_bytes];
-
-        if s.starts_with('_') {
+        if self.check_char('_') {
             return Err(Error::UnderscoreAtBeginning);
         }
 
@@ -285,6 +273,8 @@ impl<'a> Parser<'a> {
 
             Ok(num_acc)
         }
+
+        let s = &self.src()[..num_bytes];
 
         if sign > 0 {
             calc_num(self, s, base, T::checked_add_ext)
@@ -530,7 +520,7 @@ impl<'a> Parser<'a> {
     /// Only returns true if the char after `ident` cannot belong
     /// to an identifier.
     pub fn check_ident(&mut self, ident: &str) -> bool {
-        self.src().starts_with(ident) && !self.check_ident_other_char(ident.len())
+        self.check_str(ident) && !self.check_ident_other_char(ident.len())
     }
 
     fn check_ident_other_char(&self, index: usize) -> bool {
@@ -678,7 +668,7 @@ impl<'a> Parser<'a> {
 
     /// Returns the extensions bit mask.
     fn extensions(&mut self) -> Result<Extensions> {
-        if self.peek() != Some('#') {
+        if !self.check_char('#') {
             return Ok(Extensions::empty());
         }
 
@@ -736,22 +726,22 @@ impl<'a> Parser<'a> {
                 return T::parse(literal);
             }
 
-            if self.src().starts_with(literal)
-                && self.src()[literal.len()..].starts_with(F32_SUFFIX)
-                && !self.check_ident_other_char(literal.len() + F32_SUFFIX.len())
-            {
-                let float_ron = &self.src()[..literal.len() + F32_SUFFIX.len()];
-                self.advance(literal.len() + F32_SUFFIX.len());
-                return T::try_from_parsed_float(ParsedFloat::F32(*value_f32), float_ron);
-            }
+            if let Some(suffix) = self.src().strip_prefix(literal) {
+                if let Some(post_suffix) = suffix.strip_prefix(F32_SUFFIX) {
+                    if !post_suffix.chars().next().map_or(false, is_xid_continue) {
+                        let float_ron = &self.src()[..literal.len() + F32_SUFFIX.len()];
+                        self.advance(literal.len() + F32_SUFFIX.len());
+                        return T::try_from_parsed_float(ParsedFloat::F32(*value_f32), float_ron);
+                    }
+                }
 
-            if self.src().starts_with(literal)
-                && self.src()[literal.len()..].starts_with(F64_SUFFIX)
-                && !self.check_ident_other_char(literal.len() + F64_SUFFIX.len())
-            {
-                let float_ron = &self.src()[..literal.len() + F64_SUFFIX.len()];
-                self.advance(literal.len() + F64_SUFFIX.len());
-                return T::try_from_parsed_float(ParsedFloat::F64(*value_f64), float_ron);
+                if let Some(post_suffix) = suffix.strip_prefix(F64_SUFFIX) {
+                    if !post_suffix.chars().next().map_or(false, is_xid_continue) {
+                        let float_ron = &self.src()[..literal.len() + F64_SUFFIX.len()];
+                        self.advance(literal.len() + F64_SUFFIX.len());
+                        return T::try_from_parsed_float(ParsedFloat::F64(*value_f64), float_ron);
+                    }
+                }
             }
         }
 
@@ -761,7 +751,7 @@ impl<'a> Parser<'a> {
             return Err(Error::ExpectedFloat);
         }
 
-        if self.peek_or_eof()? == '_' {
+        if self.check_char('_') {
             return Err(Error::UnderscoreAtBeginning);
         }
 
@@ -822,33 +812,32 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_ident(&mut self) -> bool {
-        if let Some(c) = self.peek() {
-            if c == 'b' {
-                match self.peek2() {
-                    Some('"' | '\'') => return false,
-                    Some('r') => match self.peek3() {
-                        Some('#' | '"') => return false,
-                        Some(_) | None => (),
-                    },
-                    Some(_) | None => (),
-                }
-            }
+        #[allow(clippy::nonminimal_bool)]
+        if self.check_str("b\"") // byte string
+            || self.check_str("b'") // byte literal
+            || self.check_str("br#") // raw byte string
+            || self.check_str("br\"") // raw byte string
+            || self.check_str("r\"") // raw string
+            || self.check_str("r#\"") // raw string
+            || self.check_str("r##") // raw string
+            || false
+        {
+            return false;
+        }
 
-            if c == 'r' {
-                match self.peek2() {
-                    Some('#') => {
-                        let len = self.next_chars_while_from(2, is_ident_raw_char);
-                        if len > 0 {
-                            self.advance(2 + len);
-                            return true;
-                        } else {
-                            return false;
-                        }
-                    }
-                    Some('"') => return false,
-                    Some(_) | None => (),
-                }
+        if self.check_str("r#") {
+            // maybe a raw identifier
+            let len = self.next_chars_while_from(2, is_ident_raw_char);
+            if len > 0 {
+                self.advance(2 + len);
+                return true;
+            } else {
+                return false;
             }
+        }
+
+        if let Some(c) = self.peek() {
+            // maybe a normal identifier
             if is_xid_start(c) {
                 self.advance(
                     c.len_utf8() + self.next_chars_while_from(c.len_utf8(), is_xid_continue),
@@ -856,6 +845,7 @@ impl<'a> Parser<'a> {
                 return true;
             }
         }
+
         false
     }
 
@@ -872,46 +862,45 @@ impl<'a> Parser<'a> {
             return Err(Error::ExpectedIdentifier);
         }
 
-        // If the next two bytes signify the start of a (raw) byte string
+        // If the next 2-3 bytes signify the start of a (raw) (byte) string
         //  literal, return an error.
-        if first == 'b' {
-            match self.peek2() {
-                Some('"' | '\'') => return Err(Error::ExpectedIdentifier),
-                Some('r') => match self.peek3() {
-                    Some('#' | '"') => return Err(Error::ExpectedIdentifier),
-                    Some(_) | None => (),
-                },
-                Some(_) | None => (),
+        #[allow(clippy::nonminimal_bool)]
+        if self.check_str("b\"") // byte string
+            || self.check_str("b'") // byte literal
+            || self.check_str("br#") // raw byte string
+            || self.check_str("br\"") // raw byte string
+            || self.check_str("r\"") // raw string
+            || self.check_str("r#\"") // raw string
+            || self.check_str("r##") // raw string
+            || false
+        {
+            return Err(Error::ExpectedIdentifier);
+        }
+
+        let length = if self.check_str("r#") {
+            let cursor_backup = self.cursor;
+
+            self.advance(2);
+
+            // Note: it's important to check this before advancing forward, so that
+            // the value-type deserializer can fall back to parsing it differently.
+            if !matches!(self.peek(), Some(c) if is_ident_raw_char(c)) {
+                self.set_cursor(cursor_backup);
+                return Err(Error::ExpectedIdentifier);
             }
-        };
 
-        let length = if first == 'r' {
-            match self.peek2() {
-                Some('"') => return Err(Error::ExpectedIdentifier),
-                Some('#') => {
-                    let after_next = self.peek3().unwrap_or_default();
-                    // Note: it's important to check this before advancing forward, so that
-                    // the value-type deserializer can fall back to parsing it differently.
-                    if !is_ident_raw_char(after_next) {
-                        return Err(Error::ExpectedIdentifier);
-                    }
-                    // skip "r#"
-                    self.advance(2);
-                    self.next_chars_while(is_ident_raw_char)
-                }
-                Some(_) | None => {
-                    let std_ident_length = self.next_chars_while(is_xid_continue);
-                    let raw_ident_length = self.next_chars_while(is_ident_raw_char);
+            self.next_chars_while(is_ident_raw_char)
+        } else if first == 'r' {
+            let std_ident_length = self.next_chars_while(is_xid_continue);
+            let raw_ident_length = self.next_chars_while(is_ident_raw_char);
 
-                    if raw_ident_length > std_ident_length {
-                        return Err(Error::SuggestRawIdentifier(
-                            self.src()[..raw_ident_length].into(),
-                        ));
-                    }
-
-                    std_ident_length
-                }
+            if raw_ident_length > std_ident_length {
+                return Err(Error::SuggestRawIdentifier(
+                    self.src()[..raw_ident_length].into(),
+                ));
             }
+
+            std_ident_length
         } else {
             let std_ident_length =
                 first.len_utf8() + self.next_chars_while_from(first.len_utf8(), is_xid_continue);

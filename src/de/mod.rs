@@ -260,7 +260,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         if self.newtype_variant {
-            if let Some(')') = self.parser.peek() {
+            if self.parser.check_char(')') {
                 // newtype variant wraps the unit type / a unit struct without name
                 return self.deserialize_unit(visitor);
             }
@@ -323,9 +323,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             '{' => self.deserialize_map(visitor),
             '0'..='9' | '+' | '-' | '.' => self.parser.any_number()?.visit(visitor),
             '"' | 'r' => self.deserialize_string(visitor),
-            'b' if matches!(self.parser.peek2(), Some('\'')) => {
-                self.parser.any_number()?.visit(visitor)
-            }
+            'b' if self.parser.src().starts_with("b'") => self.parser.any_number()?.visit(visitor),
             'b' => self.deserialize_byte_buf(visitor),
             '\'' => self.deserialize_char(visitor),
             other => Err(Error::UnexpectedChar(other)),
@@ -460,7 +458,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if let Some('[') = self.parser.peek() {
+        if self.parser.check_char('[') {
             let bytes = Vec::<u8>::deserialize(self)?;
             return visitor.visit_byte_buf(bytes);
         }
@@ -788,7 +786,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
 
         match (
             self.had_comma,
-            self.de.parser.peek_or_eof()? != self.terminator.as_char(),
+            !self.de.parser.check_char(self.terminator.as_char()),
         ) {
             // Trailing comma, maybe has a next element
             (true, has_element) => Ok(has_element),
