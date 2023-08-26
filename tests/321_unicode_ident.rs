@@ -17,3 +17,15 @@ fn roundtrip_unicode_ident() {
 
     assert_eq!(Ok(value), deserial);
 }
+
+#[test]
+fn fuzzer_issues() {
+    assert_eq!(
+        ron::from_str::<ron::Value>("(__: ())").unwrap(),
+        ron::Value::Map(
+            [(ron::Value::String(String::from("__")), ron::Value::Unit)]
+                .into_iter()
+                .collect()
+        )
+    );
+}

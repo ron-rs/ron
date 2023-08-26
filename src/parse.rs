@@ -838,7 +838,7 @@ impl<'a> Parser<'a> {
 
         if let Some(c) = self.peek() {
             // maybe a normal identifier
-            if is_xid_start(c) {
+            if is_ident_first_char(c) {
                 self.advance(
                     c.len_utf8() + self.next_chars_while_from(c.len_utf8(), is_xid_continue),
                 );
