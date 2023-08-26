@@ -2,8 +2,7 @@
 
 use std::{
     char::from_u32 as char_from_u32,
-    iter::Peekable,
-    str::{self, from_utf8, Chars, FromStr, Utf8Error},
+    str::{self, from_utf8, FromStr, Utf8Error},
 };
 
 use unicode_ident::{is_xid_continue, is_xid_start};
@@ -62,7 +61,6 @@ pub struct Parser<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
     src: &'a str,
-    chars: Peekable<Chars<'a>>,
     cursor: ParserCursor,
 }
 
@@ -91,7 +89,6 @@ impl<'a> Parser<'a> {
         let mut parser = Parser {
             exts: Extensions::empty(),
             src,
-            chars: src.chars().peekable(),
             cursor: ParserCursor {
                 cursor: 0,
                 pre_ws_cursor: 0,
@@ -118,7 +115,6 @@ impl<'a> Parser<'a> {
 
     pub fn set_cursor(&mut self, cursor: ParserCursor) {
         self.cursor = cursor;
-        self.chars = self.src[cursor.cursor..].chars().peekable()
     }
 
     pub fn span_error(&self, code: Error) -> SpannedError {
@@ -130,37 +126,28 @@ impl<'a> Parser<'a> {
 
     pub fn advance(&mut self, bytes: usize) {
         self.cursor.cursor += bytes;
-        self.chars = self.src[self.cursor.cursor..].chars().peekable();
     }
 
     pub fn next(&mut self) -> Result<char> {
-        let c = self.chars.next().ok_or(Error::Eof)?;
+        let c = self.peek_or_eof()?;
         self.cursor.cursor += c.len_utf8();
         Ok(c)
     }
 
-    pub fn peek(&mut self) -> Result<char> {
-        if let Some(&c) = self.chars.peek() {
-            Ok(c)
-        } else {
-            Err(Error::Eof)
-        }
+    pub fn peek(&self) -> Option<char> {
+        self.src().chars().next()
     }
 
-    pub fn peek2(&self) -> Result<char> {
-        if let Some(c) = self.chars.clone().nth(1) {
-            Ok(c)
-        } else {
-            Err(Error::Eof)
-        }
+    pub fn peek_or_eof(&self) -> Result<char> {
+        self.peek().ok_or(Error::Eof)
     }
 
-    pub fn peek3(&self) -> Result<char> {
-        if let Some(c) = self.chars.clone().nth(2) {
-            Ok(c)
-        } else {
-            Err(Error::Eof)
-        }
+    pub fn peek2(&self) -> Option<char> {
+        self.src().chars().nth(1)
+    }
+
+    pub fn peek3(&self) -> Option<char> {
+        self.src().chars().nth(2)
     }
 
     pub fn src(&self) -> &'a str {
@@ -182,7 +169,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn consume_char(&mut self, expected: char) -> bool {
-        if let Ok(c) = self.peek() {
+        if let Some(c) = self.peek() {
             if c == expected {
                 let _ = self.next();
                 return true;
@@ -234,12 +221,12 @@ impl<'a> Parser<'a> {
 /// actual parsing of ron tokens
 impl<'a> Parser<'a> {
     fn parse_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
-        let base = if self.peek()? == '0' {
+        let base = if self.peek_or_eof()? == '0' {
             match self.peek2() {
-                Ok('x') => 16,
-                Ok('b') => 2,
-                Ok('o') => 8,
-                _ => 10,
+                Some('x') => 16,
+                Some('b') => 2,
+                Some('o') => 8,
+                Some(_) | None => 10,
             }
         } else {
             10
@@ -309,7 +296,7 @@ impl<'a> Parser<'a> {
     pub fn integer<T: Integer>(&mut self) -> Result<T> {
         let src_backup = self.src();
 
-        let is_negative = match self.peek()? {
+        let is_negative = match self.peek_or_eof()? {
             '+' => {
                 let _ = self.next();
                 false
@@ -589,13 +576,13 @@ impl<'a> Parser<'a> {
 
                 match parser.peek() {
                     // Definitely a struct with named fields
-                    Ok(':') => return Ok(StructType::Named),
+                    Some(':') => return Ok(StructType::Named),
                     // Definitely a tuple struct with fields
-                    Ok(',') => return Ok(StructType::Tuple),
+                    Some(',') => return Ok(StructType::Tuple),
                     // Either a newtype or a tuple struct
-                    Ok(')') => return Ok(StructType::NewtypeOrTuple),
+                    Some(')') => return Ok(StructType::NewtypeOrTuple),
                     // Something else, let's investigate further
-                    _ => (),
+                    Some(_) | None => (),
                 };
             }
 
@@ -691,7 +678,7 @@ impl<'a> Parser<'a> {
 
     /// Returns the extensions bit mask.
     fn extensions(&mut self) -> Result<Extensions> {
-        if self.peek() != Ok('#') {
+        if self.peek() != Some('#') {
             return Ok(Extensions::empty());
         }
 
@@ -774,7 +761,7 @@ impl<'a> Parser<'a> {
             return Err(Error::ExpectedFloat);
         }
 
-        if self.peek()? == '_' {
+        if self.peek_or_eof()? == '_' {
             return Err(Error::UnderscoreAtBeginning);
         }
 
@@ -835,21 +822,21 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_ident(&mut self) -> bool {
-        if let Ok(c) = self.peek() {
+        if let Some(c) = self.peek() {
             if c == 'b' {
                 match self.peek2() {
-                    Ok('"' | '\'') => return false,
-                    Ok('r') => match self.peek3() {
-                        Ok('#' | '"') => return false,
-                        Ok(_) | Err(_) => (),
+                    Some('"' | '\'') => return false,
+                    Some('r') => match self.peek3() {
+                        Some('#' | '"') => return false,
+                        Some(_) | None => (),
                     },
-                    Ok(_) | Err(_) => (),
+                    Some(_) | None => (),
                 }
             }
 
             if c == 'r' {
                 match self.peek2() {
-                    Ok('#') => {
+                    Some('#') => {
                         let len = self.next_chars_while_from(2, is_ident_raw_char);
                         if len > 0 {
                             self.advance(2 + len);
@@ -858,8 +845,8 @@ impl<'a> Parser<'a> {
                             return false;
                         }
                     }
-                    Ok('"') => return false,
-                    _ => {}
+                    Some('"') => return false,
+                    Some(_) | None => (),
                 }
             }
             if is_xid_start(c) {
@@ -873,7 +860,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
-        let first = self.peek()?;
+        let first = self.peek_or_eof()?;
         if !is_ident_first_char(first) {
             if is_ident_raw_char(first) {
                 let ident_bytes = self.next_chars_while(is_ident_raw_char);
@@ -889,19 +876,19 @@ impl<'a> Parser<'a> {
         //  literal, return an error.
         if first == 'b' {
             match self.peek2() {
-                Ok('"' | '\'') => return Err(Error::ExpectedIdentifier),
-                Ok('r') => match self.peek3() {
-                    Ok('#' | '"') => return Err(Error::ExpectedIdentifier),
-                    Ok(_) | Err(_) => (),
+                Some('"' | '\'') => return Err(Error::ExpectedIdentifier),
+                Some('r') => match self.peek3() {
+                    Some('#' | '"') => return Err(Error::ExpectedIdentifier),
+                    Some(_) | None => (),
                 },
-                Ok(_) | Err(_) => (),
+                Some(_) | None => (),
             }
         };
 
         let length = if first == 'r' {
             match self.peek2() {
-                Ok('"') => return Err(Error::ExpectedIdentifier),
-                Ok('#') => {
+                Some('"') => return Err(Error::ExpectedIdentifier),
+                Some('#') => {
                     let after_next = self.peek3().unwrap_or_default();
                     // Note: it's important to check this before advancing forward, so that
                     // the value-type deserializer can fall back to parsing it differently.
@@ -912,7 +899,7 @@ impl<'a> Parser<'a> {
                     self.advance(2);
                     self.next_chars_while(is_ident_raw_char)
                 }
-                _ => {
+                Some(_) | None => {
                     let std_ident_length = self.next_chars_while(is_xid_continue);
                     let raw_ident_length = self.next_chars_while(is_ident_raw_char);
 
@@ -946,7 +933,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn next_bytes_is_float(&mut self) -> bool {
-        if let Ok(c) = self.peek() {
+        if let Some(c) = self.peek() {
             let skip = match c {
                 '+' | '-' => 1,
                 _ => 0,
@@ -1259,7 +1246,7 @@ impl<'a> Parser<'a> {
                 let mut num_digits = 0;
 
                 while num_digits < 6 {
-                    let byte = self.peek()?;
+                    let byte = self.peek_or_eof()?;
 
                     if byte == '}' {
                         break;
