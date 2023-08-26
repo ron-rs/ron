@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `number_suffixes` option to `PrettyConfig` to allow serialising numbers with their explicit type suffix, e.g. `42i32` ([#481](https://github.com/ron-rs/ron/pull/481))
 - Allow `ron::value::RawValue` to capture any whitespace to the left and right of a ron value ([#487](https://github.com/ron-rs/ron/pull/487))
 - Fix serialising reserved identifiers `true`, `false`, `Some`, `None`, `inf`[`f32`|`f64`], and `Nan`[`f32`|`f64`] ([#487](https://github.com/ron-rs/ron/pull/487))
+- Disallow unclosed line comments at the end of `ron::value::RawValue` ([#489](https://github.com/ron-rs/ron/pull/489))
 
 ## [0.8.1] - 2023-08-17
 

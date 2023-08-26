@@ -904,6 +904,10 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
+        self.skip_ws_check_unclosed_line_comment().map(|_| ())
+    }
+
+    pub fn skip_ws_check_unclosed_line_comment(&mut self) -> Result<bool> {
         if (self.bytes.len() + self.last_ws_len) < self.pre_ws_bytes.len() {
             // [[last whitespace] ... [bytese]] means the last whitespace
             //  is disjoint from this one and we need to reset the pre ws
@@ -915,14 +919,16 @@ impl<'a> Bytes<'a> {
                 let _ = self.advance_single();
             }
 
-            if !self.skip_comment()? {
-                break;
+            match self.skip_comment()? {
+                None => break,
+                Some(Comment::UnclosedLine) => return Ok(true),
+                Some(Comment::ClosedLine | Comment::Block) => continue,
             }
         }
 
         self.last_ws_len = self.pre_ws_bytes.len() - self.bytes.len();
 
-        Ok(())
+        Ok(false)
     }
 
     pub fn pre_ws_bytes(&self) -> &'a [u8] {
@@ -1104,13 +1110,19 @@ impl<'a> Bytes<'a> {
         Ok(c)
     }
 
-    fn skip_comment(&mut self) -> Result<bool> {
+    fn skip_comment(&mut self) -> Result<Option<Comment>> {
         if self.consume("/") {
             match self.eat_byte()? {
                 b'/' => {
                     let bytes = self.bytes.iter().take_while(|&&b| b != b'\n').count();
 
                     let _ = self.advance(bytes);
+
+                    if self.bytes().is_empty() {
+                        Ok(Some(Comment::UnclosedLine))
+                    } else {
+                        Ok(Some(Comment::ClosedLine))
+                    }
                 }
                 b'*' => {
                     let mut level = 1;
@@ -1137,15 +1149,21 @@ impl<'a> Bytes<'a> {
                             self.eat_byte().map_err(|_| Error::UnclosedBlockComment)?;
                         }
                     }
-                }
-                b => return Err(Error::UnexpectedByte(b as char)),
-            }
 
-            Ok(true)
+                    Ok(Some(Comment::Block))
+                }
+                b => Err(Error::UnexpectedByte(b as char)),
+            }
         } else {
-            Ok(false)
+            Ok(None)
         }
     }
+}
+
+enum Comment {
+    ClosedLine,
+    UnclosedLine,
+    Block,
 }
 
 pub trait Num {

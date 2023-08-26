@@ -252,4 +252,28 @@ fn test_fuzzer_found_issue() {
             position: Position { line: 1, col: 27 },
         })
     );
+
+    assert_eq!(
+        RawValue::from_ron("42 //"),
+        Err(SpannedError {
+            code: Error::UnclosedLineComment,
+            position: Position { line: 1, col: 6 },
+        })
+    );
+    assert_eq!(
+        ron::from_str::<&RawValue>("42 //"),
+        Err(SpannedError {
+            code: Error::UnclosedLineComment,
+            position: Position { line: 1, col: 6 },
+        })
+    );
+    assert_eq!(
+        ron::from_str::<&RawValue>("42 //\n"),
+        RawValue::from_ron("42 //\n")
+    );
+    assert_eq!(
+        ron::from_str::<&RawValue>("42 /**/"),
+        RawValue::from_ron("42 /**/")
+    );
+    assert_eq!(ron::from_str::<&RawValue>("42 "), RawValue::from_ron("42 "));
 }
