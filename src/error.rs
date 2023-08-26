@@ -60,6 +60,7 @@ pub enum Error {
     NoSuchExtension(String),
 
     UnclosedBlockComment,
+    UnclosedLineComment,
     UnderscoreAtBeginning,
     UnexpectedByte(char),
 
@@ -164,6 +165,10 @@ impl fmt::Display for Error {
             }
             Error::Utf8Error(ref e) => fmt::Display::fmt(e, f),
             Error::UnclosedBlockComment => f.write_str("Unclosed block comment"),
+            Error::UnclosedLineComment => f.write_str(
+                "`ron::value::RawValue` cannot end in unclosed line comment, \
+                try using a block comment or adding a newline"
+            ),
             Error::UnderscoreAtBeginning => {
                 f.write_str("Unexpected leading underscore in a number")
             }
