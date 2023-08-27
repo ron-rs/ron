@@ -904,10 +904,10 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
-        self.skip_ws_check_unclosed_line_comment().map(|_| ())
-    }
+        if self.bytes.is_empty() {
+            return Ok(());
+        }
 
-    pub fn skip_ws_check_unclosed_line_comment(&mut self) -> Result<bool> {
         if (self.bytes.len() + self.last_ws_len) < self.pre_ws_bytes.len() {
             // [[last whitespace] ... [bytese]] means the last whitespace
             //  is disjoint from this one and we need to reset the pre ws
@@ -921,14 +921,21 @@ impl<'a> Bytes<'a> {
 
             match self.skip_comment()? {
                 None => break,
-                Some(Comment::UnclosedLine) => return Ok(true),
+                Some(Comment::UnclosedLine) => {
+                    self.last_ws_len = usize::MAX;
+                    return Ok(());
+                }
                 Some(Comment::ClosedLine | Comment::Block) => continue,
             }
         }
 
         self.last_ws_len = self.pre_ws_bytes.len() - self.bytes.len();
 
-        Ok(false)
+        Ok(())
+    }
+
+    pub fn has_unclosed_line_comment(&self) -> bool {
+        self.bytes.is_empty() && self.last_ws_len == usize::MAX
     }
 
     pub fn pre_ws_bytes(&self) -> &'a [u8] {

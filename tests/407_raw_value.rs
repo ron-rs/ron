@@ -268,12 +268,42 @@ fn test_fuzzer_found_issue() {
         })
     );
     assert_eq!(
-        ron::from_str::<&RawValue>("42 //\n"),
-        RawValue::from_ron("42 //\n")
+        ron::from_str::<&RawValue>("42 //\n").unwrap(),
+        RawValue::from_ron("42 //\n").unwrap()
     );
     assert_eq!(
-        ron::from_str::<&RawValue>("42 /**/"),
-        RawValue::from_ron("42 /**/")
+        ron::from_str::<&RawValue>("42 /**/").unwrap(),
+        RawValue::from_ron("42 /**/").unwrap()
     );
-    assert_eq!(ron::from_str::<&RawValue>("42 "), RawValue::from_ron("42 "));
+    assert_eq!(
+        ron::from_str::<&RawValue>("42 ").unwrap(),
+        RawValue::from_ron("42 ").unwrap()
+    );
+
+    assert_eq!(
+        RawValue::from_ron("a//"),
+        Err(SpannedError {
+            code: Error::UnclosedLineComment,
+            position: Position { line: 1, col: 4 },
+        })
+    );
+    assert_eq!(
+        ron::from_str::<&RawValue>("a//"),
+        Err(SpannedError {
+            code: Error::UnclosedLineComment,
+            position: Position { line: 1, col: 4 },
+        })
+    );
+    assert_eq!(
+        ron::from_str::<&RawValue>("a//\n").unwrap(),
+        RawValue::from_ron("a//\n").unwrap()
+    );
+    assert_eq!(
+        ron::from_str::<&RawValue>("a/**/").unwrap(),
+        RawValue::from_ron("a/**/").unwrap()
+    );
+    assert_eq!(
+        ron::from_str::<&RawValue>("a").unwrap(),
+        RawValue::from_ron("a").unwrap()
+    );
 }
