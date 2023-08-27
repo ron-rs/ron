@@ -15,11 +15,13 @@ use serde::{
 
 use ron::{extensions::Extensions, ser::PrettyConfig};
 
+const RECURSION_LIMIT: usize = 32_usize;
+
 pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeData> {
     if let Ok(typed_value) = TypedSerdeData::arbitrary(&mut Unstructured::new(data)) {
-        let ron = match ron::Options::default()
-            .to_string_pretty(&typed_value, typed_value.pretty_config())
-        {
+        let options = ron::Options::default().with_recursion_limit(RECURSION_LIMIT);
+
+        let ron = match options.to_string_pretty(&typed_value, typed_value.pretty_config()) {
             Ok(ron) => ron,
             // Erroring on deep recursion is better than crashing on a stack overflow
             Err(ron::error::Error::ExceededRecursionLimit) => return None,
@@ -31,7 +33,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             Err(err) => panic!("{:?} -! {:?}", typed_value, err),
         };
 
-        if let Err(err) = ron::Options::default().from_str::<ron::Value>(&ron) {
+        if let Err(err) = options.from_str::<ron::Value>(&ron) {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
                 ron::error::Error::ExceededRecursionLimit => return None,
@@ -40,7 +42,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             }
         };
 
-        if let Err(err) = ron::Options::default().from_str_seed(&ron, &typed_value) {
+        if let Err(err) = options.from_str_seed(&ron, &typed_value) {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
                 ron::error::Error::ExceededRecursionLimit => return None,
@@ -95,7 +97,8 @@ fn arbitrary_ron_extensions(u: &mut Unstructured) -> arbitrary::Result<Extension
 impl From<ArbitraryPrettyConfig> for PrettyConfig {
     fn from(arbitrary: ArbitraryPrettyConfig) -> Self {
         Self::default()
-            .depth_limit(arbitrary.depth_limit.into())
+            .depth_limit((arbitrary.depth_limit % 16).into())
+            .indentor(String::from(" ")) // conserve some memory and time
             .struct_names(arbitrary.struct_names)
             .separate_tuple_members(arbitrary.separate_tuple_members)
             .enumerate_arrays(arbitrary.enumerate_arrays)
@@ -1555,9 +1558,7 @@ static RECURSION_DEPTH: AtomicUsize = AtomicUsize::new(0);
 fn arbitrary_recursion_guard<'a, T: Arbitrary<'a> + Default>(
     u: &mut Unstructured<'a>,
 ) -> arbitrary::Result<T> {
-    let max_depth = ron::Options::default()
-        .recursion_limit
-        .map_or(256, |limit| limit * 2);
+    let max_depth = RECURSION_LIMIT * 2;
 
     let result = if RECURSION_DEPTH.fetch_add(1, Ordering::Relaxed) < max_depth {
         T::arbitrary(u)
@@ -1613,9 +1614,7 @@ fn arbitrary_array_len_recursion_guard<'a>(
 fn arbitrary_str_tuple_vec_recursion_guard<'a, T: Arbitrary<'a>>(
     u: &mut Unstructured<'a>,
 ) -> arbitrary::Result<(Vec<&'a str>, Vec<T>)> {
-    let max_depth = ron::Options::default()
-        .recursion_limit
-        .map_or(256, |limit| limit * 2);
+    let max_depth = RECURSION_LIMIT * 2;
 
     let result = if RECURSION_DEPTH.fetch_add(1, Ordering::Relaxed) < max_depth {
         let mut s = Vec::new();
