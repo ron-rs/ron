@@ -545,12 +545,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             let bytes_before = self.bytes.pre_ws_bytes();
             self.bytes.skip_ws()?;
             let _ignored = self.deserialize_ignored_any(serde::de::IgnoredAny)?;
+            self.bytes.skip_ws()?;
+            let bytes_after = self.bytes.bytes();
 
-            if self.bytes.skip_ws_check_unclosed_line_comment()? {
+            if self.bytes.has_unclosed_line_comment() {
                 return Err(Error::UnclosedLineComment);
             }
-
-            let bytes_after = self.bytes.bytes();
 
             let ron_bytes = &bytes_before[..bytes_before.len() - bytes_after.len()];
             let ron_str = str::from_utf8(ron_bytes).map_err(Error::from)?;
