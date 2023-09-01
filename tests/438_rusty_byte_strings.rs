@@ -93,6 +93,42 @@ fn rusty_byte_string() {
     rusty_byte_string_roundtrip(b"\"", "b\"\\\"\"", "br#\"\"\"#");
     rusty_byte_string_roundtrip(b"\"#", "b\"\\\"#\"", "br##\"\"#\"##");
     rusty_byte_string_roundtrip(b"\n", "b\"\\n\"", "b\"\n\"");
+
+    assert_eq!(
+        ron::from_str::<bytes::Bytes>("b\"\\xf\"").unwrap_err(),
+        SpannedError {
+            code: Error::InvalidEscape("Non-hex digit found"),
+            position: Position { line: 1, col: 7 },
+        },
+    );
+    assert_eq!(
+        ron::from_str::<bytes::Bytes>("br#q\"").unwrap_err(),
+        SpannedError {
+            code: Error::ExpectedByteString,
+            position: Position { line: 1, col: 4 },
+        },
+    );
+    assert_eq!(
+        ron::from_str::<bytes::Bytes>("br#\"q").unwrap_err(),
+        SpannedError {
+            code: Error::ExpectedStringEnd,
+            position: Position { line: 1, col: 5 },
+        },
+    );
+    assert_eq!(
+        ron::from_str::<String>("r#q\"").unwrap_err(),
+        SpannedError {
+            code: Error::ExpectedString,
+            position: Position { line: 1, col: 3 },
+        },
+    );
+    assert_eq!(
+        ron::from_str::<String>("r#\"q").unwrap_err(),
+        SpannedError {
+            code: Error::ExpectedStringEnd,
+            position: Position { line: 1, col: 4 },
+        },
+    );
 }
 
 fn rusty_byte_string_roundtrip(bytes: &[u8], ron: &str, ron_raw: &str) {
@@ -234,6 +270,11 @@ fn fuzzer_failures() {
         ron::from_str(r"b'\xff'"),
         Ok(ron::Value::Number(ron::value::Number::U8(b'\xff')))
     );
+
+    // `b`, `br`, `bq`, and `brq` should all be parsed as identifiers
+    for id in ["b", "br", "bq", "brq"] {
+        assert_eq!(ron::from_str(id), Ok(ron::Value::Unit));
+    }
 }
 
 #[test]

@@ -1062,7 +1062,6 @@ impl<'a> Bytes<'a> {
                 let _ = self.advance(advance);
                 Ok(bytes)
             }
-            Err(Error::ExpectedString) => Err(Error::ExpectedByteString),
             Err(err) => Err(err),
         }
     }
@@ -1259,9 +1258,10 @@ impl<'a> Bytes<'a> {
                     }
                 }
 
-                return Err(Error::InvalidEscape(
-                    "Not a valid byte-escaped Unicode character",
-                ));
+                panic!()
+                // return Err(Error::InvalidEscape(
+                //     "Not a valid byte-escaped Unicode character",
+                // ));
             }
             b'u' => {
                 self.expect_byte(b'{', Error::InvalidEscape("Missing { in Unicode escape"))?;
@@ -1302,6 +1302,7 @@ impl<'a> Bytes<'a> {
                 EscapeCharacter::Utf8(c)
             }
             _ => {
+                panic!();
                 return Err(Error::InvalidEscape("Unknown escape character"));
             }
         };
@@ -1351,7 +1352,7 @@ impl<'a> Bytes<'a> {
 
                     Ok(Some(Comment::Block))
                 }
-                b => Err(Error::UnexpectedByte(b)),
+                b => panic!(),//Err(Error::UnexpectedByte(b)),
             }
         } else {
             Ok(None)
@@ -1606,13 +1607,12 @@ pub enum TupleMode {
     DifferentiateNewtype,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum ParsedStr<'a> {
     Allocated(String),
     Slice(&'a str),
 }
 
-#[derive(Clone, Debug)]
 pub enum ParsedByteStr<'a> {
     Allocated(Vec<u8>),
     Slice(&'a [u8]),
@@ -1632,7 +1632,7 @@ impl<'a> ParsedStr<'a> {
 impl<'a> ParsedByteStr<'a> {
     pub fn try_from_base64(str: ParsedStr<'a>) -> Result<Self, base64::DecodeError> {
         let base64_str = match &str {
-            ParsedStr::Allocated(string) => string.as_str(),
+            ParsedStr::Allocated(string) => panic!(),//string.as_str(),
             ParsedStr::Slice(str) => str,
         };
 
@@ -1641,13 +1641,12 @@ impl<'a> ParsedByteStr<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone)]
 enum EscapeEncoding {
     Binary,
     Utf8,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum EscapeCharacter {
     Ascii(u8),
     Utf8(char),
@@ -1706,5 +1705,21 @@ mod tests {
         let err = crate::from_str::<bytes::Bytes>("r\"SGVsbG8gcm9uIQ==\"").unwrap_err();
 
         assert_eq!(format!("{}", err.code), "Expected the Rusty byte string b\"Hello ron!\" but found the ambiguous base64 string \"SGVsbG8gcm9uIQ==\" instead");
+
+        assert_eq!(
+            crate::from_str::<bytes::Bytes>("\"invalid=\"").unwrap_err(),
+            SpannedError {
+                code: Error::ExpectedByteString,
+                position: Position { line: 1, col: 11 },
+            }
+        );
+
+        assert_eq!(
+            crate::from_str::<bytes::Bytes>("r\"invalid=\"").unwrap_err(),
+            SpannedError {
+                code: Error::ExpectedByteString,
+                position: Position { line: 1, col: 12 },
+            }
+        );
     }
 }
