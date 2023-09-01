@@ -55,7 +55,7 @@ fn test_raw_value_invalid() {
     assert_eq!(
         err,
         SpannedError {
-            code: Error::UnexpectedByte('\0'),
+            code: Error::UnexpectedByte(b'\0'),
             position: Position { line: 1, col: 1 }
         }
     )

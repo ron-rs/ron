@@ -40,7 +40,7 @@ For the extension names see the [`extensions.md`][exts] document.
 ## Value
 
 ```ebnf
-value = integer | float | string | char | bool | option | list | map | tuple | struct | enum_variant;
+value = integer | byte | float | string | byte_string | char | bool | option | list | map | tuple | struct | enum_variant;
 ```
 
 ## Numbers
@@ -60,6 +60,8 @@ unsigned_octal = "0o", digit_octal, { digit_octal | "_" };
 unsigned_hexadecimal = "0x", digit_hexadecimal, { digit_hexadecimal | "_" };
 unsigned_decimal = digit, { digit | "_" };
 
+byte = ascii | ("\\", (escape_ascii | escape_byte));
+
 float = ["+" | "-"], ("inf" | "NaN" | float_num), [float_suffix];
 float_num = (float_int | float_std | float_frac), [float_exp];
 float_int = digit, { digit | "_" };
@@ -74,9 +76,13 @@ float_suffix = "f", ("32", "64");
 ```ebnf
 string = string_std | string_raw;
 string_std = "\"", { no_double_quotation_marks | string_escape }, "\"";
-string_escape = "\\", ("\"" | "\\" | "b" | "f" | "n" | "r" | "t" | ("u", unicode_hex));
-string_raw = "r" string_raw_content;
+string_escape = "\\", (escape_ascii | escape_byte | escape_unicode);
+string_raw = "r", string_raw_content;
 string_raw_content = ("#", string_raw_content, "#") | "\"", { unicode_non_greedy }, "\"";
+
+escape_ascii = "'" | "\"" | "\\" | "n" | "r" | "t" | "0";
+escape_byte = "x", digit_hexadecimal, digit_hexadecimal;
+escape_unicode = "u", digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal]]]]];
 ```
 
 > Note: Raw strings start with an `r`, followed by n `#`s and a quotation mark
@@ -92,6 +98,24 @@ Raw strings cannot be written in EBNF, as they are context-sensitive.
 Also see [the Rust document] about context-sensitivity of raw strings.
 
 [the Rust document]: https://github.com/rust-lang/rust/blob/d046ffddc4bd50e04ffc3ff9f766e2ac71f74d50/src/grammar/raw-string-literal-ambiguity.md
+
+## Byte String
+
+```ebnf
+byte_string = byte_string_std | byte_string_raw;
+byte_string_std = "b\"", { no_double_quotation_marks | string_escape }, "\"";
+byte_string_raw = "br", string_raw_content;
+```
+
+> Note: Byte strings are similar to normal strings but are not required to
+  contain only valid UTF-8 text. RON's byte strings follow the updated Rust
+  byte string literal rules as proposed in [RFC #3349], i.e. byte strings
+  allow the exact same characters and escape codes as normal strings.
+
+[RFC #3349](https://github.com/rust-lang/rfcs/pull/3349)
+
+> Note: Raw byte strings start with an `br` prefix and follow the same rules
+  as raw strings, which are outlined above.
 
 ## Char
 

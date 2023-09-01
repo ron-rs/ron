@@ -50,3 +50,14 @@ fn test_unclosed() {
         })
     );
 }
+
+#[test]
+fn test_unexpected_byte() {
+    assert_eq!(
+        from_str::<u8>("42 /q"),
+        Err(RonErr {
+            code: Error::UnexpectedByte(b'q'),
+            position: Position { line: 1, col: 6 },
+        })
+    );
+}

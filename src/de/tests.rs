@@ -334,7 +334,7 @@ fn test_byte_stream() {
             small: vec![1, 2],
             large: vec![1, 2, 3, 4]
         }),
-        from_str("BytesStruct( small:[1, 2], large:\"AQIDBA==\" )"),
+        from_str("BytesStruct( small:[1, 2], large:b\"\\x01\\x02\\x03\\x04\" )"),
     );
 }
 

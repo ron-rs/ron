@@ -25,6 +25,7 @@ pub enum Value {
     Number(Number),
     Option(Option<Box<Value>>),
     String(String),
+    Bytes(Vec<u8>),
     Seq(Vec<Value>),
     Unit,
 }
@@ -86,6 +87,7 @@ impl<'de> Deserializer<'de> for Value {
             Value::Option(Some(o)) => visitor.visit_some(*o),
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
+            Value::Bytes(b) => visitor.visit_byte_buf(b),
             Value::Seq(mut seq) => {
                 let old_len = seq.len();
 
@@ -186,6 +188,19 @@ mod tests {
         assert_eq!(direct, value, "Deserialization for {:?} is not the same", s);
     }
 
+    fn assert_same_bytes<'de, T>(s: &'de [u8])
+    where
+        T: Debug + Deserialize<'de> + PartialEq,
+    {
+        use crate::de::from_bytes;
+
+        let direct: T = from_bytes(s).unwrap();
+        let value: Value = from_bytes(s).unwrap();
+        let value = T::deserialize(value).unwrap();
+
+        assert_eq!(direct, value, "Deserialization for {:?} is not the same", s);
+    }
+
     #[test]
     fn boolean() {
         assert_same::<bool>("true");
@@ -208,6 +223,24 @@ mod tests {
     fn char() {
         assert_same::<char>("'4'");
         assert_same::<char>("'c'");
+    }
+
+    #[test]
+    fn string() {
+        assert_same::<String>(r#""hello world""#);
+        assert_same::<String>(r#""this is a Rusty 🦀 string""#);
+        assert_same::<String>(r#""this is now valid UTF-8 \xf0\x9f\xa6\x80""#);
+    }
+
+    #[test]
+    fn bytes() {
+        assert_same_bytes::<serde_bytes::ByteBuf>(br#"b"hello world""#);
+        assert_same_bytes::<serde_bytes::ByteBuf>(
+            b"b\"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1\"",
+        );
+        assert_same_bytes::<serde_bytes::ByteBuf>(
+            br#"b"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1""#,
+        );
     }
 
     #[test]

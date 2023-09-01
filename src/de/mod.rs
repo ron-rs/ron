@@ -5,7 +5,6 @@ use std::{
     str,
 };
 
-use base64::Engine;
 use serde::{
     de::{self, DeserializeSeed, Deserializer as _, Visitor},
     Deserialize,
@@ -17,7 +16,7 @@ use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
     options::Options,
-    parse::{Bytes, NewtypeMode, ParsedStr, StructType, TupleMode, BASE64_ENGINE},
+    parse::{Bytes, NewtypeMode, ParsedByteStr, ParsedStr, StructType, TupleMode},
 };
 
 mod id;
@@ -322,8 +321,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'{' => self.deserialize_map(visitor),
             b'0'..=b'9' | b'+' | b'-' | b'.' => self.bytes.any_number()?.visit(visitor),
             b'"' | b'r' => self.deserialize_string(visitor),
+            b'b' if matches!(self.bytes.bytes().get(1), Some(b'\'')) => {
+                self.bytes.any_number()?.visit(visitor)
+            }
+            b'b' => self.deserialize_byte_buf(visitor),
             b'\'' => self.deserialize_char(visitor),
-            other => Err(Error::UnexpectedByte(other as char)),
+            other => Err(Error::UnexpectedByte(other)),
         }
     }
 
@@ -460,18 +463,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_byte_buf(bytes);
         }
 
-        let res = {
-            let string = self.bytes.string()?;
-            let base64_str = match string {
-                ParsedStr::Allocated(ref s) => s.as_str(),
-                ParsedStr::Slice(s) => s,
-            };
-            BASE64_ENGINE.decode(base64_str)
-        };
-
-        match res {
-            Ok(byte_buf) => visitor.visit_byte_buf(byte_buf),
-            Err(err) => Err(Error::Base64Error(err)),
+        match self.bytes.byte_string()? {
+            ParsedByteStr::Allocated(byte_buf) => visitor.visit_byte_buf(byte_buf),
+            ParsedByteStr::Slice(bytes) => visitor.visit_borrowed_bytes(bytes),
         }
     }
 

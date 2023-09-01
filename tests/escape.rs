@@ -12,6 +12,14 @@ fn test_escape_basic() {
 
     assert_eq!(from_str::<char>("\'\\x07\'").unwrap(), '\x07');
     assert_eq!(from_str::<char>("\'\\u{7}\'").unwrap(), '\x07');
+
+    assert_eq!(
+        from_str::<char>("\'\\q\'").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::InvalidEscape("Unknown escape character"),
+            position: ron::error::Position { line: 1, col: 4 },
+        }
+    )
 }
 
 fn check_same<T>(t: T)

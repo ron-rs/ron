@@ -2,18 +2,14 @@
 
 use std::{
     char::from_u32 as char_from_u32,
-    str::{from_utf8, from_utf8_unchecked, FromStr},
+    str::{from_utf8, from_utf8_unchecked, FromStr, Utf8Error},
 };
-
-use base64::engine::general_purpose::{GeneralPurpose, STANDARD};
 
 use crate::{
     error::{Error, Position, Result, SpannedError, SpannedResult},
     extensions::Extensions,
     value::Number,
 };
-
-pub const BASE64_ENGINE: GeneralPurpose = STANDARD;
 
 // We have the following char categories.
 const INT_CHAR: u8 = 1 << 0; // [0-9A-Fa-f_]
@@ -214,6 +210,7 @@ impl<'a> Bytes<'a> {
 
                 if digit >= base {
                     let _ = bytes.advance(i);
+                    // we know that the byte is an ASCII character here
                     return Err(Error::InvalidIntegerDigit {
                         digit: char::from(byte),
                         base,
@@ -249,6 +246,32 @@ impl<'a> Bytes<'a> {
             b'-' => {
                 let _ = self.advance_single();
                 true
+            }
+            b'b' if self.consume("b'") => {
+                // Parse a byte literal
+                let byte = match self.eat_byte()? {
+                    b'\\' => match self.parse_escape(EscapeEncoding::Binary, true)? {
+                        // we know that this byte is an ASCII character
+                        EscapeCharacter::Ascii(b) => b,
+                        EscapeCharacter::Utf8(_) => {
+                            return Err(Error::InvalidEscape(
+                                "Unexpected Unicode escape in byte literal",
+                            ))
+                        }
+                    },
+                    b => b,
+                };
+
+                if !self.consume("'") {
+                    return Err(Error::ExpectedByteLiteral);
+                }
+
+                // Safety: The byte contains the ASCII-only byte literal
+                let bytes_ron = unsafe {
+                    from_utf8_unchecked(&bytes_backup[..bytes_backup.len() - self.bytes.len()])
+                };
+
+                return T::try_from_parsed_integer(ParsedInteger::U8(byte), bytes_ron);
             }
             _ => false,
         };
@@ -437,7 +460,11 @@ impl<'a> Bytes<'a> {
         let c = if c == b'\\' {
             let _ = self.advance(1);
 
-            self.parse_escape()?
+            match self.parse_escape(EscapeEncoding::Utf8, true)? {
+                // we know that this byte is an ASCII character
+                EscapeCharacter::Ascii(b) => char::from(b),
+                EscapeCharacter::Utf8(c) => c,
+            }
         } else {
             // Check where the end of the char (') is and try to
             // interpret the rest as UTF-8
@@ -554,6 +581,10 @@ impl<'a> Bytes<'a> {
                 }
                 let mut bytes_copy = *bytes;
                 if bytes_copy.string().is_ok() {
+                    *bytes = bytes_copy;
+                }
+                let mut bytes_copy = *bytes;
+                if bytes_copy.byte_string().is_ok() {
                     *bytes = bytes_copy;
                 }
 
@@ -768,6 +799,7 @@ impl<'a> Bytes<'a> {
                 _ => (),
             }
 
+            // we know that the byte is an ASCII character here
             f.push(char::from(*b));
         }
 
@@ -827,8 +859,19 @@ impl<'a> Bytes<'a> {
             return Err(Error::ExpectedIdentifier);
         }
 
-        // If the next two bytes signify the start of a raw string literal,
-        // return an error.
+        // If the next two bytes signify the start of a (raw) byte string
+        //  literal, return an error.
+        if next == b'b' {
+            match self.bytes.get(1) {
+                Some(b'"' | b'\'') => return Err(Error::ExpectedIdentifier),
+                Some(b'r') => match self.bytes.get(2) {
+                    Some(b'#' | b'"') => return Err(Error::ExpectedIdentifier),
+                    Some(_) | None => (),
+                },
+                Some(_) | None => (),
+            }
+        };
+
         let length = if next == b'r' {
             match self.bytes.get(1) {
                 Some(b'"') => return Err(Error::ExpectedIdentifier),
@@ -950,6 +993,90 @@ impl<'a> Bytes<'a> {
         self.bytes.first().copied().ok_or(Error::Eof)
     }
 
+    pub fn byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
+        fn expected_byte_string_found_base64(
+            base64_str: &ParsedStr,
+            byte_str: &ParsedByteStr,
+        ) -> Error {
+            let byte_str = match &byte_str {
+                ParsedByteStr::Allocated(b) => b.as_slice(),
+                ParsedByteStr::Slice(b) => b,
+            }
+            .iter()
+            .flat_map(|c| std::ascii::escape_default(*c))
+            .map(char::from)
+            .collect::<String>();
+            let base64_str = match &base64_str {
+                ParsedStr::Allocated(s) => s.as_str(),
+                ParsedStr::Slice(s) => s,
+            };
+
+            Error::InvalidValueForType {
+                expected: format!("the Rusty byte string b\"{}\"", byte_str),
+                found: format!("the ambiguous base64 string {:?}", base64_str),
+            }
+        }
+
+        if self.consume("\"") {
+            let base64_str = self.escaped_string()?;
+            let base64_result = ParsedByteStr::try_from_base64(base64_str.clone());
+
+            if cfg!(not(test)) {
+                // FIXME @juntyr: remove in v0.10
+                #[allow(deprecated)]
+                base64_result.map_err(Error::Base64Error)
+            } else {
+                match base64_result {
+                    // FIXME @juntyr: enable in v0.10
+                    Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
+                    Err(_) => Err(Error::ExpectedByteString),
+                }
+            }
+        } else if self.consume("r") {
+            let base64_str = self.raw_string()?;
+            let base64_result = ParsedByteStr::try_from_base64(base64_str.clone());
+
+            if cfg!(not(test)) {
+                // FIXME @juntyr: remove in v0.10
+                #[allow(deprecated)]
+                base64_result.map_err(Error::Base64Error)
+            } else {
+                match base64_result {
+                    // FIXME @juntyr: enable in v0.10
+                    Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
+                    Err(_) => Err(Error::ExpectedByteString),
+                }
+            }
+        } else if self.consume("b\"") {
+            self.escaped_byte_string()
+        } else if self.consume("br") {
+            self.raw_byte_string()
+        } else {
+            Err(Error::ExpectedByteString)
+        }
+    }
+
+    fn escaped_byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
+        match self.escaped_byte_buf(EscapeEncoding::Binary) {
+            Ok((bytes, advance)) => {
+                let _ = self.advance(advance);
+                Ok(bytes)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn raw_byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
+        match self.raw_byte_buf() {
+            Ok((bytes, advance)) => {
+                let _ = self.advance(advance);
+                Ok(bytes)
+            }
+            Err(Error::ExpectedString) => Err(Error::ExpectedByteString),
+            Err(err) => Err(err),
+        }
+    }
+
     pub fn string(&mut self) -> Result<ParsedStr<'a>> {
         if self.consume("\"") {
             self.escaped_string()
@@ -961,6 +1088,28 @@ impl<'a> Bytes<'a> {
     }
 
     fn escaped_string(&mut self) -> Result<ParsedStr<'a>> {
+        match self.escaped_byte_buf(EscapeEncoding::Utf8) {
+            Ok((bytes, advance)) => {
+                let string = ParsedStr::try_from_bytes(bytes).map_err(Error::from)?;
+                let _ = self.advance(advance);
+                Ok(string)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn raw_string(&mut self) -> Result<ParsedStr<'a>> {
+        match self.raw_byte_buf() {
+            Ok((bytes, advance)) => {
+                let string = ParsedStr::try_from_bytes(bytes).map_err(Error::from)?;
+                let _ = self.advance(advance);
+                Ok(string)
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    fn escaped_byte_buf(&mut self, encoding: EscapeEncoding) -> Result<(ParsedByteStr<'a>, usize)> {
         use std::iter::repeat;
 
         let (i, end_or_escape) = self
@@ -971,27 +1120,28 @@ impl<'a> Bytes<'a> {
             .ok_or(Error::ExpectedStringEnd)?;
 
         if *end_or_escape == b'"' {
-            let s = from_utf8(&self.bytes[..i]).map_err(Error::from)?;
+            let s = &self.bytes[..i];
 
             // Advance by the number of bytes of the string
             // + 1 for the `"`.
-            let _ = self.advance(i + 1);
-
-            Ok(ParsedStr::Slice(s))
+            Ok((ParsedByteStr::Slice(s), i + 1))
         } else {
             let mut i = i;
             let mut s: Vec<_> = self.bytes[..i].to_vec();
 
             loop {
                 let _ = self.advance(i + 1);
-                let character = self.parse_escape()?;
-                match character.len_utf8() {
-                    1 => s.push(character as u8),
-                    len => {
-                        let start = s.len();
-                        s.extend(repeat(0).take(len));
-                        character.encode_utf8(&mut s[start..]);
-                    }
+
+                match self.parse_escape(encoding, false)? {
+                    EscapeCharacter::Ascii(c) => s.push(c),
+                    EscapeCharacter::Utf8(c) => match c.len_utf8() {
+                        1 => s.push(c as u8),
+                        len => {
+                            let start = s.len();
+                            s.extend(repeat(0).take(len));
+                            c.encode_utf8(&mut s[start..]);
+                        }
+                    },
                 }
 
                 let (new_i, end_or_escape) = self
@@ -1005,16 +1155,14 @@ impl<'a> Bytes<'a> {
                 s.extend_from_slice(&self.bytes[..i]);
 
                 if *end_or_escape == b'"' {
-                    let _ = self.advance(i + 1);
-
-                    let s = String::from_utf8(s).map_err(Error::from)?;
-                    break Ok(ParsedStr::Allocated(s));
+                    // Advance to the end of the string + 1 for the `"`.
+                    break Ok((ParsedByteStr::Allocated(s), i + 1));
                 }
             }
         }
     }
 
-    fn raw_string(&mut self) -> Result<ParsedStr<'a>> {
+    fn raw_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
         let num_hashes = self.bytes.iter().take_while(|&&b| b == b'#').count();
         let hashes = &self.bytes[..num_hashes];
         let _ = self.advance(num_hashes);
@@ -1030,13 +1178,11 @@ impl<'a> Bytes<'a> {
             .position(|window| window == ending.as_slice())
             .ok_or(Error::ExpectedStringEnd)?;
 
-        let s = from_utf8(&self.bytes[..i]).map_err(Error::from)?;
+        let s = &self.bytes[..i];
 
-        // Advance by the number of bytes of the string
+        // Advance by the number of bytes of the byte string
         // + `num_hashes` + 1 for the `"`.
-        let _ = self.advance(i + num_hashes + 1);
-
-        Ok(ParsedStr::Slice(s))
+        Ok((ParsedByteStr::Slice(s), i + num_hashes + 1))
     }
 
     fn test_for(&self, s: &str) -> bool {
@@ -1065,16 +1211,57 @@ impl<'a> Bytes<'a> {
         }
     }
 
-    fn parse_escape(&mut self) -> Result<char> {
+    fn parse_escape(&mut self, encoding: EscapeEncoding, is_char: bool) -> Result<EscapeCharacter> {
         let c = match self.eat_byte()? {
-            b'\'' => '\'',
-            b'"' => '"',
-            b'\\' => '\\',
-            b'n' => '\n',
-            b'r' => '\r',
-            b't' => '\t',
-            b'0' => '\0',
-            b'x' => self.decode_ascii_escape()? as char,
+            b'\'' => EscapeCharacter::Ascii(b'\''),
+            b'"' => EscapeCharacter::Ascii(b'"'),
+            b'\\' => EscapeCharacter::Ascii(b'\\'),
+            b'n' => EscapeCharacter::Ascii(b'\n'),
+            b'r' => EscapeCharacter::Ascii(b'\r'),
+            b't' => EscapeCharacter::Ascii(b'\t'),
+            b'0' => EscapeCharacter::Ascii(b'\0'),
+            b'x' => {
+                // Fast exit for ascii escape in byte string
+                let b: u8 = self.decode_ascii_escape()?;
+                if let EscapeEncoding::Binary = encoding {
+                    return Ok(EscapeCharacter::Ascii(b));
+                }
+
+                // Fast exit for ascii character in UTF-8 string
+                let mut bytes = [b, 0, 0, 0];
+                if let Ok(Some(c)) = from_utf8(&bytes[..=0]).map(|s| s.chars().next()) {
+                    return Ok(EscapeCharacter::Utf8(c));
+                }
+
+                if is_char {
+                    // Character literals are not allowed to use multiple byte
+                    //  escapes to build a unicode character
+                    return Err(Error::InvalidEscape(
+                        "Not a valid byte-escaped Unicode character",
+                    ));
+                }
+
+                // UTF-8 character needs up to four bytes and we have already
+                //  consumed one, so at most three to go
+                for i in 1..4 {
+                    if !self.consume(r"\x") {
+                        return Err(Error::InvalidEscape(
+                            "Not a valid byte-escaped Unicode character",
+                        ));
+                    }
+
+                    bytes[i] = self.decode_ascii_escape()?;
+
+                    // Check if we now have a valid UTF-8 character
+                    if let Ok(Some(c)) = from_utf8(&bytes[..=i]).map(|s| s.chars().next()) {
+                        return Ok(EscapeCharacter::Utf8(c));
+                    }
+                }
+
+                return Err(Error::InvalidEscape(
+                    "Not a valid byte-escaped Unicode character",
+                ));
+            }
             b'u' => {
                 self.expect_byte(b'{', Error::InvalidEscape("Missing { in Unicode escape"))?;
 
@@ -1107,11 +1294,13 @@ impl<'a> Bytes<'a> {
                     b'}',
                     Error::InvalidEscape("No } at the end of Unicode escape"),
                 )?;
-                char_from_u32(bytes).ok_or(Error::InvalidEscape("Not a valid char"))?
+                let c = char_from_u32(bytes).ok_or(Error::InvalidEscape(
+                    "Not a valid Unicode-escaped character",
+                ))?;
+
+                EscapeCharacter::Utf8(c)
             }
-            _ => {
-                return Err(Error::InvalidEscape("Unknown escape character"));
-            }
+            _ => return Err(Error::InvalidEscape("Unknown escape character")),
         };
 
         Ok(c)
@@ -1159,7 +1348,7 @@ impl<'a> Bytes<'a> {
 
                     Ok(Some(Comment::Block))
                 }
-                b => Err(Error::UnexpectedByte(b as char)),
+                b => Err(Error::UnexpectedByte(b)),
             }
         } else {
             Ok(None)
@@ -1397,12 +1586,6 @@ impl Float for ParsedFloat {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum ParsedStr<'a> {
-    Allocated(String),
-    Slice(&'a str),
-}
-
 pub enum StructType {
     NewtypeOrTuple,
     Tuple,
@@ -1418,6 +1601,51 @@ pub enum NewtypeMode {
 pub enum TupleMode {
     ImpreciseTupleOrNewtype,
     DifferentiateNewtype,
+}
+
+#[derive(Clone)]
+pub enum ParsedStr<'a> {
+    Allocated(String),
+    Slice(&'a str),
+}
+
+pub enum ParsedByteStr<'a> {
+    Allocated(Vec<u8>),
+    Slice(&'a [u8]),
+}
+
+impl<'a> ParsedStr<'a> {
+    pub fn try_from_bytes(bytes: ParsedByteStr<'a>) -> Result<Self, Utf8Error> {
+        match bytes {
+            ParsedByteStr::Allocated(byte_buf) => Ok(ParsedStr::Allocated(
+                String::from_utf8(byte_buf).map_err(|e| e.utf8_error())?,
+            )),
+            ParsedByteStr::Slice(bytes) => Ok(ParsedStr::Slice(from_utf8(bytes)?)),
+        }
+    }
+}
+
+impl<'a> ParsedByteStr<'a> {
+    pub fn try_from_base64(str: ParsedStr<'a>) -> Result<Self, base64::DecodeError> {
+        let base64_str = match &str {
+            ParsedStr::Allocated(string) => string.as_str(),
+            ParsedStr::Slice(str) => str,
+        };
+
+        base64::engine::Engine::decode(&base64::engine::general_purpose::STANDARD, base64_str)
+            .map(ParsedByteStr::Allocated)
+    }
+}
+
+#[derive(Copy, Clone)] // GRCOV_EXCL_LINE
+enum EscapeEncoding {
+    Binary,
+    Utf8,
+}
+
+enum EscapeCharacter {
+    Ascii(u8),
+    Utf8(char),
 }
 
 #[cfg(test)]
@@ -1453,5 +1681,41 @@ mod tests {
 
         assert_eq!(bytes.bytes(), b"24  ");
         assert_eq!(bytes.pre_ws_bytes(), b"       /*bye*/ 24  ");
+    }
+
+    #[test]
+    fn v0_10_base64_deprecation_error() {
+        let err = crate::from_str::<bytes::Bytes>("\"SGVsbG8gcm9uIQ==\"").unwrap_err();
+
+        assert_eq!(
+            err,
+            SpannedError {
+                code: Error::InvalidValueForType {
+                    expected: String::from("the Rusty byte string b\"Hello ron!\""),
+                    found: String::from("the ambiguous base64 string \"SGVsbG8gcm9uIQ==\"")
+                },
+                position: Position { line: 1, col: 19 },
+            }
+        );
+
+        let err = crate::from_str::<bytes::Bytes>("r\"SGVsbG8gcm9uIQ==\"").unwrap_err();
+
+        assert_eq!(format!("{}", err.code), "Expected the Rusty byte string b\"Hello ron!\" but found the ambiguous base64 string \"SGVsbG8gcm9uIQ==\" instead");
+
+        assert_eq!(
+            crate::from_str::<bytes::Bytes>("\"invalid=\"").unwrap_err(),
+            SpannedError {
+                code: Error::ExpectedByteString,
+                position: Position { line: 1, col: 11 },
+            }
+        );
+
+        assert_eq!(
+            crate::from_str::<bytes::Bytes>("r\"invalid=\"").unwrap_err(),
+            SpannedError {
+                code: Error::ExpectedByteString,
+                position: Position { line: 1, col: 12 },
+            }
+        );
     }
 }
