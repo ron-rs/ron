@@ -306,4 +306,21 @@ fn test_fuzzer_found_issue() {
         ron::from_str::<&RawValue>("a").unwrap(),
         RawValue::from_ron("a").unwrap()
     );
+
+    assert_eq!(
+        ron::to_string(&Some(Some(RawValue::from_ron("None").unwrap()))).unwrap(),
+        "Some(Some(None))"
+    );
+    // Since a RawValue can contain anything, no implicit Some are allowed around it
+    assert_eq!(
+        ron::Options::default()
+            .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+            .to_string(&Some(Some(RawValue::from_ron("None").unwrap())))
+            .unwrap(),
+        "Some(Some(None))"
+    );
+    assert_eq!(
+        ron::from_str::<Option<Option<&RawValue>>>("Some(Some(None))").unwrap(),
+        Some(Some(RawValue::from_ron("None").unwrap()))
+    );
 }
