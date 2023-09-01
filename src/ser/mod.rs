@@ -866,13 +866,13 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.implicit_some_depth = 0;
 
             for _ in 0..implicit_some_depth {
-                self.output.write_all(b"Some(")?;
+                self.output.write_str("Some(")?;
             }
 
             guard_recursion! { self => value.serialize(raw::RawValueSerializer::new(self)) }?;
 
             for _ in 0..implicit_some_depth {
-                self.output.write_all(b")")?;
+                self.output.write_str(")")?;
             }
 
             return Ok(());

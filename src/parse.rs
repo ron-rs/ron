@@ -941,8 +941,7 @@ impl<'a> Parser<'a> {
         }
 
         if (self.cursor.pre_ws_cursor + self.cursor.last_ws_len) < self.cursor.cursor {
-            // [[last whitespace] ... [bytese]] means the last whitespace
-            //  is disjoint from this one and we need to reset the pre ws
+            // the last whitespace is disjoint from this one, we need to track a new one
             self.cursor.pre_ws_cursor = self.cursor.cursor;
         }
 
@@ -967,7 +966,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn has_unclosed_line_comment(&self) -> bool {
-        self.src.is_empty() && self.cursor.last_ws_len == usize::MAX
+        self.src().is_empty() && self.cursor.last_ws_len == usize::MAX
     }
 
     pub fn byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
@@ -1277,7 +1276,7 @@ impl<'a> Parser<'a> {
                 '/' => {
                     let bytes = self.next_chars_while(|c| c != '\n');
 
-                    let _ = self.advance(bytes);
+                    self.advance(bytes);
 
                     if self.src().is_empty() {
                         Ok(Some(Comment::UnclosedLine))
