@@ -1637,7 +1637,7 @@ impl<'a> ParsedByteStr<'a> {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone)] // GRCOV_EXCL_LINE
 enum EscapeEncoding {
     Binary,
     Utf8,
