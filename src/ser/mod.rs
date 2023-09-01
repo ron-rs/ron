@@ -842,7 +842,20 @@ impl<'a, W: io::Write> ser::Serializer for &'a mut Serializer<W> {
         T: ?Sized + Serialize,
     {
         if name == crate::value::raw::RAW_VALUE_TOKEN {
-            return guard_recursion! { self => value.serialize(raw::RawValueSerializer::new(self)) };
+            let implicit_some_depth = self.implicit_some_depth;
+            self.implicit_some_depth = 0;
+
+            for _ in 0..implicit_some_depth {
+                self.output.write_all(b"Some(")?;
+            }
+
+            guard_recursion! { self => value.serialize(raw::RawValueSerializer::new(self)) }?;
+
+            for _ in 0..implicit_some_depth {
+                self.output.write_all(b")")?;
+            }
+
+            return Ok(());
         }
 
         if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) || self.newtype_variant {
