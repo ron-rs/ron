@@ -263,7 +263,7 @@ impl<'a> Bytes<'a> {
                 };
 
                 if !self.consume("'") {
-                    return Err(Error::ExpectedByte);
+                    return Err(Error::ExpectedByteLiteral);
                 }
 
                 // Safety: The byte contains the ASCII-only byte literal
@@ -1258,10 +1258,9 @@ impl<'a> Bytes<'a> {
                     }
                 }
 
-                panic!()
-                // return Err(Error::InvalidEscape(
-                //     "Not a valid byte-escaped Unicode character",
-                // ));
+                return Err(Error::InvalidEscape(
+                    "Not a valid byte-escaped Unicode character",
+                ));
             }
             b'u' => {
                 self.expect_byte(b'{', Error::InvalidEscape("Missing { in Unicode escape"))?;
@@ -1301,10 +1300,7 @@ impl<'a> Bytes<'a> {
 
                 EscapeCharacter::Utf8(c)
             }
-            _ => {
-                panic!();
-                return Err(Error::InvalidEscape("Unknown escape character"));
-            }
+            _ => return Err(Error::InvalidEscape("Unknown escape character")),
         };
 
         Ok(c)
@@ -1352,7 +1348,7 @@ impl<'a> Bytes<'a> {
 
                     Ok(Some(Comment::Block))
                 }
-                b => panic!(),//Err(Error::UnexpectedByte(b)),
+                b => Err(Error::UnexpectedByte(b)),
             }
         } else {
             Ok(None)
@@ -1632,7 +1628,7 @@ impl<'a> ParsedStr<'a> {
 impl<'a> ParsedByteStr<'a> {
     pub fn try_from_base64(str: ParsedStr<'a>) -> Result<Self, base64::DecodeError> {
         let base64_str = match &str {
-            ParsedStr::Allocated(string) => panic!(),//string.as_str(),
+            ParsedStr::Allocated(string) => string.as_str(),
             ParsedStr::Slice(str) => str,
         };
 

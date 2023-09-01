@@ -33,6 +33,15 @@ fn v_9_deprecated_base64_bytes_support() {
         ron::from_str("BytesStruct( small:[1, 2], large:r\"AQIDBAUG\" )"),
     );
 
+    // Parsing an escaped byte string is also possible
+    assert_eq!(
+        Ok(BytesStruct {
+            small: vec![1, 2],
+            large: vec![1, 2, 3, 4, 5, 6]
+        }),
+        ron::from_str("BytesStruct( small:[1, 2], large:\"\\x41Q\\x49DBA\\x55G\" )"),
+    );
+
     // Invalid base64
     assert_eq!(
         Err(SpannedError {
@@ -101,13 +110,15 @@ fn rusty_byte_string() {
             position: Position { line: 1, col: 7 },
         },
     );
+    let err = ron::from_str::<bytes::Bytes>("br#q\"").unwrap_err();
     assert_eq!(
-        ron::from_str::<bytes::Bytes>("br#q\"").unwrap_err(),
+        err,
         SpannedError {
             code: Error::ExpectedByteString,
             position: Position { line: 1, col: 4 },
         },
     );
+    assert_eq!(format!("{}", err.code), "Expected byte string",);
     assert_eq!(
         ron::from_str::<bytes::Bytes>("br#\"q").unwrap_err(),
         SpannedError {
@@ -358,6 +369,13 @@ fn test_weird_escapes() {
             position: Position { line: 1, col: 14 }
         })
     );
+    assert_eq!(
+        ron::from_str::<String>(r#""\xff\xff\xff\xff""#),
+        Err(SpannedError {
+            code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
+            position: Position { line: 1, col: 18 }
+        })
+    );
 
     assert_eq!(ron::from_str::<char>(r"'\u{1F980}'"), Ok('\u{1F980}'));
     assert_eq!(
@@ -403,28 +421,30 @@ fn byte_literal() {
 
     assert_eq!(
         ron::from_str::<u8>(r#"b'\u{0}'"#),
-        Err(ron::error::SpannedError {
-            code: ron::Error::InvalidEscape("Unexpected Unicode escape in byte literal"),
-            position: ron::error::Position { line: 1, col: 8 },
+        Err(SpannedError {
+            code: Error::InvalidEscape("Unexpected Unicode escape in byte literal"),
+            position: Position { line: 1, col: 8 },
         })
     );
 
+    let err = ron::from_str::<u8>(r#"b'🦀'"#).unwrap_err();
     assert_eq!(
-        ron::from_str::<u8>(r#"b'🦀'"#),
-        Err(ron::error::SpannedError {
-            code: ron::Error::ExpectedByte,
-            position: ron::error::Position { line: 1, col: 4 },
-        })
+        err,
+        SpannedError {
+            code: Error::ExpectedByteLiteral,
+            position: Position { line: 1, col: 4 },
+        }
     );
+    assert_eq!(format!("{}", err.code), "Expected byte literal");
 
     assert_eq!(
         ron::from_str::<i8>(r#"b'9'"#),
-        Err(ron::error::SpannedError {
-            code: ron::Error::InvalidValueForType {
+        Err(SpannedError {
+            code: Error::InvalidValueForType {
                 expected: String::from("an 8-bit signed integer"),
                 found: String::from(r#"b'9'"#)
             },
-            position: ron::error::Position { line: 1, col: 5 },
+            position: Position { line: 1, col: 5 },
         })
     );
 }
