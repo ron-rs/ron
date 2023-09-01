@@ -109,7 +109,7 @@ impl Options {
     where
         T: de::Deserialize<'a>,
     {
-        self.from_bytes(s.as_bytes())
+        self.from_str_seed(s, std::marker::PhantomData)
     }
 
     /// A convenience function for building a deserializer
@@ -142,7 +142,15 @@ impl Options {
     where
         S: de::DeserializeSeed<'a, Value = T>,
     {
-        self.from_bytes_seed(s.as_bytes(), seed)
+        let mut deserializer = Deserializer::from_str_with_options(s, self)?;
+
+        let value = seed
+            .deserialize(&mut deserializer)
+            .map_err(|e| deserializer.span_error(e))?;
+
+        deserializer.end().map_err(|e| deserializer.span_error(e))?;
+
+        Ok(value)
     }
 
     /// A convenience function for building a deserializer
@@ -152,7 +160,7 @@ impl Options {
     where
         S: de::DeserializeSeed<'a, Value = T>,
     {
-        let mut deserializer = Deserializer::from_bytes_with_options(s, self.clone())?;
+        let mut deserializer = Deserializer::from_bytes_with_options(s, self)?;
 
         let value = seed
             .deserialize(&mut deserializer)
@@ -173,7 +181,7 @@ impl Options {
         W: fmt::Write,
         T: ?Sized + ser::Serialize,
     {
-        let mut s = Serializer::with_options(writer, None, self.clone())?;
+        let mut s = Serializer::with_options(writer, None, self)?;
         value.serialize(&mut s)
     }
 
@@ -183,7 +191,7 @@ impl Options {
         W: fmt::Write,
         T: ?Sized + ser::Serialize,
     {
-        let mut s = Serializer::with_options(writer, Some(config), self.clone())?;
+        let mut s = Serializer::with_options(writer, Some(config), self)?;
         value.serialize(&mut s)
     }
 
@@ -197,7 +205,7 @@ impl Options {
         T: ?Sized + ser::Serialize,
     {
         let mut output = String::new();
-        let mut s = Serializer::with_options(&mut output, None, self.clone())?;
+        let mut s = Serializer::with_options(&mut output, None, self)?;
         value.serialize(&mut s)?;
         Ok(output)
     }
@@ -208,7 +216,7 @@ impl Options {
         T: ?Sized + ser::Serialize,
     {
         let mut output = String::new();
-        let mut s = Serializer::with_options(&mut output, Some(config), self.clone())?;
+        let mut s = Serializer::with_options(&mut output, Some(config), self)?;
         value.serialize(&mut s)?;
         Ok(output)
     }

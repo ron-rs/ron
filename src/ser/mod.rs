@@ -59,7 +59,6 @@ where
 /// Pretty serializer state
 struct Pretty {
     indent: usize,
-    sequence_index: Vec<usize>,
 }
 
 /// Pretty serializer configuration.
@@ -74,6 +73,7 @@ struct Pretty {
 ///     // definitely superior (okay, just joking)
 ///     .indentor("\t".to_owned());
 /// ```
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 #[non_exhaustive]
@@ -113,8 +113,9 @@ pub struct PrettyConfig {
 
 impl PrettyConfig {
     /// Creates a default [`PrettyConfig`].
+    #[must_use]
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     /// Limits the pretty-formatting based on the number of indentations.
@@ -122,7 +123,8 @@ impl PrettyConfig {
     /// (indentation level) 6, everything will be put into the same line,
     /// without pretty formatting.
     ///
-    /// Default: [usize::MAX]
+    /// Default: [`usize::MAX`]
+    #[must_use]
     pub fn depth_limit(mut self, depth_limit: usize) -> Self {
         self.depth_limit = depth_limit;
 
@@ -132,6 +134,7 @@ impl PrettyConfig {
     /// Configures the newlines used for serialization.
     ///
     /// Default: `\r\n` on Windows, `\n` otherwise
+    #[must_use]
     pub fn new_line(mut self, new_line: String) -> Self {
         self.new_line = new_line;
 
@@ -141,6 +144,7 @@ impl PrettyConfig {
     /// Configures the string sequence used for indentation.
     ///
     /// Default: 4 spaces
+    #[must_use]
     pub fn indentor(mut self, indentor: String) -> Self {
         self.indentor = indentor;
 
@@ -150,6 +154,7 @@ impl PrettyConfig {
     /// Configures the string sequence used to separate items inline.
     ///
     /// Default: 1 space
+    #[must_use]
     pub fn separator(mut self, separator: String) -> Self {
         self.separator = separator;
 
@@ -159,6 +164,7 @@ impl PrettyConfig {
     /// Configures whether to emit struct names.
     ///
     /// Default: `false`
+    #[must_use]
     pub fn struct_names(mut self, struct_names: bool) -> Self {
         self.struct_names = struct_names;
 
@@ -171,6 +177,7 @@ impl PrettyConfig {
     /// newlines or indentations.
     ///
     /// Default: `false`
+    #[must_use]
     pub fn separate_tuple_members(mut self, separate_tuple_members: bool) -> Self {
         self.separate_tuple_members = separate_tuple_members;
 
@@ -181,6 +188,7 @@ impl PrettyConfig {
     /// indicating the index.
     ///
     /// Default: `false`
+    #[must_use]
     pub fn enumerate_arrays(mut self, enumerate_arrays: bool) -> Self {
         self.enumerate_arrays = enumerate_arrays;
 
@@ -205,6 +213,7 @@ impl PrettyConfig {
     /// ```
     ///
     /// Default: `false`
+    #[must_use]
     pub fn compact_arrays(mut self, compact_arrays: bool) -> Self {
         self.compact_arrays = compact_arrays;
 
@@ -213,7 +222,8 @@ impl PrettyConfig {
 
     /// Configures extensions
     ///
-    /// Default: [Extensions::empty()]
+    /// Default: [`Extensions::empty()`]
+    #[must_use]
     pub fn extensions(mut self, extensions: Extensions) -> Self {
         self.extensions = extensions;
 
@@ -236,6 +246,7 @@ impl PrettyConfig {
     /// ```
     ///
     /// Default: `true`
+    #[must_use]
     pub fn escape_strings(mut self, escape_strings: bool) -> Self {
         self.escape_strings = escape_strings;
 
@@ -260,6 +271,7 @@ impl PrettyConfig {
     /// ```
     ///
     /// Default: `false`
+    #[must_use]
     pub fn compact_structs(mut self, compact_structs: bool) -> Self {
         self.compact_structs = compact_structs;
 
@@ -285,6 +297,7 @@ impl PrettyConfig {
     /// ```
     ///
     /// Default: `false`
+    #[must_use]
     pub fn compact_maps(mut self, compact_maps: bool) -> Self {
         self.compact_maps = compact_maps;
 
@@ -316,6 +329,7 @@ impl PrettyConfig {
     /// ```
     ///
     /// Default: `false`
+    #[must_use]
     pub fn number_suffixes(mut self, number_suffixes: bool) -> Self {
         self.number_suffixes = number_suffixes;
 
@@ -368,7 +382,7 @@ impl<W: fmt::Write> Serializer<W> {
     /// Most of the time you can just use [`to_string`] or
     /// [`to_string_pretty`].
     pub fn new(writer: W, config: Option<PrettyConfig>) -> Result<Self> {
-        Self::with_options(writer, config, Options::default())
+        Self::with_options(writer, config, &Options::default())
     }
 
     /// Creates a new [`Serializer`].
@@ -378,7 +392,7 @@ impl<W: fmt::Write> Serializer<W> {
     pub fn with_options(
         mut writer: W,
         config: Option<PrettyConfig>,
-        options: Options,
+        options: &Options,
     ) -> Result<Self> {
         if let Some(conf) = &config {
             if !conf.new_line.chars().all(is_whitespace_char) {
@@ -416,15 +430,7 @@ impl<W: fmt::Write> Serializer<W> {
         };
         Ok(Serializer {
             output: writer,
-            pretty: config.map(|conf| {
-                (
-                    conf,
-                    Pretty {
-                        indent: 0,
-                        sequence_index: Vec::new(),
-                    },
-                )
-            }),
+            pretty: config.map(|conf| (conf, Pretty { indent: 0 })),
             default_extensions: options.default_extensions,
             is_empty: None,
             newtype_variant: false,
@@ -523,7 +529,7 @@ impl<W: fmt::Write> Serializer<W> {
     fn serialize_escaped_str(&mut self, value: &str) -> fmt::Result {
         self.output.write_str("\"")?;
         let mut scalar = [0u8; 4];
-        for c in value.chars().flat_map(|c| c.escape_debug()) {
+        for c in value.chars().flat_map(char::escape_debug) {
             self.output.write_str(c.encode_utf8(&mut scalar))?;
         }
         self.output.write_str("\"")?;
@@ -537,7 +543,7 @@ impl<W: fmt::Write> Serializer<W> {
                     '#' => (count + 1, max.max(count + 1)),
                     _ => (0_usize, max),
                 });
-            let hashes = String::from_iter(std::iter::repeat('#').take(num_consecutive_hashes + 1));
+            let hashes: String = "#".repeat(num_consecutive_hashes + 1);
             self.output.write_char('r')?;
             self.output.write_str(&hashes)?;
             self.output.write_str("\"")?;
@@ -568,7 +574,7 @@ impl<W: fmt::Write> Serializer<W> {
                     '#' => (count + 1, max.max(count + 1)),
                     _ => (0_usize, max),
                 });
-            let hashes = String::from_iter(std::iter::repeat('#').take(num_consecutive_hashes + 1));
+            let hashes: String = "#".repeat(num_consecutive_hashes + 1);
             self.output.write_str("br")?;
             self.output.write_str(&hashes)?;
             self.output.write_str("\"")?;
@@ -622,6 +628,7 @@ impl<W: fmt::Write> Serializer<W> {
         Ok(())
     }
 
+    #[allow(clippy::unused_self)]
     fn validate_identifier(&self, name: &str) -> Result<()> {
         if name.is_empty() || !name.chars().all(is_ident_raw_char) {
             return Err(Error::InvalidIdentifier(name.into()));
@@ -632,8 +639,7 @@ impl<W: fmt::Write> Serializer<W> {
     fn struct_names(&self) -> bool {
         self.pretty
             .as_ref()
-            .map(|(pc, _)| pc.struct_names)
-            .unwrap_or(false)
+            .map_or(false, |(pc, _)| pc.struct_names)
     }
 }
 
@@ -942,10 +948,6 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        if let Some((_, ref mut pretty)) = self.pretty {
-            pretty.sequence_index.push(0);
-        }
-
         Compound::try_new(self, false)
     }
 
@@ -1026,15 +1028,15 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
-        if !old_newtype_variant {
+        if old_newtype_variant {
+            self.validate_identifier(name)?;
+        } else {
             if self.struct_names() {
                 self.write_identifier(name)?;
             } else {
                 self.validate_identifier(name)?;
             }
             self.output.write_char('(')?;
-        } else {
-            self.validate_identifier(name)?;
         }
 
         if !self.compact_structs() {
@@ -1078,6 +1080,7 @@ pub struct Compound<'a, W: fmt::Write> {
     ser: &'a mut Serializer<W>,
     state: State,
     newtype_variant: bool,
+    sequence_index: usize,
 }
 
 impl<'a, W: fmt::Write> Compound<'a, W> {
@@ -1094,6 +1097,7 @@ impl<'a, W: fmt::Write> Compound<'a, W> {
             ser,
             state: State::First,
             newtype_variant,
+            sequence_index: 0,
         })
     }
 }
@@ -1133,9 +1137,8 @@ impl<'a, W: fmt::Write> ser::SerializeSeq for Compound<'a, W> {
 
         if let Some((ref mut config, ref mut pretty)) = self.ser.pretty {
             if pretty.indent <= config.depth_limit && config.enumerate_arrays {
-                let index = pretty.sequence_index.last_mut().unwrap();
-                write!(self.ser.output, "/*[{}]*/ ", index)?;
-                *index += 1;
+                write!(self.ser.output, "/*[{}]*/ ", self.sequence_index)?;
+                self.sequence_index += 1;
             }
         }
 
@@ -1156,10 +1159,6 @@ impl<'a, W: fmt::Write> ser::SerializeSeq for Compound<'a, W> {
 
         if !self.ser.compact_arrays() {
             self.ser.end_indent()?;
-        }
-
-        if let Some((_, ref mut pretty)) = self.ser.pretty {
-            pretty.sequence_index.pop();
         }
 
         // seq always disables `self.newtype_variant`

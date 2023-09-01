@@ -152,6 +152,7 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
         }
     }
 
+    #[allow(clippy::panic)]
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,

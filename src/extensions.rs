@@ -11,6 +11,7 @@ bitflags::bitflags! {
 
 impl Extensions {
     /// Creates an extension flag from an ident.
+    #[must_use]
     pub fn from_ident(ident: &str) -> Option<Extensions> {
         match ident {
             "unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),

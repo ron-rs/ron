@@ -122,11 +122,11 @@ impl fmt::Display for SpannedError {
 }
 
 impl fmt::Display for Error {
+    #[allow(clippy::too_many_lines)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Error::Fmt => f.write_str("Formatting RON failed"),
-            Error::Io(ref s) => f.write_str(s),
-            Error::Message(ref s) => f.write_str(s),
+            Error::Io(ref s) | Error::Message(ref s) => f.write_str(s),
             #[allow(deprecated)]
             Error::Base64Error(ref e) => fmt::Display::fmt(e, f),
             Error::Eof => f.write_str("Unexpected end of RON"),
@@ -144,7 +144,7 @@ impl fmt::Display for Error {
             Error::FloatUnderscore => f.write_str("Unexpected underscore in float"),
             Error::ExpectedInteger => f.write_str("Expected integer"),
             Error::ExpectedOption => f.write_str("Expected option"),
-            Error::ExpectedOptionEnd => f.write_str("Expected closing `)`"),
+            Error::ExpectedOptionEnd | Error::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
             Error::ExpectedMap => f.write_str("Expected opening `{`"),
             Error::ExpectedMapColon => f.write_str("Expected colon"),
             Error::ExpectedMapEnd => f.write_str("Expected closing `}`"),
@@ -165,7 +165,6 @@ impl fmt::Display for Error {
                     write!(f, "Expected opening `(` for struct {}", Identifier(name))
                 }
             }
-            Error::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
             Error::ExpectedUnit => f.write_str("Expected unit"),
             Error::ExpectedString => f.write_str("Expected string"),
             Error::ExpectedByteString => f.write_str("Expected byte string"),
@@ -289,16 +288,12 @@ pub struct Position {
     pub line: usize,
     pub col: usize,
 }
+
 impl Position {
     pub(crate) fn from_offset(src: &str, cursor: usize) -> Position {
         let src = &src[..cursor];
         let line = 1 + src.chars().filter(|&c| c == '\n').count();
-        let col = 1 + src
-            .rsplit('\n')
-            .next()
-            .expect("rsplit always yields at least one value")
-            .chars()
-            .count();
+        let col = 1 + src.chars().rev().take_while(|&c| c != '\n').count();
         Position { line, col }
     }
 }
@@ -334,32 +329,30 @@ impl de::Error for Error {
 
         impl<'a> fmt::Display for UnexpectedSerdeTypeValue<'a> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                use de::Unexpected::*;
-
                 match self.0 {
-                    Bool(b) => write!(f, "the boolean `{}`", b),
-                    Unsigned(i) => write!(f, "the unsigned integer `{}`", i),
-                    Signed(i) => write!(f, "the signed integer `{}`", i),
-                    Float(n) => write!(f, "the floating point number `{}`", n),
-                    Char(c) => write!(f, "the UTF-8 character `{}`", c),
-                    Str(s) => write!(f, "the string {:?}", s),
-                    Bytes(b) => write!(f, "the byte string b\"{}\"", {
+                    de::Unexpected::Bool(b) => write!(f, "the boolean `{}`", b),
+                    de::Unexpected::Unsigned(i) => write!(f, "the unsigned integer `{}`", i),
+                    de::Unexpected::Signed(i) => write!(f, "the signed integer `{}`", i),
+                    de::Unexpected::Float(n) => write!(f, "the floating point number `{}`", n),
+                    de::Unexpected::Char(c) => write!(f, "the UTF-8 character `{}`", c),
+                    de::Unexpected::Str(s) => write!(f, "the string {:?}", s),
+                    de::Unexpected::Bytes(b) => write!(f, "the byte string b\"{}\"", {
                         b.iter()
                             .flat_map(|c| std::ascii::escape_default(*c))
                             .map(char::from)
                             .collect::<String>()
                     }),
-                    Unit => write!(f, "a unit value"),
-                    Option => write!(f, "an optional value"),
-                    NewtypeStruct => write!(f, "a newtype struct"),
-                    Seq => write!(f, "a sequence"),
-                    Map => write!(f, "a map"),
-                    Enum => write!(f, "an enum"),
-                    UnitVariant => write!(f, "a unit variant"),
-                    NewtypeVariant => write!(f, "a newtype variant"),
-                    TupleVariant => write!(f, "a tuple variant"),
-                    StructVariant => write!(f, "a struct variant"),
-                    Other(other) => f.write_str(other),
+                    de::Unexpected::Unit => write!(f, "a unit value"),
+                    de::Unexpected::Option => write!(f, "an optional value"),
+                    de::Unexpected::NewtypeStruct => write!(f, "a newtype struct"),
+                    de::Unexpected::Seq => write!(f, "a sequence"),
+                    de::Unexpected::Map => write!(f, "a map"),
+                    de::Unexpected::Enum => write!(f, "an enum"),
+                    de::Unexpected::UnitVariant => write!(f, "a unit variant"),
+                    de::Unexpected::NewtypeVariant => write!(f, "a newtype variant"),
+                    de::Unexpected::TupleVariant => write!(f, "a tuple variant"),
+                    de::Unexpected::StructVariant => write!(f, "a struct variant"),
+                    de::Unexpected::Other(other) => f.write_str(other),
                 }
             }
         }
@@ -440,16 +433,6 @@ impl From<io::Error> for SpannedError {
 impl From<SpannedError> for Error {
     fn from(e: SpannedError) -> Self {
         e.code
-    }
-}
-
-impl SpannedError {
-    pub(crate) fn from_utf8_error(error: Utf8Error, src: &[u8]) -> Self {
-        let src = str::from_utf8(&src[..error.valid_up_to()]).expect("source is valid up to error");
-        Self {
-            code: error.into(),
-            position: Position::from_offset(src, error.valid_up_to()),
-        }
     }
 }
 

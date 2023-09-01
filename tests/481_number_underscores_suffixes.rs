@@ -1,6 +1,9 @@
 use ron::Number;
 
 #[test]
+#[allow(clippy::unusual_byte_groupings)]
+#[allow(clippy::inconsistent_digit_grouping)]
+#[allow(clippy::zero_prefixed_literal)]
 fn de_integer_underscores() {
     assert_eq!(ron::from_str("0b10_10___101_"), Ok(0b10_10___101__u8));
     assert_eq!(
@@ -94,6 +97,7 @@ fn de_integer_underscores() {
 }
 
 #[test]
+#[allow(clippy::inconsistent_digit_grouping)]
 fn de_float_underscores() {
     assert_eq!(ron::from_str("2_18__6_"), Ok(2_18__6__f32));
     assert_eq!(

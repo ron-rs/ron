@@ -14,6 +14,12 @@ struct EmptyStruct1;
 #[derive(Debug, PartialEq, Deserialize)]
 struct EmptyStruct2 {}
 
+#[derive(Debug, PartialEq, Deserialize)]
+struct NewType(i32);
+
+#[derive(Debug, PartialEq, Deserialize)]
+struct TupleStruct(f32, f32);
+
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 struct MyStruct {
     x: f32,
@@ -48,14 +54,8 @@ fn test_struct() {
     assert_eq!(Ok(my_struct), from_str("MyStruct(x:4,y:7,)"));
     assert_eq!(Ok(my_struct), from_str("(x:4,y:7)"));
 
-    #[derive(Debug, PartialEq, Deserialize)]
-    struct NewType(i32);
-
     assert_eq!(Ok(NewType(42)), from_str("NewType(42)"));
     assert_eq!(Ok(NewType(33)), from_str("(33)"));
-
-    #[derive(Debug, PartialEq, Deserialize)]
-    struct TupleStruct(f32, f32);
 
     assert_eq!(Ok(TupleStruct(2.0, 5.0)), from_str("TupleStruct(2,5,)"));
     assert_eq!(Ok(TupleStruct(3.0, 4.0)), from_str("(3,4)"));
@@ -165,22 +165,29 @@ fn err<T>(kind: Error, line: usize, col: usize) -> SpannedResult<T> {
 fn test_err_wrong_value() {
     use std::collections::HashMap;
 
-    use self::Error::*;
-
-    assert_eq!(from_str::<f32>("'c'"), err(ExpectedFloat, 1, 1));
-    assert_eq!(from_str::<String>("'c'"), err(ExpectedString, 1, 1));
-    assert_eq!(from_str::<HashMap<u32, u32>>("'c'"), err(ExpectedMap, 1, 1));
-    assert_eq!(from_str::<[u8; 5]>("'c'"), err(ExpectedStructLike, 1, 1));
-    assert_eq!(from_str::<Vec<u32>>("'c'"), err(ExpectedArray, 1, 1));
-    assert_eq!(from_str::<MyEnum>("'c'"), err(ExpectedIdentifier, 1, 1));
+    assert_eq!(from_str::<f32>("'c'"), err(Error::ExpectedFloat, 1, 1));
+    assert_eq!(from_str::<String>("'c'"), err(Error::ExpectedString, 1, 1));
+    assert_eq!(
+        from_str::<HashMap<u32, u32>>("'c'"),
+        err(Error::ExpectedMap, 1, 1)
+    );
+    assert_eq!(
+        from_str::<[u8; 5]>("'c'"),
+        err(Error::ExpectedStructLike, 1, 1)
+    );
+    assert_eq!(from_str::<Vec<u32>>("'c'"), err(Error::ExpectedArray, 1, 1));
+    assert_eq!(
+        from_str::<MyEnum>("'c'"),
+        err(Error::ExpectedIdentifier, 1, 1)
+    );
     assert_eq!(
         from_str::<MyStruct>("'c'"),
-        err(ExpectedNamedStructLike("MyStruct"), 1, 1)
+        err(Error::ExpectedNamedStructLike("MyStruct"), 1, 1)
     );
     assert_eq!(
         from_str::<MyStruct>("NotMyStruct(x: 4, y: 2)"),
         err(
-            ExpectedDifferentStructName {
+            Error::ExpectedDifferentStructName {
                 expected: "MyStruct",
                 found: String::from("NotMyStruct")
             },
@@ -188,16 +195,22 @@ fn test_err_wrong_value() {
             12
         )
     );
-    assert_eq!(from_str::<(u8, bool)>("'c'"), err(ExpectedStructLike, 1, 1));
-    assert_eq!(from_str::<bool>("notabool"), err(ExpectedBoolean, 1, 1));
+    assert_eq!(
+        from_str::<(u8, bool)>("'c'"),
+        err(Error::ExpectedStructLike, 1, 1)
+    );
+    assert_eq!(
+        from_str::<bool>("notabool"),
+        err(Error::ExpectedBoolean, 1, 1)
+    );
 
     assert_eq!(
         from_str::<MyStruct>("MyStruct(\n    x: true)"),
-        err(ExpectedFloat, 2, 8)
+        err(Error::ExpectedFloat, 2, 8)
     );
     assert_eq!(
         from_str::<MyStruct>("MyStruct(\n    x: 3.5, \n    y:)"),
-        err(ExpectedFloat, 3, 7)
+        err(Error::ExpectedFloat, 3, 7)
     );
 }
 
@@ -341,7 +354,7 @@ fn test_byte_stream() {
 #[test]
 fn test_numbers() {
     assert_eq!(
-        Ok(vec![1234, 12345, 123456, 1234567, 555_555]),
+        Ok(vec![1234, 12345, 123_456, 1_234_567, 555_555]),
         from_str("[1_234, 12_345, 1_2_3_4_5_6, 1_234_567, 5_55_55_5]"),
     );
 }

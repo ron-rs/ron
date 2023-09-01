@@ -40,14 +40,14 @@ impl<'de> Deserializer<'de> {
     // Cannot implement trait here since output is tied to input lifetime 'de.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(input: &'de str) -> SpannedResult<Self> {
-        Self::from_str_with_options(input, Options::default())
+        Self::from_str_with_options(input, &Options::default())
     }
 
     pub fn from_bytes(input: &'de [u8]) -> SpannedResult<Self> {
-        Self::from_bytes_with_options(input, Options::default())
+        Self::from_bytes_with_options(input, &Options::default())
     }
 
-    pub fn from_str_with_options(input: &'de str, options: Options) -> SpannedResult<Self> {
+    pub fn from_str_with_options(input: &'de str, options: &Options) -> SpannedResult<Self> {
         let mut deserializer = Deserializer {
             parser: Parser::new(input)?,
             newtype_variant: false,
@@ -61,21 +61,34 @@ impl<'de> Deserializer<'de> {
         Ok(deserializer)
     }
 
-    pub fn from_bytes_with_options(input: &'de [u8], options: Options) -> SpannedResult<Self> {
-        Self::from_str_with_options(
-            str::from_utf8(input).map_err(|error| SpannedError::from_utf8_error(error, input))?,
-            options,
-        )
+    pub fn from_bytes_with_options(input: &'de [u8], options: &Options) -> SpannedResult<Self> {
+        let err = match str::from_utf8(input) {
+            Ok(input) => return Self::from_str_with_options(input, options),
+            Err(err) => err,
+        };
+
+        // FIXME: use [`utf8_chunks`](https://github.com/rust-lang/rust/issues/99543) once stabilised
+        #[allow(clippy::expect_used)]
+        let valid_input =
+            str::from_utf8(&input[..err.valid_up_to()]).expect("source is valid up to error");
+
+        Err(SpannedError {
+            code: err.into(),
+            position: Position::from_offset(valid_input, valid_input.len()),
+        })
     }
 
+    #[must_use]
     pub fn remainder(&self) -> &'de str {
         self.parser.src()
     }
 
+    #[must_use]
     pub fn span_error(&self, code: Error) -> SpannedError {
         self.parser.span_error(code)
     }
 
+    #[must_use]
     pub fn extensions(&self) -> Extensions {
         self.parser.exts
     }
@@ -661,7 +674,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.newtype_variant = false;
 
         let mut canary_buffer = [0u8; SERDE_FLATTEN_CANARY.len()];
-        let _ = write!(canary_buffer.as_mut(), "{}", VisitorExpecting(&visitor));
+        std::mem::drop(write!(
+            canary_buffer.as_mut(),
+            "{}",
+            VisitorExpecting(&visitor)
+        ));
         let terminator = if canary_buffer == SERDE_FLATTEN_CANARY {
             Terminator::MapAsStruct
         } else {

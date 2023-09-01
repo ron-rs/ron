@@ -11,6 +11,12 @@ struct EmptyStruct1;
 struct EmptyStruct2 {}
 
 #[derive(Serialize)]
+struct NewType(i32);
+
+#[derive(Serialize)]
+struct TupleStruct(f32, f32);
+
+#[derive(Serialize)]
 struct MyStruct {
     x: f32,
     y: f32,
@@ -36,13 +42,7 @@ fn test_struct() {
 
     assert_eq!(to_string(&my_struct).unwrap(), "(x:4.0,y:7.0)");
 
-    #[derive(Serialize)]
-    struct NewType(i32);
-
     assert_eq!(to_string(&NewType(42)).unwrap(), "(42)");
-
-    #[derive(Serialize)]
-    struct TupleStruct(f32, f32);
 
     assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "(2.0,5.0)");
 }

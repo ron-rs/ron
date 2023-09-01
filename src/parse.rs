@@ -134,6 +134,10 @@ impl<'a> Parser<'a> {
         Ok(c)
     }
 
+    pub fn skip_next(&mut self) {
+        std::mem::drop(self.next());
+    }
+
     pub fn peek(&self) -> Option<char> {
         self.src().chars().next()
     }
@@ -220,6 +224,42 @@ impl<'a> Parser<'a> {
 
 /// actual parsing of ron tokens
 impl<'a> Parser<'a> {
+    fn parse_integer_digits<T: Num>(
+        &mut self,
+        s: &str,
+        base: u8,
+        f: fn(&mut T, u8) -> bool,
+    ) -> Result<T> {
+        let mut num_acc = T::from_u8(0);
+
+        for (i, c) in s.chars().enumerate() {
+            if c == '_' {
+                continue;
+            }
+
+            if num_acc.checked_mul_ext(base) {
+                self.advance(s.len());
+                return Err(Error::IntegerOutOfBounds);
+            }
+
+            let digit = Self::decode_hex(c)?;
+
+            if digit >= base {
+                self.advance(i);
+                return Err(Error::InvalidIntegerDigit { digit: c, base });
+            }
+
+            if f(&mut num_acc, digit) {
+                self.advance(s.len());
+                return Err(Error::IntegerOutOfBounds);
+            }
+        }
+
+        self.advance(s.len());
+
+        Ok(num_acc)
+    }
+
     fn parse_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
         let base = match () {
             _ if self.consume_str("0b") => 2,
@@ -238,61 +278,26 @@ impl<'a> Parser<'a> {
             return Err(Error::UnderscoreAtBeginning);
         }
 
-        fn calc_num<T: Num>(
-            parser: &mut Parser,
-            s: &str,
-            base: u8,
-            f: fn(&mut T, u8) -> bool,
-        ) -> Result<T> {
-            let mut num_acc = T::from_u8(0);
-
-            for (i, c) in s.chars().enumerate() {
-                if c == '_' {
-                    continue;
-                }
-
-                if num_acc.checked_mul_ext(base) {
-                    parser.advance(s.len());
-                    return Err(Error::IntegerOutOfBounds);
-                }
-
-                let digit = parser.decode_hex(c)?;
-
-                if digit >= base {
-                    parser.advance(i);
-                    return Err(Error::InvalidIntegerDigit { digit: c, base });
-                }
-
-                if f(&mut num_acc, digit) {
-                    parser.advance(s.len());
-                    return Err(Error::IntegerOutOfBounds);
-                }
-            }
-
-            parser.advance(s.len());
-
-            Ok(num_acc)
-        }
-
         let s = &self.src()[..num_bytes];
 
         if sign > 0 {
-            calc_num(self, s, base, T::checked_add_ext)
+            self.parse_integer_digits(s, base, T::checked_add_ext)
         } else {
-            calc_num(self, s, base, T::checked_sub_ext)
+            self.parse_integer_digits(s, base, T::checked_sub_ext)
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn integer<T: Integer>(&mut self) -> Result<T> {
         let src_backup = self.src();
 
         let is_negative = match self.peek_or_eof()? {
             '+' => {
-                let _ = self.next();
+                self.skip_next();
                 false
             }
             '-' => {
-                let _ = self.next();
+                self.skip_next();
                 true
             }
             'b' if self.consume_str("b'") => {
@@ -417,7 +422,7 @@ impl<'a> Parser<'a> {
                     Err(Error::UnderscoreAtBeginning | Error::InvalidIntegerDigit { .. })
                 ) {
                     // Advance past the number suffix
-                    let _ = self.identifier();
+                    self.skip_ident();
                 }
 
                 let integer_ron = &src_backup[..src_backup.len() - suffix_bytes.len()];
@@ -788,12 +793,11 @@ impl<'a> Parser<'a> {
                     break;
                 };
 
-                let parsed = match res {
-                    Ok(parsed) => parsed,
-                    Err(_) => {
-                        self.set_cursor(backup_cursor);
-                        return Err(Error::ExpectedFloat);
-                    }
+                let parsed = if let Ok(parsed) = res {
+                    parsed
+                } else {
+                    self.set_cursor(backup_cursor);
+                    return Err(Error::ExpectedFloat);
                 };
 
                 let float_ron = &self.src[backup_cursor.cursor..self.cursor.cursor];
@@ -831,9 +835,8 @@ impl<'a> Parser<'a> {
             if len > 0 {
                 self.advance(2 + len);
                 return true;
-            } else {
-                return false;
             }
+            return false;
         }
 
         if let Some(c) = self.peek() {
@@ -927,9 +930,9 @@ impl<'a> Parser<'a> {
                 '+' | '-' => 1,
                 _ => 0,
             };
-            let flen = self.next_chars_while_from(skip, is_float_char);
-            let ilen = self.next_chars_while_from(skip, is_int_char);
-            flen > ilen
+            let valid_float_len = self.next_chars_while_from(skip, is_float_char);
+            let valid_int_len = self.next_chars_while_from(skip, is_int_char);
+            valid_float_len > valid_int_len
         } else {
             false
         }
@@ -946,9 +949,7 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            while self.peek().map_or(false, is_whitespace_char) {
-                let _ = self.next();
-            }
+            self.advance(self.next_chars_while(is_whitespace_char));
 
             match self.skip_comment()? {
                 None => break,
@@ -995,7 +996,7 @@ impl<'a> Parser<'a> {
 
         if self.consume_char('"') {
             let base64_str = self.escaped_string()?;
-            let base64_result = ParsedByteStr::try_from_base64(base64_str.clone());
+            let base64_result = ParsedByteStr::try_from_base64(&base64_str);
 
             if cfg!(not(test)) {
                 // FIXME @juntyr: remove in v0.10
@@ -1010,7 +1011,7 @@ impl<'a> Parser<'a> {
             }
         } else if self.consume_char('r') {
             let base64_str = self.raw_string()?;
-            let base64_result = ParsedByteStr::try_from_base64(base64_str.clone());
+            let base64_result = ParsedByteStr::try_from_base64(&base64_str);
 
             if cfg!(not(test)) {
                 // FIXME @juntyr: remove in v0.10
@@ -1154,7 +1155,7 @@ impl<'a> Parser<'a> {
         for _ in 0..2 {
             n <<= 4;
             let byte = self.next()?;
-            let decoded = self.decode_hex(byte)?;
+            let decoded = Self::decode_hex(byte)?;
             n |= decoded;
         }
 
@@ -1162,7 +1163,7 @@ impl<'a> Parser<'a> {
     }
 
     #[inline]
-    fn decode_hex(&self, c: char) -> Result<u8> {
+    fn decode_hex(c: char) -> Result<u8> {
         if !c.is_ascii() {
             return Err(Error::InvalidEscape("Non-hex digit found"));
         }
@@ -1238,12 +1239,12 @@ impl<'a> Parser<'a> {
 
                     if byte == '}' {
                         break;
-                    } else {
-                        let _ = self.next()?;
-                        num_digits += 1;
                     }
 
-                    let byte = self.decode_hex(byte)?;
+                    self.skip_next();
+                    num_digits += 1;
+
+                    let byte = Self::decode_hex(byte)?;
                     bytes <<= 4;
                     bytes |= u32::from(byte);
                 }
@@ -1534,6 +1535,7 @@ impl Float for ParsedFloat {
     fn parse(float: &str) -> Result<Self> {
         let value = f64::from_str(float).map_err(|_| Error::ExpectedFloat)?;
 
+        #[allow(clippy::cast_possible_truncation)]
         if value.total_cmp(&f64::from(value as f32)).is_eq() {
             Ok(ParsedFloat::F32(value as f32))
         } else {
@@ -1553,17 +1555,18 @@ pub enum StructType {
     Unit,
 }
 
+#[derive(Copy, Clone)] // GRCOV_EXCL_LINE
 pub enum NewtypeMode {
     NoParensMeanUnit,
     InsideNewtype,
 }
 
+#[derive(Copy, Clone)] // GRCOV_EXCL_LINE
 pub enum TupleMode {
     ImpreciseTupleOrNewtype,
     DifferentiateNewtype,
 }
 
-#[derive(Clone)]
 pub enum ParsedStr<'a> {
     Allocated(String),
     Slice(&'a str),
@@ -1586,8 +1589,8 @@ impl<'a> ParsedStr<'a> {
 }
 
 impl<'a> ParsedByteStr<'a> {
-    pub fn try_from_base64(str: ParsedStr<'a>) -> Result<Self, base64::DecodeError> {
-        let base64_str = match &str {
+    pub fn try_from_base64(str: &ParsedStr<'a>) -> Result<Self, base64::DecodeError> {
+        let base64_str = match str {
             ParsedStr::Allocated(string) => string.as_str(),
             ParsedStr::Slice(str) => str,
         };

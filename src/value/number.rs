@@ -81,11 +81,13 @@ macro_rules! float_ty {
 
         impl $ty {
             #[doc = concat!("Construct a new [`", stringify!($ty), "`].")]
+            #[must_use]
             pub fn new(v: $float) -> Self {
                 Self(v)
             }
 
             #[doc = concat!("Returns the wrapped [`", stringify!($float), "`].")]
+            #[must_use]
             pub fn get(self) -> $float {
                 self.0
             }
@@ -196,7 +198,9 @@ impl Number {
     /// assert_eq!(i.into_f64(), 5.0);
     /// assert_eq!(f.into_f64(), 2.0);
     /// ```
+    #[must_use]
     pub fn into_f64(self) -> f64 {
+        #[allow(clippy::cast_precision_loss)]
         match self {
             Number::I8(v) => f64::from(v),
             Number::I16(v) => f64::from(v),
