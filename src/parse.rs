@@ -64,7 +64,7 @@ pub struct Parser<'a> {
     cursor: ParserCursor,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone)] // GRCOV_EXCL_LINE
 pub struct ParserCursor {
     cursor: usize,
     pre_ws_cursor: usize,
@@ -422,7 +422,7 @@ impl<'a> Parser<'a> {
                     Err(Error::UnderscoreAtBeginning | Error::InvalidIntegerDigit { .. })
                 ) {
                     // Advance past the number suffix
-                    self.skip_ident();
+                    self.skip_identifier();
                 }
 
                 let integer_ron = &src_backup[..src_backup.len() - suffix_bytes.len()];
@@ -566,7 +566,7 @@ impl<'a> Parser<'a> {
 
             parser.skip_ws()?;
 
-            if parser.skip_ident() {
+            if parser.skip_identifier() {
                 parser.skip_ws()?;
 
                 match parser.peek() {
@@ -815,7 +815,7 @@ impl<'a> Parser<'a> {
         Ok(value)
     }
 
-    pub fn skip_ident(&mut self) -> bool {
+    pub fn skip_identifier(&mut self) -> bool {
         #[allow(clippy::nonminimal_bool)]
         if self.check_str("b\"") // byte string
             || self.check_str("b'") // byte literal
@@ -899,7 +899,7 @@ impl<'a> Parser<'a> {
 
             if raw_ident_length > std_ident_length {
                 return Err(Error::SuggestRawIdentifier(
-                    self.src()[..raw_ident_length].into(),
+                    self.src()[1..raw_ident_length].into(),
                 ));
             }
 
@@ -1644,6 +1644,55 @@ mod tests {
 
         assert_eq!(bytes.src(), "24  ");
         assert_eq!(bytes.pre_ws_src(), "       /*bye*/ 24  ");
+    }
+
+    #[test]
+    fn parser_cursor_eq_cmp() {
+        assert!(
+            ParserCursor {
+                cursor: 42,
+                pre_ws_cursor: 42,
+                last_ws_len: 42
+            } == ParserCursor {
+                cursor: 42,
+                pre_ws_cursor: 24,
+                last_ws_len: 24
+            }
+        );
+        assert!(
+            ParserCursor {
+                cursor: 42,
+                pre_ws_cursor: 42,
+                last_ws_len: 42
+            } != ParserCursor {
+                cursor: 24,
+                pre_ws_cursor: 42,
+                last_ws_len: 42
+            }
+        );
+
+        assert!(
+            ParserCursor {
+                cursor: 42,
+                pre_ws_cursor: 42,
+                last_ws_len: 42
+            } < ParserCursor {
+                cursor: 43,
+                pre_ws_cursor: 24,
+                last_ws_len: 24
+            }
+        );
+        assert!(
+            ParserCursor {
+                cursor: 42,
+                pre_ws_cursor: 42,
+                last_ws_len: 42
+            } > ParserCursor {
+                cursor: 41,
+                pre_ws_cursor: 24,
+                last_ws_len: 24
+            }
+        );
     }
 
     #[test]

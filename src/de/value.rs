@@ -384,4 +384,37 @@ mod tests {
             ]))))
         );
     }
+
+    #[test]
+    fn test_struct() {
+        assert_eq!(
+            eval("(a:42)"),
+            Value::Map(
+                [(
+                    Value::String(String::from("a")),
+                    Value::Number(Number::U8(42))
+                )]
+                .into_iter()
+                .collect()
+            ),
+        );
+        assert_eq!(
+            eval("(r#a:42)"),
+            Value::Map(
+                [(
+                    Value::String(String::from("a")),
+                    Value::Number(Number::U8(42))
+                )]
+                .into_iter()
+                .collect()
+            ),
+        );
+        assert_eq!(
+            "(r#:42)".parse::<Value>().unwrap_err(),
+            crate::error::SpannedError {
+                code: crate::Error::ExpectedString,
+                position: crate::error::Position { line: 1, col: 4 },
+            },
+        );
+    }
 }

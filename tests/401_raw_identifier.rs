@@ -110,6 +110,20 @@ fn test_invalid_identifiers() {
 
     let de = ron::from_str::<RawStruct>(
         "r#Hello+World(
+        rab.cd-ef: true,
+    )",
+    )
+    .unwrap_err();
+    assert_eq!(
+        de,
+        SpannedError {
+            code: Error::SuggestRawIdentifier(String::from("ab.cd-ef")),
+            position: Position { line: 2, col: 9 },
+        }
+    );
+
+    let de = ron::from_str::<RawStruct>(
+        "r#Hello+World(
         r#ab.cd+ef: true,
     )",
     )

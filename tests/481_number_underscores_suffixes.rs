@@ -455,6 +455,58 @@ fn check_number_type_mismatch<T: std::fmt::Debug + serde::de::DeserializeOwned>(
 }
 
 #[test]
+fn float_const_prefix() {
+    assert_eq!(
+        ron::from_str::<f32>("NaNf32a").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::ExpectedFloat,
+            position: ron::error::Position { line: 1, col: 1 },
+        }
+    );
+
+    assert_eq!(
+        ron::from_str::<f64>("-inff64a").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::ExpectedFloat,
+            position: ron::error::Position { line: 1, col: 1 },
+        }
+    );
+
+    assert_eq!(
+        ron::from_str::<f32>("+NaNf17").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::ExpectedFloat,
+            position: ron::error::Position { line: 1, col: 1 },
+        }
+    );
+}
+
+#[test]
+fn invalid_float() {
+    assert_eq!(
+        ron::from_str::<f32>("1ee3").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::ExpectedFloat,
+            position: ron::error::Position { line: 1, col: 1 },
+        }
+    );
+    assert_eq!(
+        ron::from_str::<f32>("1ee3f32").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::ExpectedFloat,
+            position: ron::error::Position { line: 1, col: 1 },
+        }
+    );
+    assert_eq!(
+        ron::from_str::<f64>("1ee3f64").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::ExpectedFloat,
+            position: ron::error::Position { line: 1, col: 1 },
+        }
+    );
+}
+
+#[test]
 fn fuzzer_found_issues() {
     #[derive(serde::Serialize, serde::Deserialize, Debug, PartialEq)]
     enum A {
