@@ -161,21 +161,21 @@ fn value_number_suffix_roundtrip() {
         ron::Value::Number(ron::value::Number::new(-1_f32))
     );
 
-    check_number_roundtrip(f32::NAN, "f32");
-    check_number_roundtrip(-f32::NAN, "f32");
-    check_number_roundtrip(f32::INFINITY, "f32");
-    check_number_roundtrip(f32::NEG_INFINITY, "f32");
+    check_number_roundtrip(f32::NAN, "f32", f64::NAN);
+    check_number_roundtrip(-f32::NAN, "f32", -f64::NAN);
+    check_number_roundtrip(f32::INFINITY, "f32", f64::INFINITY);
+    check_number_roundtrip(f32::NEG_INFINITY, "f32", f64::NEG_INFINITY);
 
-    check_number_roundtrip(f64::NAN, "f64");
-    check_number_roundtrip(-f64::NAN, "f64");
-    check_number_roundtrip(f64::INFINITY, "f64");
-    check_number_roundtrip(f64::NEG_INFINITY, "f64");
+    check_number_roundtrip(f64::NAN, "f64", f64::NAN);
+    check_number_roundtrip(-f64::NAN, "f64", -f64::NAN);
+    check_number_roundtrip(f64::INFINITY, "f64", f64::INFINITY);
+    check_number_roundtrip(f64::NEG_INFINITY, "f64", f64::NEG_INFINITY);
 
     macro_rules! test_min_max {
         ($($ty:ty),*) => {
             $(
-                check_number_roundtrip(<$ty>::MIN, stringify!($ty));
-                check_number_roundtrip(<$ty>::MAX, stringify!($ty));
+                check_number_roundtrip(<$ty>::MIN, stringify!($ty), <$ty>::MIN as f64);
+                check_number_roundtrip(<$ty>::MAX, stringify!($ty), <$ty>::MAX as f64);
             )*
         };
     }
@@ -195,8 +195,9 @@ fn check_number_roundtrip<
 >(
     n: T,
     suffix: &str,
+    n_f64: f64,
 ) {
-    let number = n.into();
+    let number: Number = n.into();
     let ron = ron::ser::to_string_pretty(
         &number,
         ron::ser::PrettyConfig::default().number_suffixes(true),
@@ -213,8 +214,10 @@ fn check_number_roundtrip<
     assert_eq!(de, ron::Value::Number(number));
 
     let de: T = ron::from_str(&ron).unwrap();
-    let de_number = de.into();
+    let de_number: Number = de.into();
     assert_eq!(de_number, number);
+
+    assert_eq!(Number::from(de_number.into_f64()), Number::from(n_f64));
 }
 
 #[test]

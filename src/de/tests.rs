@@ -448,3 +448,22 @@ fn test_leading_whitespace() {
     assert_eq!(from_str("  +1"), Ok(1_u8));
     assert_eq!(from_str("  EmptyStruct1"), Ok(EmptyStruct1));
 }
+
+#[test]
+fn test_remainder() {
+    let mut deserializer = super::Deserializer::from_str("  42  ").unwrap();
+    assert_eq!(
+        <u8 as serde::Deserialize>::deserialize(&mut deserializer).unwrap(),
+        42
+    );
+    assert_eq!(deserializer.remainder(), "  ");
+    assert_eq!(deserializer.end(), Ok(()));
+
+    let mut deserializer = super::Deserializer::from_str("  42 37 ").unwrap();
+    assert_eq!(
+        <u8 as serde::Deserialize>::deserialize(&mut deserializer).unwrap(),
+        42
+    );
+    assert_eq!(deserializer.remainder(), " 37 ");
+    assert_eq!(deserializer.end(), Err(Error::TrailingCharacters));
+}

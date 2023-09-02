@@ -397,17 +397,17 @@ impl<W: fmt::Write> Serializer<W> {
         if let Some(conf) = &config {
             if !conf.new_line.chars().all(is_whitespace_char) {
                 return Err(Error::Message(String::from(
-                    "Invalid non-whitespace PrettyConfig::new_line",
+                    "Invalid non-whitespace `PrettyConfig::new_line`",
                 )));
             }
             if !conf.indentor.chars().all(is_whitespace_char) {
                 return Err(Error::Message(String::from(
-                    "Invalid non-whitespace PrettyConfig::indentor",
+                    "Invalid non-whitespace `PrettyConfig::indentor`",
                 )));
             }
             if !conf.separator.chars().all(is_whitespace_char) {
                 return Err(Error::Message(String::from(
-                    "Invalid non-whitespace PrettyConfig::separator",
+                    "Invalid non-whitespace `PrettyConfig::separator`",
                 )));
             }
 

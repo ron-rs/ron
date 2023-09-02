@@ -95,7 +95,7 @@ macro_rules! float_ty {
 
         impl From<$float> for $ty {
             fn from(v: $float) -> Self {
-                Self(v)
+                Self::new(v)
             }
         }
 
