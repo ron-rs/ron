@@ -36,17 +36,17 @@ jobs:
       - run: cargo test --all-features
 
   clippy:
-    name: "Clippy: stable"
+    name: "Clippy: MSRV"
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup
         with:
-          key: clippy-stable
+          key: clippy-msrv
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.64.0
           profile: minimal
           components: clippy
           override: true
