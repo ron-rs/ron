@@ -450,7 +450,7 @@ fn check_number_type_mismatch<T: std::fmt::Debug + serde::de::DeserializeOwned>(
     );
 
     if !matches!(&err.code, ron::Error::InvalidValueForType { found, .. } if found == &ron ) {
-        panic!("{:?}", err.code);
+        panic!("{:?}", err.code); // GRCOV_EXCL_LINE
     }
 }
 
