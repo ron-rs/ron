@@ -482,3 +482,27 @@ impl<'a> fmt::Display for Identifier<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Error;
+
+    #[test]
+    fn error_messages() {
+        check_error_message(&Error::from(std::fmt::Error), "Formatting RON failed");
+        check_error_message(
+            &Error::from(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "my-error",
+            )),
+            "my-error",
+        );
+        check_error_message(&Error::Message(String::from("my-error")), "my-error");
+        check_error_message(&Error::ExpectedOptionEnd, "Expected closing `)`");
+        check_error_message(&Error::ExpectedStructLikeEnd, "Expected closing `)`");
+    }
+
+    fn check_error_message<T: std::fmt::Display>(err: &T, msg: &str) {
+        assert_eq!(format!("{}", err), msg);
+    }
+}

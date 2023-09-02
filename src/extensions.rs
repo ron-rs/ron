@@ -1,5 +1,6 @@
 use serde_derive::{Deserialize, Serialize};
 
+// GRCOV_EXCL_START
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     pub struct Extensions: usize {
@@ -8,6 +9,7 @@ bitflags::bitflags! {
         const UNWRAP_VARIANT_NEWTYPES = 0x4;
     }
 }
+// GRCOV_EXCL_STOP
 
 impl Extensions {
     /// Creates an extension flag from an ident.
