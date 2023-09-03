@@ -311,9 +311,11 @@ impl ByteStr {
         impl<'de> serde::de::Visitor<'de> for ByteStrVisitor {
             type Value = Vec<u8>;
 
+            // GRCOV_EXCL_START
             fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-                fmt.write_str("a Rusty byte string") // GRCOV_EXCL_LINE
+                fmt.write_str("a Rusty byte string")
             }
+            // GRCOV_EXCL_STOP
 
             fn visit_bytes<E: serde::de::Error>(self, bytes: &[u8]) -> Result<Self::Value, E> {
                 Ok(bytes.to_vec())

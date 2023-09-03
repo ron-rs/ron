@@ -76,7 +76,7 @@ macro_rules! float_ty {
                     "[`Hash`] and [`Ord`] using [`", stringify!($float), "::total_cmp`] ",
                     "for a total order comparison",
                 )]
-        #[derive(Copy, Clone, Debug)]
+        #[derive(Copy, Clone, Debug)] // GRCOV_EXCL_LINE
         pub struct $ty(pub $float);
 
         impl $ty {
