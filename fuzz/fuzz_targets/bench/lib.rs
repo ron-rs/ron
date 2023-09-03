@@ -17,6 +17,8 @@ use ron::{extensions::Extensions, ser::PrettyConfig};
 
 const RECURSION_LIMIT: usize = 32_usize;
 
+const ARRAY_UNINIT_LEN: usize = usize::MAX;
+
 pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeData> {
     if let Ok(typed_value) = TypedSerdeData::arbitrary(&mut Unstructured::new(data)) {
         let options = ron::Options::default().with_recursion_limit(RECURSION_LIMIT);
@@ -197,12 +199,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                     serializer.serialize_none()
                 }
             }
-            (
-                SerdeDataType::Array {
-                    kind_len: (kind, len),
-                },
-                SerdeDataValue::Seq { elems },
-            ) => {
+            (SerdeDataType::Array { kind, len }, SerdeDataValue::Seq { elems }) => {
                 if elems.len() != *len {
                     return Err(serde::ser::Error::custom("mismatch array len"));
                 }
@@ -543,12 +540,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     value: value.as_deref(),
                 })
             }
-            (
-                SerdeDataType::Array {
-                    kind_len: (kind, len),
-                },
-                SerdeDataValue::Seq { elems },
-            ) => {
+            (SerdeDataType::Array { kind, len }, SerdeDataValue::Seq { elems }) => {
                 struct ArrayVisitor<'a> {
                     kind: &'a SerdeDataType<'a>,
                     elems: &'a [SerdeDataValue<'a>],
@@ -1260,7 +1252,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
 impl<'a> Arbitrary<'a> for TypedSerdeData<'a> {
     fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
         let pretty_config = ArbitraryPrettyConfig::arbitrary(u)?.into();
-        let ty = SerdeDataType::arbitrary(u)?;
+        let mut ty = SerdeDataType::arbitrary(u)?;
         let value = ty.arbitrary_value(u)?;
         Ok(Self {
             pretty_config,
@@ -1347,8 +1339,10 @@ pub enum SerdeDataType<'a> {
         inner: Box<Self>,
     },
     Array {
-        #[arbitrary(with = arbitrary_array_len_recursion_guard)]
-        kind_len: (Box<Self>, usize),
+        #[arbitrary(with = arbitrary_recursion_guard)]
+        kind: Box<Self>,
+        #[arbitrary(value = ARRAY_UNINIT_LEN)]
+        len: usize,
     },
     Tuple {
         #[arbitrary(with = arbitrary_recursion_guard)]
@@ -1391,67 +1385,82 @@ pub enum SerdeDataType<'a> {
 
 impl<'a> SerdeDataType<'a> {
     fn arbitrary_value<'u>(
-        &self,
+        &mut self,
         u: &mut Unstructured<'u>,
     ) -> arbitrary::Result<SerdeDataValue<'u>> {
-        match self {
-            SerdeDataType::Unit => Ok(SerdeDataValue::Unit),
-            SerdeDataType::Bool => Ok(SerdeDataValue::Bool(bool::arbitrary(u)?)),
-            SerdeDataType::I8 => Ok(SerdeDataValue::I8(i8::arbitrary(u)?)),
-            SerdeDataType::I16 => Ok(SerdeDataValue::I16(i16::arbitrary(u)?)),
-            SerdeDataType::I32 => Ok(SerdeDataValue::I32(i32::arbitrary(u)?)),
-            SerdeDataType::I64 => Ok(SerdeDataValue::I64(i64::arbitrary(u)?)),
-            SerdeDataType::I128 => Ok(SerdeDataValue::I128(i128::arbitrary(u)?)),
-            SerdeDataType::ISize => Ok(SerdeDataValue::ISize(isize::arbitrary(u)?)),
-            SerdeDataType::U8 => Ok(SerdeDataValue::U8(u8::arbitrary(u)?)),
-            SerdeDataType::U16 => Ok(SerdeDataValue::U16(u16::arbitrary(u)?)),
-            SerdeDataType::U32 => Ok(SerdeDataValue::U32(u32::arbitrary(u)?)),
-            SerdeDataType::U64 => Ok(SerdeDataValue::U64(u64::arbitrary(u)?)),
-            SerdeDataType::U128 => Ok(SerdeDataValue::U128(u128::arbitrary(u)?)),
-            SerdeDataType::USize => Ok(SerdeDataValue::USize(usize::arbitrary(u)?)),
-            SerdeDataType::F32 => Ok(SerdeDataValue::F32(f32::arbitrary(u)?)),
-            SerdeDataType::F64 => Ok(SerdeDataValue::F64(f64::arbitrary(u)?)),
-            SerdeDataType::Char => Ok(SerdeDataValue::Char(char::arbitrary(u)?)),
-            SerdeDataType::String => Ok(SerdeDataValue::String(<&str>::arbitrary(u)?)),
-            SerdeDataType::ByteBuf => Ok(SerdeDataValue::ByteBuf(<&[u8]>::arbitrary(u)?)),
+        let u_len = u.len();
+
+        let value = match self {
+            SerdeDataType::Unit => SerdeDataValue::Unit,
+            SerdeDataType::Bool => SerdeDataValue::Bool(bool::arbitrary(u)?),
+            SerdeDataType::I8 => SerdeDataValue::I8(i8::arbitrary(u)?),
+            SerdeDataType::I16 => SerdeDataValue::I16(i16::arbitrary(u)?),
+            SerdeDataType::I32 => SerdeDataValue::I32(i32::arbitrary(u)?),
+            SerdeDataType::I64 => SerdeDataValue::I64(i64::arbitrary(u)?),
+            SerdeDataType::I128 => SerdeDataValue::I128(i128::arbitrary(u)?),
+            SerdeDataType::ISize => SerdeDataValue::ISize(isize::arbitrary(u)?),
+            SerdeDataType::U8 => SerdeDataValue::U8(u8::arbitrary(u)?),
+            SerdeDataType::U16 => SerdeDataValue::U16(u16::arbitrary(u)?),
+            SerdeDataType::U32 => SerdeDataValue::U32(u32::arbitrary(u)?),
+            SerdeDataType::U64 => SerdeDataValue::U64(u64::arbitrary(u)?),
+            SerdeDataType::U128 => SerdeDataValue::U128(u128::arbitrary(u)?),
+            SerdeDataType::USize => SerdeDataValue::USize(usize::arbitrary(u)?),
+            SerdeDataType::F32 => SerdeDataValue::F32(f32::arbitrary(u)?),
+            SerdeDataType::F64 => SerdeDataValue::F64(f64::arbitrary(u)?),
+            SerdeDataType::Char => SerdeDataValue::Char(char::arbitrary(u)?),
+            SerdeDataType::String => SerdeDataValue::String(<&str>::arbitrary(u)?),
+            SerdeDataType::ByteBuf => SerdeDataValue::ByteBuf(<&[u8]>::arbitrary(u)?),
             SerdeDataType::Option { inner } => {
                 let value = match Option::<()>::arbitrary(u)? {
                     Some(_) => Some(Box::new(inner.arbitrary_value(u)?)),
                     None => None,
                 };
-                Ok(SerdeDataValue::Option { inner: value })
+                SerdeDataValue::Option { inner: value }
             }
-            SerdeDataType::Array {
-                kind_len: (kind, len),
-            } => {
-                let mut array = Vec::with_capacity(*len);
-                for _ in 0..*len {
-                    array.push(kind.arbitrary_value(u)?);
+            SerdeDataType::Array { kind, len } => {
+                let mut array = Vec::new();
+
+                if *len == ARRAY_UNINIT_LEN {
+                    // Actually initialise the array length with the first array instantiation
+                    while u.arbitrary()? {
+                        array.push(kind.arbitrary_value(u)?);
+                    }
+                    array.shrink_to_fit();
+                    *len = array.len();
+                } else {
+                    // Use the already-determined array length
+                    array.reserve_exact(*len);
+                    for _ in 0..*len {
+                        array.push(kind.arbitrary_value(u)?);
+                    }
                 }
-                Ok(SerdeDataValue::Seq { elems: array })
+
+                SerdeDataValue::Seq { elems: array }
             }
             SerdeDataType::Tuple { elems } => {
                 let mut tuple = Vec::with_capacity(elems.len());
                 for ty in elems {
                     tuple.push(ty.arbitrary_value(u)?);
                 }
-                Ok(SerdeDataValue::Seq { elems: tuple })
+                SerdeDataValue::Seq { elems: tuple }
             }
             SerdeDataType::Vec { item } => {
                 let mut vec = Vec::new();
                 while u.arbitrary()? {
                     vec.push(item.arbitrary_value(u)?);
                 }
-                Ok(SerdeDataValue::Seq { elems: vec })
+                vec.shrink_to_fit();
+                SerdeDataValue::Seq { elems: vec }
             }
             SerdeDataType::Map { key, value } => {
                 let mut map = Vec::new();
                 while u.arbitrary()? {
                     map.push((key.arbitrary_value(u)?, value.arbitrary_value(u)?));
                 }
-                Ok(SerdeDataValue::Map { elems: map })
+                map.shrink_to_fit();
+                SerdeDataValue::Map { elems: map }
             }
-            SerdeDataType::UnitStruct { name: _ } => Ok(SerdeDataValue::UnitStruct),
+            SerdeDataType::UnitStruct { name: _ } => SerdeDataValue::UnitStruct,
             SerdeDataType::Newtype { name, inner } => {
                 let inner = inner.arbitrary_value(u)?;
 
@@ -1464,27 +1473,27 @@ impl<'a> SerdeDataType<'a> {
                     }
                 }
 
-                Ok(SerdeDataValue::Newtype {
+                SerdeDataValue::Newtype {
                     inner: Box::new(inner),
-                })
+                }
             }
             SerdeDataType::TupleStruct { name: _, fields } => {
                 let mut tuple = Vec::with_capacity(fields.len());
                 for ty in fields {
                     tuple.push(ty.arbitrary_value(u)?);
                 }
-                Ok(SerdeDataValue::Struct { fields: tuple })
+                SerdeDataValue::Struct { fields: tuple }
             }
             SerdeDataType::Struct { name: _, fields } => {
                 let mut r#struct = Vec::with_capacity(fields.1.len());
-                for ty in &fields.1 {
+                for ty in &mut fields.1 {
                     r#struct.push(ty.arbitrary_value(u)?);
                 }
-                Ok(SerdeDataValue::Struct { fields: r#struct })
+                SerdeDataValue::Struct { fields: r#struct }
             }
             SerdeDataType::Enum { name: _, variants } => {
                 let variant_index = u.choose_index(variants.1.len())?;
-                let ty = match variants.1.get(variant_index) {
+                let ty = match variants.1.get_mut(variant_index) {
                     Some(variant) => variant,
                     None => return Err(arbitrary::Error::EmptyChoose),
                 };
@@ -1493,9 +1502,11 @@ impl<'a> SerdeDataType<'a> {
 
                 let value = match ty {
                     SerdeDataVariantType::Unit => SerdeDataVariantValue::Unit,
-                    SerdeDataVariantType::Newtype { inner } => SerdeDataVariantValue::Newtype {
-                        inner: Box::new(inner.arbitrary_value(u)?),
-                    },
+                    SerdeDataVariantType::Newtype { ref mut inner } => {
+                        SerdeDataVariantValue::Newtype {
+                            inner: Box::new(inner.arbitrary_value(u)?),
+                        }
+                    }
                     SerdeDataVariantType::Tuple { fields } => {
                         let mut tuple = Vec::with_capacity(fields.len());
                         for ty in fields {
@@ -1505,19 +1516,26 @@ impl<'a> SerdeDataType<'a> {
                     }
                     SerdeDataVariantType::Struct { fields } => {
                         let mut r#struct = Vec::with_capacity(fields.1.len());
-                        for ty in &fields.1 {
+                        for ty in &mut fields.1 {
                             r#struct.push(ty.arbitrary_value(u)?);
                         }
                         SerdeDataVariantValue::Struct { fields: r#struct }
                     }
                 };
 
-                Ok(SerdeDataValue::Enum {
+                SerdeDataValue::Enum {
                     variant: variant_index,
                     value,
-                })
+                }
             }
+        };
+
+        if u.len() == u_len {
+            // Enforce that producing a value is never free
+            let _ = u.arbitrary::<bool>()?;
         }
+
+        Ok(value)
     }
 }
 
@@ -1571,46 +1589,6 @@ fn arbitrary_recursion_guard<'a, T: Arbitrary<'a> + Default>(
     result
 }
 
-fn arbitrary_array_len_recursion_guard<'a>(
-    u: &mut Unstructured<'a>,
-) -> arbitrary::Result<(Box<SerdeDataType<'a>>, usize)> {
-    const MAX_ARRAY_SPREAD: usize = 32;
-    static ARRAY_SPREAD: AtomicUsize = AtomicUsize::new(1);
-
-    let max_depth = ron::Options::default()
-        .recursion_limit
-        .map_or(256, |limit| limit * 2);
-
-    // Fall back to zero-sized arrays if the input is exhausted
-    if u.is_empty() {
-        return Ok((Box::new(SerdeDataType::Unit), 0));
-    }
-
-    let result = if RECURSION_DEPTH.fetch_add(1, Ordering::Relaxed) < max_depth {
-        // Limit the maximum array spread, since arbitrary cannot
-        let spread = ARRAY_SPREAD.load(Ordering::Relaxed);
-        let len = u.int_in_range::<usize>(0..=(MAX_ARRAY_SPREAD / spread).clamp(1, 16))?;
-
-        // Only generate intricate inner array types if the length is non-zero
-        let kind = if len > 0 {
-            ARRAY_SPREAD.swap(spread * len, Ordering::Relaxed);
-            let kind = SerdeDataType::arbitrary(u)?;
-            ARRAY_SPREAD.swap(spread, Ordering::Relaxed);
-            kind
-        } else {
-            SerdeDataType::Unit
-        };
-
-        Ok((Box::new(kind), len))
-    } else {
-        Ok((Box::new(SerdeDataType::Unit), 0))
-    };
-
-    RECURSION_DEPTH.fetch_sub(1, Ordering::Relaxed);
-
-    result
-}
-
 fn arbitrary_str_tuple_vec_recursion_guard<'a, T: Arbitrary<'a>>(
     u: &mut Unstructured<'a>,
 ) -> arbitrary::Result<(Vec<&'a str>, Vec<T>)> {
@@ -1624,6 +1602,9 @@ fn arbitrary_str_tuple_vec_recursion_guard<'a, T: Arbitrary<'a>>(
             s.push(<&str>::arbitrary(u)?);
             v.push(T::arbitrary(u)?);
         }
+
+        s.shrink_to_fit();
+        v.shrink_to_fit();
 
         Ok((s, v))
     } else {
