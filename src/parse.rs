@@ -1690,6 +1690,11 @@ mod tests {
     }
 
     #[test]
+    fn empty_src_is_not_a_float() {
+        assert!(!Parser::new("").unwrap().next_bytes_is_float());
+    }
+
+    #[test]
     fn v0_10_base64_deprecation_error() {
         let err = crate::from_str::<bytes::Bytes>("\"SGVsbG8gcm9uIQ==\"").unwrap_err();
 

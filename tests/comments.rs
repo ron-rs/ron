@@ -33,6 +33,13 @@ fn test_nested() {
 #[test]
 fn test_unclosed() {
     assert_eq!(
+        from_str::<String>("\"hi\" /*"),
+        Err(RonErr {
+            code: Error::UnclosedBlockComment,
+            position: Position { line: 1, col: 8 }
+        })
+    );
+    assert_eq!(
         from_str::<String>(
             "/*
         /* quite * some * nesting * going * on * /* here /* (yeah, maybe a bit too much) */ */ */
@@ -46,7 +53,7 @@ fn test_unclosed() {
         ),
         Err(RonErr {
             code: Error::UnclosedBlockComment,
-            position: Position { col: 1, line: 9 }
+            position: Position { line: 9, col: 1 }
         })
     );
 }
