@@ -23,7 +23,7 @@
         <div>
             <p class="heading">Functions</p>
             <p class="title has-text-danger">
-                <abbr title="572 / 1360">42.06 %</abbr></p>
+                <abbr title="572 / 1368">41.81 %</abbr></p>
         </div>
     </div>
 
@@ -53,7 +53,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">use std::io;</pre>
+                <pre class="has-background-white py-0 px-2">use std::fmt;</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -117,7 +117,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">use super::{Error, Result, Serializer};</pre>
+                <pre class="has-background-white py-0 px-2">use super::{Error, Result};</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -149,7 +149,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">pub struct RawValueSerializer&lt;&#x27;a, W: io::Write&gt; {</pre>
+                <pre class="has-background-white py-0 px-2">pub struct Serializer&lt;&#x27;a, W: fmt::Write&gt; {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -165,7 +165,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">    ser: &amp;&#x27;a mut Serializer&lt;W&gt;,</pre>
+                <pre class="has-background-white py-0 px-2">    ser: &amp;&#x27;a mut super::Serializer&lt;W&gt;,</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -213,7 +213,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">impl&lt;&#x27;a, W: io::Write&gt; RawValueSerializer&lt;&#x27;a, W&gt; {</pre>
+                <pre class="has-background-white py-0 px-2">impl&lt;&#x27;a, W: fmt::Write&gt; Serializer&lt;&#x27;a, W&gt; {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -229,7 +229,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    pub fn new(ser: &amp;&#x27;a mut Serializer&lt;W&gt;) -&gt; Self {</pre>
+                <pre class="has-background-success-light py-0 px-2">    pub fn new(ser: &amp;&#x27;a mut super::Serializer&lt;W&gt;) -&gt; Self {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -309,7 +309,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">impl&lt;&#x27;a, W: io::Write&gt; ser::Serializer for RawValueSerializer&lt;&#x27;a, W&gt; {</pre>
+                <pre class="has-background-white py-0 px-2">impl&lt;&#x27;a, W: fmt::Write&gt; ser::Serializer for Serializer&lt;&#x27;a, W&gt; {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -1429,7 +1429,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        self.ser.output.write_all(ron.as_bytes())?;</pre>
+                <pre class="has-background-success-light py-0 px-2">        self.ser.output.write_str(ron)?;</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3883,7 +3883,7 @@
 </div>
         <footer class="footer">
             <div class="content has-text-centered">
-                <p class="heading">Date: 2023-09-03 00:12</p>
+                <p class="heading">Date: 2023-09-03 06:58</p>
             </div>
         </footer>
     </body>

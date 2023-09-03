@@ -85,7 +85,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">use super::{Deserializer, Error, Result};</pre>
+                <pre class="has-background-white py-0 px-2">use super::{Error, Result};</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -117,7 +117,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">pub struct IdDeserializer&lt;&#x27;a, &#x27;b: &#x27;a&gt; {</pre>
+                <pre class="has-background-white py-0 px-2">pub struct Deserializer&lt;&#x27;a, &#x27;b: &#x27;a&gt; {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -133,7 +133,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">    d: &amp;&#x27;a mut Deserializer&lt;&#x27;b&gt;,</pre>
+                <pre class="has-background-white py-0 px-2">    de: &amp;&#x27;a mut super::Deserializer&lt;&#x27;b&gt;,</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -197,7 +197,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">impl&lt;&#x27;a, &#x27;b: &#x27;a&gt; IdDeserializer&lt;&#x27;a, &#x27;b&gt; {</pre>
+                <pre class="has-background-white py-0 px-2">impl&lt;&#x27;a, &#x27;b: &#x27;a&gt; Deserializer&lt;&#x27;a, &#x27;b&gt; {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -208,12 +208,12 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="104112">
-                104112
+                role="cell" aria-label="107440">
+                107440
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    pub fn new(map_as_struct: bool, d: &amp;&#x27;a mut Deserializer&lt;&#x27;b&gt;) -&gt; Self {</pre>
+                <pre class="has-background-success-light py-0 px-2">    pub fn new(de: &amp;&#x27;a mut super::Deserializer&lt;&#x27;b&gt;, map_as_struct: bool) -&gt; Self {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -224,12 +224,12 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="104112">
-                104112
+                role="cell" aria-label="107440">
+                107440
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        IdDeserializer { d, map_as_struct }</pre>
+                <pre class="has-background-success-light py-0 px-2">        Deserializer { de, map_as_struct }</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -240,8 +240,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="104112">
-                104112
+                role="cell" aria-label="107440">
+                107440
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -293,7 +293,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">impl&lt;&#x27;a, &#x27;b: &#x27;a, &#x27;c&gt; de::Deserializer&lt;&#x27;b&gt; for &amp;&#x27;c mut IdDeserializer&lt;&#x27;a, &#x27;b&gt; {</pre>
+                <pre class="has-background-white py-0 px-2">impl&lt;&#x27;a, &#x27;b: &#x27;a, &#x27;c&gt; de::Deserializer&lt;&#x27;b&gt; for &amp;&#x27;c mut Deserializer&lt;&#x27;a, &#x27;b&gt; {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -336,8 +336,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="5026">
-                5026
+                role="cell" aria-label="5472">
+                5472
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -352,8 +352,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="5026">
-                5026
+                role="cell" aria-label="5472">
+                5472
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -368,8 +368,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="5026">
-                5026
+                role="cell" aria-label="5472">
+                5472
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -384,8 +384,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="5026">
-                5026
+                role="cell" aria-label="5472">
+                5472
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -400,8 +400,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="5026">
-                5026
+                role="cell" aria-label="5472">
+                5472
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -421,7 +421,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            self.d.bytes.expect_byte(b&#x27;&quot;&#x27;, Error::ExpectedString)?;</pre>
+                <pre class="has-background-success-light py-0 px-2">            self.de.parser.expect_char(&#x27;&quot;&#x27;, Error::ExpectedString)?;</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -432,8 +432,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4886">
-                4886
+                role="cell" aria-label="5332">
+                5332
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -448,12 +448,12 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="5010">
-                5010
+                role="cell" aria-label="5456">
+                5456
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        let result = self.d.deserialize_identifier(visitor);</pre>
+                <pre class="has-background-success-light py-0 px-2">        let result = self.de.deserialize_identifier(visitor);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -464,8 +464,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="5010">
-                5010
+                role="cell" aria-label="5456">
+                5456
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -485,7 +485,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            self.d.bytes.expect_byte(b&#x27;&quot;&#x27;, Error::ExpectedStringEnd)?;</pre>
+                <pre class="has-background-success-light py-0 px-2">            self.de.parser.expect_char(&#x27;&quot;&#x27;, Error::ExpectedStringEnd)?;</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -496,8 +496,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4886">
-                4886
+                role="cell" aria-label="5332">
+                5332
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -512,8 +512,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4994">
-                4994
+                role="cell" aria-label="5440">
+                5440
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -528,8 +528,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="5026">
-                5026
+                role="cell" aria-label="5472">
+                5472
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -672,8 +672,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="3578">
-                3578
+                role="cell" aria-label="3884">
+                3884
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -688,8 +688,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="3578">
-                3578
+                role="cell" aria-label="3884">
+                3884
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -704,8 +704,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="3578">
-                3578
+                role="cell" aria-label="3884">
+                3884
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -720,8 +720,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="3578">
-                3578
+                role="cell" aria-label="3884">
+                3884
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -736,8 +736,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="3578">
-                3578
+                role="cell" aria-label="3884">
+                3884
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -752,8 +752,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="3578">
-                3578
+                role="cell" aria-label="3884">
+                3884
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -4000,8 +4000,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="1428">
-                1428
+                role="cell" aria-label="1452">
+                1452
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -4016,8 +4016,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="1428">
-                1428
+                role="cell" aria-label="1452">
+                1452
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -4032,8 +4032,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="1428">
-                1428
+                role="cell" aria-label="1452">
+                1452
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -4048,8 +4048,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="1428">
-                1428
+                role="cell" aria-label="1452">
+                1452
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -4064,8 +4064,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="1428">
-                1428
+                role="cell" aria-label="1452">
+                1452
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -4080,8 +4080,8 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="1428">
-                1428
+                role="cell" aria-label="1452">
+                1452
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
@@ -4107,7 +4107,7 @@
 </div>
         <footer class="footer">
             <div class="content has-text-centered">
-                <p class="heading">Date: 2023-09-03 00:12</p>
+                <p class="heading">Date: 2023-09-03 06:58</p>
             </div>
         </footer>
     </body>
