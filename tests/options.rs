@@ -14,7 +14,20 @@ fn default_options() {
     let de: Struct = ron.from_str("(Some(42),(4.2))").unwrap();
     let ser = ron.to_string(&de).unwrap();
 
-    assert_eq!(ser, "(Some(42),(4.2))")
+    assert_eq!(ser, "(Some(42),(4.2))");
+}
+
+#[test]
+fn without_any_options() {
+    let mut ron = Options::default().with_default_extension(Extensions::all());
+    for extension in Extensions::all().iter() {
+        ron = ron.without_default_extension(extension);
+    }
+
+    let de: Struct = ron.from_str("(Some(42),(4.2))").unwrap();
+    let ser = ron.to_string(&de).unwrap();
+
+    assert_eq!(ser, "(Some(42),(4.2))");
 }
 
 #[test]

@@ -27,7 +27,7 @@ use crate::{
 ///
 /// assert_eq!(ser, "42");
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)] // GRCOV_EXCL_LINE
 #[serde(default)]
 #[non_exhaustive]
 pub struct Options {
@@ -92,15 +92,12 @@ impl Options {
 impl Options {
     /// A convenience function for building a deserializer
     /// and deserializing a value of type `T` from a reader.
-    pub fn from_reader<R, T>(&self, mut rdr: R) -> SpannedResult<T>
+    pub fn from_reader<R, T>(&self, rdr: R) -> SpannedResult<T>
     where
         R: io::Read,
         T: de::DeserializeOwned,
     {
-        let mut bytes = Vec::new();
-        rdr.read_to_end(&mut bytes)?;
-
-        self.from_bytes(&bytes)
+        self.from_reader_seed(rdr, std::marker::PhantomData)
     }
 
     /// A convenience function for building a deserializer

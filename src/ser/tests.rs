@@ -231,6 +231,51 @@ fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display + serde::Seri
     check_to_string_writer(&n, &fmt, &fmt);
 }
 
+#[test]
+fn recursion_limit() {
+    assert_eq!(
+        crate::Options::default()
+            .with_recursion_limit(0)
+            .to_string(&[42]),
+        Err(crate::Error::ExceededRecursionLimit),
+    );
+    assert_eq!(
+        crate::Options::default()
+            .with_recursion_limit(1)
+            .to_string(&[42])
+            .as_deref(),
+        Ok("(42)"),
+    );
+    assert_eq!(
+        crate::Options::default()
+            .without_recursion_limit()
+            .to_string(&[42])
+            .as_deref(),
+        Ok("(42)"),
+    );
+
+    assert_eq!(
+        crate::Options::default()
+            .with_recursion_limit(1)
+            .to_string(&[[42]]),
+        Err(crate::Error::ExceededRecursionLimit),
+    );
+    assert_eq!(
+        crate::Options::default()
+            .with_recursion_limit(2)
+            .to_string(&[[42]])
+            .as_deref(),
+        Ok("((42))"),
+    );
+    assert_eq!(
+        crate::Options::default()
+            .without_recursion_limit()
+            .to_string(&[[42]])
+            .as_deref(),
+        Ok("((42))"),
+    );
+}
+
 fn check_to_string_writer<T: ?Sized + serde::Serialize>(val: &T, check: &str, check_pretty: &str) {
     let ron_str = super::to_string(val).unwrap();
     assert_eq!(ron_str, check);

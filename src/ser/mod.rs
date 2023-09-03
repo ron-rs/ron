@@ -646,6 +646,7 @@ impl<W: fmt::Write> Serializer<W> {
 macro_rules! guard_recursion {
     ($self:expr => $expr:expr) => {{
         if let Some(limit) = &mut $self.recursion_limit {
+            println!("{}", limit);
             if let Some(new_limit) = limit.checked_sub(1) {
                 *limit = new_limit;
             } else {
@@ -948,7 +949,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Compound::try_new(self, false)
+        Ok(Compound::new(self, false))
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -966,7 +967,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Compound::try_new(self, old_newtype_variant)
+        Ok(Compound::new(self, old_newtype_variant))
     }
 
     fn serialize_tuple_struct(
@@ -1003,7 +1004,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Compound::try_new(self, false)
+        Ok(Compound::new(self, false))
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -1020,7 +1021,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Compound::try_new(self, false)
+        Ok(Compound::new(self, false))
     }
 
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
@@ -1044,7 +1045,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Compound::try_new(self, old_newtype_variant)
+        Ok(Compound::new(self, old_newtype_variant))
     }
 
     fn serialize_struct_variant(
@@ -1066,7 +1067,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Compound::try_new(self, false)
+        Ok(Compound::new(self, false))
     }
 }
 
@@ -1084,21 +1085,13 @@ pub struct Compound<'a, W: fmt::Write> {
 }
 
 impl<'a, W: fmt::Write> Compound<'a, W> {
-    fn try_new(ser: &'a mut Serializer<W>, newtype_variant: bool) -> Result<Self> {
-        if let Some(limit) = &mut ser.recursion_limit {
-            if let Some(new_limit) = limit.checked_sub(1) {
-                *limit = new_limit;
-            } else {
-                return Err(Error::ExceededRecursionLimit);
-            }
-        }
-
-        Ok(Compound {
+    fn new(ser: &'a mut Serializer<W>, newtype_variant: bool) -> Self {
+        Compound {
             ser,
             state: State::First,
             newtype_variant,
             sequence_index: 0,
-        })
+        }
     }
 }
 
