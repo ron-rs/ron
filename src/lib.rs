@@ -11,7 +11,6 @@
 #![deny(clippy::unimplemented)]
 #![deny(clippy::unreachable)]
 #![deny(unsafe_code)]
-#![allow(clippy::module_name_repetitions)]
 #![allow(clippy::missing_errors_doc)]
 #![doc = include_str!("../README.md")]
 #![doc(html_root_url = "https://docs.rs/ron/0.8.1")]

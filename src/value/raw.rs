@@ -14,6 +14,7 @@ use crate::{
 // NOTE: Keep synchronised with fuzz/arbitrary::typed_data::RAW_VALUE_TOKEN
 pub(crate) const RAW_VALUE_TOKEN: &str = "$ron::private::RawValue";
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct RawValue {

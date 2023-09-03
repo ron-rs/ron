@@ -527,12 +527,12 @@ impl<W: fmt::Write> Serializer<W> {
     }
 
     fn serialize_escaped_str(&mut self, value: &str) -> fmt::Result {
-        self.output.write_str("\"")?;
+        self.output.write_char('"')?;
         let mut scalar = [0u8; 4];
         for c in value.chars().flat_map(char::escape_debug) {
             self.output.write_str(c.encode_utf8(&mut scalar))?;
         }
-        self.output.write_str("\"")?;
+        self.output.write_char('"')?;
         Ok(())
     }
 
@@ -546,14 +546,14 @@ impl<W: fmt::Write> Serializer<W> {
             let hashes: String = "#".repeat(num_consecutive_hashes + 1);
             self.output.write_char('r')?;
             self.output.write_str(&hashes)?;
-            self.output.write_str("\"")?;
+            self.output.write_char('"')?;
             self.output.write_str(value)?;
-            self.output.write_str("\"")?;
+            self.output.write_char('"')?;
             self.output.write_str(&hashes)?;
         } else {
-            self.output.write_str("\"")?;
+            self.output.write_char('"')?;
             self.output.write_str(value)?;
-            self.output.write_str("\"")?;
+            self.output.write_char('"')?;
         }
         Ok(())
     }
@@ -563,7 +563,7 @@ impl<W: fmt::Write> Serializer<W> {
         for c in value.iter().flat_map(|c| std::ascii::escape_default(*c)) {
             self.output.write_char(char::from(c))?;
         }
-        self.output.write_str("\"")?;
+        self.output.write_char('"')?;
         Ok(())
     }
 
@@ -577,14 +577,14 @@ impl<W: fmt::Write> Serializer<W> {
             let hashes: String = "#".repeat(num_consecutive_hashes + 1);
             self.output.write_str("br")?;
             self.output.write_str(&hashes)?;
-            self.output.write_str("\"")?;
+            self.output.write_char('"')?;
             self.output.write_str(value)?;
-            self.output.write_str("\"")?;
+            self.output.write_char('"')?;
             self.output.write_str(&hashes)?;
         } else {
             self.output.write_str("b\"")?;
             self.output.write_str(value)?;
-            self.output.write_str("\"")?;
+            self.output.write_char('"')?;
         }
         Ok(())
     }
@@ -760,7 +760,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_char(self, v: char) -> Result<()> {
         self.output.write_char('\'')?;
         if v == '\\' || v == '\'' {
-            self.output.write_str("\\")?;
+            self.output.write_char('\\')?;
         }
         write!(self.output, "{}", v)?;
         self.output.write_char('\'')?;
@@ -875,10 +875,10 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
                 self.output.write_str("Some(")?;
             }
 
-            guard_recursion! { self => value.serialize(raw::RawValueSerializer::new(self)) }?;
+            guard_recursion! { self => value.serialize(raw::Serializer::new(self)) }?;
 
             for _ in 0..implicit_some_depth {
-                self.output.write_str(")")?;
+                self.output.write_char(')')?;
             }
 
             return Ok(());

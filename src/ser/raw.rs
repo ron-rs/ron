@@ -2,19 +2,19 @@ use std::fmt;
 
 use serde::{ser, Serialize};
 
-use super::{Error, Result, Serializer};
+use super::{Error, Result};
 
-pub struct RawValueSerializer<'a, W: fmt::Write> {
-    ser: &'a mut Serializer<W>,
+pub struct Serializer<'a, W: fmt::Write> {
+    ser: &'a mut super::Serializer<W>,
 }
 
-impl<'a, W: fmt::Write> RawValueSerializer<'a, W> {
-    pub fn new(ser: &'a mut Serializer<W>) -> Self {
+impl<'a, W: fmt::Write> Serializer<'a, W> {
+    pub fn new(ser: &'a mut super::Serializer<W>) -> Self {
         Self { ser }
     }
 }
 
-impl<'a, W: fmt::Write> ser::Serializer for RawValueSerializer<'a, W> {
+impl<'a, W: fmt::Write> ser::Serializer for Serializer<'a, W> {
     type Error = Error;
     type Ok = ();
     type SerializeMap = ser::Impossible<(), Error>;

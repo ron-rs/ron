@@ -9,13 +9,12 @@ enum EnumWithUnicode {
 #[test]
 fn roundtrip_unicode_ident() {
     let value = [EnumWithUnicode::Äöß, EnumWithUnicode::你好世界];
-    let serial = ron::ser::to_string(&value).unwrap();
 
-    println!("Serialized: {}", serial);
+    let ron = ron::ser::to_string(&value).unwrap();
+    assert_eq!(ron, "(Äöß,你好世界)");
 
-    let deserial = ron::de::from_str(&serial);
-
-    assert_eq!(Ok(value), deserial);
+    let de = ron::de::from_str(&ron);
+    assert_eq!(Ok(value), de);
 }
 
 #[test]

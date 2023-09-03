@@ -15,6 +15,7 @@ pub(crate) mod raw;
 
 pub use map::Map;
 pub use number::{Number, F32, F64};
+#[allow(clippy::useless_attribute, clippy::module_name_repetitions)]
 pub use raw::RawValue;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

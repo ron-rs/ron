@@ -11,6 +11,7 @@ use crate::parse::{is_ident_first_char, is_ident_raw_char};
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpannedError {
     pub code: Error,
@@ -290,11 +291,11 @@ pub struct Position {
 }
 
 impl Position {
-    pub(crate) fn from_offset(src: &str, cursor: usize) -> Position {
-        let src = &src[..cursor];
+    pub(crate) fn from_src_end(src: &str) -> Position {
         let line = 1 + src.chars().filter(|&c| c == '\n').count();
         let col = 1 + src.chars().rev().take_while(|&c| c != '\n').count();
-        Position { line, col }
+
+        Self { line, col }
     }
 }
 

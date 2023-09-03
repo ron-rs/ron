@@ -30,9 +30,6 @@ pub fn is_ident_raw_char(c: char) -> bool {
 }
 
 pub const fn is_whitespace_char(c: char) -> bool {
-    // TODO compare to using a bitmap
-    // " \t\n\r\x0A\x0B\x0C\u{85}" could be added to the above map
-    // for 200E to 2029 this could be done by casting to u16 and comparing first and second byte individually
     matches!(
         c,
         ' ' | '\t'
@@ -120,30 +117,30 @@ impl<'a> Parser<'a> {
     pub fn span_error(&self, code: Error) -> SpannedError {
         SpannedError {
             code,
-            position: Position::from_offset(self.src, self.cursor.cursor),
+            position: Position::from_src_end(&self.src[..self.cursor.cursor]),
         }
     }
 
-    pub fn advance(&mut self, bytes: usize) {
+    pub fn advance_bytes(&mut self, bytes: usize) {
         self.cursor.cursor += bytes;
     }
 
-    pub fn next(&mut self) -> Result<char> {
-        let c = self.peek_or_eof()?;
+    pub fn next_char(&mut self) -> Result<char> {
+        let c = self.peek_char_or_eof()?;
         self.cursor.cursor += c.len_utf8();
         Ok(c)
     }
 
-    pub fn skip_next(&mut self) {
-        std::mem::drop(self.next());
+    pub fn skip_next_char(&mut self) {
+        std::mem::drop(self.next_char());
     }
 
-    pub fn peek(&self) -> Option<char> {
+    pub fn peek_char(&self) -> Option<char> {
         self.src().chars().next()
     }
 
-    pub fn peek_or_eof(&self) -> Result<char> {
-        self.peek().ok_or(Error::Eof)
+    pub fn peek_char_or_eof(&self) -> Result<char> {
+        self.peek_char().ok_or(Error::Eof)
     }
 
     pub fn check_char(&self, c: char) -> bool {
@@ -164,7 +161,7 @@ impl<'a> Parser<'a> {
 
     pub fn consume_str(&mut self, s: &str) -> bool {
         if self.check_str(s) {
-            self.advance(s.len());
+            self.advance_bytes(s.len());
 
             true
         } else {
@@ -174,7 +171,7 @@ impl<'a> Parser<'a> {
 
     pub fn consume_char(&mut self, c: char) -> bool {
         if self.check_char(c) {
-            self.advance(c.len_utf8());
+            self.advance_bytes(c.len_utf8());
 
             true
         } else {
@@ -205,19 +202,19 @@ impl<'a> Parser<'a> {
     }
 
     #[must_use]
-    pub fn next_chars_while(&self, condition: fn(char) -> bool) -> usize {
-        self.next_chars_while_from(0, condition)
+    pub fn next_chars_while_len(&self, condition: fn(char) -> bool) -> usize {
+        self.next_chars_while_from_len(0, condition)
     }
 
     #[must_use]
-    pub fn next_chars_while_from(&self, from: usize, condition: fn(char) -> bool) -> usize {
+    pub fn next_chars_while_from_len(&self, from: usize, condition: fn(char) -> bool) -> usize {
         self.src()[from..]
             .find(|c| !condition(c))
             .unwrap_or(self.src().len() - from)
     }
 
     #[must_use]
-    pub fn find_index(&self, condition: fn(char) -> bool) -> Option<(usize, char)> {
+    pub fn find_char_index(&self, condition: fn(char) -> bool) -> Option<(usize, char)> {
         self.src().char_indices().find(|&(_, c)| condition(c))
     }
 }
@@ -232,30 +229,30 @@ impl<'a> Parser<'a> {
     ) -> Result<T> {
         let mut num_acc = T::from_u8(0);
 
-        for (i, c) in s.chars().enumerate() {
+        for (i, c) in s.char_indices() {
             if c == '_' {
                 continue;
             }
 
             if num_acc.checked_mul_ext(base) {
-                self.advance(s.len());
+                self.advance_bytes(s.len());
                 return Err(Error::IntegerOutOfBounds);
             }
 
             let digit = Self::decode_hex(c)?;
 
             if digit >= base {
-                self.advance(i);
+                self.advance_bytes(i);
                 return Err(Error::InvalidIntegerDigit { digit: c, base });
             }
 
             if f(&mut num_acc, digit) {
-                self.advance(s.len());
+                self.advance_bytes(s.len());
                 return Err(Error::IntegerOutOfBounds);
             }
         }
 
-        self.advance(s.len());
+        self.advance_bytes(s.len());
 
         Ok(num_acc)
     }
@@ -268,7 +265,7 @@ impl<'a> Parser<'a> {
             _ => 10,
         };
 
-        let num_bytes = self.next_chars_while(is_int_char);
+        let num_bytes = self.next_chars_while_len(is_int_char);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedInteger);
@@ -291,18 +288,18 @@ impl<'a> Parser<'a> {
     pub fn integer<T: Integer>(&mut self) -> Result<T> {
         let src_backup = self.src();
 
-        let is_negative = match self.peek_or_eof()? {
+        let is_negative = match self.peek_char_or_eof()? {
             '+' => {
-                self.skip_next();
+                self.skip_next_char();
                 false
             }
             '-' => {
-                self.skip_next();
+                self.skip_next_char();
                 true
             }
             'b' if self.consume_str("b'") => {
                 // Parse a byte literal
-                let byte = match self.next()? {
+                let byte = match self.next_char()? {
                     '\\' => match self.parse_escape(EscapeEncoding::Binary, true)? {
                         // we know that this byte is an ASCII character
                         EscapeCharacter::Ascii(b) => b,
@@ -328,11 +325,11 @@ impl<'a> Parser<'a> {
         };
         let sign = if is_negative { -1 } else { 1 };
 
-        let num_bytes = self.next_chars_while(is_int_char);
+        let num_bytes = self.next_chars_while_len(is_int_char);
 
         if self.src()[num_bytes..].starts_with(&['i', 'u']) {
             let int_cursor = self.cursor;
-            self.advance(num_bytes);
+            self.advance_bytes(num_bytes);
 
             #[allow(clippy::never_loop)]
             loop {
@@ -493,7 +490,7 @@ impl<'a> Parser<'a> {
     pub fn char(&mut self) -> Result<char> {
         self.expect_char('\'', Error::ExpectedChar)?;
 
-        let c = self.next()?;
+        let c = self.next_char()?;
 
         let c = if c == '\\' {
             match self.parse_escape(EscapeEncoding::Utf8, true)? {
@@ -569,7 +566,7 @@ impl<'a> Parser<'a> {
             if parser.skip_identifier() {
                 parser.skip_ws()?;
 
-                match parser.peek() {
+                match parser.peek_char() {
                     // Definitely a struct with named fields
                     Some(':') => return Ok(StructType::Named),
                     // Definitely a tuple struct with fields
@@ -605,7 +602,7 @@ impl<'a> Parser<'a> {
                     parser.set_cursor(cursor_backup);
                 }
 
-                let c = parser.next()?;
+                let c = parser.next_char()?;
                 if matches!(c, '(' | '[' | '{') {
                     braces += 1;
                 } else if matches!(c, ')' | ']' | '}') {
@@ -640,7 +637,7 @@ impl<'a> Parser<'a> {
     /// to an identifier.
     pub fn consume_ident(&mut self, ident: &str) -> bool {
         if self.check_ident(ident) {
-            self.advance(ident.len());
+            self.advance_bytes(ident.len());
 
             true
         } else {
@@ -735,7 +732,7 @@ impl<'a> Parser<'a> {
                 if let Some(post_suffix) = suffix.strip_prefix(F32_SUFFIX) {
                     if !post_suffix.chars().next().map_or(false, is_xid_continue) {
                         let float_ron = &self.src()[..literal.len() + F32_SUFFIX.len()];
-                        self.advance(literal.len() + F32_SUFFIX.len());
+                        self.advance_bytes(literal.len() + F32_SUFFIX.len());
                         return T::try_from_parsed_float(ParsedFloat::F32(*value_f32), float_ron);
                     }
                 }
@@ -743,14 +740,14 @@ impl<'a> Parser<'a> {
                 if let Some(post_suffix) = suffix.strip_prefix(F64_SUFFIX) {
                     if !post_suffix.chars().next().map_or(false, is_xid_continue) {
                         let float_ron = &self.src()[..literal.len() + F64_SUFFIX.len()];
-                        self.advance(literal.len() + F64_SUFFIX.len());
+                        self.advance_bytes(literal.len() + F64_SUFFIX.len());
                         return T::try_from_parsed_float(ParsedFloat::F64(*value_f64), float_ron);
                     }
                 }
             }
         }
 
-        let num_bytes = self.next_chars_while(is_float_char);
+        let num_bytes = self.next_chars_while_len(is_float_char);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedFloat);
@@ -767,7 +764,7 @@ impl<'a> Parser<'a> {
             match c {
                 '_' if allow_underscore => continue,
                 '_' => {
-                    self.advance(i);
+                    self.advance_bytes(i);
                     return Err(Error::FloatUnderscore);
                 }
                 '0'..='9' | 'e' | 'E' => allow_underscore = true,
@@ -781,7 +778,7 @@ impl<'a> Parser<'a> {
 
         if self.src()[num_bytes..].starts_with('f') {
             let backup_cursor = self.cursor;
-            self.advance(num_bytes);
+            self.advance_bytes(num_bytes);
 
             #[allow(clippy::never_loop)]
             loop {
@@ -810,7 +807,7 @@ impl<'a> Parser<'a> {
 
         let value = T::parse(&f)?;
 
-        self.advance(num_bytes);
+        self.advance_bytes(num_bytes);
 
         Ok(value)
     }
@@ -831,19 +828,19 @@ impl<'a> Parser<'a> {
 
         if self.check_str("r#") {
             // maybe a raw identifier
-            let len = self.next_chars_while_from(2, is_ident_raw_char);
+            let len = self.next_chars_while_from_len(2, is_ident_raw_char);
             if len > 0 {
-                self.advance(2 + len);
+                self.advance_bytes(2 + len);
                 return true;
             }
             return false;
         }
 
-        if let Some(c) = self.peek() {
+        if let Some(c) = self.peek_char() {
             // maybe a normal identifier
             if is_ident_first_char(c) {
-                self.advance(
-                    c.len_utf8() + self.next_chars_while_from(c.len_utf8(), is_xid_continue),
+                self.advance_bytes(
+                    c.len_utf8() + self.next_chars_while_from_len(c.len_utf8(), is_xid_continue),
                 );
                 return true;
             }
@@ -853,10 +850,10 @@ impl<'a> Parser<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
-        let first = self.peek_or_eof()?;
+        let first = self.peek_char_or_eof()?;
         if !is_ident_first_char(first) {
             if is_ident_raw_char(first) {
-                let ident_bytes = self.next_chars_while(is_ident_raw_char);
+                let ident_bytes = self.next_chars_while_len(is_ident_raw_char);
                 return Err(Error::SuggestRawIdentifier(
                     self.src()[..ident_bytes].into(),
                 ));
@@ -883,31 +880,31 @@ impl<'a> Parser<'a> {
         let length = if self.check_str("r#") {
             let cursor_backup = self.cursor;
 
-            self.advance(2);
+            self.advance_bytes(2);
 
             // Note: it's important to check this before advancing forward, so that
             // the value-type deserializer can fall back to parsing it differently.
-            if !matches!(self.peek(), Some(c) if is_ident_raw_char(c)) {
+            if !matches!(self.peek_char(), Some(c) if is_ident_raw_char(c)) {
                 self.set_cursor(cursor_backup);
                 return Err(Error::ExpectedIdentifier);
             }
 
-            self.next_chars_while(is_ident_raw_char)
+            self.next_chars_while_len(is_ident_raw_char)
         } else if first == 'r' {
-            let std_ident_length = self.next_chars_while(is_xid_continue);
-            let raw_ident_length = self.next_chars_while(is_ident_raw_char);
+            let std_ident_length = self.next_chars_while_len(is_xid_continue);
+            let raw_ident_length = self.next_chars_while_len(is_ident_raw_char);
 
             if raw_ident_length > std_ident_length {
                 return Err(Error::SuggestRawIdentifier(
-                    self.src()[1..raw_ident_length].into(),
+                    self.src()[..raw_ident_length].into(),
                 ));
             }
 
             std_ident_length
         } else {
-            let std_ident_length =
-                first.len_utf8() + self.next_chars_while_from(first.len_utf8(), is_xid_continue);
-            let raw_ident_length = self.next_chars_while(is_ident_raw_char);
+            let std_ident_length = first.len_utf8()
+                + self.next_chars_while_from_len(first.len_utf8(), is_xid_continue);
+            let raw_ident_length = self.next_chars_while_len(is_ident_raw_char);
 
             if raw_ident_length > std_ident_length {
                 return Err(Error::SuggestRawIdentifier(
@@ -919,19 +916,19 @@ impl<'a> Parser<'a> {
         };
 
         let ident = &self.src()[..length];
-        self.advance(length);
+        self.advance_bytes(length);
 
         Ok(ident)
     }
 
     pub fn next_bytes_is_float(&mut self) -> bool {
-        if let Some(c) = self.peek() {
+        if let Some(c) = self.peek_char() {
             let skip = match c {
                 '+' | '-' => 1,
                 _ => 0,
             };
-            let valid_float_len = self.next_chars_while_from(skip, is_float_char);
-            let valid_int_len = self.next_chars_while_from(skip, is_int_char);
+            let valid_float_len = self.next_chars_while_from_len(skip, is_float_char);
+            let valid_int_len = self.next_chars_while_from_len(skip, is_int_char);
             valid_float_len > valid_int_len
         } else {
             false
@@ -949,7 +946,7 @@ impl<'a> Parser<'a> {
         }
 
         loop {
-            self.advance(self.next_chars_while(is_whitespace_char));
+            self.advance_bytes(self.next_chars_while_len(is_whitespace_char));
 
             match self.skip_comment()? {
                 None => break,
@@ -1036,7 +1033,7 @@ impl<'a> Parser<'a> {
     fn escaped_byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
         match self.escaped_byte_buf(EscapeEncoding::Binary) {
             Ok((bytes, advance)) => {
-                self.advance(advance);
+                self.advance_bytes(advance);
                 Ok(bytes)
             }
             Err(err) => Err(err),
@@ -1046,7 +1043,7 @@ impl<'a> Parser<'a> {
     fn raw_byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
         match self.raw_byte_buf() {
             Ok((bytes, advance)) => {
-                self.advance(advance);
+                self.advance_bytes(advance);
                 Ok(bytes)
             }
             Err(Error::ExpectedString) => Err(Error::ExpectedByteString),
@@ -1068,7 +1065,7 @@ impl<'a> Parser<'a> {
         match self.escaped_byte_buf(EscapeEncoding::Utf8) {
             Ok((bytes, advance)) => {
                 let string = ParsedStr::try_from_bytes(bytes).map_err(Error::from)?;
-                self.advance(advance);
+                self.advance_bytes(advance);
                 Ok(string)
             }
             Err(err) => Err(err),
@@ -1079,7 +1076,7 @@ impl<'a> Parser<'a> {
         match self.raw_byte_buf() {
             Ok((bytes, advance)) => {
                 let string = ParsedStr::try_from_bytes(bytes).map_err(Error::from)?;
-                self.advance(advance);
+                self.advance_bytes(advance);
                 Ok(string)
             }
             Err(err) => Err(err),
@@ -1087,24 +1084,21 @@ impl<'a> Parser<'a> {
     }
 
     fn escaped_byte_buf(&mut self, encoding: EscapeEncoding) -> Result<(ParsedByteStr<'a>, usize)> {
-        use std::iter::repeat;
-
         let (i, end_or_escape) = self
-            .find_index(|c| matches!(c, '\\' | '"'))
+            .find_char_index(|c| matches!(c, '\\' | '"'))
             .ok_or(Error::ExpectedStringEnd)?;
 
         if end_or_escape == '"' {
             let s = &self.src().as_bytes()[..i];
 
-            // Advance by the number of bytes of the string
-            // + 1 for the `"`.
+            // Advance by the number of bytes of the string + 1 for the `"`.
             Ok((ParsedByteStr::Slice(s), i + 1))
         } else {
             let mut i = i;
             let mut s = self.src().as_bytes()[..i].to_vec();
 
             loop {
-                self.advance(i + 1);
+                self.advance_bytes(i + 1);
 
                 match self.parse_escape(encoding, false)? {
                     EscapeCharacter::Ascii(c) => s.push(c),
@@ -1112,14 +1106,14 @@ impl<'a> Parser<'a> {
                         1 => s.push(c as u8),
                         len => {
                             let start = s.len();
-                            s.extend(repeat(0).take(len));
+                            s.extend(std::iter::repeat(0).take(len));
                             c.encode_utf8(&mut s[start..]);
                         }
                     },
                 }
 
                 let (new_i, end_or_escape) = self
-                    .find_index(|c| matches!(c, '\\' | '"'))
+                    .find_char_index(|c| matches!(c, '\\' | '"'))
                     .ok_or(Error::ExpectedStringEnd)?;
 
                 i = new_i;
@@ -1134,9 +1128,9 @@ impl<'a> Parser<'a> {
     }
 
     fn raw_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
-        let num_hashes = self.next_chars_while(|c| c == '#');
+        let num_hashes = self.next_chars_while_len(|c| c == '#');
         let hashes = &self.src()[..num_hashes];
-        self.advance(num_hashes);
+        self.advance_bytes(num_hashes);
 
         self.expect_char('"', Error::ExpectedString)?;
 
@@ -1154,7 +1148,7 @@ impl<'a> Parser<'a> {
         let mut n = 0;
         for _ in 0..2 {
             n <<= 4;
-            let byte = self.next()?;
+            let byte = self.next_char()?;
             let decoded = Self::decode_hex(byte)?;
             n |= decoded;
         }
@@ -1178,7 +1172,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_escape(&mut self, encoding: EscapeEncoding, is_char: bool) -> Result<EscapeCharacter> {
-        let c = match self.next()? {
+        let c = match self.next_char()? {
             '\'' => EscapeCharacter::Ascii(b'\''),
             '"' => EscapeCharacter::Ascii(b'"'),
             '\\' => EscapeCharacter::Ascii(b'\\'),
@@ -1235,13 +1229,13 @@ impl<'a> Parser<'a> {
                 let mut num_digits = 0;
 
                 while num_digits < 6 {
-                    let byte = self.peek_or_eof()?;
+                    let byte = self.peek_char_or_eof()?;
 
                     if byte == '}' {
                         break;
                     }
 
-                    self.skip_next();
+                    self.skip_next_char();
                     num_digits += 1;
 
                     let byte = Self::decode_hex(byte)?;
@@ -1273,11 +1267,11 @@ impl<'a> Parser<'a> {
 
     fn skip_comment(&mut self) -> Result<Option<Comment>> {
         if self.consume_char('/') {
-            match self.next()? {
+            match self.next_char()? {
                 '/' => {
-                    let bytes = self.next_chars_while(|c| c != '\n');
+                    let bytes = self.next_chars_while_len(|c| c != '\n');
 
-                    self.advance(bytes);
+                    self.advance_bytes(bytes);
 
                     if self.src().is_empty() {
                         Ok(Some(Comment::UnclosedLine))
@@ -1289,13 +1283,13 @@ impl<'a> Parser<'a> {
                     let mut level = 1;
 
                     while level > 0 {
-                        let bytes = self.next_chars_while(|c| !matches!(c, '/' | '*'));
+                        let bytes = self.next_chars_while_len(|c| !matches!(c, '/' | '*'));
 
                         if self.src().is_empty() {
                             return Err(Error::UnclosedBlockComment);
                         }
 
-                        self.advance(bytes);
+                        self.advance_bytes(bytes);
 
                         // check whether / or * and take action
                         if self.consume_str("/*") {
@@ -1303,7 +1297,7 @@ impl<'a> Parser<'a> {
                         } else if self.consume_str("*/") {
                             level -= 1;
                         } else {
-                            self.next().map_err(|_| Error::UnclosedBlockComment)?;
+                            self.next_char().map_err(|_| Error::UnclosedBlockComment)?;
                         }
                     }
 

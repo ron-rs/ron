@@ -9,7 +9,6 @@ use serde::{
     Deserialize,
 };
 
-use self::{id::IdDeserializer, tag::TagDeserializer};
 pub use crate::error::{Error, Position, SpannedError};
 use crate::{
     error::{Result, SpannedResult},
@@ -74,7 +73,7 @@ impl<'de> Deserializer<'de> {
 
         Err(SpannedError {
             code: err.into(),
-            position: Position::from_offset(valid_input, valid_input.len()),
+            position: Position::from_src_end(valid_input),
         })
     }
 
@@ -330,7 +329,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return self.handle_any_struct(visitor, Some(ident));
         }
 
-        match self.parser.peek_or_eof()? {
+        match self.parser.peek_char_or_eof()? {
             '(' => self.handle_any_struct(visitor, None),
             '[' => self.deserialize_seq(visitor),
             '{' => self.deserialize_map(visitor),
@@ -844,10 +843,10 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         if self.has_element()? {
             match self.terminator {
                 Terminator::Struct => guard_recursion! { self.de =>
-                    seed.deserialize(&mut IdDeserializer::new(false, &mut *self.de)).map(Some)
+                    seed.deserialize(&mut id::Deserializer::new(&mut *self.de, false)).map(Some)
                 },
                 Terminator::MapAsStruct => guard_recursion! { self.de =>
-                    seed.deserialize(&mut IdDeserializer::new(true, &mut *self.de)).map(Some)
+                    seed.deserialize(&mut id::Deserializer::new(&mut *self.de, true)).map(Some)
                 },
                 _ => guard_recursion! { self.de => seed.deserialize(&mut *self.de).map(Some) },
             }
@@ -866,7 +865,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
             self.de.parser.skip_ws()?;
 
             let res = guard_recursion! { self.de =>
-                seed.deserialize(&mut TagDeserializer::new(&mut *self.de))?
+                seed.deserialize(&mut tag::Deserializer::new(&mut *self.de))?
             };
 
             self.had_comma = self.de.parser.comma()?;

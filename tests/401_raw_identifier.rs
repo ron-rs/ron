@@ -117,7 +117,7 @@ fn test_invalid_identifiers() {
     assert_eq!(
         de,
         SpannedError {
-            code: Error::SuggestRawIdentifier(String::from("ab.cd-ef")),
+            code: Error::SuggestRawIdentifier(String::from("rab.cd-ef")),
             position: Position { line: 2, col: 9 },
         }
     );
