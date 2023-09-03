@@ -763,7 +763,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
 enum Terminator {
     Map,
     MapAsStruct,
@@ -773,7 +772,7 @@ enum Terminator {
 }
 
 impl Terminator {
-    fn as_char(self) -> char {
+    fn as_char(&self) -> char {
         match self {
             Terminator::Map | Terminator::MapAsStruct => '}',
             Terminator::Tuple | Terminator::Struct => ')',

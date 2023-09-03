@@ -344,7 +344,7 @@ impl Default for PrettyConfig {
             new_line: if cfg!(not(target_os = "windows")) {
                 String::from("\n")
             } else {
-                String::from("\r\n")
+                String::from("\r\n") // GRCOV_EXCL_LINE
             },
             indentor: String::from("    "),
             separator: String::from(" "),

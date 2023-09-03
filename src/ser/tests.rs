@@ -30,23 +30,19 @@ enum MyEnum {
 
 #[test]
 fn test_empty_struct() {
-    check_to_string_writer(&EmptyStruct1, "()", "()");
-    check_to_string_writer(&EmptyStruct2 {}, "()", "()");
+    check_to_string_writer(&EmptyStruct1, "()", "EmptyStruct1");
+    check_to_string_writer(&EmptyStruct2 {}, "()", "EmptyStruct2()");
 }
 
 #[test]
 fn test_struct() {
     let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
-    check_to_string_writer(
-        &my_struct,
-        "(x:4.0,y:7.0)",
-        "(\n    x: 4.0,\n    y: 7.0,\n)",
-    );
+    check_to_string_writer(&my_struct, "(x:4.0,y:7.0)", "MyStruct(x: 4.0, y: 7.0)");
 
-    check_to_string_writer(&NewType(42), "(42)", "(42)");
+    check_to_string_writer(&NewType(42), "(42)", "NewType(42)");
 
-    check_to_string_writer(&TupleStruct(2.0, 5.0), "(2.0,5.0)", "(2.0, 5.0)");
+    check_to_string_writer(&TupleStruct(2.0, 5.0), "(2.0,5.0)", "TupleStruct(2.0, 5.0)");
 }
 
 #[test]
@@ -60,11 +56,7 @@ fn test_enum() {
     check_to_string_writer(&MyEnum::A, "A", "A");
     check_to_string_writer(&MyEnum::B(true), "B(true)", "B(true)");
     check_to_string_writer(&MyEnum::C(true, 3.5), "C(true,3.5)", "C(true, 3.5)");
-    check_to_string_writer(
-        &MyEnum::D { a: 2, b: 3 },
-        "D(a:2,b:3)",
-        "D(\n    a: 2,\n    b: 3,\n)",
-    );
+    check_to_string_writer(&MyEnum::D { a: 2, b: 3 }, "D(a:2,b:3)", "D(a: 2, b: 3)");
 }
 
 #[test]
@@ -243,7 +235,13 @@ fn check_to_string_writer<T: ?Sized + serde::Serialize>(val: &T, check: &str, ch
     let ron_str = super::to_string(val).unwrap();
     assert_eq!(ron_str, check);
 
-    let ron_str_pretty = super::to_string_pretty(val, super::PrettyConfig::default()).unwrap();
+    let ron_str_pretty = super::to_string_pretty(
+        val,
+        super::PrettyConfig::default()
+            .struct_names(true)
+            .compact_structs(true),
+    )
+    .unwrap();
     assert_eq!(ron_str_pretty, check_pretty);
 
     let mut ron_writer = std::ffi::OsString::new();
@@ -251,6 +249,13 @@ fn check_to_string_writer<T: ?Sized + serde::Serialize>(val: &T, check: &str, ch
     assert_eq!(ron_writer, check);
 
     let mut ron_writer_pretty = std::ffi::OsString::new();
-    super::to_writer_pretty(&mut ron_writer_pretty, val, super::PrettyConfig::default()).unwrap();
+    super::to_writer_pretty(
+        &mut ron_writer_pretty,
+        val,
+        super::PrettyConfig::default()
+            .struct_names(true)
+            .compact_structs(true),
+    )
+    .unwrap();
     assert_eq!(ron_writer_pretty, check_pretty);
 }
