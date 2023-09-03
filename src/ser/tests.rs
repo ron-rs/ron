@@ -2,13 +2,17 @@ use serde_derive::Serialize;
 
 use crate::Number;
 
-use super::to_string;
-
 #[derive(Serialize)]
 struct EmptyStruct1;
 
 #[derive(Serialize)]
 struct EmptyStruct2 {}
+
+#[derive(Serialize)]
+struct NewType(i32);
+
+#[derive(Serialize)]
+struct TupleStruct(f32, f32);
 
 #[derive(Serialize)]
 struct MyStruct {
@@ -26,91 +30,101 @@ enum MyEnum {
 
 #[test]
 fn test_empty_struct() {
-    assert_eq!(to_string(&EmptyStruct1).unwrap(), "()");
-    assert_eq!(to_string(&EmptyStruct2 {}).unwrap(), "()");
+    check_to_string_writer(&EmptyStruct1, "()", "EmptyStruct1");
+    check_to_string_writer(&EmptyStruct2 {}, "()", "EmptyStruct2()");
 }
 
 #[test]
 fn test_struct() {
     let my_struct = MyStruct { x: 4.0, y: 7.0 };
 
-    assert_eq!(to_string(&my_struct).unwrap(), "(x:4.0,y:7.0)");
+    check_to_string_writer(&my_struct, "(x:4.0,y:7.0)", "MyStruct(x: 4.0, y: 7.0)");
 
-    #[derive(Serialize)]
-    struct NewType(i32);
+    check_to_string_writer(&NewType(42), "(42)", "NewType(42)");
 
-    assert_eq!(to_string(&NewType(42)).unwrap(), "(42)");
-
-    #[derive(Serialize)]
-    struct TupleStruct(f32, f32);
-
-    assert_eq!(to_string(&TupleStruct(2.0, 5.0)).unwrap(), "(2.0,5.0)");
+    check_to_string_writer(&TupleStruct(2.0, 5.0), "(2.0,5.0)", "TupleStruct(2.0, 5.0)");
 }
 
 #[test]
 fn test_option() {
-    assert_eq!(to_string(&Some(1u8)).unwrap(), "Some(1)");
-    assert_eq!(to_string(&None::<u8>).unwrap(), "None");
+    check_to_string_writer(&Some(1u8), "Some(1)", "Some(1)");
+    check_to_string_writer(&None::<u8>, "None", "None");
 }
 
 #[test]
 fn test_enum() {
-    assert_eq!(to_string(&MyEnum::A).unwrap(), "A");
-    assert_eq!(to_string(&MyEnum::B(true)).unwrap(), "B(true)");
-    assert_eq!(to_string(&MyEnum::C(true, 3.5)).unwrap(), "C(true,3.5)");
-    assert_eq!(to_string(&MyEnum::D { a: 2, b: 3 }).unwrap(), "D(a:2,b:3)");
+    check_to_string_writer(&MyEnum::A, "A", "A");
+    check_to_string_writer(&MyEnum::B(true), "B(true)", "B(true)");
+    check_to_string_writer(&MyEnum::C(true, 3.5), "C(true,3.5)", "C(true, 3.5)");
+    check_to_string_writer(&MyEnum::D { a: 2, b: 3 }, "D(a:2,b:3)", "D(a: 2, b: 3)");
 }
 
 #[test]
 fn test_array() {
     let empty: [i32; 0] = [];
-    assert_eq!(to_string(&empty).unwrap(), "()");
+    check_to_string_writer(&empty, "()", "()");
     let empty_ref: &[i32] = &empty;
-    assert_eq!(to_string(&empty_ref).unwrap(), "[]");
+    check_to_string_writer(&empty_ref, "[]", "[]");
 
-    assert_eq!(to_string(&[2, 3, 4i32]).unwrap(), "(2,3,4)");
-    assert_eq!(to_string(&(&[2, 3, 4i32] as &[i32])).unwrap(), "[2,3,4]");
+    check_to_string_writer(&[2, 3, 4i32], "(2,3,4)", "(2, 3, 4)");
+    check_to_string_writer(
+        &(&[2, 3, 4i32] as &[i32]),
+        "[2,3,4]",
+        "[\n    2,\n    3,\n    4,\n]",
+    );
 }
 
 #[test]
 fn test_slice() {
-    assert_eq!(to_string(&[0, 1, 2, 3, 4, 5][..]).unwrap(), "[0,1,2,3,4,5]");
-    assert_eq!(to_string(&[0, 1, 2, 3, 4, 5][1..4]).unwrap(), "[1,2,3]");
+    check_to_string_writer(
+        &[0, 1, 2, 3, 4, 5][..],
+        "[0,1,2,3,4,5]",
+        "[\n    0,\n    1,\n    2,\n    3,\n    4,\n    5,\n]",
+    );
+    check_to_string_writer(
+        &[0, 1, 2, 3, 4, 5][1..4],
+        "[1,2,3]",
+        "[\n    1,\n    2,\n    3,\n]",
+    );
 }
 
 #[test]
 fn test_vec() {
-    assert_eq!(to_string(&vec![0, 1, 2, 3, 4, 5]).unwrap(), "[0,1,2,3,4,5]");
+    check_to_string_writer(
+        &vec![0, 1, 2, 3, 4, 5],
+        "[0,1,2,3,4,5]",
+        "[\n    0,\n    1,\n    2,\n    3,\n    4,\n    5,\n]",
+    );
 }
 
 #[test]
 fn test_map() {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
-    let mut map = HashMap::new();
+    let mut map = BTreeMap::new();
     map.insert((true, false), 4);
     map.insert((false, false), 123);
 
-    let s = to_string(&map).unwrap();
-    s.starts_with('{');
-    s.contains("(true,false):4");
-    s.contains("(false,false):123");
-    s.ends_with('}');
+    check_to_string_writer(
+        &map,
+        "{(false,false):123,(true,false):4}",
+        "{\n    (false, false): 123,\n    (true, false): 4,\n}",
+    );
 }
 
 #[test]
 fn test_string() {
-    assert_eq!(to_string(&"Some string").unwrap(), "\"Some string\"");
+    check_to_string_writer(&"Some string", "\"Some string\"", "\"Some string\"");
 }
 
 #[test]
 fn test_char() {
-    assert_eq!(to_string(&'c').unwrap(), "'c'");
+    check_to_string_writer(&'c', "'c'", "'c'");
 }
 
 #[test]
 fn test_escape() {
-    assert_eq!(to_string(&r#""Quoted""#).unwrap(), r#""\"Quoted\"""#);
+    check_to_string_writer(&r#""Quoted""#, r#""\"Quoted\"""#, r#""\"Quoted\"""#);
 }
 
 #[test]
@@ -118,33 +132,46 @@ fn test_byte_stream() {
     use serde_bytes;
 
     let small: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-    assert_eq!(
-        to_string(&small).unwrap(),
-        "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)"
+    check_to_string_writer(
+        &small,
+        "(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15)",
+        "(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)",
     );
 
     let large = vec![0x01, 0x02, 0x03, 0x04];
     let large = serde_bytes::Bytes::new(&large);
-    assert_eq!(to_string(&large).unwrap(), "b\"\\x01\\x02\\x03\\x04\"");
+    check_to_string_writer(
+        &large,
+        "b\"\\x01\\x02\\x03\\x04\"",
+        "b\"\\x01\\x02\\x03\\x04\"",
+    );
 
     let large = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06];
     let large = serde_bytes::Bytes::new(&large);
-    assert_eq!(
-        to_string(&large).unwrap(),
-        "b\"\\x01\\x02\\x03\\x04\\x05\\x06\""
+    check_to_string_writer(
+        &large,
+        "b\"\\x01\\x02\\x03\\x04\\x05\\x06\"",
+        "b\"\\x01\\x02\\x03\\x04\\x05\\x06\"",
     );
 
     let large = vec![255u8; 64];
     let large = serde_bytes::Bytes::new(&large);
-    assert_eq!(
-        to_string(&large).unwrap(),
+    check_to_string_writer(
+        &large,
         concat!(
             "b\"\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
             "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
             "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
             "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
             "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\""
-        )
+        ),
+        concat!(
+            "b\"\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
+            "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
+            "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
+            "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff",
+            "\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\\xff\""
+        ),
     );
 }
 
@@ -158,8 +185,8 @@ fn rename() {
         TriangleList,
     }
 
-    assert_eq!(to_string(&Foo::D2).unwrap(), "r#2d");
-    assert_eq!(to_string(&Foo::TriangleList).unwrap(), "r#triangle-list");
+    check_to_string_writer(&Foo::D2, "r#2d", "r#2d");
+    check_to_string_writer(&Foo::TriangleList, "r#triangle-list", "r#triangle-list");
 }
 
 #[test]
@@ -170,20 +197,14 @@ fn test_any_number_precision() {
     check_ser_any_number(-1_f32);
     check_ser_any_number(0.3_f64);
 
-    assert_eq!(super::to_string(&Number::new(f32::NAN)).unwrap(), "NaN");
-    assert_eq!(super::to_string(&f32::NAN).unwrap(), "NaN");
-    assert_eq!(super::to_string(&Number::new(-f32::NAN)).unwrap(), "-NaN");
-    assert_eq!(super::to_string(&(-f32::NAN)).unwrap(), "-NaN");
-    assert_eq!(
-        super::to_string(&Number::new(f32::INFINITY)).unwrap(),
-        "inf"
-    );
-    assert_eq!(super::to_string(&f32::INFINITY).unwrap(), "inf");
-    assert_eq!(
-        super::to_string(&Number::new(f32::NEG_INFINITY)).unwrap(),
-        "-inf"
-    );
-    assert_eq!(super::to_string(&f32::NEG_INFINITY).unwrap(), "-inf");
+    check_to_string_writer(&Number::new(f32::NAN), "NaN", "NaN");
+    check_to_string_writer(&f32::NAN, "NaN", "NaN");
+    check_to_string_writer(&Number::new(-f32::NAN), "-NaN", "-NaN");
+    check_to_string_writer(&(-f32::NAN), "-NaN", "-NaN");
+    check_to_string_writer(&Number::new(f32::INFINITY), "inf", "inf");
+    check_to_string_writer(&f32::INFINITY, "inf", "inf");
+    check_to_string_writer(&Number::new(f32::NEG_INFINITY), "-inf", "-inf");
+    check_to_string_writer(&f32::NEG_INFINITY, "-inf", "-inf");
 
     macro_rules! test_min_max {
         ($ty:ty) => {
@@ -206,6 +227,80 @@ fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display + serde::Seri
         fmt.push_str(".0");
     }
 
-    assert_eq!(super::to_string(&n.into()).unwrap(), fmt);
-    assert_eq!(super::to_string(&n).unwrap(), fmt);
+    check_to_string_writer(&n.into(), &fmt, &fmt);
+    check_to_string_writer(&n, &fmt, &fmt);
+}
+
+#[test]
+fn recursion_limit() {
+    assert_eq!(
+        crate::Options::default()
+            .with_recursion_limit(0)
+            .to_string(&[42]),
+        Err(crate::Error::ExceededRecursionLimit),
+    );
+    assert_eq!(
+        crate::Options::default()
+            .with_recursion_limit(1)
+            .to_string(&[42])
+            .as_deref(),
+        Ok("(42)"),
+    );
+    assert_eq!(
+        crate::Options::default()
+            .without_recursion_limit()
+            .to_string(&[42])
+            .as_deref(),
+        Ok("(42)"),
+    );
+
+    assert_eq!(
+        crate::Options::default()
+            .with_recursion_limit(1)
+            .to_string(&[[42]]),
+        Err(crate::Error::ExceededRecursionLimit),
+    );
+    assert_eq!(
+        crate::Options::default()
+            .with_recursion_limit(2)
+            .to_string(&[[42]])
+            .as_deref(),
+        Ok("((42))"),
+    );
+    assert_eq!(
+        crate::Options::default()
+            .without_recursion_limit()
+            .to_string(&[[42]])
+            .as_deref(),
+        Ok("((42))"),
+    );
+}
+
+fn check_to_string_writer<T: ?Sized + serde::Serialize>(val: &T, check: &str, check_pretty: &str) {
+    let ron_str = super::to_string(val).unwrap();
+    assert_eq!(ron_str, check);
+
+    let ron_str_pretty = super::to_string_pretty(
+        val,
+        super::PrettyConfig::default()
+            .struct_names(true)
+            .compact_structs(true),
+    )
+    .unwrap();
+    assert_eq!(ron_str_pretty, check_pretty);
+
+    let mut ron_writer = std::ffi::OsString::new();
+    super::to_writer(&mut ron_writer, val).unwrap();
+    assert_eq!(ron_writer, check);
+
+    let mut ron_writer_pretty = std::ffi::OsString::new();
+    super::to_writer_pretty(
+        &mut ron_writer_pretty,
+        val,
+        super::PrettyConfig::default()
+            .struct_names(true)
+            .compact_structs(true),
+    )
+    .unwrap();
+    assert_eq!(ron_writer_pretty, check_pretty);
 }

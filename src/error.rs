@@ -1,11 +1,17 @@
-use std::{error::Error as StdError, fmt, io, str::Utf8Error};
+use std::{
+    error::Error as StdError,
+    fmt, io,
+    str::{self, Utf8Error},
+};
 
 use serde::{de, ser};
+use unicode_ident::is_xid_continue;
 
-use crate::parse::{is_ident_first_char, is_ident_other_char, is_ident_raw_char};
+use crate::parse::{is_ident_first_char, is_ident_raw_char};
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
+#[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpannedError {
     pub code: Error,
@@ -18,6 +24,7 @@ pub type SpannedResult<T> = std::result::Result<T, SpannedError>;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Error {
+    Fmt,
     Io(String),
     Message(String),
     #[deprecated(
@@ -68,7 +75,7 @@ pub enum Error {
     UnclosedBlockComment,
     UnclosedLineComment,
     UnderscoreAtBeginning,
-    UnexpectedByte(u8),
+    UnexpectedChar(char),
 
     Utf8Error(Utf8Error),
     TrailingCharacters,
@@ -116,10 +123,11 @@ impl fmt::Display for SpannedError {
 }
 
 impl fmt::Display for Error {
+    #[allow(clippy::too_many_lines)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
-            Error::Io(ref s) => f.write_str(s),
-            Error::Message(ref s) => f.write_str(s),
+            Error::Fmt => f.write_str("Formatting RON failed"),
+            Error::Io(ref s) | Error::Message(ref s) => f.write_str(s),
             #[allow(deprecated)]
             Error::Base64Error(ref e) => fmt::Display::fmt(e, f),
             Error::Eof => f.write_str("Unexpected end of RON"),
@@ -137,7 +145,7 @@ impl fmt::Display for Error {
             Error::FloatUnderscore => f.write_str("Unexpected underscore in float"),
             Error::ExpectedInteger => f.write_str("Expected integer"),
             Error::ExpectedOption => f.write_str("Expected option"),
-            Error::ExpectedOptionEnd => f.write_str("Expected closing `)`"),
+            Error::ExpectedOptionEnd | Error::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
             Error::ExpectedMap => f.write_str("Expected opening `{`"),
             Error::ExpectedMapColon => f.write_str("Expected colon"),
             Error::ExpectedMapEnd => f.write_str("Expected closing `}`"),
@@ -158,7 +166,6 @@ impl fmt::Display for Error {
                     write!(f, "Expected opening `(` for struct {}", Identifier(name))
                 }
             }
-            Error::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
             Error::ExpectedUnit => f.write_str("Expected unit"),
             Error::ExpectedString => f.write_str("Expected string"),
             Error::ExpectedByteString => f.write_str("Expected byte string"),
@@ -181,11 +188,7 @@ impl fmt::Display for Error {
             Error::UnderscoreAtBeginning => {
                 f.write_str("Unexpected leading underscore in a number")
             }
-            Error::UnexpectedByte(byte) => {
-                let escaped_byte = std::ascii::escape_default(byte)
-                    .map(char::from).collect::<String>();
-                write!(f, "Unexpected byte '{}'", escaped_byte)
-            },
+            Error::UnexpectedChar(c) => write!(f, "Unexpected char {:?}", c),
             Error::TrailingCharacters => f.write_str("Non-whitespace trailing characters"),
             Error::InvalidValueForType {
                 ref expected,
@@ -287,6 +290,15 @@ pub struct Position {
     pub col: usize,
 }
 
+impl Position {
+    pub(crate) fn from_src_end(src: &str) -> Position {
+        let line = 1 + src.chars().filter(|&c| c == '\n').count();
+        let col = 1 + src.chars().rev().take_while(|&c| c != '\n').count();
+
+        Self { line, col }
+    }
+}
+
 impl fmt::Display for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.line, self.col)
@@ -318,32 +330,30 @@ impl de::Error for Error {
 
         impl<'a> fmt::Display for UnexpectedSerdeTypeValue<'a> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                use de::Unexpected::*;
-
                 match self.0 {
-                    Bool(b) => write!(f, "the boolean `{}`", b),
-                    Unsigned(i) => write!(f, "the unsigned integer `{}`", i),
-                    Signed(i) => write!(f, "the signed integer `{}`", i),
-                    Float(n) => write!(f, "the floating point number `{}`", n),
-                    Char(c) => write!(f, "the UTF-8 character `{}`", c),
-                    Str(s) => write!(f, "the string {:?}", s),
-                    Bytes(b) => write!(f, "the byte string b\"{}\"", {
+                    de::Unexpected::Bool(b) => write!(f, "the boolean `{}`", b),
+                    de::Unexpected::Unsigned(i) => write!(f, "the unsigned integer `{}`", i),
+                    de::Unexpected::Signed(i) => write!(f, "the signed integer `{}`", i),
+                    de::Unexpected::Float(n) => write!(f, "the floating point number `{}`", n),
+                    de::Unexpected::Char(c) => write!(f, "the UTF-8 character `{}`", c),
+                    de::Unexpected::Str(s) => write!(f, "the string {:?}", s),
+                    de::Unexpected::Bytes(b) => write!(f, "the byte string b\"{}\"", {
                         b.iter()
                             .flat_map(|c| std::ascii::escape_default(*c))
                             .map(char::from)
                             .collect::<String>()
                     }),
-                    Unit => write!(f, "a unit value"),
-                    Option => write!(f, "an optional value"),
-                    NewtypeStruct => write!(f, "a newtype struct"),
-                    Seq => write!(f, "a sequence"),
-                    Map => write!(f, "a map"),
-                    Enum => write!(f, "an enum"),
-                    UnitVariant => write!(f, "a unit variant"),
-                    NewtypeVariant => write!(f, "a newtype variant"),
-                    TupleVariant => write!(f, "a tuple variant"),
-                    StructVariant => write!(f, "a struct variant"),
-                    Other(other) => f.write_str(other),
+                    de::Unexpected::Unit => write!(f, "a unit value"),
+                    de::Unexpected::Option => write!(f, "an optional value"),
+                    de::Unexpected::NewtypeStruct => write!(f, "a newtype struct"),
+                    de::Unexpected::Seq => write!(f, "a sequence"),
+                    de::Unexpected::Map => write!(f, "a map"),
+                    de::Unexpected::Enum => write!(f, "an enum"),
+                    de::Unexpected::UnitVariant => write!(f, "a unit variant"),
+                    de::Unexpected::NewtypeVariant => write!(f, "a newtype variant"),
+                    de::Unexpected::TupleVariant => write!(f, "a tuple variant"),
+                    de::Unexpected::StructVariant => write!(f, "a struct variant"),
+                    de::Unexpected::Other(other) => f.write_str(other),
                 }
             }
         }
@@ -397,6 +407,12 @@ impl StdError for Error {}
 impl From<Utf8Error> for Error {
     fn from(e: Utf8Error) -> Self {
         Error::Utf8Error(e)
+    }
+}
+
+impl From<fmt::Error> for Error {
+    fn from(_: fmt::Error) -> Self {
+        Error::Fmt
     }
 }
 
@@ -454,16 +470,40 @@ struct Identifier<'a>(&'a str);
 
 impl<'a> fmt::Display for Identifier<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.0.is_empty() || !self.0.as_bytes().iter().copied().all(is_ident_raw_char) {
+        if self.0.is_empty() || !self.0.chars().all(is_ident_raw_char) {
             return write!(f, "{:?}_[invalid identifier]", self.0);
         }
 
-        let mut bytes = self.0.as_bytes().iter().copied();
+        let mut chars = self.0.chars();
 
-        if !bytes.next().map_or(false, is_ident_first_char) || !bytes.all(is_ident_other_char) {
+        if !chars.next().map_or(false, is_ident_first_char) || !chars.all(is_xid_continue) {
             write!(f, "`r#{}`", self.0)
         } else {
             write!(f, "`{}`", self.0)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Error;
+
+    #[test]
+    fn error_messages() {
+        check_error_message(&Error::from(std::fmt::Error), "Formatting RON failed");
+        check_error_message(
+            &Error::from(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "my-error",
+            )),
+            "my-error",
+        );
+        check_error_message(&Error::Message(String::from("my-error")), "my-error");
+        check_error_message(&Error::ExpectedOptionEnd, "Expected closing `)`");
+        check_error_message(&Error::ExpectedStructLikeEnd, "Expected closing `)`");
+    }
+
+    fn check_error_message<T: std::fmt::Display>(err: &T, msg: &str) {
+        assert_eq!(format!("{}", err), msg);
     }
 }

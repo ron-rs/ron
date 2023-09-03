@@ -36,23 +36,24 @@ jobs:
       - run: cargo test --all-features
 
   clippy:
-    name: "Clippy: stable"
+    name: "Clippy: MSRV"
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/setup
         with:
-          key: clippy-stable
+          key: clippy-msrv
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.64.0
           profile: minimal
           components: clippy
           override: true
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ github.token }}
+      - run: cargo clippy -- -D warnings
+      - run: cargo clippy --features integer128 -- -D warnings
+      - run: cargo clippy --features indexmap -- -D warnings
+      - run: cargo clippy --all-features -- -D warnings
   
   rustfmt:
     name: "Format: stable"

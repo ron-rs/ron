@@ -1,5 +1,6 @@
 use serde_derive::{Deserialize, Serialize};
 
+// GRCOV_EXCL_START
 bitflags::bitflags! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     pub struct Extensions: usize {
@@ -8,14 +9,16 @@ bitflags::bitflags! {
         const UNWRAP_VARIANT_NEWTYPES = 0x4;
     }
 }
+// GRCOV_EXCL_STOP
 
 impl Extensions {
     /// Creates an extension flag from an ident.
-    pub fn from_ident(ident: &[u8]) -> Option<Extensions> {
+    #[must_use]
+    pub fn from_ident(ident: &str) -> Option<Extensions> {
         match ident {
-            b"unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
-            b"implicit_some" => Some(Extensions::IMPLICIT_SOME),
-            b"unwrap_variant_newtypes" => Some(Extensions::UNWRAP_VARIANT_NEWTYPES),
+            "unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
+            "implicit_some" => Some(Extensions::IMPLICIT_SOME),
+            "unwrap_variant_newtypes" => Some(Extensions::UNWRAP_VARIANT_NEWTYPES),
             _ => None,
         }
     }

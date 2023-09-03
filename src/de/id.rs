@@ -1,19 +1,19 @@
 use serde::de::{self, Visitor};
 
-use super::{Deserializer, Error, Result};
+use super::{Error, Result};
 
-pub struct IdDeserializer<'a, 'b: 'a> {
-    d: &'a mut Deserializer<'b>,
+pub struct Deserializer<'a, 'b: 'a> {
+    de: &'a mut super::Deserializer<'b>,
     map_as_struct: bool,
 }
 
-impl<'a, 'b: 'a> IdDeserializer<'a, 'b> {
-    pub fn new(map_as_struct: bool, d: &'a mut Deserializer<'b>) -> Self {
-        IdDeserializer { d, map_as_struct }
+impl<'a, 'b: 'a> Deserializer<'a, 'b> {
+    pub fn new(de: &'a mut super::Deserializer<'b>, map_as_struct: bool) -> Self {
+        Deserializer { de, map_as_struct }
     }
 }
 
-impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
+impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
     type Error = Error;
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
@@ -21,11 +21,11 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut IdDeserializer<'a, 'b> {
         V: Visitor<'b>,
     {
         if self.map_as_struct {
-            self.d.bytes.expect_byte(b'"', Error::ExpectedString)?;
+            self.de.parser.expect_char('"', Error::ExpectedString)?;
         }
-        let result = self.d.deserialize_identifier(visitor);
+        let result = self.de.deserialize_identifier(visitor);
         if self.map_as_struct {
-            self.d.bytes.expect_byte(b'"', Error::ExpectedStringEnd)?;
+            self.de.parser.expect_char('"', Error::ExpectedStringEnd)?;
         }
         result
     }

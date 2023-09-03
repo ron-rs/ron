@@ -115,7 +115,7 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedString,
-            position: ron::error::Position { line: 2, col: 10 },
+            position: ron::error::Position { line: 2, col: 9 },
         })
     );
 
@@ -130,7 +130,7 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 3, col: 17 },
+            position: ron::error::Position { line: 3, col: 16 },
         })
     );
 
@@ -145,7 +145,7 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedString,
-            position: ron::error::Position { line: 4, col: 10 },
+            position: ron::error::Position { line: 4, col: 9 },
         })
     );
 
@@ -160,7 +160,7 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 5, col: 27 },
+            position: ron::error::Position { line: 5, col: 26 },
         })
     );
 }
@@ -239,7 +239,7 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedString,
-            position: ron::error::Position { line: 2, col: 10 },
+            position: ron::error::Position { line: 2, col: 9 },
         })
     );
 
@@ -253,7 +253,7 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 3, col: 17 },
+            position: ron::error::Position { line: 3, col: 16 },
         })
     );
 
@@ -267,7 +267,7 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedString,
-            position: ron::error::Position { line: 4, col: 10 },
+            position: ron::error::Position { line: 4, col: 9 },
         })
     );
 
@@ -281,7 +281,7 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 4, col: 16 },
+            position: ron::error::Position { line: 4, col: 15 },
         })
     );
 }

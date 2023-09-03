@@ -14,16 +14,18 @@ use crate::{
 // NOTE: Keep synchronised with fuzz/arbitrary::typed_data::RAW_VALUE_TOKEN
 pub(crate) const RAW_VALUE_TOKEN: &str = "$ron::private::RawValue";
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct RawValue {
     ron: str,
 }
 
+#[allow(unsafe_code)]
 impl RawValue {
     fn from_borrowed_str(ron: &str) -> &Self {
         // Safety: RawValue is a transparent newtype around str
-        unsafe { std::mem::transmute::<&str, &RawValue>(ron) }
+        unsafe { &*(ron as *const str as *const RawValue) }
     }
 
     fn from_boxed_str(ron: Box<str>) -> Box<Self> {
@@ -67,6 +69,7 @@ impl fmt::Display for RawValue {
 
 impl RawValue {
     /// Get the inner raw RON string, which is guaranteed to contain valid RON.
+    #[must_use]
     pub fn get_ron(&self) -> &str {
         &self.ron
     }
@@ -74,7 +77,7 @@ impl RawValue {
     /// Helper function to validate a RON string and turn it into a
     /// [`RawValue`].
     pub fn from_ron(ron: &str) -> SpannedResult<&Self> {
-        let mut deserializer = crate::Deserializer::from_str_with_options(ron, Options::default())?;
+        let mut deserializer = crate::Deserializer::from_str(ron)?;
 
         // raw values can be used everywhere but extensions cannot
         if !deserializer.extensions().is_empty() {

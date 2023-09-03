@@ -14,6 +14,14 @@ fn test_escape_basic() {
     assert_eq!(from_str::<char>("\'\\u{7}\'").unwrap(), '\x07');
 
     assert_eq!(
+        from_str::<char>("\'\\u{}\'").unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::InvalidEscape("Expected 1-6 digits, got 0 digits in Unicode escape"),
+            position: ron::error::Position { line: 1, col: 5 },
+        }
+    );
+
+    assert_eq!(
         from_str::<char>("\'\\q\'").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::InvalidEscape("Unknown escape character"),

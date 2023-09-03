@@ -62,6 +62,19 @@ fn test_missing_comma_error() {
             position: Position { line: 3, col: 9 }
         }
     );
+
+    let extensions_string = r#"#![enable(
+        implicit_some // <-- forgotten comma here
+        unwrap_newtypes
+    ]) 42"#;
+
+    assert_eq!(
+        ron::from_str::<u8>(extensions_string).unwrap_err(),
+        SpannedError {
+            code: Error::ExpectedComma,
+            position: Position { line: 3, col: 9 }
+        }
+    );
 }
 
 #[test]

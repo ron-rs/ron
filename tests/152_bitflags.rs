@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 use option_set::option_set;
 
+// GRCOV_EXCL_START
 bitflags! {
     #[derive(
         Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash,
@@ -12,7 +13,9 @@ bitflags! {
         const THREE  = 1 << 2;
     }
 }
+// GRCOV_EXCL_STOP
 
+// GRCOV_EXCL_START
 option_set! {
     struct TestBad: UpperCamel + u8 {
         const ONE = 1;
@@ -20,6 +23,7 @@ option_set! {
         const THREE  = 1 << 2;
     }
 }
+// GRCOV_EXCL_STOP
 
 #[test]
 fn test_bitflags() {

@@ -15,6 +15,7 @@ pub(crate) mod raw;
 
 pub use map::Map;
 pub use number::{Number, F32, F64};
+#[allow(clippy::useless_attribute, clippy::module_name_repetitions)]
 pub use raw::RawValue;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -152,6 +153,7 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
         }
     }
 
+    #[allow(clippy::panic)]
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
         V: DeserializeSeed<'de>,
@@ -235,9 +237,6 @@ mod tests {
     #[test]
     fn bytes() {
         assert_same_bytes::<serde_bytes::ByteBuf>(br#"b"hello world""#);
-        assert_same_bytes::<serde_bytes::ByteBuf>(
-            b"b\"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1\"",
-        );
         assert_same_bytes::<serde_bytes::ByteBuf>(
             br#"b"this is not valid UTF-8 \xf8\xa1\xa1\xa1\xa1""#,
         );

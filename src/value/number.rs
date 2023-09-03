@@ -76,16 +76,18 @@ macro_rules! float_ty {
                     "[`Hash`] and [`Ord`] using [`", stringify!($float), "::total_cmp`] ",
                     "for a total order comparison",
                 )]
-        #[derive(Copy, Clone, Debug)]
+        #[derive(Copy, Clone, Debug)] // GRCOV_EXCL_LINE
         pub struct $ty(pub $float);
 
         impl $ty {
             #[doc = concat!("Construct a new [`", stringify!($ty), "`].")]
+            #[must_use]
             pub fn new(v: $float) -> Self {
                 Self(v)
             }
 
             #[doc = concat!("Returns the wrapped [`", stringify!($float), "`].")]
+            #[must_use]
             pub fn get(self) -> $float {
                 self.0
             }
@@ -93,7 +95,7 @@ macro_rules! float_ty {
 
         impl From<$float> for $ty {
             fn from(v: $float) -> Self {
-                Self(v)
+                Self::new(v)
             }
         }
 
@@ -196,7 +198,9 @@ impl Number {
     /// assert_eq!(i.into_f64(), 5.0);
     /// assert_eq!(f.into_f64(), 2.0);
     /// ```
+    #[must_use]
     pub fn into_f64(self) -> f64 {
+        #[allow(clippy::cast_precision_loss)]
         match self {
             Number::I8(v) => f64::from(v),
             Number::I16(v) => f64::from(v),

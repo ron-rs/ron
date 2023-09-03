@@ -26,11 +26,8 @@ fn untagged_enum_not_a_list() {
 
     let de = ron::from_str(&ron).unwrap();
 
+    println!("{}", ron);
+
     // This used to fail as the value was deserialised as `List([String("foo")])`
-    assert_eq!(
-        value,
-        de,
-        "Serialized as: {}",
-        ron::to_string(&value).unwrap()
-    );
+    assert_eq!(value, de);
 }

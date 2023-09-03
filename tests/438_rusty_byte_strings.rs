@@ -110,6 +110,13 @@ fn rusty_byte_string() {
             position: Position { line: 1, col: 7 },
         },
     );
+    assert_eq!(
+        ron::from_str::<bytes::Bytes>("b\"\\xf🦀\"").unwrap_err(),
+        SpannedError {
+            code: Error::InvalidEscape("Non-hex digit found"),
+            position: Position { line: 1, col: 7 },
+        },
+    );
     let err = ron::from_str::<bytes::Bytes>("br#q\"").unwrap_err();
     assert_eq!(
         err,
@@ -436,6 +443,14 @@ fn byte_literal() {
         }
     );
     assert_eq!(format!("{}", err.code), "Expected byte literal");
+
+    assert_eq!(
+        ron::from_str::<u8>(r#"b'qq'"#).unwrap_err(),
+        SpannedError {
+            code: Error::ExpectedByteLiteral,
+            position: Position { line: 1, col: 4 },
+        }
+    );
 
     assert_eq!(
         ron::from_str::<i8>(r#"b'9'"#),

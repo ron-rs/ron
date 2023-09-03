@@ -11,8 +11,8 @@ use super::Value;
 
 /// A [`Value`] to [`Value`] map.
 ///
-/// This structure either uses a [BTreeMap](std::collections::BTreeMap) or the
-/// [IndexMap](indexmap::IndexMap) internally.
+/// This structure either uses a [`BTreeMap`](std::collections::BTreeMap) or the
+/// [`IndexMap`](indexmap::IndexMap) internally.
 /// The latter can be used by enabling the `indexmap` feature. This can be used
 /// to preserve the order of the parsed map.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -26,21 +26,25 @@ type MapInner = indexmap::IndexMap<Value, Value>;
 
 impl Map {
     /// Creates a new, empty [`Map`].
+    #[must_use]
     pub fn new() -> Map {
-        Default::default()
+        Self::default()
     }
 
     /// Returns the number of elements in the map.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
     /// Returns `true` if `self.len() == 0`, `false` otherwise.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
     /// Immutably looks up an element by its `key`.
+    #[must_use]
     pub fn get(&self, key: &Value) -> Option<&Value> {
         self.0.get(key)
     }
@@ -109,6 +113,7 @@ impl Index<&Value> for Map {
 }
 
 impl IndexMut<&Value> for Map {
+    #[allow(clippy::expect_used)]
     fn index_mut(&mut self, index: &Value) -> &mut Self::Output {
         self.0.get_mut(index).expect("no entry found for key")
     }
