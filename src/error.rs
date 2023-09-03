@@ -114,11 +114,7 @@ pub enum Error {
 
 impl fmt::Display for SpannedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if (self.position == Position { line: 0, col: 0 }) {
-            write!(f, "{}", self.code)
-        } else {
-            write!(f, "{}: {}", self.position, self.code)
-        }
+        write!(f, "{}: {}", self.position, self.code)
     }
 }
 
@@ -129,7 +125,7 @@ impl fmt::Display for Error {
             Error::Fmt => f.write_str("Formatting RON failed"),
             Error::Io(ref s) | Error::Message(ref s) => f.write_str(s),
             #[allow(deprecated)]
-            Error::Base64Error(ref e) => fmt::Display::fmt(e, f),
+            Error::Base64Error(ref e) => write!(f, "Invalid base64: {}", e),
             Error::Eof => f.write_str("Unexpected end of RON"),
             Error::ExpectedArray => f.write_str("Expected opening `[`"),
             Error::ExpectedArrayEnd => f.write_str("Expected closing `]`"),
@@ -145,7 +141,9 @@ impl fmt::Display for Error {
             Error::FloatUnderscore => f.write_str("Unexpected underscore in float"),
             Error::ExpectedInteger => f.write_str("Expected integer"),
             Error::ExpectedOption => f.write_str("Expected option"),
-            Error::ExpectedOptionEnd | Error::ExpectedStructLikeEnd => f.write_str("Expected closing `)`"),
+            Error::ExpectedOptionEnd | Error::ExpectedStructLikeEnd => {
+                f.write_str("Expected closing `)`")
+            }
             Error::ExpectedMap => f.write_str("Expected opening `{`"),
             Error::ExpectedMapColon => f.write_str("Expected colon"),
             Error::ExpectedMapEnd => f.write_str("Expected closing `}`"),
@@ -175,7 +173,7 @@ impl fmt::Display for Error {
             Error::IntegerOutOfBounds => f.write_str("Integer is out of bounds"),
             Error::InvalidIntegerDigit { digit, base } => {
                 write!(f, "Invalid digit {:?} for base {} integers", digit, base)
-            },
+            }
             Error::NoSuchExtension(ref name) => {
                 write!(f, "No RON extension named {}", Identifier(name))
             }
@@ -183,7 +181,7 @@ impl fmt::Display for Error {
             Error::UnclosedBlockComment => f.write_str("Unclosed block comment"),
             Error::UnclosedLineComment => f.write_str(
                 "`ron::value::RawValue` cannot end in unclosed line comment, \
-                try using a block comment or adding a newline"
+                try using a block comment or adding a newline",
             ),
             Error::UnderscoreAtBeginning => {
                 f.write_str("Unexpected leading underscore in a number")
@@ -224,7 +222,7 @@ impl fmt::Display for Error {
                 write!(f, "variant named {}", Identifier(found))?;
 
                 if let Some(outer) = outer {
-                    write!(f, "in enum {}", Identifier(outer))?;
+                    write!(f, " in enum {}", Identifier(outer))?;
                 }
 
                 write!(
@@ -244,7 +242,7 @@ impl fmt::Display for Error {
                 write!(f, "Unexpected field named {}", Identifier(found))?;
 
                 if let Some(outer) = outer {
-                    write!(f, "in {}", Identifier(outer))?;
+                    write!(f, " in {}", Identifier(outer))?;
                 }
 
                 write!(
@@ -257,7 +255,7 @@ impl fmt::Display for Error {
                 )
             }
             Error::MissingStructField { field, ref outer } => {
-                write!(f, "Unexpected missing field {}", Identifier(field))?;
+                write!(f, "Unexpected missing field named {}", Identifier(field))?;
 
                 match outer {
                     Some(outer) => write!(f, " in {}", Identifier(outer)),
@@ -265,7 +263,7 @@ impl fmt::Display for Error {
                 }
             }
             Error::DuplicateStructField { field, ref outer } => {
-                write!(f, "Unexpected duplicate field {}", Identifier(field))?;
+                write!(f, "Unexpected duplicate field named {}", Identifier(field))?;
 
                 match outer {
                     Some(outer) => write!(f, " in {}", Identifier(outer)),
@@ -275,11 +273,14 @@ impl fmt::Display for Error {
             Error::InvalidIdentifier(ref invalid) => write!(f, "Invalid identifier {:?}", invalid),
             Error::SuggestRawIdentifier(ref identifier) => write!(
                 f,
-                "Found invalid std identifier `{}`, try the raw identifier `r#{}` instead",
+                "Found invalid std identifier {:?}, try the raw identifier `r#{}` instead",
                 identifier, identifier
             ),
             Error::ExpectedRawValue => f.write_str("Expected a `ron::value::RawValue`"),
-            Error::ExceededRecursionLimit => f.write_str("Exceeded recursion limit, try increasing the limit and using `serde_stacker` to protect against a stack overflow"),
+            Error::ExceededRecursionLimit => f.write_str(
+                "Exceeded recursion limit, try increasing `ron::Options::recursion_limit` \
+                and using `serde_stacker` to protect against a stack overflow",
+            ),
         }
     }
 }
@@ -422,15 +423,6 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<io::Error> for SpannedError {
-    fn from(e: io::Error) -> Self {
-        SpannedError {
-            code: e.into(),
-            position: Position { line: 0, col: 0 },
-        }
-    }
-}
-
 impl From<SpannedError> for Error {
     fn from(e: SpannedError) -> Self {
         e.code
@@ -453,14 +445,14 @@ impl fmt::Display for OneOf {
                 Identifier(a1),
                 Identifier(a2)
             ),
-            [a1, ref alts @ ..] => {
+            [a1, ref alts @ .., an] => {
                 write!(f, "expected one of {}", Identifier(a1))?;
 
                 for alt in alts {
                     write!(f, ", {}", Identifier(alt))?;
                 }
 
-                f.write_str(" instead")
+                write!(f, ", or {} instead", Identifier(an))
             }
         }
     }
@@ -486,7 +478,9 @@ impl<'a> fmt::Display for Identifier<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::Error;
+    use serde::{de::Error as DeError, de::Unexpected, ser::Error as SerError};
+
+    use super::{Error, Position, SpannedError};
 
     #[test]
     fn error_messages() {
@@ -498,12 +492,201 @@ mod tests {
             )),
             "my-error",
         );
-        check_error_message(&Error::Message(String::from("my-error")), "my-error");
+        check_error_message(&<Error as SerError>::custom("my-ser-error"), "my-ser-error");
+        check_error_message(&<Error as DeError>::custom("my-de-error"), "my-de-error");
+        #[allow(deprecated)]
+        check_error_message(
+            &Error::Base64Error(base64::DecodeError::InvalidPadding),
+            "Invalid base64: Invalid padding",
+        );
+        check_error_message(&Error::Eof, "Unexpected end of RON");
+        check_error_message(&Error::ExpectedArray, "Expected opening `[`");
+        check_error_message(&Error::ExpectedArrayEnd, "Expected closing `]`");
+        check_error_message(
+            &Error::ExpectedAttribute,
+            "Expected an `#![enable(...)]` attribute",
+        );
+        check_error_message(
+            &Error::ExpectedAttributeEnd,
+            "Expected closing `)]` after the enable attribute",
+        );
+        check_error_message(&Error::ExpectedBoolean, "Expected boolean");
+        check_error_message(&Error::ExpectedComma, "Expected comma");
+        check_error_message(&Error::ExpectedChar, "Expected char");
+        check_error_message(&Error::ExpectedByteLiteral, "Expected byte literal");
+        check_error_message(&Error::ExpectedFloat, "Expected float");
+        check_error_message(&Error::FloatUnderscore, "Unexpected underscore in float");
+        check_error_message(&Error::ExpectedInteger, "Expected integer");
+        check_error_message(&Error::ExpectedOption, "Expected option");
         check_error_message(&Error::ExpectedOptionEnd, "Expected closing `)`");
         check_error_message(&Error::ExpectedStructLikeEnd, "Expected closing `)`");
+        check_error_message(&Error::ExpectedMap, "Expected opening `{`");
+        check_error_message(&Error::ExpectedMapColon, "Expected colon");
+        check_error_message(&Error::ExpectedMapEnd, "Expected closing `}`");
+        check_error_message(
+            &Error::ExpectedDifferentStructName {
+                expected: "raw+identifier",
+                found: String::from("identifier"),
+            },
+            "Expected struct `r#raw+identifier` but found `identifier`",
+        );
+        check_error_message(&Error::ExpectedStructLike, "Expected opening `(`");
+        check_error_message(
+            &Error::ExpectedNamedStructLike(""),
+            "Expected only opening `(`, no name, for un-nameable struct",
+        );
+        check_error_message(
+            &Error::ExpectedNamedStructLike("_ident"),
+            "Expected opening `(` for struct `_ident`",
+        );
+        check_error_message(&Error::ExpectedUnit, "Expected unit");
+        check_error_message(&Error::ExpectedString, "Expected string");
+        check_error_message(&Error::ExpectedByteString, "Expected byte string");
+        check_error_message(&Error::ExpectedStringEnd, "Expected end of string");
+        check_error_message(&Error::ExpectedIdentifier, "Expected identifier");
+        check_error_message(&Error::InvalidEscape("Invalid escape"), "Invalid escape");
+        check_error_message(&Error::IntegerOutOfBounds, "Integer is out of bounds");
+        check_error_message(
+            &Error::InvalidIntegerDigit {
+                digit: 'q',
+                base: 16,
+            },
+            "Invalid digit 'q' for base 16 integers",
+        );
+        check_error_message(
+            &Error::NoSuchExtension(String::from("unknown")),
+            "No RON extension named `unknown`",
+        );
+        check_error_message(&Error::UnclosedBlockComment, "Unclosed block comment");
+        check_error_message(
+            &Error::UnclosedLineComment,
+            "`ron::value::RawValue` cannot end in unclosed line comment, \
+        try using a block comment or adding a newline",
+        );
+        check_error_message(
+            &Error::UnderscoreAtBeginning,
+            "Unexpected leading underscore in a number",
+        );
+        check_error_message(&Error::UnexpectedChar('🦀'), "Unexpected char \'🦀\'");
+        check_error_message(
+            &Error::Utf8Error(std::str::from_utf8(b"error: \xff\xff\xff\xff").unwrap_err()),
+            "invalid utf-8 sequence of 1 bytes from index 7",
+        );
+        check_error_message(
+            &Error::TrailingCharacters,
+            "Non-whitespace trailing characters",
+        );
+        check_error_message(
+            &Error::invalid_value(Unexpected::Enum, &"struct `Hi`"),
+            "Expected struct `Hi` but found an enum instead",
+        );
+        check_error_message(
+            &Error::invalid_length(0, &"two bees"),
+            "Expected two bees but found zero elements instead",
+        );
+        check_error_message(
+            &Error::invalid_length(1, &"two bees"),
+            "Expected two bees but found one element instead",
+        );
+        check_error_message(
+            &Error::invalid_length(3, &"two bees"),
+            "Expected two bees but found 3 elements instead",
+        );
+        check_error_message(
+            &Error::unknown_variant("unknown", &[]),
+            "Unexpected enum variant named `unknown`, there are no variants",
+        );
+        check_error_message(
+            &Error::NoSuchEnumVariant {
+                expected: &["A", "B+C"],
+                found: String::from("D"),
+                outer: Some(String::from("E")),
+            },
+            "Unexpected variant named `D` in enum `E`, \
+            expected either `A` or `r#B+C` instead",
+        );
+        check_error_message(
+            &Error::unknown_field("unknown", &[]),
+            "Unexpected field named `unknown`, there are no fields",
+        );
+        check_error_message(
+            &Error::NoSuchStructField {
+                expected: &["a"],
+                found: String::from("b"),
+                outer: Some(String::from("S")),
+            },
+            "Unexpected field named `b` in `S`, expected `a` instead",
+        );
+        check_error_message(
+            &Error::NoSuchStructField {
+                expected: &["a", "b+c", "d"],
+                found: String::from("e"),
+                outer: Some(String::from("S")),
+            },
+            "Unexpected field named `e` in `S`, \
+            expected one of `a`, `r#b+c`, or `d` instead",
+        );
+        check_error_message(
+            &Error::missing_field("a"),
+            "Unexpected missing field named `a`",
+        );
+        check_error_message(
+            &Error::MissingStructField {
+                field: "b+c",
+                outer: Some(String::from("S+T")),
+            },
+            "Unexpected missing field named `r#b+c` in `r#S+T`",
+        );
+        check_error_message(
+            &Error::duplicate_field("a"),
+            "Unexpected duplicate field named `a`",
+        );
+        check_error_message(
+            &Error::DuplicateStructField {
+                field: "b+c",
+                outer: Some(String::from("S+T")),
+            },
+            "Unexpected duplicate field named `r#b+c` in `r#S+T`",
+        );
+        check_error_message(
+            &Error::InvalidIdentifier(String::from("why+🦀+not")),
+            "Invalid identifier \"why+🦀+not\"",
+        );
+        check_error_message(
+            &Error::SuggestRawIdentifier(String::from("raw+ident")),
+            "Found invalid std identifier \"raw+ident\", \
+            try the raw identifier `r#raw+ident` instead",
+        );
+        check_error_message(
+            &Error::ExpectedRawValue,
+            "Expected a `ron::value::RawValue`",
+        );
+        check_error_message(
+            &Error::ExceededRecursionLimit,
+            "Exceeded recursion limit, try increasing `ron::Options::recursion_limit` \
+            and using `serde_stacker` to protect against a stack overflow",
+        );
     }
 
     fn check_error_message<T: std::fmt::Display>(err: &T, msg: &str) {
         assert_eq!(format!("{}", err), msg);
+    }
+
+    #[test]
+    fn spanned_error_into_code() {
+        assert_eq!(
+            Error::from(SpannedError {
+                code: Error::Eof,
+                position: Position { line: 1, col: 1 }
+            }),
+            Error::Eof
+        );
+        assert_eq!(
+            Error::from(SpannedError {
+                code: Error::ExpectedRawValue,
+                position: Position { line: 1, col: 1 }
+            }),
+            Error::ExpectedRawValue
+        );
     }
 }

@@ -7,7 +7,7 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     de::Deserializer,
-    error::{Result, SpannedResult},
+    error::{Position, Result, SpannedError, SpannedResult},
     extensions::Extensions,
     ser::{PrettyConfig, Serializer},
 };
@@ -127,9 +127,26 @@ impl Options {
         S: for<'a> de::DeserializeSeed<'a, Value = T>,
     {
         let mut bytes = Vec::new();
-        rdr.read_to_end(&mut bytes)?;
 
-        self.from_bytes_seed(&bytes, seed)
+        let io_err = if let Err(err) = rdr.read_to_end(&mut bytes) {
+            err
+        } else {
+            return self.from_bytes_seed(&bytes, seed);
+        };
+
+        // Try to compute a good error position for the I/O error
+        // FIXME: use [`utf8_chunks`](https://github.com/rust-lang/rust/issues/99543) once stabilised
+        #[allow(clippy::expect_used)]
+        let valid_input = match std::str::from_utf8(&bytes) {
+            Ok(valid_input) => valid_input,
+            Err(err) => std::str::from_utf8(&bytes[..err.valid_up_to()])
+                .expect("source is valid up to error"),
+        };
+
+        Err(SpannedError {
+            code: io_err.into(),
+            position: Position::from_src_end(valid_input),
+        })
     }
 
     /// A convenience function for building a deserializer
