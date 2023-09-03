@@ -76,7 +76,7 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
     where
         V: Visitor<'b>,
     {
-        self.d.deserialize_i128(visitor)
+        self.de.deserialize_i128(visitor)
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
@@ -112,7 +112,7 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
     where
         V: Visitor<'b>,
     {
-        self.d.deserialize_u128(visitor)
+        self.de.deserialize_u128(visitor)
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
