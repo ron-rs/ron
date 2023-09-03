@@ -63,3 +63,46 @@ fn single_default_extension() {
 
     assert_eq!(ser, "#![enable(unwrap_newtypes)]\n(42, 4.2)");
 }
+
+#[test]
+fn reader_io_error() {
+    struct Reader<'a> {
+        buf: &'a [u8],
+    }
+
+    impl<'a> std::io::Read for Reader<'a> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let written = self.buf.read(buf)?;
+            if written == 0 {
+                Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "oh no"))
+            } else {
+                Ok(written)
+            }
+        }
+    }
+
+    assert_eq!(
+        ron::de::from_reader::<Reader, ()>(Reader { buf: b"" }).unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::Io(String::from("oh no")),
+            position: ron::error::Position { line: 1, col: 1 },
+        }
+    );
+    assert_eq!(
+        ron::de::from_reader::<Reader, ()>(Reader { buf: b"hello" }).unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::Io(String::from("oh no")),
+            position: ron::error::Position { line: 1, col: 6 },
+        }
+    );
+    assert_eq!(
+        ron::de::from_reader::<Reader, ()>(Reader {
+            buf: b"hello\nmy \xff"
+        })
+        .unwrap_err(),
+        ron::error::SpannedError {
+            code: ron::Error::Io(String::from("oh no")),
+            position: ron::error::Position { line: 2, col: 4 },
+        }
+    );
+}
