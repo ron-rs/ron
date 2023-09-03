@@ -646,7 +646,6 @@ impl<W: fmt::Write> Serializer<W> {
 macro_rules! guard_recursion {
     ($self:expr => $expr:expr) => {{
         if let Some(limit) = &mut $self.recursion_limit {
-            println!("{}", limit);
             if let Some(new_limit) = limit.checked_sub(1) {
                 *limit = new_limit;
             } else {
