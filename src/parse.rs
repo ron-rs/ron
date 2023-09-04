@@ -583,9 +583,9 @@ impl<'a> Parser<'a> {
             }
 
             let mut braces = 1_usize;
-            let mut comma = false;
+            let mut more_than_one = false;
 
-            // Skip ahead to see if the value is followed by a comma
+            // Skip ahead to see if the value is followed by another value
             while braces > 0 {
                 // Skip spurious braces in comments, strings, and characters
                 parser.skip_ws()?;
@@ -608,12 +608,13 @@ impl<'a> Parser<'a> {
                 } else if matches!(c, ')' | ']' | '}') {
                     braces -= 1;
                 } else if c == ',' && braces == 1 {
-                    comma = true;
+                    parser.skip_ws()?;
+                    more_than_one = !parser.check_char(')');
                     break;
                 }
             }
 
-            if comma {
+            if more_than_one {
                 Ok(StructType::Tuple)
             } else {
                 Ok(StructType::NewtypeOrTuple)
@@ -657,6 +658,10 @@ impl<'a> Parser<'a> {
             }
             Err(_) => return Err(Error::ExpectedNamedStructLike(ident)),
         };
+
+        if ident.is_empty() {
+            return Err(Error::ExpectedNamedStructLike(ident));
+        }
 
         if found_ident != ident {
             return Err(Error::ExpectedDifferentStructName {

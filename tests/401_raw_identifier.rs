@@ -165,7 +165,7 @@ fn test_invalid_identifiers() {
     let de = ron::from_str::<EmptyStruct>("r#+").unwrap_err();
     assert_eq!(
         format!("{}", de),
-        r#"1:4: Expected struct ""_[invalid identifier] but found `r#+`"#,
+        r#"1:4: Expected only opening `(`, no name, for un-nameable struct"#,
     );
 }
 

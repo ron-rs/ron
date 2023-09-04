@@ -172,17 +172,14 @@ impl<'de> Deserializer<'de> {
         self.serde_content_newtype = false;
 
         match (
-            match self.parser.check_struct_type(
+            self.parser.check_struct_type(
                 NewtypeMode::NoParensMeanUnit,
                 if old_serde_content_newtype {
                     TupleMode::DifferentiateNewtype // separate match on NewtypeOrTuple below
                 } else {
                     TupleMode::ImpreciseTupleOrNewtype // Tuple and NewtypeOrTuple match equally
                 },
-            ) {
-                Ok(s) => s,
-                Err(e) => panic!(),
-            },
+            )?,
             ident,
         ) {
             (StructType::Unit, Some(ident)) if is_serde_content => {
@@ -257,7 +254,6 @@ impl<'de> Deserializer<'de> {
             if old_newtype_variant || self.parser.consume_char(')') {
                 Ok(value)
             } else {
-                panic!();
                 Err(Error::ExpectedStructLikeEnd)
             }
         } else if name_for_pretty_errors_only.is_empty() {
@@ -590,10 +586,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 Err(Error::ExpectedStructLikeEnd)
             }
         } else if name.is_empty() {
-            panic!();
             Err(Error::ExpectedStructLike)
         } else {
-            panic!();
             Err(Error::ExpectedNamedStructLike(name))
         }
     }
@@ -613,7 +607,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.parser.consume_char(']') {
                 Ok(value)
             } else {
-                panic!();
                 Err(Error::ExpectedArrayEnd)
             }
         } else {
@@ -658,7 +651,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         }
 
         self.deserialize_tuple(len, visitor).map_err(|e| match e {
-            Error::ExpectedStructLike if !name.is_empty() => panic!(), //Error::ExpectedNamedStructLike(name),
+            Error::ExpectedStructLike if !name.is_empty() => Error::ExpectedNamedStructLike(name),
             e => e,
         })
     }
@@ -700,7 +693,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             if self.parser.consume_char('}') {
                 Ok(value)
             } else {
-                panic!();
                 Err(Error::ExpectedMapEnd)
             }
         } else {
@@ -950,7 +942,6 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
                 Err(Error::ExpectedStructLikeEnd)
             }
         } else {
-            panic!();
             Err(Error::ExpectedStructLike)
         }
     }

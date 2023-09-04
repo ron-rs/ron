@@ -424,5 +424,16 @@ mod tests {
                 position: crate::error::Position { line: 1, col: 4 },
             },
         );
+
+        // Check for a failure in Deserializer::check_struct_type
+        // - opening brace triggers the struct type check
+        // - unclosed block comment fails the whitespace skip
+        assert_eq!(
+            "( /*".parse::<Value>().unwrap_err(),
+            crate::error::SpannedError {
+                code: crate::Error::UnclosedBlockComment,
+                position: crate::error::Position { line: 1, col: 5 },
+            },
+        );
     }
 }

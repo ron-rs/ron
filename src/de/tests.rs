@@ -17,7 +17,15 @@ struct EmptyStruct2 {}
 struct NewType(i32);
 
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename = "")]
+struct UnnamedNewType(i32);
+
+#[derive(Debug, PartialEq, Deserialize)]
 struct TupleStruct(f32, f32);
+
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(rename = "")]
+struct UnnamedTupleStruct(f32, f32);
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 struct MyStruct {
@@ -56,8 +64,163 @@ fn test_struct() {
     check_from_str_bytes_reader("NewType(42)", Ok(NewType(42)));
     check_from_str_bytes_reader("(33)", Ok(NewType(33)));
 
+    check_from_str_bytes_reader::<NewType>(
+        "NewType",
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike("NewType"),
+            position: Position { line: 1, col: 8 },
+        }),
+    );
+    check_from_str_bytes_reader::<UnnamedNewType>(
+        "",
+        Err(SpannedError {
+            code: Error::ExpectedStructLike,
+            position: Position { line: 1, col: 1 },
+        }),
+    );
+    check_from_str_bytes_reader::<UnnamedNewType>(
+        "Newtype",
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike(""),
+            position: Position { line: 1, col: 8 },
+        }),
+    );
+
     check_from_str_bytes_reader("TupleStruct(2,5,)", Ok(TupleStruct(2.0, 5.0)));
     check_from_str_bytes_reader("(3,4)", Ok(TupleStruct(3.0, 4.0)));
+    check_from_str_bytes_reader::<TupleStruct>(
+        "",
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike("TupleStruct"),
+            position: Position { line: 1, col: 1 },
+        }),
+    );
+    check_from_str_bytes_reader::<UnnamedTupleStruct>(
+        "TupleStruct(2,5,)",
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike(""),
+            position: Position { line: 1, col: 12 },
+        }),
+    );
+    check_from_str_bytes_reader("(3,4)", Ok(UnnamedTupleStruct(3.0, 4.0)));
+    check_from_str_bytes_reader::<UnnamedTupleStruct>(
+        "",
+        Err(SpannedError {
+            code: Error::ExpectedStructLike,
+            position: Position { line: 1, col: 1 },
+        }),
+    );
+}
+
+#[test]
+fn test_unclosed_limited_seq_struct() {
+    #[derive(Debug, PartialEq)]
+    struct LimitedStruct;
+
+    impl<'de> serde::Deserialize<'de> for LimitedStruct {
+        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            struct Visitor;
+
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = LimitedStruct;
+
+                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    fmt.write_str("struct LimitedStruct") // GRCOV_EXCL_LINE
+                }
+
+                fn visit_map<A: serde::de::MapAccess<'de>>(
+                    self,
+                    _map: A,
+                ) -> Result<Self::Value, A::Error> {
+                    Ok(LimitedStruct)
+                }
+            }
+
+            deserializer.deserialize_struct("LimitedStruct", &[], Visitor)
+        }
+    }
+
+    check_from_str_bytes_reader::<LimitedStruct>(
+        "(",
+        Err(SpannedError {
+            code: Error::ExpectedStructLikeEnd,
+            position: Position { line: 1, col: 2 },
+        }),
+    )
+}
+
+#[test]
+fn test_unclosed_limited_seq() {
+    #[derive(Debug, PartialEq)]
+    struct LimitedSeq;
+
+    impl<'de> serde::Deserialize<'de> for LimitedSeq {
+        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            struct Visitor;
+
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = LimitedSeq;
+
+                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    fmt.write_str("an empty sequence") // GRCOV_EXCL_LINE
+                }
+
+                fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                    self,
+                    _seq: A,
+                ) -> Result<Self::Value, A::Error> {
+                    Ok(LimitedSeq)
+                }
+            }
+
+            deserializer.deserialize_seq(Visitor)
+        }
+    }
+
+    check_from_str_bytes_reader::<LimitedSeq>(
+        "[",
+        Err(SpannedError {
+            code: Error::ExpectedArrayEnd,
+            position: Position { line: 1, col: 2 },
+        }),
+    )
+}
+
+#[test]
+fn test_unclosed_limited_map() {
+    #[derive(Debug, PartialEq)]
+    struct LimitedMap;
+
+    impl<'de> serde::Deserialize<'de> for LimitedMap {
+        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            struct Visitor;
+
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = LimitedMap;
+
+                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    fmt.write_str("an empty map") // GRCOV_EXCL_LINE
+                }
+
+                fn visit_map<A: serde::de::MapAccess<'de>>(
+                    self,
+                    _map: A,
+                ) -> Result<Self::Value, A::Error> {
+                    Ok(LimitedMap)
+                }
+            }
+
+            deserializer.deserialize_map(Visitor)
+        }
+    }
+
+    check_from_str_bytes_reader::<LimitedMap>(
+        "{",
+        Err(SpannedError {
+            code: Error::ExpectedMapEnd,
+            position: Position { line: 1, col: 2 },
+        }),
+    )
 }
 
 #[test]
@@ -70,6 +233,13 @@ fn test_option() {
 fn test_enum() {
     check_from_str_bytes_reader("A", Ok(MyEnum::A));
     check_from_str_bytes_reader("B(true,)", Ok(MyEnum::B(true)));
+    check_from_str_bytes_reader::<MyEnum>(
+        "B",
+        Err(SpannedError {
+            code: Error::ExpectedStructLike,
+            position: Position { line: 1, col: 2 },
+        }),
+    );
     check_from_str_bytes_reader("C(true,3.5,)", Ok(MyEnum::C(true, 3.5)));
     check_from_str_bytes_reader("D(a:2,b:3,)", Ok(MyEnum::D { a: 2, b: 3 }));
 }
@@ -206,10 +376,24 @@ fn untagged() {
     enum Untagged {
         U8(u8),
         Bool(bool),
+        Value(crate::Value),
     }
 
     check_from_str_bytes_reader("true", Ok(Untagged::Bool(true)));
     check_from_str_bytes_reader("8", Ok(Untagged::U8(8)));
+
+    // Check for a failure in Deserializer::check_struct_type
+    // - untagged enum and a leading identifier trigger the serde content enum path
+    // - serde content uses deserialize_any, which retriggers the struct type check
+    // - struct type check inside a serde content performs a full newtype check
+    // - newtype check fails on the unclosed struct
+    check_from_str_bytes_reader::<Untagged>(
+        "Value(()",
+        Err(crate::error::SpannedError {
+            code: crate::Error::Eof,
+            position: crate::error::Position { line: 1, col: 9 },
+        }),
+    );
 }
 
 #[test]

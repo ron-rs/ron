@@ -34,7 +34,7 @@ impl Map {
     /// Returns the number of elements in the map.
     #[must_use]
     pub fn len(&self) -> usize {
-        panic!();
+        // panic!();
         self.0.len()
     }
 
@@ -61,7 +61,7 @@ impl Map {
     /// Inserts a new element, returning the previous element with this `key` if
     /// there was any.
     pub fn insert(&mut self, key: Value, value: Value) -> Option<Value> {
-        panic!();
+        // panic!();
         self.0.insert(key, value)
     }
 
@@ -73,7 +73,7 @@ impl Map {
 
     /// Iterate all key-value pairs.
     pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> + DoubleEndedIterator {
-        panic!();
+        // panic!();
         self.0.iter()
     }
 

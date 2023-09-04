@@ -142,7 +142,7 @@ macro_rules! float_ty {
         /// See the [`Ord`] implementation.
         impl PartialOrd for $ty {
             fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                panic!();
+                // panic!();
                 Some(self.cmp(other))
             }
         }
