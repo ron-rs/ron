@@ -85,7 +85,7 @@ impl Map {
 
     /// Iterate all keys.
     pub fn keys(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
-        panic!();
+        // panic!();
         self.0.keys()
     }
 
