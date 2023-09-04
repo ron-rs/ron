@@ -227,7 +227,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
         #[cfg(feature = "indexmap")]
         if let Some(cap) = map.size_hint() {
             panic!();
-            map.reserve_exact(cap);
+            res.0.reserve_exact(cap);
         }
 
         while let Some(entry) = map.next_entry()? {

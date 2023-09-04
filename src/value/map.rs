@@ -17,7 +17,7 @@ use super::Value;
 /// to preserve the order of the parsed map.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct Map(MapInner);
+pub struct Map(pub(crate) MapInner);
 
 #[cfg(not(feature = "indexmap"))]
 type MapInner = std::collections::BTreeMap<Value, Value>;
