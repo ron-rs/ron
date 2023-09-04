@@ -78,6 +78,7 @@ impl<'de> Deserializer<'de> for Value {
                 if items.is_empty() {
                     Ok(value)
                 } else {
+                    panic!();
                     Err(Error::ExpectedDifferentLength {
                         expected: format!("a map of length {}", old_len - items.len()),
                         found: old_len,
@@ -160,11 +161,12 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
     {
         match self.value.take() {
             Some(value) => seed.deserialize(value),
-            None => panic!("Contract violation: value before key"),
+            None => panic!(), //panic!("Contract violation: value before key"),
         }
     }
 
     fn size_hint(&self) -> Option<usize> {
+        panic!();
         Some(self.items.len())
     }
 }

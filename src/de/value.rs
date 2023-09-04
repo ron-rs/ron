@@ -197,6 +197,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         D: Deserializer<'de>,
     {
+        panic!();
         deserializer.deserialize_any(ValueVisitor)
     }
 
@@ -206,6 +207,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     {
         let mut vec = Vec::new();
         if let Some(cap) = seq.size_hint() {
+            panic!();
             vec.reserve_exact(cap);
         }
 
@@ -221,6 +223,12 @@ impl<'de> Visitor<'de> for ValueVisitor {
         A: MapAccess<'de>,
     {
         let mut res: Map = Map::new();
+
+        #[cfg(feature = "indexmap")]
+        if let Some(cap) = map.size_hint() {
+            panic!();
+            map.reserve_exact(cap);
+        }
 
         while let Some(entry) = map.next_entry()? {
             res.insert(entry.0, entry.1);
