@@ -632,10 +632,10 @@ mod tests {
         );
         check_error_message(
             &Error::MissingStructField {
-                field: "b+c",
+                field: "",
                 outer: Some(String::from("S+T")),
             },
-            "Unexpected missing field named `r#b+c` in `r#S+T`",
+            "Unexpected missing field named \"\"_[invalid identifier] in `r#S+T`",
         );
         check_error_message(
             &Error::duplicate_field("a"),

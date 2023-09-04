@@ -78,6 +78,7 @@ fn test_struct() {
             position: Position { line: 1, col: 1 },
         }),
     );
+    check_from_str_bytes_reader("(33)", Ok(UnnamedNewType(33)));
     check_from_str_bytes_reader::<UnnamedNewType>(
         "Newtype",
         Err(SpannedError {
@@ -124,9 +125,11 @@ fn test_unclosed_limited_seq_struct() {
             impl<'de> serde::de::Visitor<'de> for Visitor {
                 type Value = LimitedStruct;
 
+                // GRCOV_EXCL_START
                 fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-                    fmt.write_str("struct LimitedStruct") // GRCOV_EXCL_LINE
+                    fmt.write_str("struct LimitedStruct")
                 }
+                // GRCOV_EXCL_STOP
 
                 fn visit_map<A: serde::de::MapAccess<'de>>(
                     self,
@@ -161,9 +164,11 @@ fn test_unclosed_limited_seq() {
             impl<'de> serde::de::Visitor<'de> for Visitor {
                 type Value = LimitedSeq;
 
+                // GRCOV_EXCL_START
                 fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-                    fmt.write_str("an empty sequence") // GRCOV_EXCL_LINE
+                    fmt.write_str("an empty sequence")
                 }
+                // GRCOV_EXCL_STOP
 
                 fn visit_seq<A: serde::de::SeqAccess<'de>>(
                     self,
@@ -198,9 +203,11 @@ fn test_unclosed_limited_map() {
             impl<'de> serde::de::Visitor<'de> for Visitor {
                 type Value = LimitedMap;
 
+                // GRCOV_EXCL_START
                 fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-                    fmt.write_str("an empty map") // GRCOV_EXCL_LINE
+                    fmt.write_str("an empty map")
                 }
+                // GRCOV_EXCL_STOP
 
                 fn visit_map<A: serde::de::MapAccess<'de>>(
                     self,
