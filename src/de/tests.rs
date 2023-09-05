@@ -451,3 +451,21 @@ fn test_remainder() {
     assert_eq!(deserializer.remainder(), " 37 ");
     assert_eq!(deserializer.end(), Err(Error::TrailingCharacters));
 }
+
+#[test]
+fn boolean_struct_name() {
+    check_from_str_bytes_reader::<bool>(
+        "true_",
+        Err(SpannedError {
+            code: Error::ExpectedBoolean,
+            position: Position { line: 1, col: 1 },
+        }),
+    );
+    check_from_str_bytes_reader::<bool>(
+        "false_",
+        Err(SpannedError {
+            code: Error::ExpectedBoolean,
+            position: Position { line: 1, col: 1 },
+        }),
+    );
+}

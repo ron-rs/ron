@@ -485,9 +485,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.parser.consume_str("None") {
+        if self.parser.consume_ident("None") {
             visitor.visit_none()
-        } else if self.parser.consume_str("Some") && {
+        } else if self.parser.consume_ident("Some") && {
             self.parser.skip_ws()?;
             self.parser.consume_char('(')
         } {

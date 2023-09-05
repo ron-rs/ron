@@ -106,3 +106,39 @@ fn test_nested_implicit_some() {
         Ok(Some(Some(Some(5))))
     );
 }
+
+#[test]
+fn fuzzer_found_issues() {
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct Some_();
+
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct None_();
+
+    let ser_some = ron::ser::to_string_pretty(
+        &Some(Some_()),
+        ron::ser::PrettyConfig::default()
+            .struct_names(true)
+            .extensions(ron::extensions::Extensions::IMPLICIT_SOME),
+    )
+    .unwrap();
+    assert_eq!(ser_some, "#![enable(implicit_some)]\nSome_()");
+
+    let ser_none = ron::ser::to_string_pretty(
+        &Some(None_()),
+        ron::ser::PrettyConfig::default()
+            .struct_names(true)
+            .extensions(ron::extensions::Extensions::IMPLICIT_SOME),
+    )
+    .unwrap();
+    assert_eq!(ser_none, "#![enable(implicit_some)]\nNone_()");
+
+    assert_eq!(
+        ron::from_str::<Option<Some_>>(&ser_some).unwrap(),
+        Some(Some_())
+    );
+    assert_eq!(
+        ron::from_str::<Option<None_>>(&ser_none).unwrap(),
+        Some(None_())
+    );
+}

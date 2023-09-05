@@ -478,9 +478,9 @@ impl<'a> Parser<'a> {
     }
 
     pub fn bool(&mut self) -> Result<bool> {
-        if self.consume_str("true") {
+        if self.consume_ident("true") {
             Ok(true)
-        } else if self.consume_str("false") {
+        } else if self.consume_ident("false") {
             Ok(false)
         } else {
             Err(Error::ExpectedBoolean)
