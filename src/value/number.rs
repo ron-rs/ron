@@ -142,7 +142,6 @@ macro_rules! float_ty {
         /// See the [`Ord`] implementation.
         impl PartialOrd for $ty {
             fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-                // panic!();
                 Some(self.cmp(other))
             }
         }
@@ -275,5 +274,12 @@ mod tests {
         assert_eq!(hash(&F32(f32::NAN)), hash(&F32(f32::NAN)));
         assert_eq!(hash(&F32(-f32::NAN)), hash(&F32(-f32::NAN)));
         assert_ne!(hash(&F32(f32::NAN)), hash(&F32(-f32::NAN)));
+    }
+
+    #[test]
+    fn test_partial_ord() {
+        assert!(F32(f32::NAN) > F32(f32::INFINITY));
+        assert!(F32(-f32::NAN) < F32(f32::NEG_INFINITY));
+        assert!(F32(f32::NAN) == F32(f32::NAN));
     }
 }
