@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix issue [#321](https://github.com/ron-rs/ron/issues/321) and allow parsing UTF-8 identifiers ([#488](https://github.com/ron-rs/ron/pull/488))
 - Breaking: Enforce that ron always writes valid UTF-8 ([#488](https://github.com/ron-rs/ron/pull/488))
 - Fix parsing of struct/variant names starting in `None`, `Some`, `true`, or `false` ([#499](https://github.com/ron-rs/ron/pull/499))
+- Add convenient `Value::from` impls ([#498](https://github.com/ron-rs/ron/pull/498))
 
 ## [0.8.1] - 2023-08-17
 
