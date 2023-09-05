@@ -197,7 +197,6 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         D: Deserializer<'de>,
     {
-        panic!();
         deserializer.deserialize_any(ValueVisitor)
     }
 

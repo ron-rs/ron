@@ -100,11 +100,7 @@ impl<T: Into<Value>> FromIterator<T> for Value {
 
 impl<'a, T: Clone + Into<Value>> From<&'a [T]> for Value {
     fn from(value: &'a [T]) -> Self {
-        value
-            .into_iter()
-            .map(Clone::clone)
-            .map(Into::into)
-            .collect()
+        value.iter().map(Clone::clone).map(Into::into).collect()
     }
 }
 
@@ -473,5 +469,34 @@ mod tests {
 
         let value = Value::Map([("a", 42)].into_iter().collect());
         let _ = value.deserialize_map(BadVisitor);
+    }
+
+    #[test]
+    fn transparent_value_newtype() {
+        struct NewtypeDeserializer;
+
+        impl<'de> Deserializer<'de> for NewtypeDeserializer {
+            type Error = Error;
+
+            fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+                visitor.visit_newtype_struct(serde::de::value::CharDeserializer::new('🦀'))
+            }
+
+            // GRCOV_EXCL_START
+            forward_to_deserialize_any! {
+                bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
+                bytes byte_buf option unit unit_struct newtype_struct seq tuple
+                tuple_struct map struct enum identifier ignored_any
+            }
+
+            #[cfg(feature = "integer128")]
+            forward_to_deserialize_any! { i128 u128 }
+            // GRCOV_EXCL_STOP
+        }
+
+        assert_eq!(
+            Value::deserialize(NewtypeDeserializer).unwrap(),
+            Value::from('🦀')
+        );
     }
 }
