@@ -230,7 +230,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
             res.0.reserve_exact(cap);
         }
 
-        while let Some(entry) = map.next_entry()? {
+        while let Some(entry) = map.next_entry::<Value, Value>()? {
             res.insert(entry.0, entry.1);
         }
 
