@@ -275,4 +275,11 @@ mod tests {
         assert_eq!(hash(&F32(-f32::NAN)), hash(&F32(-f32::NAN)));
         assert_ne!(hash(&F32(f32::NAN)), hash(&F32(-f32::NAN)));
     }
+
+    #[test]
+    fn test_partial_ord() {
+        assert!(F32(f32::NAN) > F32(f32::INFINITY));
+        assert!(F32(-f32::NAN) < F32(f32::NEG_INFINITY));
+        assert!(F32(f32::NAN) == F32(f32::NAN));
+    }
 }

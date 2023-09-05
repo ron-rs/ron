@@ -222,7 +222,12 @@ impl<'de> Visitor<'de> for ValueVisitor {
     {
         let mut res: Map = Map::new();
 
-        while let Some(entry) = map.next_entry()? {
+        #[cfg(feature = "indexmap")]
+        if let Some(cap) = map.size_hint() {
+            res.0.reserve_exact(cap);
+        }
+
+        while let Some(entry) = map.next_entry::<Value, Value>()? {
             res.insert(entry.0, entry.1);
         }
 
@@ -414,6 +419,17 @@ mod tests {
             crate::error::SpannedError {
                 code: crate::Error::ExpectedString,
                 position: crate::error::Position { line: 1, col: 4 },
+            },
+        );
+
+        // Check for a failure in Deserializer::check_struct_type
+        // - opening brace triggers the struct type check
+        // - unclosed block comment fails the whitespace skip
+        assert_eq!(
+            "( /*".parse::<Value>().unwrap_err(),
+            crate::error::SpannedError {
+                code: crate::Error::UnclosedBlockComment,
+                position: crate::error::Position { line: 1, col: 5 },
             },
         );
     }
