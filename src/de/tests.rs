@@ -188,7 +188,15 @@ fn test_unclosed_limited_seq() {
             code: Error::ExpectedArrayEnd,
             position: Position { line: 1, col: 2 },
         }),
-    )
+    );
+
+    assert_eq!(
+        crate::Value::from(vec![42]).into_rust::<LimitedSeq>(),
+        Err(Error::ExpectedDifferentLength {
+            expected: String::from("a sequence of length 0"),
+            found: 1
+        })
+    );
 }
 
 #[test]
@@ -227,7 +235,15 @@ fn test_unclosed_limited_map() {
             code: Error::ExpectedMapEnd,
             position: Position { line: 1, col: 2 },
         }),
-    )
+    );
+
+    assert_eq!(
+        crate::Value::Map([("a", 42)].into_iter().collect()).into_rust::<LimitedMap>(),
+        Err(Error::ExpectedDifferentLength {
+            expected: String::from("a map of length 0"),
+            found: 1
+        })
+    );
 }
 
 #[test]

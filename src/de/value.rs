@@ -207,7 +207,6 @@ impl<'de> Visitor<'de> for ValueVisitor {
     {
         let mut vec = Vec::new();
         if let Some(cap) = seq.size_hint() {
-            panic!();
             vec.reserve_exact(cap);
         }
 
@@ -226,7 +225,6 @@ impl<'de> Visitor<'de> for ValueVisitor {
 
         #[cfg(feature = "indexmap")]
         if let Some(cap) = map.size_hint() {
-            panic!();
             res.0.reserve_exact(cap);
         }
 

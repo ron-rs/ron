@@ -107,15 +107,16 @@ impl Map {
 impl Index<&Value> for Map {
     type Output = Value;
 
+    #[allow(clippy::expect_used)]
     fn index(&self, index: &Value) -> &Self::Output {
-        &self.0[index]
+        self.get(index).expect("no entry found for key")
     }
 }
 
 impl IndexMut<&Value> for Map {
     #[allow(clippy::expect_used)]
     fn index_mut(&mut self, index: &Value) -> &mut Self::Output {
-        self.0.get_mut(index).expect("no entry found for key")
+        self.get_mut(index).expect("no entry found for key")
     }
 }
 
@@ -261,13 +262,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "no entry found for key")]
     fn map_index_panic() {
         let _ = &Map::new()[&Value::Unit];
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "no entry found for key")]
     fn map_index_mut_panic() {
         let _ = &mut Map::new()[&Value::Unit];
     }

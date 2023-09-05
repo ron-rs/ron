@@ -167,7 +167,6 @@ impl<'de> Deserializer<'de> for Value {
                 if items.is_empty() {
                     Ok(value)
                 } else {
-                    panic!();
                     Err(Error::ExpectedDifferentLength {
                         expected: format!("a map of length {}", old_len - items.len()),
                         found: old_len,
@@ -250,12 +249,11 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
     {
         match self.value.take() {
             Some(value) => seed.deserialize(value),
-            None => panic!(), //panic!("Contract violation: value before key"),
+            None => panic!("Contract violation: value before key"),
         }
     }
 
     fn size_hint(&self) -> Option<usize> {
-        panic!();
         Some(self.items.len())
     }
 }
@@ -276,9 +274,12 @@ mod tests {
 
         let direct: T = from_str(s).unwrap();
         let value: Value = from_str(s).unwrap();
-        let value = T::deserialize(value).unwrap();
+        let de = T::deserialize(value.clone()).unwrap();
 
-        assert_eq!(direct, value, "Deserialization for {:?} is not the same", s);
+        assert_eq!(direct, de, "Deserialization for {:?} is not the same", s);
+
+        let value_roundtrip = Value::deserialize(value.clone()).unwrap();
+        assert_eq!(value_roundtrip, value);
     }
 
     fn assert_same_bytes<'de, T>(s: &'de [u8])
@@ -289,9 +290,12 @@ mod tests {
 
         let direct: T = from_bytes(s).unwrap();
         let value: Value = from_bytes(s).unwrap();
-        let value = T::deserialize(value).unwrap();
+        let de = T::deserialize(value.clone()).unwrap();
 
-        assert_eq!(direct, value, "Deserialization for {:?} is not the same", s);
+        assert_eq!(direct, de, "Deserialization for {:?} is not the same", s);
+
+        let value_roundtrip = Value::deserialize(value.clone()).unwrap();
+        assert_eq!(value_roundtrip, value);
     }
 
     #[test]
@@ -443,5 +447,31 @@ mod tests {
         assert_same::<()>("()");
 
         assert_eq!(Value::from(()), Value::Unit);
+    }
+
+    #[test]
+    #[should_panic(expected = "Contract violation: value before key")]
+    fn map_access_contract_violation() {
+        struct BadVisitor;
+
+        impl<'de> Visitor<'de> for BadVisitor {
+            type Value = ();
+
+            // GRCOV_EXCL_START
+            fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fmt.write_str("a map")
+            }
+            // GRCOV_EXCL_STOP
+
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<Self::Value, A::Error> {
+                map.next_value::<()>()
+            }
+        }
+
+        let value = Value::Map([("a", 42)].into_iter().collect());
+        let _ = value.deserialize_map(BadVisitor);
     }
 }
