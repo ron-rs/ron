@@ -799,6 +799,7 @@ struct CommaSeparated<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     terminator: Terminator,
     had_comma: bool,
+    inside_internally_tagged_enum: bool,
 }
 
 impl<'a, 'de> CommaSeparated<'a, 'de> {
@@ -807,6 +808,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
             de,
             terminator,
             had_comma: true,
+            inside_internally_tagged_enum: false,
         }
     }
 
@@ -854,6 +856,9 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         K: DeserializeSeed<'de>,
     {
         if self.has_element()? {
+            self.inside_internally_tagged_enum =
+                std::any::type_name::<K::Value>() == "serde::__private::de::content::TagOrContent";
+
             match self.terminator {
                 Terminator::Struct => guard_recursion! { self.de =>
                     seed.deserialize(&mut id::Deserializer::new(&mut *self.de, false)).map(Some)
@@ -877,8 +882,16 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         if self.de.parser.consume_char(':') {
             self.de.parser.skip_ws()?;
 
-            let res = guard_recursion! { self.de =>
-                seed.deserialize(&mut tag::Deserializer::new(&mut *self.de))?
+            let res = if self.inside_internally_tagged_enum
+                && std::any::type_name::<V::Value>() != "serde::__private::de::content::Content"
+            {
+                guard_recursion! { self.de =>
+                    seed.deserialize(&mut tag::Deserializer::new(&mut *self.de))?
+                }
+            } else {
+                guard_recursion! { self.de =>
+                    seed.deserialize(&mut *self.de)?
+                }
             };
 
             self.had_comma = self.de.parser.comma()?;
