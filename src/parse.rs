@@ -563,6 +563,11 @@ impl<'a> Parser<'a> {
 
             parser.skip_ws()?;
 
+            // FIXME: does this have any effect? the serde content enum deserialiser would need to instruct the nested deserialiser to see a unit as a tuple
+            if parser.check_char(')') {
+                return Ok(StructType::Tuple);
+            }
+
             if parser.skip_identifier().is_some() {
                 parser.skip_ws()?;
 
@@ -570,7 +575,16 @@ impl<'a> Parser<'a> {
                     // Definitely a struct with named fields
                     Some(':') => return Ok(StructType::Named),
                     // Definitely a tuple struct with fields
-                    Some(',') => return Ok(StructType::Tuple),
+                    Some(',') => {
+                        parser.skip_next_char();
+                        parser.skip_ws()?;
+                        if parser.check_char(')') {
+                            // TODO: rename to definitely newtype
+                            // TODO: maybe provide an actual either option for the cheap mode
+                            return Ok(StructType::NewtypeOrTuple);
+                        }
+                        return Ok(StructType::Tuple);
+                    }
                     // Either a newtype or a tuple struct
                     Some(')') => return Ok(StructType::NewtypeOrTuple),
                     // Something else, let's investigate further
@@ -579,7 +593,7 @@ impl<'a> Parser<'a> {
             }
 
             if matches!(tuple, TupleMode::ImpreciseTupleOrNewtype) {
-                return Ok(StructType::NewtypeOrTuple);
+                return Ok(StructType::Tuple);
             }
 
             let mut braces = 1_usize;
