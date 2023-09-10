@@ -32,6 +32,12 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             Err(ron::error::Error::InvalidIdentifier(_)) => return None,
             // The fuzzer can find this code path (lol) but give the wrong data
             Err(ron::error::Error::ExpectedRawValue) => return None,
+            // Internally tagged newtype variants have requirements only checked at serialize time
+            Err(ron::error::Error::Message(msg))
+                if msg.starts_with("cannot serialize tagged newtype variant ") =>
+            {
+                return None
+            }
             // Everything else is actually a bug we want to find
             Err(err) => panic!("{:?} -! {:?}", typed_value, err),
         };
@@ -328,6 +334,12 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                 )?;
                                 r#struct.end()
                             }
+                            SerdeEnumRepresentation::InternallyTagged { tag } => {
+                                let mut r#struct = serializer
+                                    .serialize_struct(unsafe { to_static_str(name) }, 1)?;
+                                r#struct.serialize_field(unsafe { to_static_str(tag) }, variant)?;
+                                r#struct.end()
+                            }
                         }
                     }
                     (
@@ -360,6 +372,23 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                 &BorrowedTypedSerdeData { ty, value },
                             )?;
                             r#struct.end()
+                        }
+                        SerdeEnumRepresentation::InternallyTagged { tag } => {
+                            // TODO: the code below creates a type recursion limit overflow
+                            //       since the value type could in theory be infinite and
+                            //       one level of TaggedSerializer is added on at every step
+                            //       perhaps we can use erased serde here to break the cycle?
+                            Err(serde::ser::Error::custom(
+                                "cannot serialize tagged newtype variant : TODO",
+                            ))
+                            // serde::__private::ser::serialize_tagged_newtype(
+                            //     serializer,
+                            //     unsafe { to_static_str(name) },
+                            //     unsafe { to_static_str(variant) },
+                            //     unsafe { to_static_str(tag) },
+                            //     unsafe { to_static_str(variant) },
+                            //     &BorrowedTypedSerdeData { ty, value },
+                            // )
                         }
                     },
                     (
@@ -428,6 +457,11 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     &UntaggedTuple { fields, values },
                                 )?;
                                 r#struct.end()
+                            }
+                            SerdeEnumRepresentation::InternallyTagged { tag: _ } => {
+                                Err(serde::ser::Error::custom(
+                                    "invalid serde internally tagged tuple variant",
+                                ))
                             }
                         }
                     }
@@ -515,6 +549,24 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                         values,
                                     },
                                 )?;
+                                r#struct.end()
+                            }
+                            SerdeEnumRepresentation::InternallyTagged { tag } => {
+                                let mut r#struct = serializer.serialize_struct_variant(
+                                    unsafe { to_static_str(name) },
+                                    *variant_index,
+                                    unsafe { to_static_str(variant) },
+                                    values.len() + 1,
+                                )?;
+                                r#struct.serialize_field(unsafe { to_static_str(tag) }, variant)?;
+                                for ((field, ty), data) in
+                                    fields.0.iter().zip(fields.1.iter()).zip(values.iter())
+                                {
+                                    r#struct.serialize_field(
+                                        unsafe { to_static_str(field) },
+                                        &BorrowedTypedSerdeData { ty, value: data },
+                                    )?;
+                                }
                                 r#struct.end()
                             }
                         }
@@ -1671,6 +1723,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     value,
                 },
             ) => {
+                // TODO: this branch should use serde's private helper types to ensure that it looks the same to any deserializer that looks at type names
+
                 struct VariantIdentifierVisitor<'a> {
                     variant: &'a str,
                     index: u32,
@@ -2197,6 +2251,47 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     _ => Err(serde::de::Error::custom("invalid serde enum data")),
                 }
             }
+            (
+                SerdeDataType::Enum {
+                    name,
+                    variants,
+                    representation: SerdeEnumRepresentation::InternallyTagged { tag },
+                },
+                SerdeDataValue::Enum {
+                    variant: variant_index,
+                    value,
+                },
+            ) => {
+                let (variant, ty) = match (
+                    variants.0.get(*variant_index as usize),
+                    variants.1.get(*variant_index as usize),
+                ) {
+                    (Some(variant), Some(ty)) => (variant, ty),
+                    _ => return Err(serde::de::Error::custom("out of bounds variant index")),
+                };
+
+                match (ty, value) {
+                    (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit) => {
+                        serde::de::IgnoredAny::deserialize(deserializer).map(|_| ())
+                        // TODO
+                    }
+                    (
+                        SerdeDataVariantType::Newtype { inner: ty },
+                        SerdeDataVariantValue::Newtype { inner: value },
+                    ) => serde::de::IgnoredAny::deserialize(deserializer).map(|_| ()), // TODO
+                    (
+                        SerdeDataVariantType::Tuple { fields },
+                        SerdeDataVariantValue::Struct { fields: values },
+                    ) => Err(serde::de::Error::custom(
+                        "invalid serde internally tagged tuple variant",
+                    )),
+                    (
+                        SerdeDataVariantType::Struct { fields },
+                        SerdeDataVariantValue::Struct { fields: values },
+                    ) => serde::de::IgnoredAny::deserialize(deserializer).map(|_| ()), // TODO
+                    _ => Err(serde::de::Error::custom("invalid serde enum data")),
+                }
+            }
             _ => Err(serde::de::Error::custom("invalid serde data")),
         }
     }
@@ -2341,7 +2436,9 @@ pub enum SerdeDataType<'a> {
 pub enum SerdeEnumRepresentation<'a> {
     #[default]
     ExternallyTagged,
-    // InternallyTagged { tag: &'a str },
+    InternallyTagged {
+        tag: &'a str,
+    },
     AdjacentlyTagged {
         tag: &'a str,
         content: &'a str,
@@ -2519,13 +2616,20 @@ impl<'a> SerdeDataType<'a> {
                         let value = SerdeDataVariantValue::Newtype {
                             inner: Box::new(inner.arbitrary_value(u, pretty)?),
                         };
-                        if matches!(representation, SerdeEnumRepresentation::Untagged if !inner.supported_inside_untagged())
+                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_untagged())
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
                         value
                     }
                     SerdeDataVariantType::Tuple { fields } => {
+                        if matches!(
+                            representation,
+                            SerdeEnumRepresentation::InternallyTagged { tag: _ }
+                        ) {
+                            return Err(arbitrary::Error::IncorrectFormat);
+                        }
+
                         if fields.len() == 1 {
                             let inner = Box::new(fields.pop().unwrap());
                             *ty = SerdeDataVariantType::Newtype { inner };
@@ -2550,7 +2654,7 @@ impl<'a> SerdeDataType<'a> {
                             r#struct.push(ty.arbitrary_value(u, pretty)?);
                         }
                         let value = SerdeDataVariantValue::Struct { fields: r#struct };
-                        if matches!(representation, SerdeEnumRepresentation::Untagged if !fields.1.iter().all(SerdeDataType::supported_inside_untagged))
+                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !fields.1.iter().all(SerdeDataType::supported_inside_untagged))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
