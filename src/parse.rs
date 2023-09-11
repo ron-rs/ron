@@ -566,9 +566,8 @@ impl<'a> Parser<'a> {
             // Check for `Ident()`, which could be
             // - a zero-field struct or tuple (variant)
             // - an unwrapped newtype around a unit
-            // TODO: what should be returned here?
             if matches!(newtype, NewtypeMode::NoParensMeanUnit) && parser.check_char(')') {
-                return Ok(StructType::Tuple);
+                return Ok(StructType::EmptyTuple);
             }
 
             if parser.skip_identifier().is_some() {
@@ -583,20 +582,20 @@ impl<'a> Parser<'a> {
                         parser.skip_ws()?;
                         if parser.check_char(')') {
                             // A one-element tuple could be a newtype
-                            return Ok(StructType::NewtypeOrTuple);
+                            return Ok(StructType::NewtypeTuple);
                         }
-                        // Definitely a tuple struct with zero or more than one fields
-                        return Ok(StructType::Tuple);
+                        // Definitely a tuple struct with more than one field
+                        return Ok(StructType::NonNewtypeTuple);
                     }
                     // Either a newtype or a tuple struct
-                    Some(')') => return Ok(StructType::NewtypeOrTuple),
+                    Some(')') => return Ok(StructType::NewtypeTuple),
                     // Something else, let's investigate further
                     Some(_) | None => (),
                 };
             }
 
             if matches!(tuple, TupleMode::ImpreciseTupleOrNewtype) {
-                return Ok(StructType::Tuple);
+                return Ok(StructType::AnyTuple);
             }
 
             let mut braces = 1_usize;
@@ -632,9 +631,9 @@ impl<'a> Parser<'a> {
             }
 
             if more_than_one {
-                Ok(StructType::Tuple)
+                Ok(StructType::NonNewtypeTuple)
             } else {
-                Ok(StructType::NewtypeOrTuple)
+                Ok(StructType::NewtypeTuple)
             }
         }
 
@@ -1567,8 +1566,10 @@ impl Float for ParsedFloat {
 }
 
 pub enum StructType {
-    NewtypeOrTuple,
-    Tuple,
+    AnyTuple,
+    EmptyTuple,
+    NewtypeTuple,
+    NonNewtypeTuple,
     Named,
     Unit,
 }

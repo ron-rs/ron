@@ -174,7 +174,7 @@ impl<'de> Deserializer<'de> {
         match (
             self.parser.check_struct_type(
                 NewtypeMode::NoParensMeanUnit,
-                if old_serde_content_newtype || is_serde_content {
+                if old_serde_content_newtype {
                     TupleMode::DifferentiateNewtype // separate match on NewtypeOrTuple below
                 } else {
                     TupleMode::ImpreciseTupleOrNewtype // Tuple and NewtypeOrTuple match equally
@@ -198,7 +198,7 @@ impl<'de> Deserializer<'de> {
                 // giving no name results in worse errors but is necessary here
                 self.handle_struct_after_name("", visitor)
             }
-            (StructType::NewtypeOrTuple, _) if old_serde_content_newtype => {
+            (StructType::NewtypeTuple, _) if old_serde_content_newtype => {
                 // deserialize a newtype struct or variant
                 self.parser.consume_char('(');
                 self.parser.skip_ws()?;
@@ -208,25 +208,16 @@ impl<'de> Deserializer<'de> {
 
                 result
             }
-            (StructType::Tuple | _, _) => {
+            (
+                StructType::AnyTuple
+                | StructType::EmptyTuple
+                | StructType::NewtypeTuple
+                | StructType::NonNewtypeTuple,
+                _,
+            ) => {
                 // first argument is technically incorrect, but ignored anyway
                 self.deserialize_tuple(0, visitor)
-            } // (StructType::NewtypeOrTuple, _) => {
-              //     if self.parser.consume_char('(') {
-              //         self.parser.skip_ws()?;
-              //         let value =
-              //             guard_recursion! { self => visitor.visit_newtype_struct(&mut *self)? };
-              //         self.parser.comma()?;
-
-              //         if self.parser.consume_char(')') {
-              //             Ok(value)
-              //         } else {
-              //             Err(Error::ExpectedStructLikeEnd)
-              //         }
-              //     } else {
-              //         Err(Error::ExpectedStructLike)
-              //     }
-              // }
+            }
         }
     }
 
@@ -301,14 +292,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     // giving no name results in worse errors but is necessary here
                     return self.handle_struct_after_name("", visitor);
                 }
-                StructType::Tuple => {
+                StructType::EmptyTuple | StructType::NonNewtypeTuple => {
                     // newtype variant wraps a tuple (struct)
                     // first argument is technically incorrect, but ignored anyway
                     return self.deserialize_tuple(0, visitor);
                 }
-                /* StructType::NewtypeOrTuple */
                 // StructType::Unit is impossible with NewtypeMode::InsideNewtype
-                _ => {
+                // StructType::AnyTuple is impossible with TupleMode::DifferentiateNewtype
+                StructType::NewtypeTuple | _ => {
                     // continue as usual with the inner content of the newtype variant
                     self.newtype_variant = false;
                 }
