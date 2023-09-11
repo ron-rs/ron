@@ -208,26 +208,25 @@ impl<'de> Deserializer<'de> {
 
                 result
             }
-            (StructType::Tuple, _) => {
+            (StructType::Tuple | _, _) => {
                 // first argument is technically incorrect, but ignored anyway
                 self.deserialize_tuple(0, visitor)
-            }
-            (StructType::NewtypeOrTuple, _) => {
-                if self.parser.consume_char('(') {
-                    self.parser.skip_ws()?;
-                    let value =
-                        guard_recursion! { self => visitor.visit_newtype_struct(&mut *self)? };
-                    self.parser.comma()?;
+            } // (StructType::NewtypeOrTuple, _) => {
+              //     if self.parser.consume_char('(') {
+              //         self.parser.skip_ws()?;
+              //         let value =
+              //             guard_recursion! { self => visitor.visit_newtype_struct(&mut *self)? };
+              //         self.parser.comma()?;
 
-                    if self.parser.consume_char(')') {
-                        Ok(value)
-                    } else {
-                        Err(Error::ExpectedStructLikeEnd)
-                    }
-                } else {
-                    Err(Error::ExpectedStructLike)
-                }
-            }
+              //         if self.parser.consume_char(')') {
+              //             Ok(value)
+              //         } else {
+              //             Err(Error::ExpectedStructLikeEnd)
+              //         }
+              //     } else {
+              //         Err(Error::ExpectedStructLike)
+              //     }
+              // }
         }
     }
 

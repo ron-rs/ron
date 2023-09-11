@@ -563,8 +563,11 @@ impl<'a> Parser<'a> {
 
             parser.skip_ws()?;
 
-            // FIXME: does this have any effect? the serde content enum deserialiser would need to instruct the nested deserialiser to see a unit as a tuple
-            if parser.check_char(')') {
+            // Check for `Ident()`, which could be
+            // - a zero-field struct or tuple (variant)
+            // - an unwrapped newtype around a unit
+            // TODO: what should be returned here?
+            if matches!(newtype, NewtypeMode::NoParensMeanUnit) && parser.check_char(')') {
                 return Ok(StructType::Tuple);
             }
 
@@ -574,15 +577,15 @@ impl<'a> Parser<'a> {
                 match parser.peek_char() {
                     // Definitely a struct with named fields
                     Some(':') => return Ok(StructType::Named),
-                    // Definitely a tuple struct with fields
+                    // Definitely a tuple-like struct with fields
                     Some(',') => {
                         parser.skip_next_char();
                         parser.skip_ws()?;
                         if parser.check_char(')') {
-                            // TODO: rename to definitely newtype
-                            // TODO: maybe provide an actual either option for the cheap mode
+                            // A one-element tuple could be a newtype
                             return Ok(StructType::NewtypeOrTuple);
                         }
+                        // Definitely a tuple struct with zero or more than one fields
                         return Ok(StructType::Tuple);
                     }
                     // Either a newtype or a tuple struct
