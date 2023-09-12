@@ -47,12 +47,6 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             {
                 return None
             }
-            // Internally tagged newtype variants have requirements only checked at serialize time
-            Err(ron::error::Error::Message(msg))
-                if msg.starts_with("cannot serialize tagged newtype variant ") =>
-            {
-                return None
-            }
             // Everything else is actually a bug we want to find
             Err(err) => panic!("{:?} -! {:?}", typed_value, err),
         };
@@ -392,52 +386,6 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                             r#struct.end()
                         }
                         SerdeEnumRepresentation::InternallyTagged { tag } => {
-                            if matches!(
-                                (&**ty, &**value),
-                                (
-                                    SerdeDataType::Enum {
-                                        name: _,
-                                        variants: _,
-                                        representation: SerdeEnumRepresentation::Untagged
-                                    },
-                                    SerdeDataValue::Enum {
-                                        variant: _,
-                                        value: SerdeDataVariantValue::Unit
-                                    },
-                                )
-                            ) || matches!(
-                                (&**ty, &**value),
-                                (
-                                    SerdeDataType::Enum {
-                                        name: _,
-                                        variants: _,
-                                        representation: SerdeEnumRepresentation::Untagged
-                                    },
-                                    SerdeDataValue::Enum {
-                                        variant: _,
-                                        value: SerdeDataVariantValue::Newtype { inner }
-                                    },
-                                ) if matches!(&**inner, SerdeDataValue::Unit)
-                            ) || matches!(
-                                (&**ty, &**value),
-                                (
-                                    SerdeDataType::Enum {
-                                        name: _,
-                                        variants: _,
-                                        representation: SerdeEnumRepresentation::Untagged
-                                    },
-                                    SerdeDataValue::Enum {
-                                        variant: _,
-                                        value: SerdeDataVariantValue::Struct { fields }
-                                    },
-                                ) if fields.is_empty()
-                            ) {
-                                // BUG: these look like units to ron, which are not allowed in here
-                                return Err(serde::ser::Error::custom(
-                                    "cannot serialize tagged newtype variant : SERDE BUG",
-                                ));
-                            }
-
                             serde::__private::ser::serialize_tagged_newtype(
                                 serializer,
                                 unsafe { to_static_str(name) },
@@ -2906,14 +2854,16 @@ impl<'a> SerdeDataType<'a> {
                 let value = match ty {
                     SerdeDataVariantType::Unit => SerdeDataVariantValue::Unit,
                     SerdeDataVariantType::Newtype { ref mut inner } => {
-                        let value = SerdeDataVariantValue::Newtype {
-                            inner: Box::new(inner.arbitrary_value(u, pretty)?),
-                        };
+                        let value = Box::new(inner.arbitrary_value(u, pretty)?);
                         if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_untagged(pretty))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
-                        value
+                        if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_internally_tagged_newtype(&value, pretty, false))
+                        {
+                            return Err(arbitrary::Error::IncorrectFormat);
+                        }
+                        SerdeDataVariantValue::Newtype { inner: value }
                     }
                     SerdeDataVariantType::Tuple { fields } => {
                         if matches!(
@@ -3032,6 +2982,7 @@ impl<'a> SerdeDataType<'a> {
 
                 // inner.supported_inside_untagged()
 
+                // BUG: newtypes inside untagged look like 1-tuples to ron
                 false
             }
             SerdeDataType::TupleStruct { name: _, fields } => {
@@ -3084,6 +3035,103 @@ impl<'a> SerdeDataType<'a> {
                         .all(|field| field.supported_inside_untagged(pretty))
                 }
             }),
+        }
+    }
+
+    fn supported_inside_internally_tagged_newtype(
+        &self,
+        value: &SerdeDataValue,
+        pretty: &PrettyConfig,
+        inside_untagged_newtype_variant: bool,
+    ) -> bool {
+        // See https://github.com/serde-rs/serde/blob/ddc1ee564b33aa584e5a66817aafb27c3265b212/serde/src/private/ser.rs#L94-L336
+        match self {
+            SerdeDataType::Unit => {
+                // BUG: a unit inside an untagged newtype variant expects a unit
+                //      but only the tag is there
+                !inside_untagged_newtype_variant
+            }
+            SerdeDataType::Bool => false,
+            SerdeDataType::I8 => false,
+            SerdeDataType::I16 => false,
+            SerdeDataType::I32 => false,
+            SerdeDataType::I64 => false,
+            SerdeDataType::I128 => false,
+            SerdeDataType::ISize => false,
+            SerdeDataType::U8 => false,
+            SerdeDataType::U16 => false,
+            SerdeDataType::U32 => false,
+            SerdeDataType::U64 => false,
+            SerdeDataType::U128 => false,
+            SerdeDataType::USize => false,
+            SerdeDataType::F32 => false,
+            SerdeDataType::F64 => false,
+            SerdeDataType::Char => false,
+            SerdeDataType::String => false,
+            SerdeDataType::ByteBuf => false,
+            SerdeDataType::Option { inner: _ } => false,
+            SerdeDataType::Array { kind: _, len: _ } => false,
+            SerdeDataType::Tuple { elems: _ } => false,
+            SerdeDataType::Vec { item: _ } => false,
+            SerdeDataType::Map { key: _, value: _ } => true,
+            SerdeDataType::UnitStruct { name: _ } => true,
+            SerdeDataType::Newtype { name: _, inner: ty } => {
+                if let SerdeDataValue::Newtype { inner: value } = value {
+                    ty.supported_inside_internally_tagged_newtype(
+                        value,
+                        pretty,
+                        inside_untagged_newtype_variant,
+                    )
+                } else {
+                    false
+                }
+            }
+            SerdeDataType::TupleStruct { name: _, fields: _ } => false,
+            SerdeDataType::Struct { name: _, fields: _ } => true,
+            SerdeDataType::Enum {
+                name: _,
+                variants,
+                representation,
+            } => {
+                let SerdeDataValue::Enum {
+                    variant: variant_index,
+                    value,
+                } = value else { return false };
+
+                let Some(ty) = variants.1.get(*variant_index as usize) else { return false };
+
+                match (ty, value) {
+                    (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit) => {
+                        // BUG: an untagged unit variant requires a unit,
+                        //      but it won't get one because it serialises itself as a unit,
+                        //      which is only serialised with the tag
+                        !matches!(representation, SerdeEnumRepresentation::Untagged)
+                    }
+                    (
+                        SerdeDataVariantType::Newtype { inner: ty },
+                        SerdeDataVariantValue::Newtype { inner: value },
+                    ) => {
+                        if matches!(representation, SerdeEnumRepresentation::Untagged) {
+                            ty.supported_inside_internally_tagged_newtype(value, pretty, true)
+                        } else {
+                            true
+                        }
+                    }
+                    (
+                        SerdeDataVariantType::Tuple { fields: _ },
+                        SerdeDataVariantValue::Struct { fields: _ },
+                    ) => !matches!(
+                        representation,
+                        SerdeEnumRepresentation::Untagged
+                            | SerdeEnumRepresentation::AdjacentlyTagged { .. }
+                    ),
+                    (
+                        SerdeDataVariantType::Struct { fields: _ },
+                        SerdeDataVariantValue::Struct { fields: _ },
+                    ) => true,
+                    _ => false,
+                }
+            }
         }
     }
 }
