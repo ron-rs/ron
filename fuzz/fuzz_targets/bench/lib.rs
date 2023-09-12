@@ -2743,11 +2743,6 @@ impl<'a> SerdeDataType<'a> {
                 SerdeDataValue::Seq { elems: array }
             }
             SerdeDataType::Tuple { elems } => {
-                if elems.is_empty() {
-                    *self = SerdeDataType::Unit;
-                    return self.arbitrary_value(u, pretty);
-                }
-
                 let mut tuple = Vec::with_capacity(elems.len());
                 for ty in elems {
                     tuple.push(ty.arbitrary_value(u, pretty)?);
@@ -2881,8 +2876,14 @@ impl<'a> SerdeDataType<'a> {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
 
-                        if fields.len() == 1 {
-                            // BUG: one-sized variant looks like a newtype variant to ron
+                        if matches!(representation, SerdeEnumRepresentation::Untagged)
+                            && pretty
+                                .extensions
+                                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
+                            && fields.len() == 1
+                        {
+                            // BUG: one-sized tuple variant inside some variant newtype will look
+                            //      like just the variant newtype without the tuple wrapper
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
 
@@ -2967,9 +2968,16 @@ impl<'a> SerdeDataType<'a> {
 
                 kind.supported_inside_untagged(pretty)
             }
-            SerdeDataType::Tuple { elems } => elems
-                .iter()
-                .all(|element| element.supported_inside_untagged(pretty)),
+            SerdeDataType::Tuple { elems } => {
+                if elems.is_empty() {
+                    // BUG: a zero-length tuple look like a unit to ron
+                    return false;
+                }
+
+                elems
+                    .iter()
+                    .all(|element| element.supported_inside_untagged(pretty))
+            }
             SerdeDataType::Vec { item } => item.supported_inside_untagged(pretty),
             SerdeDataType::Map { key, value } => {
                 key.supported_inside_untagged(pretty) && value.supported_inside_untagged(pretty)
@@ -3009,13 +3017,20 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::Enum {
                 name: _,
                 variants,
-                representation: _,
+                representation,
             } => variants.1.iter().all(|variant| match variant {
                 SerdeDataVariantType::Unit => true,
                 SerdeDataVariantType::Newtype { inner } => inner.supported_inside_untagged(pretty),
                 SerdeDataVariantType::Tuple { fields } => {
                     if fields.is_empty() {
                         // BUG: an empty tuple struct looks like a unit to ron
+                        return false;
+                    }
+
+                    if matches!(representation, SerdeEnumRepresentation::ExternallyTagged)
+                        && fields.len() == 1
+                    {
+                        // BUG: one-sized tuple variant looks like a newtype variant to ron
                         return false;
                     }
 
