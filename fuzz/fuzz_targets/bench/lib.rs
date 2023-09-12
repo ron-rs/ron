@@ -3089,7 +3089,13 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::Tuple { elems: _ } => false,
             SerdeDataType::Vec { item: _ } => false,
             SerdeDataType::Map { key: _, value: _ } => true,
-            SerdeDataType::UnitStruct { name: _ } => true,
+            SerdeDataType::UnitStruct { name: _ } => {
+                // BUG: a unit struct inside an untagged newtype variant requires a unit,
+                //      but it won't get one because it serialises itself as a unit
+                //      (since struct names are not allowed yet inside untagged),
+                //      which is only serialised with the tag
+                !inside_untagged_newtype_variant
+            }
             SerdeDataType::Newtype { name: _, inner: ty } => {
                 if let SerdeDataValue::Newtype { inner: value } = value {
                     ty.supported_inside_internally_tagged_newtype(
