@@ -16,6 +16,7 @@ use serde::{
 use ron::{extensions::Extensions, ser::PrettyConfig};
 
 const RECURSION_LIMIT: usize = 32_usize;
+const LONG_NAME_COST_THRESHOLD: usize = 8_usize;
 
 const ARRAY_UNINIT_LEN: usize = usize::MAX;
 
@@ -1390,6 +1391,8 @@ impl<'a> SerdeDataType<'a> {
     ) -> arbitrary::Result<SerdeDataValue<'u>> {
         let u_len = u.len();
 
+        let mut name_length: usize = 0;
+
         let value = match self {
             SerdeDataType::Unit => SerdeDataValue::Unit,
             SerdeDataType::Bool => SerdeDataValue::Bool(bool::arbitrary(u)?),
@@ -1426,6 +1429,9 @@ impl<'a> SerdeDataType<'a> {
                         array.push(kind.arbitrary_value(u)?);
                     }
                     array.shrink_to_fit();
+                    if array.is_empty() {
+                        **kind = SerdeDataType::Unit;
+                    }
                     *len = array.len();
                 } else {
                     // Use the already-determined array length
@@ -1460,8 +1466,14 @@ impl<'a> SerdeDataType<'a> {
                 map.shrink_to_fit();
                 SerdeDataValue::Map { elems: map }
             }
-            SerdeDataType::UnitStruct { name: _ } => SerdeDataValue::UnitStruct,
+            SerdeDataType::UnitStruct { name } => {
+                name_length += name.len();
+
+                SerdeDataValue::UnitStruct
+            }
             SerdeDataType::Newtype { name, inner } => {
+                name_length += name.len();
+
                 let inner = inner.arbitrary_value(u)?;
 
                 // ron::value::RawValue cannot safely be constructed from syntactically invalid ron
@@ -1477,28 +1489,38 @@ impl<'a> SerdeDataType<'a> {
                     inner: Box::new(inner),
                 }
             }
-            SerdeDataType::TupleStruct { name: _, fields } => {
+            SerdeDataType::TupleStruct { name, fields } => {
+                name_length += name.len();
                 let mut tuple = Vec::with_capacity(fields.len());
                 for ty in fields {
                     tuple.push(ty.arbitrary_value(u)?);
                 }
                 SerdeDataValue::Struct { fields: tuple }
             }
-            SerdeDataType::Struct { name: _, fields } => {
+            SerdeDataType::Struct { name, fields } => {
+                name_length += name.len();
                 let mut r#struct = Vec::with_capacity(fields.1.len());
-                for ty in &mut fields.1 {
+                for (field, ty) in fields.0.iter().zip(&mut fields.1) {
+                    name_length += field.len();
                     r#struct.push(ty.arbitrary_value(u)?);
                 }
                 SerdeDataValue::Struct { fields: r#struct }
             }
-            SerdeDataType::Enum { name: _, variants } => {
+            SerdeDataType::Enum { name, variants } => {
+                name_length += name.len();
+
                 let variant_index = u.choose_index(variants.1.len())?;
-                let ty = match variants.1.get_mut(variant_index) {
-                    Some(variant) => variant,
-                    None => return Err(arbitrary::Error::EmptyChoose),
+                let (variant, ty) = match (
+                    variants.0.get_mut(variant_index),
+                    variants.1.get_mut(variant_index),
+                ) {
+                    (Some(variant), Some(ty)) => (variant, ty),
+                    _ => return Err(arbitrary::Error::EmptyChoose),
                 };
                 let variant_index =
                     u32::try_from(variant_index).map_err(|_| arbitrary::Error::IncorrectFormat)?;
+
+                name_length += variant.len();
 
                 let value = match ty {
                     SerdeDataVariantType::Unit => SerdeDataVariantValue::Unit,
@@ -1516,7 +1538,8 @@ impl<'a> SerdeDataType<'a> {
                     }
                     SerdeDataVariantType::Struct { fields } => {
                         let mut r#struct = Vec::with_capacity(fields.1.len());
-                        for ty in &mut fields.1 {
+                        for (field, ty) in fields.0.iter().zip(&mut fields.1) {
+                            name_length += field.len();
                             r#struct.push(ty.arbitrary_value(u)?);
                         }
                         SerdeDataVariantValue::Struct { fields: r#struct }
@@ -1529,6 +1552,11 @@ impl<'a> SerdeDataType<'a> {
                 }
             }
         };
+
+        for _ in LONG_NAME_COST_THRESHOLD..name_length {
+            // Enforce that producing long struct/field/enum/variant names costs per usage
+            let _ = u.arbitrary::<bool>()?;
+        }
 
         if u.len() == u_len {
             // Enforce that producing a value is never free
