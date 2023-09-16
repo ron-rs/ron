@@ -165,8 +165,9 @@ impl<'de> Deserializer<'de> {
     {
         // HACK: switch to JSON enum semantics for JSON content
         // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
-        let is_serde_content =
-            std::any::type_name::<V::Value>() == "serde::__private::de::content::Content";
+        let is_serde_content = std::any::type_name::<V::Value>()
+            == "serde::__private::de::content::Content"
+            || std::any::type_name::<V::Value>() == "serde::__private::de::content::TagOrContent";
 
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
