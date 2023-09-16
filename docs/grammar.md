@@ -60,7 +60,8 @@ unsigned_octal = "0o", digit_octal, { digit_octal | "_" };
 unsigned_hexadecimal = "0x", digit_hexadecimal, { digit_hexadecimal | "_" };
 unsigned_decimal = digit, { digit | "_" };
 
-byte = ascii | ("\\", (escape_ascii | escape_byte));
+byte = "b", "'", byte_content, "'";
+byte_content = ascii | ("\\", (escape_ascii | escape_byte));
 
 float = ["+" | "-"], ("inf" | "NaN" | float_num), [float_suffix];
 float_num = (float_int | float_std | float_frac), [float_exp];
@@ -70,6 +71,8 @@ float_frac = ".", digit, { digit | "_" };
 float_exp = ("e" | "E"), ["+" | "-"], { digit | "_" }, digit, { digit | "_" };
 float_suffix = "f", ("32", "64");
 ```
+
+> Note: `ascii` refers to any ASCII character, i.e. any byte in range `0x00 ..= 0x7F`.
 
 ## String
 
