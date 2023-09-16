@@ -48,7 +48,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 return None
             }
             // Everything else is actually a bug we want to find
-            Err(err) => panic!("{:?} -! {:?}", typed_value, err),
+            Err(err) => panic!("{:#?} -! {:#?}", typed_value, err),
         };
 
         if let Err(err) = options.from_str::<ron::Value>(&ron) {
@@ -56,7 +56,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 // Erroring on deep recursion is better than crashing on a stack overflow
                 ron::error::Error::ExceededRecursionLimit => return None,
                 // Everything else is actually a bug we want to find
-                _ => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
+                _ => panic!("{:#?} -> {} -! {:#?}", typed_value, ron, err),
             }
         };
 
@@ -68,7 +68,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 //  or untagged enums, so we allow them otherwise
                 ron::error::Error::DuplicateStructField { .. } => return None,
                 // Everything else is actually a bug we want to find
-                _ => panic!("{:?} -> {} -! {:?}", typed_value, ron, err),
+                _ => panic!("{:#?} -> {} -! {:#?}", typed_value, ron, err),
             }
         };
 
@@ -289,7 +289,14 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                 }
                 tuple.end()
             }
-            (SerdeDataType::Struct { name, fields }, SerdeDataValue::Struct { fields: values }) => {
+            (
+                SerdeDataType::Struct {
+                    name,
+                    tag: _,
+                    fields,
+                },
+                SerdeDataValue::Struct { fields: values },
+            ) => {
                 if values.len() != fields.0.len() || values.len() != fields.1.len() {
                     return Err(serde::ser::Error::custom("mismatch struct fields len"));
                 }
@@ -1066,7 +1073,14 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     },
                 )
             }
-            (SerdeDataType::Struct { name, fields }, SerdeDataValue::Struct { fields: values }) => {
+            (
+                SerdeDataType::Struct {
+                    name,
+                    tag: _,
+                    fields,
+                },
+                SerdeDataValue::Struct { fields: values },
+            ) => {
                 struct FieldIdentifierVisitor<'a> {
                     field: &'a str,
                     index: u64,
@@ -2798,6 +2812,7 @@ pub enum SerdeDataType<'a> {
     },
     Struct {
         name: &'a str,
+        tag: Option<&'a str>,
         #[arbitrary(with = arbitrary_str_tuple_vec_recursion_guard)]
         fields: (Vec<&'a str>, Vec<Self>),
     },
@@ -2828,7 +2843,10 @@ impl<'a> SerdeDataType<'a> {
         &mut self,
         u: &mut Unstructured<'u>,
         pretty: &PrettyConfig,
-    ) -> arbitrary::Result<SerdeDataValue<'u>> {
+    ) -> arbitrary::Result<SerdeDataValue<'u>>
+    where
+        'a: 'u,
+    {
         let mut name_length: usize = 0;
 
         let value = match self {
@@ -2938,10 +2956,25 @@ impl<'a> SerdeDataType<'a> {
                 }
                 SerdeDataValue::Struct { fields: tuple }
             }
-            SerdeDataType::Struct { name, fields } => {
+            SerdeDataType::Struct { name, tag, fields } => {
                 name_length += name.len();
-                let mut r#struct = Vec::with_capacity(fields.1.len());
-                for (field, ty) in fields.0.iter().zip(&mut fields.1) {
+                if let Some(tag) = tag {
+                    // This is not very elegant but emulates internally tagged structs
+                    //  in a way that minimises code in the fuzzer and actually allows
+                    //  the struct to roundtrip even in a `#[serde(deny_unknown_fields)]`
+                    //  like mode, which internally tagged structs in serde can not
+                    if !matches!((fields.0.first(), fields.1.first()), (Some(field), Some(SerdeDataType::String)) if field == tag)
+                    {
+                        fields.0.insert(0, tag);
+                        fields.1.insert(0, SerdeDataType::String);
+                    }
+                }
+                let mut r#struct = Vec::with_capacity(fields.1.len() + usize::from(tag.is_some()));
+                if let Some(tag) = tag {
+                    name_length += tag.len();
+                    r#struct.push(SerdeDataValue::String(name));
+                }
+                for (field, ty) in fields.0.iter().zip(&mut fields.1).skip(usize::from(tag.is_some())) {
                     name_length += field.len();
                     r#struct.push(ty.arbitrary_value(u, pretty)?);
                 }
@@ -3007,7 +3040,7 @@ impl<'a> SerdeDataType<'a> {
                     }
                     SerdeDataVariantType::Newtype { ref mut inner } => {
                         let value = Box::new(inner.arbitrary_value(u, pretty)?);
-                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_untagged(pretty))
+                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_untagged(pretty, true))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
@@ -3049,7 +3082,7 @@ impl<'a> SerdeDataType<'a> {
                             tuple.push(ty.arbitrary_value(u, pretty)?);
                         }
                         let value = SerdeDataVariantValue::Struct { fields: tuple };
-                        if matches!(representation, SerdeEnumRepresentation::Untagged if !fields.iter().all(|field| field.supported_inside_untagged(pretty)))
+                        if matches!(representation, SerdeEnumRepresentation::Untagged if !fields.iter().all(|field| field.supported_inside_untagged(pretty, false)))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
@@ -3069,7 +3102,7 @@ impl<'a> SerdeDataType<'a> {
                             r#struct.push(ty.arbitrary_value(u, pretty)?);
                         }
                         let value = SerdeDataVariantValue::Struct { fields: r#struct };
-                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !fields.1.iter().all(|field| field.supported_inside_untagged(pretty)))
+                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !fields.1.iter().all(|field| field.supported_inside_untagged(pretty, false)))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
@@ -3095,7 +3128,11 @@ impl<'a> SerdeDataType<'a> {
         Ok(value)
     }
 
-    fn supported_inside_untagged(&self, pretty: &PrettyConfig) -> bool {
+    fn supported_inside_untagged(
+        &self,
+        pretty: &PrettyConfig,
+        inside_newtype_variant: bool,
+    ) -> bool {
         match self {
             SerdeDataType::Unit => true,
             SerdeDataType::Bool => true,
@@ -3116,14 +3153,24 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::Char => true,
             SerdeDataType::String => true,
             SerdeDataType::ByteBuf => true,
-            SerdeDataType::Option { inner } => inner.supported_inside_untagged(pretty),
+            SerdeDataType::Option { inner } => inner.supported_inside_untagged(pretty, true),
             SerdeDataType::Array { kind, len } => {
                 if *len == 0 {
                     // BUG: a zero-length array look like a unit to ron
                     return false;
                 }
 
-                kind.supported_inside_untagged(pretty)
+                if *len == 1
+                    && inside_newtype_variant
+                    && pretty
+                        .extensions
+                        .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
+                {
+                    // BUG: a one-length array inside an unwrapped variant newtype will be swallowed
+                    return false;
+                }
+
+                kind.supported_inside_untagged(pretty, false)
             }
             SerdeDataType::Tuple { elems } => {
                 if elems.is_empty() {
@@ -3131,13 +3178,24 @@ impl<'a> SerdeDataType<'a> {
                     return false;
                 }
 
+                if elems.len() == 1
+                    && inside_newtype_variant
+                    && pretty
+                        .extensions
+                        .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
+                {
+                    // BUG: a one-length tuple inside an unwrapped variant newtype will be swallowed
+                    return false;
+                }
+
                 elems
                     .iter()
-                    .all(|element| element.supported_inside_untagged(pretty))
+                    .all(|element| element.supported_inside_untagged(pretty, false))
             }
-            SerdeDataType::Vec { item } => item.supported_inside_untagged(pretty),
+            SerdeDataType::Vec { item } => item.supported_inside_untagged(pretty, false),
             SerdeDataType::Map { key, value } => {
-                key.supported_inside_untagged(pretty) && value.supported_inside_untagged(pretty)
+                key.supported_inside_untagged(pretty, false)
+                    && value.supported_inside_untagged(pretty, false)
             }
             SerdeDataType::UnitStruct { name: _ } => true,
             SerdeDataType::Newtype { name: _, inner: _ } => {
@@ -3145,7 +3203,7 @@ impl<'a> SerdeDataType<'a> {
                 //     return false;
                 // }
 
-                // inner.supported_inside_untagged()
+                // inner.supported_inside_untagged(pretty, false)
 
                 // BUG: newtypes inside untagged look like 1-tuples to ron
                 false
@@ -3158,9 +3216,13 @@ impl<'a> SerdeDataType<'a> {
 
                 fields
                     .iter()
-                    .all(|field| field.supported_inside_untagged(pretty))
+                    .all(|field| field.supported_inside_untagged(pretty, false))
             }
-            SerdeDataType::Struct { name: _, fields } => {
+            SerdeDataType::Struct {
+                name: _,
+                tag: _,
+                fields,
+            } => {
                 if fields.0.is_empty() {
                     // BUG: an empty struct looks like a unit to ron
                     return false;
@@ -3169,7 +3231,7 @@ impl<'a> SerdeDataType<'a> {
                 fields
                     .1
                     .iter()
-                    .all(|field| field.supported_inside_untagged(pretty))
+                    .all(|field| field.supported_inside_untagged(pretty, false))
             }
             SerdeDataType::Enum {
                 name: _,
@@ -3178,7 +3240,9 @@ impl<'a> SerdeDataType<'a> {
             } => variants.1.iter().all(|variant| match variant {
                 SerdeDataVariantType::Unit => true,
                 SerdeDataVariantType::TaggedOther => true,
-                SerdeDataVariantType::Newtype { inner } => inner.supported_inside_untagged(pretty),
+                SerdeDataVariantType::Newtype { inner } => {
+                    inner.supported_inside_untagged(pretty, true)
+                }
                 SerdeDataVariantType::Tuple { fields } => {
                     if fields.is_empty() {
                         // BUG: an empty tuple struct looks like a unit to ron
@@ -3194,7 +3258,7 @@ impl<'a> SerdeDataType<'a> {
 
                     fields
                         .iter()
-                        .all(|field| field.supported_inside_untagged(pretty))
+                        .all(|field| field.supported_inside_untagged(pretty, false))
                 }
                 SerdeDataVariantType::Struct { fields } => {
                     if fields.0.is_empty() {
@@ -3205,7 +3269,7 @@ impl<'a> SerdeDataType<'a> {
                     fields
                         .1
                         .iter()
-                        .all(|field| field.supported_inside_untagged(pretty))
+                        .all(|field| field.supported_inside_untagged(pretty, false))
                 }
             }),
         }
@@ -3266,7 +3330,11 @@ impl<'a> SerdeDataType<'a> {
                 }
             }
             SerdeDataType::TupleStruct { name: _, fields: _ } => false,
-            SerdeDataType::Struct { name: _, fields: _ } => true,
+            SerdeDataType::Struct {
+                name: _,
+                tag: _,
+                fields: _,
+            } => true,
             SerdeDataType::Enum {
                 name: _,
                 variants,
