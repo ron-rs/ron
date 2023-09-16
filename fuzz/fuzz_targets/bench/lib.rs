@@ -355,6 +355,42 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                         }
                     }
                     (
+                        SerdeDataVariantType::TaggedOther,
+                        SerdeDataVariantValue::TaggedOther {
+                            variant: other_variant,
+                            index: other_variant_index,
+                        },
+                    ) => match representation {
+                        SerdeEnumRepresentation::ExternallyTagged => {
+                            Err(serde::ser::Error::custom(
+                                "invalid serde enum data: tagged other in externally tagged",
+                            ))
+                        }
+                        SerdeEnumRepresentation::Untagged => Err(serde::ser::Error::custom(
+                            "invalid serde enum data: tagged other in untagged",
+                        )),
+                        SerdeEnumRepresentation::AdjacentlyTagged { tag, content: _ } => {
+                            let mut r#struct =
+                                serializer.serialize_struct(unsafe { to_static_str(name) }, 1)?;
+                            r#struct.serialize_field(
+                                unsafe { to_static_str(tag) },
+                                &serde::__private::ser::AdjacentlyTaggedEnumVariant {
+                                    enum_name: unsafe { to_static_str(name) },
+                                    variant_index: *other_variant_index,
+                                    variant_name: unsafe { to_static_str(other_variant) },
+                                },
+                            )?;
+                            r#struct.end()
+                        }
+                        SerdeEnumRepresentation::InternallyTagged { tag } => {
+                            let mut r#struct =
+                                serializer.serialize_struct(unsafe { to_static_str(name) }, 1)?;
+                            r#struct
+                                .serialize_field(unsafe { to_static_str(tag) }, other_variant)?;
+                            r#struct.end()
+                        }
+                    },
+                    (
                         SerdeDataVariantType::Newtype { inner: ty },
                         SerdeDataVariantValue::Newtype { inner: value },
                     ) => match representation {
@@ -1253,6 +1289,12 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 variant.unit_variant()
                             }
                             (
+                                SerdeDataVariantType::TaggedOther,
+                                SerdeDataVariantValue::TaggedOther { .. },
+                            ) => Err(serde::de::Error::custom(
+                                "invalid serde enum data: tagged other in externally tagged",
+                            )),
+                            (
                                 SerdeDataVariantType::Newtype { inner: ty },
                                 SerdeDataVariantValue::Newtype { inner: value },
                             ) => variant.newtype_variant_seed(BorrowedTypedSerdeData { ty, value }),
@@ -1517,6 +1559,12 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         .deserialize_any(serde::__private::de::UntaggedUnitVisitor::new(
                             name, variant,
                         )),
+                    (
+                        SerdeDataVariantType::TaggedOther,
+                        SerdeDataVariantValue::TaggedOther { .. },
+                    ) => Err(serde::de::Error::custom(
+                        "invalid serde enum data: tagged other in untagged",
+                    )),
                     (
                         SerdeDataVariantType::Newtype { inner: ty },
                         SerdeDataVariantValue::Newtype { inner: value },
@@ -1903,6 +1951,69 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         )
                     }
                     (
+                        SerdeDataVariantType::TaggedOther,
+                        SerdeDataVariantValue::TaggedOther {
+                            variant: other_variant,
+                            index: other_variant_index,
+                        },
+                    ) => {
+                        struct AdjacentlyTaggedOtherVariantVisitor<'a> {
+                            tag: &'a str,
+                            variant: &'a str,
+                            other_variant: &'a str,
+                            other_variant_index: u32,
+                            content: &'a str,
+                        }
+
+                        impl<'a, 'de> Visitor<'de> for AdjacentlyTaggedOtherVariantVisitor<'a> {
+                            type Value = ();
+
+                            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                                formatter
+                                    .write_fmt(format_args!("the unit variant {}", self.variant))
+                            }
+
+                            fn visit_seq<A: SeqAccess<'de>>(
+                                self,
+                                mut seq: A,
+                            ) -> Result<Self::Value, A::Error> {
+                                if let Some(tag) = seq.next_element::<DelayedVariantIdentifier>()? {
+                                    tag.check_variant(self.other_variant, self.other_variant_index)
+                                } else {
+                                    Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }))
+                                }
+                            }
+
+                            fn visit_map<A: MapAccess<'de>>(
+                                self,
+                                mut map: A,
+                            ) -> Result<Self::Value, A::Error> {
+                                let Some(serde::__private::de::TagOrContentField::Tag) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
+                                    tag: unsafe { to_static_str(self.tag) },
+                                    content: unsafe { to_static_str(self.content) },
+                                })? else {
+                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                };
+                                map.next_value::<DelayedVariantIdentifier>()?
+                                    .check_variant(self.other_variant, self.other_variant_index)
+                            }
+                        }
+
+                        deserializer.deserialize_struct(
+                            unsafe { to_static_str(name) },
+                            unsafe { to_static_str_slice(std::slice::from_ref(tag)) },
+                            AdjacentlyTaggedOtherVariantVisitor {
+                                tag,
+                                variant,
+                                other_variant,
+                                other_variant_index: *other_variant_index,
+                                content,
+                            },
+                        )
+                    }
+                    (
                         SerdeDataVariantType::Newtype { inner: ty },
                         SerdeDataVariantValue::Newtype { inner: value },
                     ) => {
@@ -2275,6 +2386,15 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         format!("the unit variant {}", variant)
                     }
                     (
+                        SerdeDataVariantType::TaggedOther,
+                        SerdeDataVariantValue::TaggedOther {
+                            variant: _,
+                            index: _,
+                        },
+                    ) => {
+                        format!("the unit variant {}", variant)
+                    }
+                    (
                         SerdeDataVariantType::Newtype { .. },
                         SerdeDataVariantValue::Newtype { .. },
                     ) => format!("the newtype variant {}", variant),
@@ -2372,7 +2492,17 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         unsafe { to_static_str(tag) },
                         unsafe { to_static_str(&expecting) },
                     ))?;
-                tag.check_variant(variant, *variant_index)?;
+
+                match (ty, value) {
+                    (
+                        SerdeDataVariantType::TaggedOther,
+                        SerdeDataVariantValue::TaggedOther {
+                            variant: other_variant,
+                            index: other_variant_index,
+                        },
+                    ) => tag.check_variant(other_variant, *other_variant_index),
+                    _ => tag.check_variant(variant, *variant_index),
+                }?;
 
                 let deserializer =
                     serde::__private::de::ContentDeserializer::<D::Error>::new(content);
@@ -2382,6 +2512,15 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         .deserialize_any(serde::__private::de::InternallyTaggedUnitVisitor::new(
                             name, variant,
                         )),
+                    (
+                        SerdeDataVariantType::TaggedOther,
+                        SerdeDataVariantValue::TaggedOther {
+                            variant: other_variant,
+                            index: _,
+                        },
+                    ) => deserializer.deserialize_any(
+                        serde::__private::de::InternallyTaggedUnitVisitor::new(name, other_variant),
+                    ),
                     (
                         SerdeDataVariantType::Newtype { inner: ty },
                         SerdeDataVariantValue::Newtype { inner: value },
@@ -2848,6 +2987,24 @@ impl<'a> SerdeDataType<'a> {
 
                 let value = match ty {
                     SerdeDataVariantType::Unit => SerdeDataVariantValue::Unit,
+                    SerdeDataVariantType::TaggedOther => {
+                        if matches!(
+                            representation,
+                            SerdeEnumRepresentation::ExternallyTagged
+                                | SerdeEnumRepresentation::Untagged
+                        ) {
+                            return Err(arbitrary::Error::IncorrectFormat);
+                        }
+
+                        SerdeDataVariantValue::TaggedOther {
+                            variant: u.arbitrary()?,
+                            index: u.int_in_range(
+                                u32::try_from(variants.1.len())
+                                    .map_err(|_| arbitrary::Error::IncorrectFormat)?
+                                    ..=u32::MAX,
+                            )?,
+                        }
+                    }
                     SerdeDataVariantType::Newtype { ref mut inner } => {
                         let value = Box::new(inner.arbitrary_value(u, pretty)?);
                         if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_untagged(pretty))
@@ -3020,6 +3177,7 @@ impl<'a> SerdeDataType<'a> {
                 representation,
             } => variants.1.iter().all(|variant| match variant {
                 SerdeDataVariantType::Unit => true,
+                SerdeDataVariantType::TaggedOther => true,
                 SerdeDataVariantType::Newtype { inner } => inner.supported_inside_untagged(pretty),
                 SerdeDataVariantType::Tuple { fields } => {
                     if fields.is_empty() {
@@ -3122,7 +3280,11 @@ impl<'a> SerdeDataType<'a> {
                 let Some(ty) = variants.1.get(*variant_index as usize) else { return false };
 
                 match (ty, value) {
-                    (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit) => {
+                    (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit)
+                    | (
+                        SerdeDataVariantType::TaggedOther,
+                        SerdeDataVariantValue::TaggedOther { .. },
+                    ) => {
                         // BUG: an untagged unit variant requires a unit,
                         //      but it won't get one because it serialises itself as a unit,
                         //      which is only serialised with the tag
@@ -3161,6 +3323,7 @@ impl<'a> SerdeDataType<'a> {
 pub enum SerdeDataVariantType<'a> {
     #[default]
     Unit,
+    TaggedOther,
     Newtype {
         #[arbitrary(with = arbitrary_recursion_guard)]
         inner: Box<SerdeDataType<'a>>,
@@ -3179,6 +3342,10 @@ pub enum SerdeDataVariantType<'a> {
 pub enum SerdeDataVariantValue<'a> {
     #[default]
     Unit,
+    TaggedOther {
+        variant: &'a str,
+        index: u32,
+    },
     Newtype {
         #[arbitrary(with = arbitrary_recursion_guard)]
         inner: Box<SerdeDataValue<'a>>,
