@@ -463,3 +463,22 @@ fn byte_literal() {
         })
     );
 }
+
+#[test]
+fn invalid_identifier() {
+    #[allow(dead_code)]
+    #[derive(Debug, Deserialize)] // GRCOV_EXCL_LINE
+    struct Test {
+        a: i32,
+    }
+
+    for id in ["b\"", "b'", "br#", "br\"", "r\"", "r#\"", "r##"] {
+        assert_eq!(
+            ron::from_str::<Test>(&format!("({}: 42)", id)).unwrap_err(),
+            SpannedError {
+                code: Error::ExpectedIdentifier,
+                position: Position { line: 1, col: 2 },
+            }
+        );
+    }
+}
