@@ -320,10 +320,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_f64(std::f64::NAN);
         }
 
-        // `identifier` does not change state if it fails
-        let ident = self.parser.identifier().ok();
-
-        if let Some(ident) = ident {
+        // `skip_identifier` does not change state if it fails
+        if let Some(ident) = self.parser.skip_identifier() {
             self.parser.skip_ws()?;
 
             return self.handle_any_struct(visitor, Some(ident));

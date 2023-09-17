@@ -563,7 +563,7 @@ impl<'a> Parser<'a> {
 
             parser.skip_ws()?;
 
-            if parser.skip_identifier() {
+            if parser.skip_identifier().is_some() {
                 parser.skip_ws()?;
 
                 match parser.peek_char() {
@@ -817,7 +817,7 @@ impl<'a> Parser<'a> {
         Ok(value)
     }
 
-    pub fn skip_identifier(&mut self) -> bool {
+    pub fn skip_identifier(&mut self) -> Option<&'a str> {
         #[allow(clippy::nonminimal_bool)]
         if self.check_str("b\"") // byte string
             || self.check_str("b'") // byte literal
@@ -828,30 +828,32 @@ impl<'a> Parser<'a> {
             || self.check_str("r##") // raw string
             || false
         {
-            return false;
+            return None;
         }
 
         if self.check_str("r#") {
             // maybe a raw identifier
             let len = self.next_chars_while_from_len(2, is_ident_raw_char);
             if len > 0 {
+                let ident = &self.src()[2..2 + len];
                 self.advance_bytes(2 + len);
-                return true;
+                return Some(ident);
             }
-            return false;
+            return None;
         }
 
         if let Some(c) = self.peek_char() {
             // maybe a normal identifier
             if is_ident_first_char(c) {
-                self.advance_bytes(
-                    c.len_utf8() + self.next_chars_while_from_len(c.len_utf8(), is_xid_continue),
-                );
-                return true;
+                let len =
+                    c.len_utf8() + self.next_chars_while_from_len(c.len_utf8(), is_xid_continue);
+                let ident = &self.src()[..len];
+                self.advance_bytes(len);
+                return Some(ident);
             }
         }
 
-        false
+        None
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
