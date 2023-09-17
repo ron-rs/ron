@@ -1389,8 +1389,6 @@ impl<'a> SerdeDataType<'a> {
         &mut self,
         u: &mut Unstructured<'u>,
     ) -> arbitrary::Result<SerdeDataValue<'u>> {
-        let u_len = u.len();
-
         let mut name_length: usize = 0;
 
         let value = match self {
@@ -1558,10 +1556,8 @@ impl<'a> SerdeDataType<'a> {
             let _ = u.arbitrary::<bool>()?;
         }
 
-        if u.len() == u_len {
-            // Enforce that producing a value is never free
-            let _ = u.arbitrary::<bool>()?;
-        }
+        // Enforce that producing a value or adding a level is never free
+        let _ = u.arbitrary::<bool>()?;
 
         Ok(value)
     }
