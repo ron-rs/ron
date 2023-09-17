@@ -297,19 +297,47 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                 },
                 SerdeDataValue::Struct { fields: values },
             ) => {
-                if values.len() != fields.0.len() || values.len() != fields.1.len() {
+                if values.len() != fields.0.len()
+                    || values.len() != fields.1.len()
+                    || values.len() != fields.2.len()
+                {
                     return Err(serde::ser::Error::custom("mismatch struct fields len"));
                 }
 
-                let mut r#struct =
-                    serializer.serialize_struct(unsafe { to_static_str(name) }, values.len())?;
-                for ((field, ty), data) in fields.0.iter().zip(fields.1.iter()).zip(values.iter()) {
-                    r#struct.serialize_field(
-                        unsafe { to_static_str(field) },
-                        &BorrowedTypedSerdeData { ty, value: data },
-                    )?;
+                if fields.2.iter().any(|x| *x) {
+                    let mut map = serializer.serialize_map(None)?;
+                    for (((field, ty), flatten), data) in fields
+                        .0
+                        .iter()
+                        .zip(fields.1.iter())
+                        .zip(fields.2.iter())
+                        .zip(values.iter())
+                    {
+                        if *flatten {
+                            (&BorrowedTypedSerdeData { ty, value: data }
+                                as &dyn erased_serde::Serialize)
+                                .serialize(serde::__private::ser::FlatMapSerializer(&mut map))?;
+                        } else {
+                            map.serialize_entry(
+                                field,
+                                &BorrowedTypedSerdeData { ty, value: data },
+                            )?;
+                        }
+                    }
+                    map.end()
+                } else {
+                    let mut r#struct = serializer
+                        .serialize_struct(unsafe { to_static_str(name) }, values.len())?;
+                    for ((field, ty), data) in
+                        fields.0.iter().zip(fields.1.iter()).zip(values.iter())
+                    {
+                        r#struct.serialize_field(
+                            unsafe { to_static_str(field) },
+                            &BorrowedTypedSerdeData { ty, value: data },
+                        )?;
+                    }
+                    r#struct.end()
                 }
-                r#struct.end()
             }
             (
                 SerdeDataType::Enum {
@@ -523,7 +551,10 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                         SerdeDataVariantType::Struct { fields },
                         SerdeDataVariantValue::Struct { fields: values },
                     ) => {
-                        if values.len() != fields.0.len() || values.len() != fields.1.len() {
+                        if values.len() != fields.0.len()
+                            || values.len() != fields.1.len()
+                            || values.len() != fields.2.len()
+                        {
                             return Err(serde::ser::Error::custom(
                                 "mismatch struct variant fields len",
                             ));
@@ -531,7 +562,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
 
                         struct UntaggedStruct<'a> {
                             name: &'a str,
-                            fields: &'a (Vec<&'a str>, Vec<SerdeDataType<'a>>),
+                            fields: &'a (Vec<&'a str>, Vec<SerdeDataType<'a>>, Vec<bool>),
                             values: &'a [SerdeDataValue<'a>],
                         }
 
@@ -560,66 +591,187 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        match representation {
-                            SerdeEnumRepresentation::ExternallyTagged => {
-                                let mut r#struct = serializer.serialize_struct_variant(
-                                    unsafe { to_static_str(name) },
-                                    *variant_index,
-                                    unsafe { to_static_str(variant) },
-                                    values.len(),
-                                )?;
-                                for ((field, ty), data) in
-                                    fields.0.iter().zip(fields.1.iter()).zip(values.iter())
-                                {
-                                    r#struct.serialize_field(
-                                        unsafe { to_static_str(field) },
-                                        &BorrowedTypedSerdeData { ty, value: data },
-                                    )?;
+                        if fields.2.iter().any(|x| *x) {
+                            struct FlattenedStructVariant<'a> {
+                                fields: &'a (Vec<&'a str>, Vec<SerdeDataType<'a>>, Vec<bool>),
+                                values: &'a [SerdeDataValue<'a>],
+                            }
+
+                            impl<'a> Serialize for FlattenedStructVariant<'a> {
+                                fn serialize<S: Serializer>(
+                                    &self,
+                                    serializer: S,
+                                ) -> Result<S::Ok, S::Error> {
+                                    let mut map = serializer.serialize_map(None)?;
+                                    for (((field, ty), flatten), data) in self
+                                        .fields
+                                        .0
+                                        .iter()
+                                        .zip(self.fields.1.iter())
+                                        .zip(self.fields.2.iter())
+                                        .zip(self.values.iter())
+                                    {
+                                        if *flatten {
+                                            (&BorrowedTypedSerdeData { ty, value: data }
+                                                as &dyn erased_serde::Serialize)
+                                                .serialize(
+                                                    serde::__private::ser::FlatMapSerializer(
+                                                        &mut map,
+                                                    ),
+                                                )?;
+                                        } else {
+                                            map.serialize_entry(
+                                                field,
+                                                &BorrowedTypedSerdeData { ty, value: data },
+                                            )?;
+                                        }
+                                    }
+                                    map.end()
                                 }
-                                r#struct.end()
                             }
-                            SerdeEnumRepresentation::Untagged => UntaggedStruct {
-                                name,
-                                fields,
-                                values,
-                            }
-                            .serialize(serializer),
-                            SerdeEnumRepresentation::AdjacentlyTagged { tag, content } => {
-                                let mut r#struct = serializer
-                                    .serialize_struct(unsafe { to_static_str(name) }, 2)?;
-                                r#struct.serialize_field(
-                                    unsafe { to_static_str(tag) },
-                                    &serde::__private::ser::AdjacentlyTaggedEnumVariant {
-                                        enum_name: unsafe { to_static_str(name) },
-                                        variant_index: *variant_index,
-                                        variant_name: unsafe { to_static_str(variant) },
-                                    },
-                                )?;
-                                r#struct.serialize_field(
-                                    unsafe { to_static_str(content) },
-                                    &UntaggedStruct {
-                                        name,
-                                        fields,
-                                        values,
-                                    },
-                                )?;
-                                r#struct.end()
-                            }
-                            SerdeEnumRepresentation::InternallyTagged { tag } => {
-                                let mut r#struct = serializer.serialize_struct(
-                                    unsafe { to_static_str(name) },
-                                    values.len() + 1,
-                                )?;
-                                r#struct.serialize_field(unsafe { to_static_str(tag) }, variant)?;
-                                for ((field, ty), data) in
-                                    fields.0.iter().zip(fields.1.iter()).zip(values.iter())
-                                {
-                                    r#struct.serialize_field(
-                                        unsafe { to_static_str(field) },
-                                        &BorrowedTypedSerdeData { ty, value: data },
-                                    )?;
+
+                            match representation {
+                                SerdeEnumRepresentation::ExternallyTagged => serializer
+                                    .serialize_newtype_variant(
+                                        unsafe { to_static_str(name) },
+                                        *variant_index,
+                                        unsafe { to_static_str(variant) },
+                                        &FlattenedStructVariant { fields, values },
+                                    ),
+                                SerdeEnumRepresentation::Untagged => {
+                                    let mut map = serializer.serialize_map(None)?;
+                                    for (((field, ty), flatten), data) in fields
+                                        .0
+                                        .iter()
+                                        .zip(fields.1.iter())
+                                        .zip(fields.2.iter())
+                                        .zip(values.iter())
+                                    {
+                                        if *flatten {
+                                            (&BorrowedTypedSerdeData { ty, value: data }
+                                                as &dyn erased_serde::Serialize)
+                                                .serialize(
+                                                    serde::__private::ser::FlatMapSerializer(
+                                                        &mut map,
+                                                    ),
+                                                )?;
+                                        } else {
+                                            map.serialize_entry(
+                                                field,
+                                                &BorrowedTypedSerdeData { ty, value: data },
+                                            )?;
+                                        }
+                                    }
+                                    map.end()
                                 }
-                                r#struct.end()
+                                SerdeEnumRepresentation::AdjacentlyTagged { tag, content } => {
+                                    let mut r#struct = serializer
+                                        .serialize_struct(unsafe { to_static_str(name) }, 2)?;
+                                    r#struct.serialize_field(
+                                        unsafe { to_static_str(tag) },
+                                        &serde::__private::ser::AdjacentlyTaggedEnumVariant {
+                                            enum_name: unsafe { to_static_str(name) },
+                                            variant_index: *variant_index,
+                                            variant_name: unsafe { to_static_str(variant) },
+                                        },
+                                    )?;
+                                    r#struct.serialize_field(
+                                        unsafe { to_static_str(content) },
+                                        &FlattenedStructVariant { fields, values },
+                                    )?;
+                                    r#struct.end()
+                                }
+                                SerdeEnumRepresentation::InternallyTagged { tag } => {
+                                    let mut map = serializer.serialize_map(None)?;
+                                    map.serialize_entry(tag, variant)?;
+                                    for (((field, ty), flatten), data) in fields
+                                        .0
+                                        .iter()
+                                        .zip(fields.1.iter())
+                                        .zip(fields.2.iter())
+                                        .zip(values.iter())
+                                    {
+                                        if *flatten {
+                                            (&BorrowedTypedSerdeData { ty, value: data }
+                                                as &dyn erased_serde::Serialize)
+                                                .serialize(
+                                                    serde::__private::ser::FlatMapSerializer(
+                                                        &mut map,
+                                                    ),
+                                                )?;
+                                        } else {
+                                            map.serialize_entry(
+                                                field,
+                                                &BorrowedTypedSerdeData { ty, value: data },
+                                            )?;
+                                        }
+                                    }
+                                    map.end()
+                                }
+                            }
+                        } else {
+                            match representation {
+                                SerdeEnumRepresentation::ExternallyTagged => {
+                                    let mut r#struct = serializer.serialize_struct_variant(
+                                        unsafe { to_static_str(name) },
+                                        *variant_index,
+                                        unsafe { to_static_str(variant) },
+                                        values.len(),
+                                    )?;
+                                    for ((field, ty), data) in
+                                        fields.0.iter().zip(fields.1.iter()).zip(values.iter())
+                                    {
+                                        r#struct.serialize_field(
+                                            unsafe { to_static_str(field) },
+                                            &BorrowedTypedSerdeData { ty, value: data },
+                                        )?;
+                                    }
+                                    r#struct.end()
+                                }
+                                SerdeEnumRepresentation::Untagged => UntaggedStruct {
+                                    name,
+                                    fields,
+                                    values,
+                                }
+                                .serialize(serializer),
+                                SerdeEnumRepresentation::AdjacentlyTagged { tag, content } => {
+                                    let mut r#struct = serializer
+                                        .serialize_struct(unsafe { to_static_str(name) }, 2)?;
+                                    r#struct.serialize_field(
+                                        unsafe { to_static_str(tag) },
+                                        &serde::__private::ser::AdjacentlyTaggedEnumVariant {
+                                            enum_name: unsafe { to_static_str(name) },
+                                            variant_index: *variant_index,
+                                            variant_name: unsafe { to_static_str(variant) },
+                                        },
+                                    )?;
+                                    r#struct.serialize_field(
+                                        unsafe { to_static_str(content) },
+                                        &UntaggedStruct {
+                                            name,
+                                            fields,
+                                            values,
+                                        },
+                                    )?;
+                                    r#struct.end()
+                                }
+                                SerdeEnumRepresentation::InternallyTagged { tag } => {
+                                    let mut r#struct = serializer.serialize_struct(
+                                        unsafe { to_static_str(name) },
+                                        values.len() + 1,
+                                    )?;
+                                    r#struct
+                                        .serialize_field(unsafe { to_static_str(tag) }, variant)?;
+                                    for ((field, ty), data) in
+                                        fields.0.iter().zip(fields.1.iter()).zip(values.iter())
+                                    {
+                                        r#struct.serialize_field(
+                                            unsafe { to_static_str(field) },
+                                            &BorrowedTypedSerdeData { ty, value: data },
+                                        )?;
+                                    }
+                                    r#struct.end()
+                                }
                             }
                         }
                     }
@@ -1187,20 +1339,28 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
                 }
 
-                if values.len() != fields.0.len() || values.len() != fields.1.len() {
+                if values.len() != fields.0.len()
+                    || values.len() != fields.1.len()
+                    || values.len() != fields.2.len()
+                {
                     return Err(serde::de::Error::custom("mismatch struct fields len"));
                 }
 
-                deserializer.deserialize_struct(
-                    unsafe { to_static_str(name) },
-                    unsafe { to_static_str_slice(&fields.0) },
-                    StructVisitor {
-                        name,
-                        fields: &fields.0,
-                        tys: &fields.1,
-                        values,
-                    },
-                )
+                if fields.2.iter().any(|x| *x) {
+                    // TODO: deserialize a flattened struct
+                    serde::de::IgnoredAny::deserialize(deserializer).map(|_| ())
+                } else {
+                    deserializer.deserialize_struct(
+                        unsafe { to_static_str(name) },
+                        unsafe { to_static_str_slice(&fields.0) },
+                        StructVisitor {
+                            name,
+                            fields: &fields.0,
+                            tys: &fields.1,
+                            values,
+                        },
+                    )
+                }
             }
             (
                 SerdeDataType::Enum {
@@ -1503,7 +1663,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     }
                                 }
 
-                                if values.len() != fields.0.len() || values.len() != fields.1.len()
+                                if values.len() != fields.0.len()
+                                    || values.len() != fields.1.len()
+                                    || values.len() != fields.2.len()
                                 {
                                     return Err(serde::de::Error::custom(
                                         "mismatch struct fields len",
@@ -1533,17 +1695,23 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     _ => return Err(serde::de::Error::custom("out of bounds variant index")),
                 };
 
-                deserializer.deserialize_enum(
-                    unsafe { to_static_str(name) },
-                    unsafe { to_static_str_slice(&variants.0) },
-                    EnumVisitor {
-                        name,
-                        variant,
-                        index: *variant_index,
-                        ty,
-                        value,
-                    },
-                )
+                if matches!(ty, SerdeDataVariantType::Struct { fields } if fields.2.iter().any(|x| *x))
+                {
+                    // TODO: deserialize a flattened externally-tagged struct variant
+                    serde::de::IgnoredAny::deserialize(deserializer).map(|_| ())
+                } else {
+                    deserializer.deserialize_enum(
+                        unsafe { to_static_str(name) },
+                        unsafe { to_static_str_slice(&variants.0) },
+                        EnumVisitor {
+                            name,
+                            variant,
+                            index: *variant_index,
+                            ty,
+                            value,
+                        },
+                    )
+                }
             }
             (
                 SerdeDataType::Enum {
@@ -1737,20 +1905,28 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        if values.len() != fields.0.len() || values.len() != fields.1.len() {
+                        if values.len() != fields.0.len()
+                            || values.len() != fields.1.len()
+                            || values.len() != fields.2.len()
+                        {
                             return Err(serde::de::Error::custom("mismatch struct fields len"));
                         }
 
-                        deserializer.deserialize_struct(
-                            unsafe { to_static_str(name) },
-                            unsafe { to_static_str_slice(&fields.0) },
-                            StructVariantVisitor {
-                                variant,
-                                fields: &fields.0,
-                                tys: &fields.1,
-                                values,
-                            },
-                        )
+                        if fields.2.iter().any(|x| *x) {
+                            // TODO: deserialize a flattened untagged struct variant
+                            serde::de::IgnoredAny::deserialize(deserializer).map(|_| ())
+                        } else {
+                            deserializer.deserialize_struct(
+                                unsafe { to_static_str(name) },
+                                unsafe { to_static_str_slice(&fields.0) },
+                                StructVariantVisitor {
+                                    variant,
+                                    fields: &fields.0,
+                                    tys: &fields.1,
+                                    values,
+                                },
+                            )
+                        }
                     }
                     _ => Err(serde::de::Error::custom("invalid serde enum data")),
                 }
@@ -2354,24 +2530,32 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        if values.len() != fields.0.len() || values.len() != fields.1.len() {
+                        if values.len() != fields.0.len()
+                            || values.len() != fields.1.len()
+                            || values.len() != fields.2.len()
+                        {
                             return Err(serde::de::Error::custom("mismatch struct fields len"));
                         }
 
-                        deserializer.deserialize_struct(
-                            unsafe { to_static_str(name) },
-                            unsafe { to_static_str_slice(&[tag, content]) },
-                            AdjacentlyTaggedStructVariantVisitor {
-                                name,
-                                tag,
-                                variant,
-                                variant_index: *variant_index,
-                                content,
-                                fields: &fields.0,
-                                tys: &fields.1,
-                                values,
-                            },
-                        )
+                        if fields.2.iter().any(|x| *x) {
+                            // TODO: deserialize a flattened adjacently tagged struct variant
+                            serde::de::IgnoredAny::deserialize(deserializer).map(|_| ())
+                        } else {
+                            deserializer.deserialize_struct(
+                                unsafe { to_static_str(name) },
+                                unsafe { to_static_str_slice(&[tag, content]) },
+                                AdjacentlyTaggedStructVariantVisitor {
+                                    name,
+                                    tag,
+                                    variant,
+                                    variant_index: *variant_index,
+                                    content,
+                                    fields: &fields.0,
+                                    tys: &fields.1,
+                                    values,
+                                },
+                            )
+                        }
                     }
                     _ => Err(serde::de::Error::custom("invalid serde enum data")),
                 }
@@ -2665,20 +2849,28 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        if values.len() != fields.0.len() || values.len() != fields.1.len() {
+                        if values.len() != fields.0.len()
+                            || values.len() != fields.1.len()
+                            || values.len() != fields.2.len()
+                        {
                             return Err(serde::de::Error::custom("mismatch struct fields len"));
                         }
 
-                        deserializer.deserialize_struct(
-                            unsafe { to_static_str(name) },
-                            unsafe { to_static_str_slice(&fields.0) },
-                            StructVariantVisitor {
-                                variant,
-                                fields: &fields.0,
-                                tys: &fields.1,
-                                values,
-                            },
-                        )
+                        if fields.2.iter().any(|x| *x) {
+                            // TODO: deserialize a flattened internally tagged struct variant
+                            serde::de::IgnoredAny::deserialize(deserializer).map(|_| ())
+                        } else {
+                            deserializer.deserialize_struct(
+                                unsafe { to_static_str(name) },
+                                unsafe { to_static_str_slice(&fields.0) },
+                                StructVariantVisitor {
+                                    variant,
+                                    fields: &fields.0,
+                                    tys: &fields.1,
+                                    values,
+                                },
+                            )
+                        }
                     }
                     _ => Err(serde::de::Error::custom("invalid serde enum data")),
                 }
@@ -2813,12 +3005,12 @@ pub enum SerdeDataType<'a> {
     Struct {
         name: &'a str,
         tag: Option<&'a str>,
-        #[arbitrary(with = arbitrary_str_tuple_vec_recursion_guard)]
-        fields: (Vec<&'a str>, Vec<Self>),
+        #[arbitrary(with = arbitrary_struct_fields_recursion_guard)]
+        fields: (Vec<&'a str>, Vec<Self>, Vec<bool>),
     },
     Enum {
         name: &'a str,
-        #[arbitrary(with = arbitrary_str_tuple_vec_recursion_guard)]
+        #[arbitrary(with = arbitrary_enum_variants_recursion_guard)]
         variants: (Vec<&'a str>, Vec<SerdeDataVariantType<'a>>),
         representation: SerdeEnumRepresentation<'a>,
     },
@@ -2958,6 +3150,12 @@ impl<'a> SerdeDataType<'a> {
             }
             SerdeDataType::Struct { name, tag, fields } => {
                 name_length += name.len();
+                for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
+                    // Flattened fields are deserialised through serde's content type
+                    if *flatten && !ty.supported_inside_untagged(pretty, false) {
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    }
+                }
                 if let Some(tag) = tag {
                     // This is not very elegant but emulates internally tagged structs
                     //  in a way that minimises code in the fuzzer and actually allows
@@ -2967,6 +3165,7 @@ impl<'a> SerdeDataType<'a> {
                     {
                         fields.0.insert(0, tag);
                         fields.1.insert(0, SerdeDataType::String);
+                        fields.2.insert(0, false);
                     }
                 }
                 let mut r#struct = Vec::with_capacity(fields.1.len() + usize::from(tag.is_some()));
@@ -3095,6 +3294,12 @@ impl<'a> SerdeDataType<'a> {
                         ) {
                             // BUG: empty untagged struct variants look like units to ron
                             return Err(arbitrary::Error::IncorrectFormat);
+                        }
+                        for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
+                            // Flattened fields are deserialised through serde's content type
+                            if *flatten && !ty.supported_inside_untagged(pretty, false) {
+                                return Err(arbitrary::Error::IncorrectFormat);
+                            }
                         }
                         let mut r#struct = Vec::with_capacity(fields.1.len());
                         for (field, ty) in fields.0.iter().zip(&mut fields.1) {
@@ -3385,6 +3590,72 @@ impl<'a> SerdeDataType<'a> {
             }
         }
     }
+
+    fn supported_inside_flatten(&self) -> bool {
+        match self {
+            SerdeDataType::Unit => true,
+            SerdeDataType::Bool => false,
+            SerdeDataType::I8 => false,
+            SerdeDataType::I16 => false,
+            SerdeDataType::I32 => false,
+            SerdeDataType::I64 => false,
+            SerdeDataType::I128 => false,
+            SerdeDataType::ISize => false,
+            SerdeDataType::U8 => false,
+            SerdeDataType::U16 => false,
+            SerdeDataType::U32 => false,
+            SerdeDataType::U64 => false,
+            SerdeDataType::U128 => false,
+            SerdeDataType::USize => false,
+            SerdeDataType::F32 => false,
+            SerdeDataType::F64 => false,
+            SerdeDataType::Char => false,
+            SerdeDataType::String => false,
+            SerdeDataType::ByteBuf => false,
+            SerdeDataType::Option { inner } => inner.supported_inside_flatten(),
+            SerdeDataType::Array { kind: _, len: _ } => false,
+            SerdeDataType::Tuple { elems: _ } => false,
+            SerdeDataType::Vec { item: _ } => false,
+            SerdeDataType::Map { key: _, value: _ } => true,
+            SerdeDataType::UnitStruct { name: _ } => false,
+            SerdeDataType::Newtype { name, inner } => {
+                if *name == RAW_VALUE_TOKEN {
+                    return false;
+                }
+
+                inner.supported_inside_flatten()
+            }
+            SerdeDataType::TupleStruct { name: _, fields: _ } => false,
+            SerdeDataType::Struct {
+                name: _,
+                tag: _,
+                fields: _,
+            } => true,
+            SerdeDataType::Enum {
+                name: _,
+                variants,
+                representation,
+            } => variants.1.iter().all(|variant| match variant {
+                SerdeDataVariantType::Unit => {
+                    matches!(representation, SerdeEnumRepresentation::Untagged)
+                }
+                SerdeDataVariantType::TaggedOther => {
+                    matches!(representation, SerdeEnumRepresentation::Untagged)
+                }
+                SerdeDataVariantType::Newtype { inner } => {
+                    if matches!(representation, SerdeEnumRepresentation::Untagged) {
+                        inner.supported_inside_flatten()
+                    } else {
+                        true
+                    }
+                }
+                SerdeDataVariantType::Tuple { fields: _ } => {
+                    !matches!(representation, SerdeEnumRepresentation::Untagged)
+                }
+                SerdeDataVariantType::Struct { fields: _ } => true,
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Arbitrary, Serialize)]
@@ -3401,8 +3672,8 @@ pub enum SerdeDataVariantType<'a> {
         fields: Vec<SerdeDataType<'a>>,
     },
     Struct {
-        #[arbitrary(with = arbitrary_str_tuple_vec_recursion_guard)]
-        fields: (Vec<&'a str>, Vec<SerdeDataType<'a>>),
+        #[arbitrary(with = arbitrary_struct_fields_recursion_guard)]
+        fields: (Vec<&'a str>, Vec<SerdeDataType<'a>>, Vec<bool>),
     },
 }
 
@@ -3442,24 +3713,55 @@ fn arbitrary_recursion_guard<'a, T: Arbitrary<'a> + Default>(
     result
 }
 
-fn arbitrary_str_tuple_vec_recursion_guard<'a, T: Arbitrary<'a>>(
+fn arbitrary_struct_fields_recursion_guard<'a>(
     u: &mut Unstructured<'a>,
-) -> arbitrary::Result<(Vec<&'a str>, Vec<T>)> {
+) -> arbitrary::Result<(Vec<&'a str>, Vec<SerdeDataType<'a>>, Vec<bool>)> {
     let max_depth = RECURSION_LIMIT * 2;
 
     let result = if RECURSION_DEPTH.fetch_add(1, Ordering::Relaxed) < max_depth {
-        let mut s = Vec::new();
-        let mut v = Vec::new();
+        let mut fields = Vec::new();
+        let mut types = Vec::new();
+        let mut flattened = Vec::new();
 
         while u.arbitrary()? {
-            s.push(<&str>::arbitrary(u)?);
-            v.push(T::arbitrary(u)?);
+            fields.push(<&str>::arbitrary(u)?);
+            let ty = SerdeDataType::arbitrary(u)?;
+            flattened.push(u.arbitrary()? && ty.supported_inside_flatten());
+            types.push(ty);
         }
 
-        s.shrink_to_fit();
-        v.shrink_to_fit();
+        fields.shrink_to_fit();
+        types.shrink_to_fit();
+        flattened.shrink_to_fit();
 
-        Ok((s, v))
+        Ok((fields, types, flattened))
+    } else {
+        Ok((Vec::new(), Vec::new(), Vec::new()))
+    };
+
+    RECURSION_DEPTH.fetch_sub(1, Ordering::Relaxed);
+
+    result
+}
+
+fn arbitrary_enum_variants_recursion_guard<'a>(
+    u: &mut Unstructured<'a>,
+) -> arbitrary::Result<(Vec<&'a str>, Vec<SerdeDataVariantType<'a>>)> {
+    let max_depth = RECURSION_LIMIT * 2;
+
+    let result = if RECURSION_DEPTH.fetch_add(1, Ordering::Relaxed) < max_depth {
+        let mut variants = Vec::new();
+        let mut types = Vec::new();
+
+        while u.arbitrary()? {
+            variants.push(<&str>::arbitrary(u)?);
+            types.push(SerdeDataVariantType::arbitrary(u)?);
+        }
+
+        variants.shrink_to_fit();
+        types.shrink_to_fit();
+
+        Ok((variants, types))
     } else {
         Ok((Vec::new(), Vec::new()))
     };
