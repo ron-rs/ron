@@ -3803,7 +3803,10 @@ impl<'a> SerdeDataType<'a> {
                 fields
                     .1
                     .iter()
-                    .all(|field| field.supported_inside_untagged(pretty, false))
+                    .zip(fields.2.iter())
+                    .all(|(field, flatten)| field.supported_inside_untagged(pretty, false) && (
+                        !*flatten || field.supported_inside_flatten(true)
+                    ))
             }
             SerdeDataType::Enum {
                 name: _,
@@ -3841,7 +3844,10 @@ impl<'a> SerdeDataType<'a> {
                     fields
                         .1
                         .iter()
-                        .all(|field| field.supported_inside_untagged(pretty, false))
+                        .zip(fields.2.iter())
+                        .all(|(field, flatten)| field.supported_inside_untagged(pretty, false) && (
+                            !*flatten || field.supported_inside_flatten(true)
+                        ))
                 }
             }),
         }
@@ -3958,7 +3964,7 @@ impl<'a> SerdeDataType<'a> {
         }
     }
 
-    fn supported_inside_flatten(&self) -> bool {
+    fn supported_inside_flatten(&self, inside_untagged: bool) -> bool {
         match self {
             SerdeDataType::Unit => true,
             SerdeDataType::Bool => false,
@@ -3979,18 +3985,18 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::Char => false,
             SerdeDataType::String => false,
             SerdeDataType::ByteBuf => false,
-            SerdeDataType::Option { inner } => inner.supported_inside_flatten(),
+            SerdeDataType::Option { inner } => false, // inner.supported_inside_flatten(),
             SerdeDataType::Array { kind: _, len: _ } => false,
             SerdeDataType::Tuple { elems: _ } => false,
             SerdeDataType::Vec { item: _ } => false,
-            SerdeDataType::Map { key: _, value: _ } => true,
+            SerdeDataType::Map { key, value: _ } => key.supported_inside_flatten_key(inside_untagged),
             SerdeDataType::UnitStruct { name: _ } => false,
             SerdeDataType::Newtype { name, inner } => {
                 if *name == RAW_VALUE_TOKEN {
                     return false;
                 }
 
-                inner.supported_inside_flatten()
+                inner.supported_inside_flatten(inside_untagged)
             }
             SerdeDataType::TupleStruct { name: _, fields: _ } => false,
             SerdeDataType::Struct {
@@ -4004,14 +4010,18 @@ impl<'a> SerdeDataType<'a> {
                 representation,
             } => variants.1.iter().all(|variant| match variant {
                 SerdeDataVariantType::Unit => {
-                    matches!(representation, SerdeEnumRepresentation::Untagged)
+                    // unit variants are not supported
+                    // BUG: untagged unit variants are serialised by skipping,
+                    //      but the untagged unit variant uses deserialize_any
+                    //      and expects to find a unit
+                    false
                 }
                 SerdeDataVariantType::TaggedOther => {
                     matches!(representation, SerdeEnumRepresentation::Untagged)
                 }
                 SerdeDataVariantType::Newtype { inner } => {
                     if matches!(representation, SerdeEnumRepresentation::Untagged) {
-                        inner.supported_inside_flatten()
+                        inner.supported_inside_flatten(true)
                     } else {
                         true
                     }
@@ -4021,6 +4031,48 @@ impl<'a> SerdeDataType<'a> {
                 }
                 SerdeDataVariantType::Struct { fields: _ } => true,
             }),
+        }
+    }
+
+    fn supported_inside_flatten_key(&self, inside_untagged: bool) -> bool {
+        match self {
+            SerdeDataType::Unit => !inside_untagged,
+            SerdeDataType::Bool => !inside_untagged,
+            SerdeDataType::I8 => !inside_untagged,
+            SerdeDataType::I16 => !inside_untagged,
+            SerdeDataType::I32 => !inside_untagged,
+            SerdeDataType::I64 => !inside_untagged,
+            SerdeDataType::I128 => false, // BUG: serde does not yet support i128 here
+            SerdeDataType::ISize => !inside_untagged,
+            SerdeDataType::U8 => true,
+            SerdeDataType::U16 => !inside_untagged,
+            SerdeDataType::U32 => !inside_untagged,
+            SerdeDataType::U64 => true,
+            SerdeDataType::U128 => false, // BUG: serde does not yet support i128 here
+            SerdeDataType::USize => !inside_untagged,
+            SerdeDataType::F32 => !inside_untagged,
+            SerdeDataType::F64 => !inside_untagged,
+            SerdeDataType::Char => !inside_untagged,
+            SerdeDataType::String => true,
+            SerdeDataType::ByteBuf => true,
+            SerdeDataType::Option { inner: _ } => false,
+            SerdeDataType::Array { kind: _, len: _ } => false,
+            SerdeDataType::Tuple { elems: _ } => false,
+            SerdeDataType::Vec { item: _ } => false,
+            SerdeDataType::Map { key: _, value: _ } => false,
+            SerdeDataType::UnitStruct { name: _ } => false,
+            SerdeDataType::Newtype { name: _, inner: _ } => false,
+            SerdeDataType::TupleStruct { name: _, fields: _ } => false,
+            SerdeDataType::Struct {
+                name: _,
+                tag: _,
+                fields: _,
+            } => false,
+            SerdeDataType::Enum {
+                name: _,
+                variants: _,
+                representation: _,
+            } => false,
         }
     }
 }
@@ -4093,7 +4145,7 @@ fn arbitrary_struct_fields_recursion_guard<'a>(
         while u.arbitrary()? {
             fields.push(<&str>::arbitrary(u)?);
             let ty = SerdeDataType::arbitrary(u)?;
-            flattened.push(u.arbitrary()? && ty.supported_inside_flatten());
+            flattened.push(u.arbitrary()? && ty.supported_inside_flatten(false));
             types.push(ty);
         }
 
