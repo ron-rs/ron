@@ -20,6 +20,8 @@ const LONG_NAME_COST_THRESHOLD: usize = 8_usize;
 
 const ARRAY_UNINIT_LEN: usize = usize::MAX;
 
+const FLATTEN_CONFLICT_MSG: &'static str = "ron::fuzz::FlattenFieldConflict";
+
 pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeData> {
     if let Ok(typed_value) = TypedSerdeData::arbitrary(&mut Unstructured::new(data)) {
         let options = ron::Options::default().with_recursion_limit(RECURSION_LIMIT);
@@ -47,6 +49,9 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             {
                 return None
             }
+            // The fuzzer may produce flattened structs with conflicting fields,
+            //  which we only detect during serialising
+            Err(ron::error::Error::Message(msg)) if msg == FLATTEN_CONFLICT_MSG => return None,
             // Everything else is actually a bug we want to find
             Err(err) => panic!("{:#?} -! {:#?}", typed_value, err),
         };
@@ -305,6 +310,50 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                 }
 
                 if fields.2.iter().any(|x| *x) {
+                    struct FlatMapKeyConflictDetector<'a, M: SerializeMap> {
+                        keys: &'a mut Vec<String>,
+                        map: &'a mut M,
+                    }
+
+                    impl<'a, M: SerializeMap> SerializeMap for FlatMapKeyConflictDetector<'a, M> {
+                        type Ok = ();
+                        type Error = M::Error;
+
+                        fn serialize_key<T: ?Sized + Serialize>(
+                            &mut self,
+                            key: &T,
+                        ) -> Result<(), Self::Error> {
+                            if std::any::type_name::<T>() == "str" {
+                                self.keys.push(ron::to_string(key).unwrap());
+                            }
+                            self.map.serialize_key(key)
+                        }
+
+                        fn serialize_value<T: ?Sized + Serialize>(
+                            &mut self,
+                            value: &T,
+                        ) -> Result<(), Self::Error> {
+                            self.map.serialize_value(value)
+                        }
+
+                        fn end(self) -> Result<Self::Ok, Self::Error> {
+                            Ok(())
+                        }
+
+                        fn serialize_entry<K: ?Sized + Serialize, V: ?Sized + Serialize>(
+                            &mut self,
+                            key: &K,
+                            value: &V,
+                        ) -> Result<(), Self::Error> {
+                            if std::any::type_name::<K>() == "str" {
+                                self.keys.push(ron::to_string(key).unwrap());
+                            }
+                            self.map.serialize_entry(key, value)
+                        }
+                    }
+
+                    let mut flattened_keys = Vec::new();
+
                     let mut map = serializer.serialize_map(None)?;
                     for (((field, ty), flatten), data) in fields
                         .0
@@ -316,8 +365,17 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                         if *flatten {
                             (&BorrowedTypedSerdeData { ty, value: data }
                                 as &dyn erased_serde::Serialize)
-                                .serialize(serde::__private::ser::FlatMapSerializer(&mut map))?;
+                                .serialize(serde::__private::ser::FlatMapSerializer(
+                                    &mut FlatMapKeyConflictDetector {
+                                        keys: &mut flattened_keys,
+                                        map: &mut map,
+                                    },
+                                ))?;
                         } else {
+                            if flattened_keys.contains(&ron::to_string(field).unwrap()) {
+                                return Err(serde::ser::Error::custom(FLATTEN_CONFLICT_MSG));
+                            }
+
                             map.serialize_entry(
                                 field,
                                 &BorrowedTypedSerdeData { ty, value: data },
@@ -592,6 +650,48 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                         }
 
                         if fields.2.iter().any(|x| *x) {
+                            struct FlatMapKeyConflictDetector<'a, M: SerializeMap> {
+                                keys: &'a mut Vec<String>,
+                                map: &'a mut M,
+                            }
+
+                            impl<'a, M: SerializeMap> SerializeMap for FlatMapKeyConflictDetector<'a, M> {
+                                type Ok = ();
+                                type Error = M::Error;
+
+                                fn serialize_key<T: ?Sized + Serialize>(
+                                    &mut self,
+                                    key: &T,
+                                ) -> Result<(), Self::Error> {
+                                    if std::any::type_name::<T>() == "str" {
+                                        self.keys.push(ron::to_string(key).unwrap());
+                                    }
+                                    self.map.serialize_key(key)
+                                }
+
+                                fn serialize_value<T: ?Sized + Serialize>(
+                                    &mut self,
+                                    value: &T,
+                                ) -> Result<(), Self::Error> {
+                                    self.map.serialize_value(value)
+                                }
+
+                                fn end(self) -> Result<Self::Ok, Self::Error> {
+                                    Ok(())
+                                }
+
+                                fn serialize_entry<K: ?Sized + Serialize, V: ?Sized + Serialize>(
+                                    &mut self,
+                                    key: &K,
+                                    value: &V,
+                                ) -> Result<(), Self::Error> {
+                                    if std::any::type_name::<K>() == "str" {
+                                        self.keys.push(ron::to_string(key).unwrap());
+                                    }
+                                    self.map.serialize_entry(key, value)
+                                }
+                            }
+
                             struct FlattenedStructVariant<'a> {
                                 fields: &'a (Vec<&'a str>, Vec<SerdeDataType<'a>>, Vec<bool>),
                                 values: &'a [SerdeDataValue<'a>],
@@ -602,6 +702,8 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     &self,
                                     serializer: S,
                                 ) -> Result<S::Ok, S::Error> {
+                                    let mut flattened_keys = Vec::new();
+
                                     let mut map = serializer.serialize_map(None)?;
                                     for (((field, ty), flatten), data) in self
                                         .fields
@@ -616,10 +718,21 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                 as &dyn erased_serde::Serialize)
                                                 .serialize(
                                                     serde::__private::ser::FlatMapSerializer(
-                                                        &mut map,
+                                                        &mut FlatMapKeyConflictDetector {
+                                                            keys: &mut flattened_keys,
+                                                            map: &mut map,
+                                                        },
                                                     ),
                                                 )?;
                                         } else {
+                                            if flattened_keys
+                                                .contains(&ron::to_string(field).unwrap())
+                                            {
+                                                return Err(serde::ser::Error::custom(
+                                                    FLATTEN_CONFLICT_MSG,
+                                                ));
+                                            }
+
                                             map.serialize_entry(
                                                 field,
                                                 &BorrowedTypedSerdeData { ty, value: data },
@@ -639,6 +752,8 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                         &FlattenedStructVariant { fields, values },
                                     ),
                                 SerdeEnumRepresentation::Untagged => {
+                                    let mut flattened_keys = Vec::new();
+
                                     let mut map = serializer.serialize_map(None)?;
                                     for (((field, ty), flatten), data) in fields
                                         .0
@@ -652,10 +767,21 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                 as &dyn erased_serde::Serialize)
                                                 .serialize(
                                                     serde::__private::ser::FlatMapSerializer(
-                                                        &mut map,
+                                                        &mut FlatMapKeyConflictDetector {
+                                                            keys: &mut flattened_keys,
+                                                            map: &mut map,
+                                                        },
                                                     ),
                                                 )?;
                                         } else {
+                                            if flattened_keys
+                                                .contains(&ron::to_string(field).unwrap())
+                                            {
+                                                return Err(serde::ser::Error::custom(
+                                                    FLATTEN_CONFLICT_MSG,
+                                                ));
+                                            }
+
                                             map.serialize_entry(
                                                 field,
                                                 &BorrowedTypedSerdeData { ty, value: data },
@@ -682,6 +808,8 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     r#struct.end()
                                 }
                                 SerdeEnumRepresentation::InternallyTagged { tag } => {
+                                    let mut flattened_keys = Vec::new();
+
                                     let mut map = serializer.serialize_map(None)?;
                                     map.serialize_entry(tag, variant)?;
                                     for (((field, ty), flatten), data) in fields
@@ -696,10 +824,21 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                 as &dyn erased_serde::Serialize)
                                                 .serialize(
                                                     serde::__private::ser::FlatMapSerializer(
-                                                        &mut map,
+                                                        &mut FlatMapKeyConflictDetector {
+                                                            keys: &mut flattened_keys,
+                                                            map: &mut map,
+                                                        },
                                                     ),
                                                 )?;
                                         } else {
+                                            if flattened_keys
+                                                .contains(&ron::to_string(field).unwrap())
+                                            {
+                                                return Err(serde::ser::Error::custom(
+                                                    FLATTEN_CONFLICT_MSG,
+                                                ));
+                                            }
+
                                             map.serialize_entry(
                                                 field,
                                                 &BorrowedTypedSerdeData { ty, value: data },
@@ -1292,7 +1431,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                 }
 
                 struct MaybeFlattenFieldIdentifierVisitor<'a> {
-                    field: &'a str,
+                    field: Option<&'a str>,
                 }
 
                 impl<'a, 'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
@@ -1361,7 +1500,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
 
                     fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                        if v == self.field {
+                        if matches!(self.field, Some(field) if v == field) {
                             Ok(None)
                         } else {
                             Ok(Some(serde::__private::de::Content::String(String::from(v))))
@@ -1372,7 +1511,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         v: &'de str,
                     ) -> Result<Self::Value, E> {
-                        if v == self.field {
+                        if matches!(self.field, Some(field) if v == field) {
                             Ok(None)
                         } else {
                             Ok(Some(serde::__private::de::Content::Str(v)))
@@ -1383,7 +1522,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         v: String,
                     ) -> Result<Self::Value, E> {
-                        if v == self.field {
+                        if matches!(self.field, Some(field) if v == field) {
                             Ok(None)
                         } else {
                             Ok(Some(serde::__private::de::Content::String(v)))
@@ -1391,7 +1530,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
 
                     fn visit_bytes<E: serde::de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
-                        if v == self.field.as_bytes() {
+                        if matches!(self.field, Some(field) if v == field.as_bytes()) {
                             Ok(None)
                         } else {
                             Ok(Some(serde::__private::de::Content::ByteBuf(Vec::from(v))))
@@ -1402,7 +1541,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         v: &'de [u8],
                     ) -> Result<Self::Value, E> {
-                        if v == self.field.as_bytes() {
+                        if matches!(self.field, Some(field) if v == field.as_bytes()) {
                             Ok(None)
                         } else {
                             Ok(Some(serde::__private::de::Content::Bytes(v)))
@@ -1413,7 +1552,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         v: Vec<u8>,
                     ) -> Result<Self::Value, E> {
-                        if v == self.field.as_bytes() {
+                        if matches!(self.field, Some(field) if v == field.as_bytes()) {
                             Ok(None)
                         } else {
                             Ok(Some(serde::__private::de::Content::ByteBuf(v)))
@@ -1518,7 +1657,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         {
                             if !*flatten {
                                 while let Some(Some(key)) =
-                                    map.next_key_seed(MaybeFlattenFieldIdentifierVisitor { field })?
+                                    map.next_key_seed(MaybeFlattenFieldIdentifierVisitor {
+                                        field: Some(field),
+                                    })?
                                 {
                                     collect.push(Some((key, map.next_value()?)));
                                 }
@@ -1528,6 +1669,12 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     value: expected,
                                 })?;
                             }
+                        }
+
+                        while let Some(Some(key)) =
+                            map.next_key_seed(MaybeFlattenFieldIdentifierVisitor { field: None })?
+                        {
+                            collect.push(Some((key, map.next_value()?)));
                         }
 
                         for ((ty, flatten), expected) in self

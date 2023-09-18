@@ -21,13 +21,11 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
         V: Visitor<'b>,
     {
         if self.map_as_struct {
-            self.de.parser.expect_char('"', Error::ExpectedString)?;
+            self.de.deserialize_any(visitor)
+            // self.de.deserialize_str(visitor)
+        } else {
+            self.de.deserialize_identifier(visitor)
         }
-        let result = self.de.deserialize_identifier(visitor);
-        if self.map_as_struct {
-            self.de.parser.expect_char('"', Error::ExpectedStringEnd)?;
-        }
-        result
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
