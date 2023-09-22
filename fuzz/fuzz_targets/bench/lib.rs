@@ -4893,7 +4893,12 @@ impl<'a> SerdeDataType<'a> {
                     name_length += tag.len();
                     r#struct.push(SerdeDataValue::String(name));
                 }
-                for (field, ty) in fields.0.iter().zip(&mut fields.1).skip(usize::from(tag.is_some())) {
+                for (field, ty) in fields
+                    .0
+                    .iter()
+                    .zip(&mut fields.1)
+                    .skip(usize::from(tag.is_some()))
+                {
                     name_length += field.len();
                     r#struct.push(ty.arbitrary_value(u, pretty)?);
                 }
