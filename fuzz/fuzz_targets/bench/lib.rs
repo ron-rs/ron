@@ -2666,6 +2666,11 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         }
                                     }
                                 }
+                                // untagged struct variants inside a flattened struct must
+                                //  consume all remaining other keys as well, *sigh*
+                                while map.next_key::<serde::de::IgnoredAny>()?.is_some() {
+                                    map.next_value::<serde::de::IgnoredAny>().map(|_| ())?;
+                                }
                                 Ok(())
                             }
                         }
