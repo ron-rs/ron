@@ -65,7 +65,25 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             }
         };
 
-        if let Err(err) = options.from_str_seed(&ron, &typed_value) {
+        if let Err((err, path)) =
+            (|| -> Result<(), (ron::error::SpannedError, Option<serde_path_to_error::Path>)> {
+                let mut deserializer = ron::de::Deserializer::from_str_with_options(&ron, &options)
+                    .map_err(|err| (err, None))?;
+                let mut track = serde_path_to_error::Track::new();
+                match typed_value.deserialize(serde_path_to_error::Deserializer::new(
+                    &mut deserializer,
+                    &mut track,
+                )) {
+                    Ok(()) => Ok(()),
+                    Err(err) => Err((deserializer.span_error(err), Some(track.path()))),
+                }?;
+                deserializer
+                    .end()
+                    .map_err(|e| deserializer.span_error(e))
+                    .map_err(|err| (err, None))?;
+                Ok(())
+            })()
+        {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
                 ron::error::Error::ExceededRecursionLimit => return None,
@@ -73,7 +91,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 //  or untagged enums, so we allow them otherwise
                 ron::error::Error::DuplicateStructField { .. } => return None,
                 // Everything else is actually a bug we want to find
-                _ => panic!("{:#?} -> {} -! {:#?}", typed_value, ron, err),
+                _ => panic!("{:#?} -> {} -! {:#?} @ {:#?}", typed_value, ron, err, path),
             }
         };
 
@@ -323,9 +341,12 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                             &mut self,
                             key: &T,
                         ) -> Result<(), Self::Error> {
-                            if std::any::type_name::<T>() == "str" {
-                                self.keys.push(ron::to_string(key).unwrap());
+                            let key_str = ron::to_string(key).unwrap();
+                            if self.keys.contains(&key_str) {
+                                return Err(serde::ser::Error::custom(FLATTEN_CONFLICT_MSG));
                             }
+                            self.keys.push(key_str);
+
                             self.map.serialize_key(key)
                         }
 
@@ -345,9 +366,12 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                             key: &K,
                             value: &V,
                         ) -> Result<(), Self::Error> {
-                            if std::any::type_name::<K>() == "str" {
-                                self.keys.push(ron::to_string(key).unwrap());
+                            let key_str = ron::to_string(key).unwrap();
+                            if self.keys.contains(&key_str) {
+                                return Err(serde::ser::Error::custom(FLATTEN_CONFLICT_MSG));
                             }
+                            self.keys.push(key_str);
+
                             self.map.serialize_entry(key, value)
                         }
                     }
@@ -372,9 +396,11 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     },
                                 ))?;
                         } else {
-                            if flattened_keys.contains(&ron::to_string(field).unwrap()) {
+                            let field_str = ron::to_string(field).unwrap();
+                            if flattened_keys.contains(&field_str) {
                                 return Err(serde::ser::Error::custom(FLATTEN_CONFLICT_MSG));
                             }
+                            flattened_keys.push(field_str);
 
                             map.serialize_entry(
                                 field,
@@ -1082,6 +1108,27 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 "expected {:?} found None",
                                 self.value
                             )))
+                        }
+                    }
+
+                    fn __private_visit_untagged_option<D: Deserializer<'de>>(
+                        self,
+                        deserializer: D,
+                    ) -> Result<Self::Value, ()> {
+                        match self.value {
+                            None => Ok(()),
+                            Some(expected) => BorrowedTypedSerdeData {
+                                ty: self.ty,
+                                value: expected,
+                            }
+                            .deserialize(deserializer)
+                            .map_err(|err| {
+                                panic!(
+                                    "expected untagged {:?} but failed with {}",
+                                    Some(expected),
+                                    err
+                                )
+                            }),
                         }
                     }
                 }
@@ -3522,6 +3569,10 @@ impl<'a> SerdeDataType<'a> {
                     if *flatten && !ty.supported_inside_untagged(pretty, false) {
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
+                    if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                        // BUG: implicit options are not supported inside flattend structs
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    }
                 }
                 if let Some(tag) = tag {
                     // This is not very elegant but emulates internally tagged structs
@@ -3667,6 +3718,10 @@ impl<'a> SerdeDataType<'a> {
                             if *flatten && !ty.supported_inside_untagged(pretty, false) {
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
+                            if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                                // BUG: implicit options are not supported inside flattend structs
+                                return Err(arbitrary::Error::IncorrectFormat);
+                            }
                         }
                         let mut r#struct = Vec::with_capacity(fields.1.len());
                         for (field, ty) in fields.0.iter().zip(&mut fields.1) {
@@ -3804,9 +3859,10 @@ impl<'a> SerdeDataType<'a> {
                     .1
                     .iter()
                     .zip(fields.2.iter())
-                    .all(|(field, flatten)| field.supported_inside_untagged(pretty, false) && (
-                        !*flatten || field.supported_inside_flatten(true)
-                    ))
+                    .all(|(field, flatten)| {
+                        field.supported_inside_untagged(pretty, false)
+                            && (!*flatten || field.supported_inside_flatten(false))
+                    })
             }
             SerdeDataType::Enum {
                 name: _,
@@ -3845,9 +3901,10 @@ impl<'a> SerdeDataType<'a> {
                         .1
                         .iter()
                         .zip(fields.2.iter())
-                        .all(|(field, flatten)| field.supported_inside_untagged(pretty, false) && (
-                            !*flatten || field.supported_inside_flatten(true)
-                        ))
+                        .all(|(field, flatten)| {
+                            field.supported_inside_untagged(pretty, false)
+                                && (!*flatten || field.supported_inside_flatten(false))
+                        })
                 }
             }),
         }
@@ -3964,9 +4021,13 @@ impl<'a> SerdeDataType<'a> {
         }
     }
 
-    fn supported_inside_flatten(&self, inside_untagged: bool) -> bool {
+    fn supported_inside_flatten(&self, inside_untagged_newtype_variant: bool) -> bool {
         match self {
-            SerdeDataType::Unit => true,
+            SerdeDataType::Unit => {
+                // BUG: a unit inside an untagged newtype variant expects a unit
+                //      but only the tag is there
+                !inside_untagged_newtype_variant
+            }
             SerdeDataType::Bool => false,
             SerdeDataType::I8 => false,
             SerdeDataType::I16 => false,
@@ -3985,18 +4046,20 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::Char => false,
             SerdeDataType::String => false,
             SerdeDataType::ByteBuf => false,
-            SerdeDataType::Option { inner } => false, // inner.supported_inside_flatten(),
+            SerdeDataType::Option { inner } => {
+                inner.supported_inside_flatten(inside_untagged_newtype_variant)
+            }
             SerdeDataType::Array { kind: _, len: _ } => false,
             SerdeDataType::Tuple { elems: _ } => false,
             SerdeDataType::Vec { item: _ } => false,
-            SerdeDataType::Map { key, value: _ } => key.supported_inside_flatten_key(inside_untagged),
+            SerdeDataType::Map { key, value: _ } => key.supported_inside_flatten_key(),
             SerdeDataType::UnitStruct { name: _ } => false,
             SerdeDataType::Newtype { name, inner } => {
                 if *name == RAW_VALUE_TOKEN {
                     return false;
                 }
 
-                inner.supported_inside_flatten(inside_untagged)
+                inner.supported_inside_flatten(inside_untagged_newtype_variant)
             }
             SerdeDataType::TupleStruct { name: _, fields: _ } => false,
             SerdeDataType::Struct {
@@ -4017,7 +4080,11 @@ impl<'a> SerdeDataType<'a> {
                     false
                 }
                 SerdeDataVariantType::TaggedOther => {
-                    matches!(representation, SerdeEnumRepresentation::Untagged)
+                    // other variants are not supported,
+                    //  since they are like unit variants,
+                    // which would only work when untagged,
+                    //  but other variants are always tagged
+                    false
                 }
                 SerdeDataVariantType::Newtype { inner } => {
                     if matches!(representation, SerdeEnumRepresentation::Untagged) {
@@ -4034,46 +4101,13 @@ impl<'a> SerdeDataType<'a> {
         }
     }
 
-    fn supported_inside_flatten_key(&self, inside_untagged: bool) -> bool {
-        match self {
-            SerdeDataType::Unit => !inside_untagged,
-            SerdeDataType::Bool => !inside_untagged,
-            SerdeDataType::I8 => !inside_untagged,
-            SerdeDataType::I16 => !inside_untagged,
-            SerdeDataType::I32 => !inside_untagged,
-            SerdeDataType::I64 => !inside_untagged,
-            SerdeDataType::I128 => false, // BUG: serde does not yet support i128 here
-            SerdeDataType::ISize => !inside_untagged,
-            SerdeDataType::U8 => true,
-            SerdeDataType::U16 => !inside_untagged,
-            SerdeDataType::U32 => !inside_untagged,
-            SerdeDataType::U64 => true,
-            SerdeDataType::U128 => false, // BUG: serde does not yet support i128 here
-            SerdeDataType::USize => !inside_untagged,
-            SerdeDataType::F32 => !inside_untagged,
-            SerdeDataType::F64 => !inside_untagged,
-            SerdeDataType::Char => !inside_untagged,
-            SerdeDataType::String => true,
-            SerdeDataType::ByteBuf => true,
-            SerdeDataType::Option { inner: _ } => false,
-            SerdeDataType::Array { kind: _, len: _ } => false,
-            SerdeDataType::Tuple { elems: _ } => false,
-            SerdeDataType::Vec { item: _ } => false,
-            SerdeDataType::Map { key: _, value: _ } => false,
-            SerdeDataType::UnitStruct { name: _ } => false,
-            SerdeDataType::Newtype { name: _, inner: _ } => false,
-            SerdeDataType::TupleStruct { name: _, fields: _ } => false,
-            SerdeDataType::Struct {
-                name: _,
-                tag: _,
-                fields: _,
-            } => false,
-            SerdeDataType::Enum {
-                name: _,
-                variants: _,
-                representation: _,
-            } => false,
-        }
+    fn supported_inside_flatten_key(&self) -> bool {
+        // Inside an untagged enum, we can support u8, u64, &str, and &[u8]
+        // Outside an untagged enum, we can also support (), bool, i*, u*, f*, and char
+        // However, if a flattend struct has two fields which serialize themselves as maps
+        //  and have two different key types, deserializing will fail
+        // Only allowing string keys (for now) is both sensible and easier
+        matches!(self, SerdeDataType::String)
     }
 }
 
