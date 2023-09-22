@@ -689,9 +689,14 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     &mut self,
                                     key: &T,
                                 ) -> Result<(), Self::Error> {
-                                    if std::any::type_name::<T>() == "str" {
-                                        self.keys.push(ron::to_string(key).unwrap());
+                                    let key_str = ron::to_string(key).unwrap();
+                                    if self.keys.contains(&key_str) {
+                                        return Err(serde::ser::Error::custom(
+                                            FLATTEN_CONFLICT_MSG,
+                                        ));
                                     }
+                                    self.keys.push(key_str);
+
                                     self.map.serialize_key(key)
                                 }
 
@@ -711,9 +716,14 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     key: &K,
                                     value: &V,
                                 ) -> Result<(), Self::Error> {
-                                    if std::any::type_name::<K>() == "str" {
-                                        self.keys.push(ron::to_string(key).unwrap());
+                                    let key_str = ron::to_string(key).unwrap();
+                                    if self.keys.contains(&key_str) {
+                                        return Err(serde::ser::Error::custom(
+                                            FLATTEN_CONFLICT_MSG,
+                                        ));
                                     }
+                                    self.keys.push(key_str);
+
                                     self.map.serialize_entry(key, value)
                                 }
                             }
@@ -751,13 +761,13 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                     ),
                                                 )?;
                                         } else {
-                                            if flattened_keys
-                                                .contains(&ron::to_string(field).unwrap())
-                                            {
+                                            let field_str = ron::to_string(field).unwrap();
+                                            if flattened_keys.contains(&field_str) {
                                                 return Err(serde::ser::Error::custom(
                                                     FLATTEN_CONFLICT_MSG,
                                                 ));
                                             }
+                                            flattened_keys.push(field_str);
 
                                             map.serialize_entry(
                                                 field,
@@ -800,13 +810,13 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                     ),
                                                 )?;
                                         } else {
-                                            if flattened_keys
-                                                .contains(&ron::to_string(field).unwrap())
-                                            {
+                                            let field_str = ron::to_string(field).unwrap();
+                                            if flattened_keys.contains(&field_str) {
                                                 return Err(serde::ser::Error::custom(
                                                     FLATTEN_CONFLICT_MSG,
                                                 ));
                                             }
+                                            flattened_keys.push(field_str);
 
                                             map.serialize_entry(
                                                 field,
@@ -857,13 +867,13 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                     ),
                                                 )?;
                                         } else {
-                                            if flattened_keys
-                                                .contains(&ron::to_string(field).unwrap())
-                                            {
+                                            let field_str = ron::to_string(field).unwrap();
+                                            if flattened_keys.contains(&field_str) {
                                                 return Err(serde::ser::Error::custom(
                                                     FLATTEN_CONFLICT_MSG,
                                                 ));
                                             }
+                                            flattened_keys.push(field_str);
 
                                             map.serialize_entry(
                                                 field,
@@ -1302,7 +1312,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_fmt(format_args!("the unit struct {}", self.name))
+                        formatter.write_fmt(format_args!("unit struct {}", self.name))
                     }
 
                     fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
@@ -1326,7 +1336,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_fmt(format_args!("the newtype struct {}", self.name))
+                        formatter.write_fmt(format_args!("newtype struct {}", self.name))
                     }
 
                     fn visit_newtype_struct<D: Deserializer<'de>>(
@@ -1380,7 +1390,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_fmt(format_args!("the tuple struct {}", self.name))
+                        formatter.write_fmt(format_args!("tuple struct {}", self.name))
                     }
 
                     fn visit_seq<A: SeqAccess<'de>>(
@@ -1447,7 +1457,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             Ok(())
                         } else {
                             Err(serde::de::Error::custom(format!(
-                                "expected field identifier {} found {}",
+                                "expected field identifier {:?} found {:?}",
                                 self.field, v
                             )))
                         }
@@ -1633,7 +1643,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_fmt(format_args!("the struct {}", self.name))
+                        formatter.write_fmt(format_args!("struct {}", self.name))
                     }
 
                     fn visit_seq<A: SeqAccess<'de>>(
@@ -1857,10 +1867,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_fmt(format_args!(
-                            "the variant {} of the enum {}",
-                            self.variant, self.name
-                        ))
+                        formatter
+                            .write_fmt(format_args!("enum variant {}::{}", self.name, self.variant))
                     }
 
                     fn visit_enum<A: EnumAccess<'de>>(
@@ -1891,6 +1899,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 SerdeDataVariantValue::Struct { fields: values },
                             ) => {
                                 struct TupleVariantVisitor<'a> {
+                                    name: &'a str,
                                     variant: &'a str,
                                     fields: &'a [SerdeDataType<'a>],
                                     values: &'a [SerdeDataValue<'a>],
@@ -1904,8 +1913,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         formatter: &mut fmt::Formatter,
                                     ) -> fmt::Result {
                                         formatter.write_fmt(format_args!(
-                                            "the tuple variant {}",
-                                            self.variant
+                                            "tuple variant {}::{}",
+                                            self.name, self.variant
                                         ))
                                     }
 
@@ -1935,6 +1944,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 variant.tuple_variant(
                                     fields.len(),
                                     TupleVariantVisitor {
+                                        name: self.name,
                                         variant: self.variant,
                                         fields,
                                         values,
@@ -1984,7 +1994,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                             Ok(())
                                         } else {
                                             Err(serde::de::Error::custom(format!(
-                                                "expected field identifier {} found {}",
+                                                "expected field identifier {:?} found {:?}",
                                                 self.field, v
                                             )))
                                         }
@@ -2020,6 +2030,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 }
 
                                 struct StructVariantVisitor<'a> {
+                                    name: &'a str,
                                     variant: &'a str,
                                     fields: &'a [&'a str],
                                     tys: &'a [SerdeDataType<'a>],
@@ -2034,8 +2045,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         formatter: &mut fmt::Formatter,
                                     ) -> fmt::Result {
                                         formatter.write_fmt(format_args!(
-                                            "the struct variant {}",
-                                            self.variant
+                                            "struct variant {}::{}",
+                                            self.name, self.variant
                                         ))
                                     }
 
@@ -2089,6 +2100,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 variant.struct_variant(
                                     unsafe { to_static_str_slice(&fields.0) },
                                     StructVariantVisitor {
+                                        name: self.name,
                                         variant: self.variant,
                                         fields: &fields.0,
                                         tys: &fields.1,
@@ -2170,6 +2182,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         SerdeDataVariantValue::Struct { fields: values },
                     ) => {
                         struct TupleVariantVisitor<'a> {
+                            name: &'a str,
                             variant: &'a str,
                             fields: &'a [SerdeDataType<'a>],
                             values: &'a [SerdeDataValue<'a>],
@@ -2179,8 +2192,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the tuple variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "tuple variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_seq<A: SeqAccess<'de>>(
@@ -2206,6 +2221,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         deserializer.deserialize_tuple(
                             fields.len(),
                             TupleVariantVisitor {
+                                name,
                                 variant,
                                 fields,
                                 values,
@@ -2222,7 +2238,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         }
 
                         impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
-                            type Value = ();
+                            type Value = Option<()>;
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                                 formatter.write_str("a field identifier")
@@ -2233,12 +2249,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 v: u64,
                             ) -> Result<Self::Value, E> {
                                 if v == self.index {
-                                    Ok(())
+                                    Ok(Some(()))
                                 } else {
-                                    Err(serde::de::Error::custom(format!(
-                                        "expected field index {} found {}",
-                                        self.index, v
-                                    )))
+                                    Ok(None)
                                 }
                             }
 
@@ -2247,12 +2260,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 v: &str,
                             ) -> Result<Self::Value, E> {
                                 if v == self.field {
-                                    Ok(())
+                                    Ok(Some(()))
                                 } else {
-                                    Err(serde::de::Error::custom(format!(
-                                        "expected field identifier {} found {}",
-                                        self.field, v
-                                    )))
+                                    Ok(None)
                                 }
                             }
 
@@ -2261,19 +2271,15 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 v: &[u8],
                             ) -> Result<Self::Value, E> {
                                 if v == self.field.as_bytes() {
-                                    Ok(())
+                                    Ok(Some(()))
                                 } else {
-                                    Err(serde::de::Error::custom(format!(
-                                        "expected field identifier {:?} found {:?}",
-                                        self.field.as_bytes(),
-                                        v
-                                    )))
+                                    Ok(None)
                                 }
                             }
                         }
 
                         impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
-                            type Value = ();
+                            type Value = Option<()>;
 
                             fn deserialize<D: Deserializer<'de>>(
                                 self,
@@ -2284,6 +2290,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         }
 
                         struct StructVariantVisitor<'a> {
+                            name: &'a str,
                             variant: &'a str,
                             fields: &'a [&'a str],
                             tys: &'a [SerdeDataType<'a>],
@@ -2294,8 +2301,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the struct variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "struct variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_map<A: MapAccess<'de>>(
@@ -2307,13 +2316,31 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     .zip(self.tys.iter())
                                     .zip(self.values.iter())
                                 {
-                                    map.next_entry_seed(
-                                        FieldIdentifierVisitor { field, index },
-                                        BorrowedTypedSerdeData {
-                                            ty,
-                                            value: expected,
-                                        },
-                                    )?;
+                                    // untagged struct variants inside a flattened struct
+                                    //  must sort through other keys as well, *sigh*
+                                    loop {
+                                        match map.next_key_seed(FieldIdentifierVisitor {
+                                            field,
+                                            index,
+                                        })? {
+                                            Some(Some(())) => {
+                                                break map.next_value_seed(
+                                                    BorrowedTypedSerdeData {
+                                                        ty,
+                                                        value: expected,
+                                                    },
+                                                )?
+                                            }
+                                            Some(None) => map
+                                                .next_value::<serde::de::IgnoredAny>()
+                                                .map(|_| ())?,
+                                            None => {
+                                                return Err(serde::de::Error::missing_field(
+                                                    unsafe { to_static_str(field) },
+                                                ))
+                                            }
+                                        }
+                                    }
                                 }
                                 Ok(())
                             }
@@ -2334,6 +2361,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 unsafe { to_static_str(name) },
                                 unsafe { to_static_str_slice(&fields.0) },
                                 StructVariantVisitor {
+                                    name,
                                     variant,
                                     fields: &fields.0,
                                     tys: &fields.1,
@@ -2384,7 +2412,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             Ok(())
                         } else {
                             Err(serde::de::Error::custom(format!(
-                                "expected field identifier {} found {}",
+                                "expected field identifier {:?} found {:?}",
                                 self.field, v
                             )))
                         }
@@ -2501,6 +2529,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                 match (ty, value) {
                     (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit) => {
                         struct AdjacentlyTaggedUnitVariantVisitor<'a> {
+                            name: &'a str,
                             tag: &'a str,
                             variant: &'a str,
                             variant_index: u32,
@@ -2511,8 +2540,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the unit variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "unit variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_seq<A: SeqAccess<'de>>(
@@ -2532,11 +2563,17 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut map: A,
                             ) -> Result<Self::Value, A::Error> {
-                                let Some(serde::__private::de::TagOrContentField::Tag) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
-                                    tag: unsafe { to_static_str(self.tag) },
-                                    content: unsafe { to_static_str(self.content) },
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                let Some(serde::__private::de::TagOrContentField::Tag) = map
+                                    .next_key_seed(
+                                        serde::__private::de::TagOrContentFieldVisitor {
+                                            tag: unsafe { to_static_str(self.tag) },
+                                            content: unsafe { to_static_str(self.content) },
+                                        },
+                                    )?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }));
                                 };
                                 map.next_value::<DelayedVariantIdentifier>()?
                                     .check_variant(self.variant, self.variant_index)
@@ -2547,6 +2584,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             unsafe { to_static_str(name) },
                             unsafe { to_static_str_slice(std::slice::from_ref(tag)) },
                             AdjacentlyTaggedUnitVariantVisitor {
+                                name,
                                 tag,
                                 variant,
                                 variant_index: *variant_index,
@@ -2562,6 +2600,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         },
                     ) => {
                         struct AdjacentlyTaggedOtherVariantVisitor<'a> {
+                            name: &'a str,
                             tag: &'a str,
                             variant: &'a str,
                             other_variant: &'a str,
@@ -2573,8 +2612,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the unit variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "unit variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_seq<A: SeqAccess<'de>>(
@@ -2594,11 +2635,17 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut map: A,
                             ) -> Result<Self::Value, A::Error> {
-                                let Some(serde::__private::de::TagOrContentField::Tag) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
-                                    tag: unsafe { to_static_str(self.tag) },
-                                    content: unsafe { to_static_str(self.content) },
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                let Some(serde::__private::de::TagOrContentField::Tag) = map
+                                    .next_key_seed(
+                                        serde::__private::de::TagOrContentFieldVisitor {
+                                            tag: unsafe { to_static_str(self.tag) },
+                                            content: unsafe { to_static_str(self.content) },
+                                        },
+                                    )?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }));
                                 };
                                 map.next_value::<DelayedVariantIdentifier>()?
                                     .check_variant(self.other_variant, self.other_variant_index)
@@ -2609,6 +2656,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             unsafe { to_static_str(name) },
                             unsafe { to_static_str_slice(std::slice::from_ref(tag)) },
                             AdjacentlyTaggedOtherVariantVisitor {
+                                name,
                                 tag,
                                 variant,
                                 other_variant,
@@ -2622,6 +2670,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         SerdeDataVariantValue::Newtype { inner: value },
                     ) => {
                         struct AdjacentlyTaggedNewtypeVariantVisitor<'a> {
+                            name: &'a str,
                             tag: &'a str,
                             variant: &'a str,
                             variant_index: u32,
@@ -2634,8 +2683,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the newtype variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "newtype variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_seq<A: SeqAccess<'de>>(
@@ -2652,8 +2703,11 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 let Some(()) = seq.next_element_seed(BorrowedTypedSerdeData {
                                     ty: self.ty,
                                     value: self.value,
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.content) }))
+                                })?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.content)
+                                    }));
                                 };
                                 Ok(())
                             }
@@ -2662,19 +2716,31 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut map: A,
                             ) -> Result<Self::Value, A::Error> {
-                                let Some(serde::__private::de::TagOrContentField::Tag) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
-                                    tag: unsafe { to_static_str(self.tag) },
-                                    content: unsafe { to_static_str(self.content) },
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                let Some(serde::__private::de::TagOrContentField::Tag) = map
+                                    .next_key_seed(
+                                        serde::__private::de::TagOrContentFieldVisitor {
+                                            tag: unsafe { to_static_str(self.tag) },
+                                            content: unsafe { to_static_str(self.content) },
+                                        },
+                                    )?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }));
                                 };
                                 map.next_value::<DelayedVariantIdentifier>()?
                                     .check_variant(self.variant, self.variant_index)?;
-                                let Some(serde::__private::de::TagOrContentField::Content) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
-                                    tag: unsafe { to_static_str(self.tag) },
-                                    content: unsafe { to_static_str(self.content) },
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                let Some(serde::__private::de::TagOrContentField::Content) = map
+                                    .next_key_seed(
+                                        serde::__private::de::TagOrContentFieldVisitor {
+                                            tag: unsafe { to_static_str(self.tag) },
+                                            content: unsafe { to_static_str(self.content) },
+                                        },
+                                    )?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }));
                                 };
                                 map.next_value_seed(BorrowedTypedSerdeData {
                                     ty: self.ty,
@@ -2687,6 +2753,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             unsafe { to_static_str(name) },
                             unsafe { to_static_str_slice(&[tag, content]) },
                             AdjacentlyTaggedNewtypeVariantVisitor {
+                                name,
                                 tag,
                                 variant,
                                 variant_index: *variant_index,
@@ -2701,6 +2768,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         SerdeDataVariantValue::Struct { fields: values },
                     ) => {
                         struct TupleVariantSeed<'a> {
+                            name: &'a str,
                             variant: &'a str,
                             fields: &'a [SerdeDataType<'a>],
                             values: &'a [SerdeDataValue<'a>],
@@ -2710,8 +2778,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the tuple variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "tuple variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_seq<A: SeqAccess<'de>>(
@@ -2740,6 +2810,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         }
 
                         struct AdjacentlyTaggedTupleVariantVisitor<'a> {
+                            name: &'a str,
                             tag: &'a str,
                             variant: &'a str,
                             variant_index: u32,
@@ -2752,8 +2823,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the tuple variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "tuple variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_seq<A: SeqAccess<'de>>(
@@ -2768,6 +2841,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     }));
                                 }
                                 seq.next_element_seed(TupleVariantSeed {
+                                    name: self.name,
                                     variant: self.variant,
                                     fields: self.fields,
                                     values: self.values,
@@ -2779,21 +2853,34 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut map: A,
                             ) -> Result<Self::Value, A::Error> {
-                                let Some(serde::__private::de::TagOrContentField::Tag) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
-                                    tag: unsafe { to_static_str(self.tag) },
-                                    content: unsafe { to_static_str(self.content) },
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                let Some(serde::__private::de::TagOrContentField::Tag) = map
+                                    .next_key_seed(
+                                        serde::__private::de::TagOrContentFieldVisitor {
+                                            tag: unsafe { to_static_str(self.tag) },
+                                            content: unsafe { to_static_str(self.content) },
+                                        },
+                                    )?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }));
                                 };
                                 map.next_value::<DelayedVariantIdentifier>()?
                                     .check_variant(self.variant, self.variant_index)?;
-                                let Some(serde::__private::de::TagOrContentField::Content) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
-                                    tag: unsafe { to_static_str(self.tag) },
-                                    content: unsafe { to_static_str(self.content) },
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                let Some(serde::__private::de::TagOrContentField::Content) = map
+                                    .next_key_seed(
+                                        serde::__private::de::TagOrContentFieldVisitor {
+                                            tag: unsafe { to_static_str(self.tag) },
+                                            content: unsafe { to_static_str(self.content) },
+                                        },
+                                    )?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }));
                                 };
                                 map.next_value_seed(TupleVariantSeed {
+                                    name: self.name,
                                     variant: self.variant,
                                     fields: self.fields,
                                     values: self.values,
@@ -2811,6 +2898,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             unsafe { to_static_str(name) },
                             unsafe { to_static_str_slice(&[tag, content]) },
                             AdjacentlyTaggedTupleVariantVisitor {
+                                name,
                                 tag,
                                 variant,
                                 variant_index: *variant_index,
@@ -2836,8 +2924,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the struct variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "struct variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_map<A: MapAccess<'de>>(
@@ -2891,8 +2981,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the struct variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "struct variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_seq<A: SeqAccess<'de>>(
@@ -2920,19 +3012,31 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut map: A,
                             ) -> Result<Self::Value, A::Error> {
-                                let Some(serde::__private::de::TagOrContentField::Tag) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
-                                    tag: unsafe { to_static_str(self.tag) },
-                                    content: unsafe { to_static_str(self.content) },
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                let Some(serde::__private::de::TagOrContentField::Tag) = map
+                                    .next_key_seed(
+                                        serde::__private::de::TagOrContentFieldVisitor {
+                                            tag: unsafe { to_static_str(self.tag) },
+                                            content: unsafe { to_static_str(self.content) },
+                                        },
+                                    )?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }));
                                 };
                                 map.next_value::<DelayedVariantIdentifier>()?
                                     .check_variant(self.variant, self.variant_index)?;
-                                let Some(serde::__private::de::TagOrContentField::Content) = map.next_key_seed(serde::__private::de::TagOrContentFieldVisitor {
-                                    tag: unsafe { to_static_str(self.tag) },
-                                    content: unsafe { to_static_str(self.content) },
-                                })? else {
-                                    return Err(serde::de::Error::missing_field(unsafe { to_static_str(self.tag) }))
+                                let Some(serde::__private::de::TagOrContentField::Content) = map
+                                    .next_key_seed(
+                                        serde::__private::de::TagOrContentFieldVisitor {
+                                            tag: unsafe { to_static_str(self.tag) },
+                                            content: unsafe { to_static_str(self.content) },
+                                        },
+                                    )?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.tag)
+                                    }));
                                 };
                                 map.next_value_seed(StructVariantSeed {
                                     name: self.name,
@@ -2995,7 +3099,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
 
                 let expecting = match (ty, value) {
                     (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit) => {
-                        format!("the unit variant {}", variant)
+                        format!("unit variant {}::{}", name, variant)
                     }
                     (
                         SerdeDataVariantType::TaggedOther,
@@ -3004,19 +3108,19 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             index: _,
                         },
                     ) => {
-                        format!("the unit variant {}", variant)
+                        format!("unit variant {}::{}", name, variant)
                     }
                     (
                         SerdeDataVariantType::Newtype { .. },
                         SerdeDataVariantValue::Newtype { .. },
-                    ) => format!("the newtype variant {}", variant),
+                    ) => format!("newtype variant {}::{}", name, variant),
                     (SerdeDataVariantType::Tuple { .. }, SerdeDataVariantValue::Struct { .. }) => {
                         return Err(serde::de::Error::custom(
                             "invalid serde internally tagged tuple variant",
                         ))
                     }
                     (SerdeDataVariantType::Struct { .. }, SerdeDataVariantValue::Struct { .. }) => {
-                        format!("the struct variant {}", variant)
+                        format!("struct variant {}::{}", name, variant)
                     }
                     _ => return Err(serde::de::Error::custom("invalid serde enum data")),
                 };
@@ -3181,7 +3285,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     Ok(())
                                 } else {
                                     Err(serde::de::Error::custom(format!(
-                                        "expected field identifier {} found {}",
+                                        "expected field identifier {:?} found {:?}",
                                         self.field, v
                                     )))
                                 }
@@ -3215,6 +3319,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         }
 
                         struct StructVariantVisitor<'a> {
+                            name: &'a str,
                             variant: &'a str,
                             fields: &'a [&'a str],
                             tys: &'a [SerdeDataType<'a>],
@@ -3225,8 +3330,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                                formatter
-                                    .write_fmt(format_args!("the struct variant {}", self.variant))
+                                formatter.write_fmt(format_args!(
+                                    "struct variant {}::{}",
+                                    self.name, self.variant
+                                ))
                             }
 
                             fn visit_seq<A: SeqAccess<'de>>(
@@ -3278,6 +3385,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 unsafe { to_static_str(name) },
                                 unsafe { to_static_str_slice(&fields.0) },
                                 StructVariantVisitor {
+                                    name,
                                     variant,
                                     fields: &fields.0,
                                     tys: &fields.1,
@@ -3979,9 +4087,14 @@ impl<'a> SerdeDataType<'a> {
                 let SerdeDataValue::Enum {
                     variant: variant_index,
                     value,
-                } = value else { return false };
+                } = value
+                else {
+                    return false;
+                };
 
-                let Some(ty) = variants.1.get(*variant_index as usize) else { return false };
+                let Some(ty) = variants.1.get(*variant_index as usize) else {
+                    return false;
+                };
 
                 match (ty, value) {
                     (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit)

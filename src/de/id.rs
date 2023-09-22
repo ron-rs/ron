@@ -21,8 +21,8 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
         V: Visitor<'b>,
     {
         if self.map_as_struct {
-            self.de.deserialize_any(visitor)
-            // self.de.deserialize_str(visitor)
+            // We only allow string keys in flattened structs and maps
+            self.de.deserialize_str(visitor)
         } else {
             self.de.deserialize_identifier(visitor)
         }
