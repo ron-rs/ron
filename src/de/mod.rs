@@ -284,6 +284,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 return self.deserialize_unit(visitor);
             }
 
+            #[allow(clippy::wildcard_in_or_patterns)]
             match self
                 .parser
                 .check_struct_type(NewtypeMode::InsideNewtype, TupleMode::DifferentiateNewtype)?

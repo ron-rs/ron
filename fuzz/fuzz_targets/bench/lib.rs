@@ -4177,7 +4177,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         }
 
                         impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
-                            type Value = ();
+                            type Value = Option<()>;
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                                 formatter.write_str("a field identifier")
@@ -4188,12 +4188,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 v: u64,
                             ) -> Result<Self::Value, E> {
                                 if v == self.index {
-                                    Ok(())
+                                    Ok(Some(()))
                                 } else {
-                                    Err(serde::de::Error::custom(format!(
-                                        "expected field index {} found {}",
-                                        self.index, v
-                                    )))
+                                    Ok(None)
                                 }
                             }
 
@@ -4202,12 +4199,9 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 v: &str,
                             ) -> Result<Self::Value, E> {
                                 if v == self.field {
-                                    Ok(())
+                                    Ok(Some(()))
                                 } else {
-                                    Err(serde::de::Error::custom(format!(
-                                        "expected field identifier {:?} found {:?}",
-                                        self.field, v
-                                    )))
+                                    Ok(None)
                                 }
                             }
 
@@ -4216,19 +4210,15 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 v: &[u8],
                             ) -> Result<Self::Value, E> {
                                 if v == self.field.as_bytes() {
-                                    Ok(())
+                                    Ok(Some(()))
                                 } else {
-                                    Err(serde::de::Error::custom(format!(
-                                        "expected field identifier {:?} found {:?}",
-                                        self.field.as_bytes(),
-                                        v
-                                    )))
+                                    Ok(None)
                                 }
                             }
                         }
 
                         impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
-                            type Value = ();
+                            type Value = Option<()>;
 
                             fn deserialize<D: Deserializer<'de>>(
                                 self,
@@ -4278,13 +4268,36 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     .zip(self.tys.iter())
                                     .zip(self.values.iter())
                                 {
-                                    map.next_entry_seed(
-                                        FieldIdentifierVisitor { field, index },
-                                        BorrowedTypedSerdeData {
-                                            ty,
-                                            value: expected,
-                                        },
-                                    )?;
+                                    // internally tagged struct variants inside a flattened
+                                    //  struct must sort through other keys as well, *sigh*
+                                    loop {
+                                        match map.next_key_seed(FieldIdentifierVisitor {
+                                            field,
+                                            index,
+                                        })? {
+                                            Some(Some(())) => {
+                                                break map.next_value_seed(
+                                                    BorrowedTypedSerdeData {
+                                                        ty,
+                                                        value: expected,
+                                                    },
+                                                )?
+                                            }
+                                            Some(None) => map
+                                                .next_value::<serde::de::IgnoredAny>()
+                                                .map(|_| ())?,
+                                            None => {
+                                                return Err(serde::de::Error::missing_field(
+                                                    unsafe { to_static_str(field) },
+                                                ))
+                                            }
+                                        }
+                                    }
+                                }
+                                // internally tagged struct variants inside a flattened struct
+                                //  must consume all remaining other keys as well, *sigh*
+                                while map.next_key::<serde::de::IgnoredAny>()?.is_some() {
+                                    map.next_value::<serde::de::IgnoredAny>().map(|_| ())?;
                                 }
                                 Ok(())
                             }
