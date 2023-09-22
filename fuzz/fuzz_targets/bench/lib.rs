@@ -3564,16 +3564,6 @@ impl<'a> SerdeDataType<'a> {
             }
             SerdeDataType::Struct { name, tag, fields } => {
                 name_length += name.len();
-                for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
-                    // Flattened fields are deserialised through serde's content type
-                    if *flatten && !ty.supported_inside_untagged(pretty, false) {
-                        return Err(arbitrary::Error::IncorrectFormat);
-                    }
-                    if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
-                        // BUG: implicit options are not supported inside flattend structs
-                        return Err(arbitrary::Error::IncorrectFormat);
-                    }
-                }
                 if let Some(tag) = tag {
                     // This is not very elegant but emulates internally tagged structs
                     //  in a way that minimises code in the fuzzer and actually allows
@@ -3595,7 +3585,18 @@ impl<'a> SerdeDataType<'a> {
                     name_length += field.len();
                     r#struct.push(ty.arbitrary_value(u, pretty)?);
                 }
-                SerdeDataValue::Struct { fields: r#struct }
+                let value = SerdeDataValue::Struct { fields: r#struct };
+                for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
+                    // Flattened fields are deserialised through serde's content type
+                    if *flatten && !ty.supported_inside_untagged(pretty, false) {
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    }
+                    if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                        // BUG: implicit options are not supported inside flattend structs
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    }
+                }
+                value
             }
             SerdeDataType::Enum {
                 name,
@@ -3713,16 +3714,6 @@ impl<'a> SerdeDataType<'a> {
                             // BUG: empty untagged struct variants look like units to ron
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
-                        for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
-                            // Flattened fields are deserialised through serde's content type
-                            if *flatten && !ty.supported_inside_untagged(pretty, false) {
-                                return Err(arbitrary::Error::IncorrectFormat);
-                            }
-                            if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
-                                // BUG: implicit options are not supported inside flattend structs
-                                return Err(arbitrary::Error::IncorrectFormat);
-                            }
-                        }
                         let mut r#struct = Vec::with_capacity(fields.1.len());
                         for (field, ty) in fields.0.iter().zip(&mut fields.1) {
                             name_length += field.len();
@@ -3732,6 +3723,16 @@ impl<'a> SerdeDataType<'a> {
                         if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !fields.1.iter().all(|field| field.supported_inside_untagged(pretty, false)))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
+                        }
+                        for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
+                            // Flattened fields are deserialised through serde's content type
+                            if *flatten && !ty.supported_inside_untagged(pretty, false) {
+                                return Err(arbitrary::Error::IncorrectFormat);
+                            }
+                            if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                                // BUG: implicit options are not supported inside flattend structs
+                                return Err(arbitrary::Error::IncorrectFormat);
+                            }
                         }
                         value
                     }
