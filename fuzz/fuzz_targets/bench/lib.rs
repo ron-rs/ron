@@ -2097,16 +2097,346 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     ));
                                 }
 
-                                variant.struct_variant(
-                                    unsafe { to_static_str_slice(&fields.0) },
-                                    StructVariantVisitor {
+                                if fields.2.iter().any(|x| *x) {
+                                    struct MaybeFlattenFieldIdentifierVisitor<'a> {
+                                        field: Option<&'a str>,
+                                    }
+
+                                    impl<'a, 'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                                        type Value = Option<serde::__private::de::Content<'de>>;
+
+                                        fn expecting(
+                                            &self,
+                                            formatter: &mut fmt::Formatter,
+                                        ) -> fmt::Result {
+                                            formatter.write_str("a field identifier")
+                                        }
+
+                                        fn visit_bool<E: serde::de::Error>(
+                                            self,
+                                            v: bool,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::Bool(v)))
+                                        }
+
+                                        fn visit_i8<E: serde::de::Error>(
+                                            self,
+                                            v: i8,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::I8(v)))
+                                        }
+
+                                        fn visit_i16<E: serde::de::Error>(
+                                            self,
+                                            v: i16,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::I16(v)))
+                                        }
+
+                                        fn visit_i32<E: serde::de::Error>(
+                                            self,
+                                            v: i32,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::I32(v)))
+                                        }
+
+                                        fn visit_i64<E: serde::de::Error>(
+                                            self,
+                                            v: i64,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::I64(v)))
+                                        }
+
+                                        // BUG: serde does not yet support i128 here
+                                        // fn visit_i128<E: serde::de::Error>(self, v: i128) -> Result<Self::Value, E> {
+                                        //     Ok(Some(serde::__private::de::Content::I128(v)))
+                                        // }
+
+                                        fn visit_u8<E: serde::de::Error>(
+                                            self,
+                                            v: u8,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::U8(v)))
+                                        }
+
+                                        fn visit_u16<E: serde::de::Error>(
+                                            self,
+                                            v: u16,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::U16(v)))
+                                        }
+
+                                        fn visit_u32<E: serde::de::Error>(
+                                            self,
+                                            v: u32,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::U32(v)))
+                                        }
+
+                                        fn visit_u64<E: serde::de::Error>(
+                                            self,
+                                            v: u64,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::U64(v)))
+                                        }
+
+                                        // BUG: serde does not yet support u128 here
+                                        // fn visit_u128<E: serde::de::Error>(self, v: u128) -> Result<Self::Value, E> {
+                                        //     Ok(Some(serde::__private::de::Content::U128(v)))
+                                        // }
+
+                                        fn visit_f32<E: serde::de::Error>(
+                                            self,
+                                            v: f32,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::F32(v)))
+                                        }
+
+                                        fn visit_f64<E: serde::de::Error>(
+                                            self,
+                                            v: f64,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::F64(v)))
+                                        }
+
+                                        fn visit_char<E: serde::de::Error>(
+                                            self,
+                                            v: char,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            Ok(Some(serde::__private::de::Content::Char(v)))
+                                        }
+
+                                        fn visit_str<E: serde::de::Error>(
+                                            self,
+                                            v: &str,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            if matches!(self.field, Some(field) if v == field) {
+                                                Ok(None)
+                                            } else {
+                                                Ok(Some(serde::__private::de::Content::String(
+                                                    String::from(v),
+                                                )))
+                                            }
+                                        }
+
+                                        fn visit_borrowed_str<E: serde::de::Error>(
+                                            self,
+                                            v: &'de str,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            if matches!(self.field, Some(field) if v == field) {
+                                                Ok(None)
+                                            } else {
+                                                Ok(Some(serde::__private::de::Content::Str(v)))
+                                            }
+                                        }
+
+                                        fn visit_string<E: serde::de::Error>(
+                                            self,
+                                            v: String,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            if matches!(self.field, Some(field) if v == field) {
+                                                Ok(None)
+                                            } else {
+                                                Ok(Some(serde::__private::de::Content::String(v)))
+                                            }
+                                        }
+
+                                        fn visit_bytes<E: serde::de::Error>(
+                                            self,
+                                            v: &[u8],
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            if matches!(self.field, Some(field) if v == field.as_bytes())
+                                            {
+                                                Ok(None)
+                                            } else {
+                                                Ok(Some(serde::__private::de::Content::ByteBuf(
+                                                    Vec::from(v),
+                                                )))
+                                            }
+                                        }
+
+                                        fn visit_borrowed_bytes<E: serde::de::Error>(
+                                            self,
+                                            v: &'de [u8],
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            if matches!(self.field, Some(field) if v == field.as_bytes())
+                                            {
+                                                Ok(None)
+                                            } else {
+                                                Ok(Some(serde::__private::de::Content::Bytes(v)))
+                                            }
+                                        }
+
+                                        fn visit_byte_buf<E: serde::de::Error>(
+                                            self,
+                                            v: Vec<u8>,
+                                        ) -> Result<Self::Value, E>
+                                        {
+                                            if matches!(self.field, Some(field) if v == field.as_bytes())
+                                            {
+                                                Ok(None)
+                                            } else {
+                                                Ok(Some(serde::__private::de::Content::ByteBuf(v)))
+                                            }
+                                        }
+
+                                        fn visit_unit<E>(self) -> Result<Self::Value, E> {
+                                            Ok(Some(serde::__private::de::Content::Unit))
+                                        }
+                                    }
+
+                                    impl<'a, 'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                                        type Value = Option<serde::__private::de::Content<'de>>;
+
+                                        fn deserialize<D: Deserializer<'de>>(
+                                            self,
+                                            deserializer: D,
+                                        ) -> Result<Self::Value, D::Error>
+                                        {
+                                            deserializer.deserialize_identifier(self)
+                                        }
+                                    }
+
+                                    struct FlattenStructVariantVisitor<'a> {
+                                        name: &'a str,
+                                        variant: &'a str,
+                                        fields: &'a [&'a str],
+                                        tys: &'a [SerdeDataType<'a>],
+                                        flatten: &'a [bool],
+                                        values: &'a [SerdeDataValue<'a>],
+                                    }
+
+                                    impl<'a, 'de> Visitor<'de> for FlattenStructVariantVisitor<'a> {
+                                        type Value = ();
+
+                                        fn expecting(
+                                            &self,
+                                            formatter: &mut fmt::Formatter,
+                                        ) -> fmt::Result {
+                                            // ron's flattened struct canary depends on the expecting
+                                            //  message to start with "struct "
+                                            formatter.write_fmt(format_args!(
+                                                "struct variant {}::{}",
+                                                self.name, self.variant
+                                            ))
+                                        }
+
+                                        fn visit_map<A: MapAccess<'de>>(
+                                            self,
+                                            mut map: A,
+                                        ) -> Result<Self::Value, A::Error>
+                                        {
+                                            let mut collect = Vec::<
+                                                Option<(
+                                                    serde::__private::de::Content,
+                                                    serde::__private::de::Content,
+                                                )>,
+                                            >::new(
+                                            );
+
+                                            for (((field, ty), flatten), expected) in self
+                                                .fields
+                                                .iter()
+                                                .zip(self.tys.iter())
+                                                .zip(self.flatten.iter())
+                                                .zip(self.values.iter())
+                                            {
+                                                if !*flatten {
+                                                    while let Some(Some(key)) = map.next_key_seed(
+                                                        MaybeFlattenFieldIdentifierVisitor {
+                                                            field: Some(field),
+                                                        },
+                                                    )? {
+                                                        collect
+                                                            .push(Some((key, map.next_value()?)));
+                                                    }
+
+                                                    map.next_value_seed(BorrowedTypedSerdeData {
+                                                        ty,
+                                                        value: expected,
+                                                    })?;
+                                                }
+                                            }
+
+                                            while let Some(Some(key)) = map.next_key_seed(
+                                                MaybeFlattenFieldIdentifierVisitor { field: None },
+                                            )? {
+                                                collect.push(Some((key, map.next_value()?)));
+                                            }
+
+                                            for ((ty, flatten), expected) in self
+                                                .tys
+                                                .iter()
+                                                .zip(self.flatten.iter())
+                                                .zip(self.values.iter())
+                                            {
+                                                if *flatten {
+                                                    BorrowedTypedSerdeData {
+                                                        ty,
+                                                        value: expected,
+                                                    }
+                                                    .deserialize(
+                                                        serde::__private::de::FlatMapDeserializer(
+                                                            &mut collect,
+                                                            std::marker::PhantomData,
+                                                        ),
+                                                    )?;
+                                                }
+                                            }
+
+                                            Ok(())
+                                        }
+                                    }
+
+                                    impl<'a, 'de> DeserializeSeed<'de> for FlattenStructVariantVisitor<'a> {
+                                        type Value = ();
+
+                                        fn deserialize<D: Deserializer<'de>>(
+                                            self,
+                                            deserializer: D,
+                                        ) -> Result<Self::Value, D::Error>
+                                        {
+                                            deserializer.deserialize_map(self)
+                                        }
+                                    }
+
+                                    variant.newtype_variant_seed(FlattenStructVariantVisitor {
                                         name: self.name,
                                         variant: self.variant,
                                         fields: &fields.0,
                                         tys: &fields.1,
+                                        flatten: &fields.2,
                                         values,
-                                    },
-                                )
+                                    })
+                                } else {
+                                    variant.struct_variant(
+                                        unsafe { to_static_str_slice(&fields.0) },
+                                        StructVariantVisitor {
+                                            name: self.name,
+                                            variant: self.variant,
+                                            fields: &fields.0,
+                                            tys: &fields.1,
+                                            values,
+                                        },
+                                    )
+                                }
                             }
                             _ => Err(serde::de::Error::custom("invalid serde enum data")),
                         }
@@ -2121,23 +2451,17 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     _ => return Err(serde::de::Error::custom("out of bounds variant index")),
                 };
 
-                if matches!(ty, SerdeDataVariantType::Struct { fields } if fields.2.iter().any(|x| *x))
-                {
-                    // TODO: deserialize a flattened externally-tagged struct variant
-                    serde::de::IgnoredAny::deserialize(deserializer).map(|_| ())
-                } else {
-                    deserializer.deserialize_enum(
-                        unsafe { to_static_str(name) },
-                        unsafe { to_static_str_slice(&variants.0) },
-                        EnumVisitor {
-                            name,
-                            variant,
-                            index: *variant_index,
-                            ty,
-                            value,
-                        },
-                    )
-                }
+                deserializer.deserialize_enum(
+                    unsafe { to_static_str(name) },
+                    unsafe { to_static_str_slice(&variants.0) },
+                    EnumVisitor {
+                        name,
+                        variant,
+                        index: *variant_index,
+                        ty,
+                        value,
+                    },
+                )
             }
             (
                 SerdeDataType::Enum {
@@ -3695,12 +4019,16 @@ impl<'a> SerdeDataType<'a> {
                 }
                 let value = SerdeDataValue::Struct { fields: r#struct };
                 for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
-                    // Flattened fields are deserialised through serde's content type
                     if *flatten && !ty.supported_inside_untagged(pretty, false) {
+                        // Flattened fields are deserialised through serde's content type
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
                     if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
                         // BUG: implicit options are not supported inside flattend structs
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    }
+                    if *flatten && pretty.struct_names {
+                        // BUG: struct names inside flattend structs do not roundtrip
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
                 }
@@ -3833,12 +4161,16 @@ impl<'a> SerdeDataType<'a> {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
                         for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
-                            // Flattened fields are deserialised through serde's content type
                             if *flatten && !ty.supported_inside_untagged(pretty, false) {
+                                // Flattened fields are deserialised through serde's content type
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
                             if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
                                 // BUG: implicit options are not supported inside flattend structs
+                                return Err(arbitrary::Error::IncorrectFormat);
+                            }
+                            if *flatten && pretty.struct_names {
+                                // BUG: struct names inside flattend structs do not roundtrip
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
                         }
@@ -4204,7 +4536,7 @@ impl<'a> SerdeDataType<'a> {
                     if matches!(representation, SerdeEnumRepresentation::Untagged) {
                         inner.supported_inside_flatten(true)
                     } else {
-                        true
+                        inner.supported_inside_flatten(inside_untagged_newtype_variant)
                     }
                 }
                 SerdeDataVariantType::Tuple { fields: _ } => {
