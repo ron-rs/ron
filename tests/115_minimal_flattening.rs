@@ -129,8 +129,8 @@ Main({
     }"
         ),
         Err(ron::error::SpannedError {
-            code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 3, col: 16 },
+            code: ron::error::Error::ExpectedMapColon,
+            position: ron::error::Position { line: 4, col: 10 },
         })
     );
 
@@ -160,7 +160,7 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 5, col: 26 },
+            position: ron::error::Position { line: 5, col: 10 },
         })
     );
 }
@@ -252,8 +252,8 @@ MyType({
     }"
         ),
         Err(ron::error::SpannedError {
-            code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 3, col: 16 },
+            code: ron::error::Error::ExpectedMapColon,
+            position: ron::error::Position { line: 4, col: 10 },
         })
     );
 
@@ -281,7 +281,7 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 4, col: 15 },
+            position: ron::error::Position { line: 4, col: 10 },
         })
     );
 }
