@@ -1,6 +1,7 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{hash_map::DefaultHasher, HashMap, VecDeque},
     fs,
+    hash::{BuildHasher, Hasher},
     path::PathBuf,
 };
 
@@ -11,10 +12,27 @@ use ron::ser::PrettyConfig;
 #[path = "lib.rs"]
 mod typed_data;
 
+struct SeededHasher {
+    seed: u64,
+}
+
+impl BuildHasher for SeededHasher {
+    type Hasher = DefaultHasher;
+
+    fn build_hasher(&self) -> Self::Hasher {
+        let mut hasher = DefaultHasher::new();
+        hasher.write_u64(self.seed);
+        hasher
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let mut criterion = Criterion::default().configure_from_args();
 
-    let mut cases = HashSet::new();
+    let seed = std::env::var("RON_FUZZ_BENCH_SEED")?.parse()?;
+    let max_cases = std::env::var("RON_FUZZ_BENCH_CASES")?.parse()?;
+
+    let mut cases = HashMap::with_capacity_and_hasher(0, SeededHasher { seed });
 
     let mut entries = VecDeque::new();
     entries.push_back(PathBuf::from("corpus/arbitrary"));
@@ -53,28 +71,32 @@ fn main() -> anyhow::Result<()> {
             .unwrap();
             let ron = ron::ser::to_string_pretty(&typed_data, typed_data.pretty_config()).unwrap();
 
-            if !cases.insert((ty.clone(), value.clone(), ron.clone())) {
+            if cases.insert((ty, value, ron), (entry, pretty)).is_some() {
                 continue;
             }
-
-            println!("{:=^80}", " benchmark case ");
-            println!("{:^80}", entry.to_string_lossy());
-            println!("{:=^80}", " type ");
-            println!("{ty}");
-            println!("{:=^80}", " value ");
-            println!("{value}");
-            println!("{:=^80}", " pretty config ");
-            println!("{pretty}");
-            println!("{:=^80}", " pretty ron ");
-            println!("{ron}");
-            println!("{:=^80}", "");
-
-            criterion.bench_function(&format!("{:?}", entry), |b| {
-                b.iter(|| {
-                    black_box(typed_data::roundtrip_arbitrary_typed_ron_or_panic(&data));
-                })
-            });
         }
+    }
+
+    for ((ty, value, ron), (entry, pretty)) in cases.into_iter().take(max_cases) {
+        let data = fs::read(&entry).context("could not read corpus entry")?;
+
+        println!("{:=^80}", " benchmark case ");
+        println!("{:^80}", entry.to_string_lossy());
+        println!("{:=^80}", " type ");
+        println!("{ty}");
+        println!("{:=^80}", " value ");
+        println!("{value}");
+        println!("{:=^80}", " pretty config ");
+        println!("{pretty}");
+        println!("{:=^80}", " pretty ron ");
+        println!("{ron}");
+        println!("{:=^80}", "");
+
+        criterion.bench_function(&format!("{:?}", entry), |b| {
+            b.iter(|| {
+                black_box(typed_data::roundtrip_arbitrary_typed_ron_or_panic(&data));
+            })
+        });
     }
 
     criterion.final_summary();
