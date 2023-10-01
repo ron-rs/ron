@@ -542,6 +542,44 @@ fn non_string_key_inside_flatten_struct_variant() {
     );
 }
 
+#[test]
+fn zero_length_untagged_tuple_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        A(),
+    }
+
+    assert_eq!(
+        check_roundtrip(&Untagged::A(), PrettyConfig::default()),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 1, col: 3 }
+        }))
+    );
+}
+
+#[test]
+fn zero_length_untagged_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        A {},
+    }
+
+    assert_eq!(
+        check_roundtrip(&Untagged::A {}, PrettyConfig::default()),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 1, col: 3 }
+        }))
+    );
+}
+
 fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
     val: &T,
     config: PrettyConfig,
