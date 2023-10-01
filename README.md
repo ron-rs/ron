@@ -187,7 +187,7 @@ While data structures with any of these attributes should generally roundtrip th
 
 - flattened structs are only serialised as maps and deserialised from maps
 - struct names inside an internally (or adjacently) tagged or untagged enum or a `#[serde(flatten)]` struct or struct variant, e.g. by enabling the `PrettyConfig::struct_names` setting, are not supported
-- enabling the `#![enable(implicit_some)]` extension on a document with internally (or adjacently) tagged or untagged enums is not supported
+- enabling the `#![enable(implicit_some)]` extension on a document with `Option`s inside internally (or adjacently) tagged or untagged enums or `#[serde(flatten)]`ed fields is not supported
 - untagged tuple / struct variants with no fields are not supported
 - untagged tuple variants with just one field (that are not newtype variants) are not supported when the `#![enable(unwrap_variant_newtypes)]` extension is enabled
 - internally tagged newtype variants must not contain a unit / unit struct inside an untagged newtype variant, or an untagged unit variant
@@ -197,7 +197,6 @@ While data structures with any of these attributes should generally roundtrip th
 - tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
 - ron only supports string keys inside maps flattened into structs
 - flattened structs with conflicting keys (e.g. an earlier inner-struct key matches a later outer-struct key or two flattened maps in the same struct share a key) are not supported by serde
-- `Option<T>` is not supported inside `#[serde(flatten)]` with `#[enable(implicit_some)]`
 
 Please file a [new issue](https://github.com/ron-rs/ron/issues/new) if you come across a use case which is not listed among the above restrictions but still breaks.
 
