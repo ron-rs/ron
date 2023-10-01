@@ -78,3 +78,66 @@ test_non_tag! { test_tuple_struct => deserialize_tuple_struct("", 0) }
 test_non_tag! { test_map => deserialize_map() }
 test_non_tag! { test_struct => deserialize_struct("", &[]) }
 test_non_tag! { test_enum => deserialize_enum("", &[]) }
+
+macro_rules! test_tag {
+    ($test_name:ident => $deserialize_method:ident($($deserialize_param:expr),*)) => {
+        #[test]
+        fn $test_name() {
+            use serde::{Deserialize, Deserializer, de::Visitor};
+
+            struct TagVisitor;
+
+            impl<'de> Visitor<'de> for TagVisitor {
+                type Value = Tag;
+
+                // GRCOV_EXCL_START
+                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    fmt.write_str("a tag")
+                }
+                // GRCOV_EXCL_STOP
+
+                fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                    assert_eq!(v, "tag");
+                    Ok(Tag)
+                }
+            }
+
+            struct Tag;
+
+            impl<'de> Deserialize<'de> for Tag {
+                fn deserialize<D: Deserializer<'de>>(deserializer: D)
+                    -> Result<Self, D::Error>
+                {
+                    deserializer.$deserialize_method($($deserialize_param,)* TagVisitor)
+                }
+            }
+
+            #[derive(Debug)]
+            struct InternallyTagged;
+
+            impl<'de> Deserialize<'de> for InternallyTagged {
+                fn deserialize<D: Deserializer<'de>>(deserializer: D)
+                    -> Result<Self, D::Error>
+                {
+                    deserializer.deserialize_any(serde::__private::de::TaggedContentVisitor::<
+                        Tag,
+                    >::new(
+                        "tag",
+                        "an internally tagged value",
+                    )).map(|_| InternallyTagged)
+                }
+            }
+
+            assert!(
+                ron::from_str::<InternallyTagged>("(tag: \"tag\")").is_ok(),
+            )
+        }
+    };
+}
+
+test_tag! { test_str => deserialize_string() }
+test_tag! { test_string => deserialize_string() }
+test_tag! { test_identifier => deserialize_identifier() }
+
+test_tag! { test_any => deserialize_any() }
+test_tag! { test_ignored_any => deserialize_ignored_any() }
