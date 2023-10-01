@@ -186,16 +186,17 @@ RON is not designed to be a fully self-describing format (unlike JSON) and is th
 While data structures with any of these attributes should generally roundtrip through RON, some restrictions apply [^serde-restrictions] and their textual representation may not always match your expectation:
 
 - flattened structs are only serialised as maps and deserialised from maps
-- struct names inside an internally (or adjacently) tagged or untagged enum or a `#[serde(flatten)]` struct or struct variant, e.g. by enabling the `PrettyConfig::struct_names` setting, are not supported
-- enabling the `#![enable(implicit_some)]` extension on a document with `Option`s inside internally (or adjacently) tagged or untagged enums or `#[serde(flatten)]`ed fields is not supported
+- ron only supports string keys inside maps flattened into structs
+- internally (or adjacently) tagged or untagged enum or a `#[serde(flatten)]`ed fields do not support:
+  - `i128` or `u128` values
+  - struct names, e.g. by enabling the `PrettyConfig::struct_names` setting
+  - `Option`s when `#![enable(implicit_some)]` is enabled
+  - newtypes and zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants
+  - externally tagged tuple enum variants with just one field (that are not newtype variants)
 - untagged tuple / struct variants with no fields are not supported
 - untagged tuple variants with just one field (that are not newtype variants) are not supported when the `#![enable(unwrap_variant_newtypes)]` extension is enabled
 - internally tagged newtype variants must not contain a unit / unit struct inside an untagged newtype variant, or an untagged unit variant
-- serde does not yet support `i128` and `u128` inside internally (or adjacently) tagged or untagged enums
-- newtypes and zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants are not supported inside internally (or adjacently) tagged or untagged enums
-- externally tagged tuple variants with just one field (that are not newtype variants) are not supported inside internally (or adjacently) tagged or untagged enums
 - tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
-- ron only supports string keys inside maps flattened into structs
 - flattened structs with conflicting keys (e.g. an earlier inner-struct key matches a later outer-struct key or two flattened maps in the same struct share a key) are not supported by serde
 
 Please file a [new issue](https://github.com/ron-rs/ron/issues/new) if you come across a use case which is not listed among the above restrictions but still breaks.
@@ -206,7 +207,7 @@ While RON guarantees roundtrips like Rust -> RON -> Rust for Rust types using no
 
 [^serde-flatten-hack]: Deserialising a flattened struct from a map requires that the struct's [`Visitor::expecting`](https://docs.rs/serde/latest/serde/de/trait.Visitor.html#tymethod.expecting) implementation formats a string starting with `"struct "`. This is the case for automatically-derived [`Deserialize`](https://docs.rs/serde/latest/serde/de/trait.Deserialize.html) impls on structs. See [#455](https://github.com/ron-rs/ron/pull/455) for more details.
 
-[^serde-restrictions]: Most of these restrictions are currently blocked on [serde#1183](https://github.com/serde-rs/serde/issues/1183), which limits non-self-describing formats from roundtripping format-specific information through internally (or adjacently) tagged or untagged enums.
+[^serde-restrictions]: Most of these restrictions are currently blocked on [serde#1183](https://github.com/serde-rs/serde/issues/1183), which limits non-self-describing formats from roundtripping format-specific information through internally (or adjacently) tagged or untagged enums or `#[serde(flatten)]`ed fields.
 
 ## License
 

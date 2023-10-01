@@ -203,7 +203,7 @@ fn struct_names_inside_flatten_struct_variant() {
             ho: i32,
             #[serde(flatten)]
             a: B,
-        }
+        },
     }
 
     assert_eq!(
