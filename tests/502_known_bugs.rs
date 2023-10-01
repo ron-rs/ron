@@ -234,6 +234,149 @@ fn struct_names_inside_flatten_struct_variant() {
     );
 }
 
+#[test]
+fn i128_inside_internally_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: i128,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A { hi: i128::MAX }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("i128 is not supported"))))
+    );
+}
+
+#[test]
+fn u128_inside_adjacently_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: u128,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag", content = "content")]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A { hi: u128::MAX }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("u128 is not supported"))))
+    );
+}
+
+#[test]
+fn i128_inside_untagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: i128,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A { hi: i128::MIN }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("i128 is not supported"))))
+    );
+}
+
+#[test]
+fn u128_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: u128,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: B,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A { hi: u128::MAX }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("u128 is not supported"))))
+    );
+}
+
+#[test]
+fn i128_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: i128,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        C {
+            ho: i32,
+            #[serde(flatten)]
+            a: B,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A { hi: i128::MIN }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("i128 is not supported"))))
+    );
+}
+
 fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
     val: &T,
     config: PrettyConfig,
