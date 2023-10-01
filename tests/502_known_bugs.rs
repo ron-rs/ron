@@ -51,13 +51,13 @@ fn struct_names_inside_adjacently_tagged() {
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(tag = "tag", content = "content")]
-    enum InternallyTagged {
+    enum AdjacentlyTagged {
         B { ho: i32, a: A },
     }
 
     assert_eq!(
         check_roundtrip(
-            &InternallyTagged::B {
+            &AdjacentlyTagged::B {
                 ho: 24,
                 a: A { hi: 42 }
             },
@@ -67,7 +67,7 @@ fn struct_names_inside_adjacently_tagged() {
     );
     assert_eq!(
         check_roundtrip(
-            &InternallyTagged::B {
+            &AdjacentlyTagged::B {
                 ho: 24,
                 a: A { hi: 42 }
             },
@@ -76,22 +76,22 @@ fn struct_names_inside_adjacently_tagged() {
         Ok(()),
     );
     assert_eq!(
-        ron::from_str::<InternallyTagged>(
-            "InternallyTagged(tag: B, content: B(ho: 24, a: A(hi: 42)))"
+        ron::from_str::<AdjacentlyTagged>(
+            "AdjacentlyTagged(tag: B, content: B(ho: 24, a: A(hi: 42)))"
         ),
-        Ok(InternallyTagged::B {
+        Ok(AdjacentlyTagged::B {
             ho: 24,
             a: A { hi: 42 }
         }),
     );
     assert_eq!(
-        ron::from_str::<InternallyTagged>(
-            "InternallyTagged(content: B(ho: 24, a: A(hi: 42)), tag: B)"
+        ron::from_str::<AdjacentlyTagged>(
+            "AdjacentlyTagged(content: B(ho: 24, a: A(hi: 42)), tag: B)"
         ),
         Err(SpannedError {
             code: Error::MissingStructField {
                 field: "ho",
-                outer: Some(String::from("InternallyTagged"))
+                outer: Some(String::from("AdjacentlyTagged"))
             },
             position: Position { line: 1, col: 58 }
         }),
@@ -107,13 +107,13 @@ fn struct_names_inside_untagged() {
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
-    enum InternallyTagged {
+    enum Untagged {
         B { ho: i32, a: A },
     }
 
     assert_eq!(
         check_roundtrip(
-            &InternallyTagged::B {
+            &Untagged::B {
                 ho: 24,
                 a: A { hi: 42 }
             },
@@ -123,7 +123,7 @@ fn struct_names_inside_untagged() {
     );
     assert_eq!(
         check_roundtrip(
-            &InternallyTagged::B {
+            &Untagged::B {
                 ho: 24,
                 a: A { hi: 42 }
             },
@@ -131,7 +131,7 @@ fn struct_names_inside_untagged() {
         ),
         Err(Err(SpannedError {
             code: Error::Message(String::from(
-                "data did not match any variant of untagged enum InternallyTagged"
+                "data did not match any variant of untagged enum Untagged"
             )),
             position: Position { line: 6, col: 2 }
         })),
@@ -247,6 +247,7 @@ fn i128_inside_internally_tagged() {
         B { ho: i32, a: A },
     }
 
+    #[cfg(not(feature = "integer128"))]
     assert_eq!(
         check_roundtrip(
             &InternallyTagged::B {
@@ -256,6 +257,23 @@ fn i128_inside_internally_tagged() {
             PrettyConfig::default()
         ),
         Err(Ok(Error::Message(String::from("i128 is not supported"))))
+    );
+    #[cfg(feature = "integer128")]
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A { hi: i128::MAX }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any value"),
+                found: format!("integer `{}` as u128", i128::MAX)
+            },
+            position: Position { line: 5, col: 52 }
+        }))
     );
 }
 
@@ -268,19 +286,56 @@ fn u128_inside_adjacently_tagged() {
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(tag = "tag", content = "content")]
-    enum InternallyTagged {
+    enum AdjacentlyTagged {
         B { ho: i32, a: A },
     }
 
+    #[cfg(not(feature = "integer128"))]
     assert_eq!(
         check_roundtrip(
-            &InternallyTagged::B {
+            &AdjacentlyTagged::B {
                 ho: 24,
                 a: A { hi: u128::MAX }
             },
             PrettyConfig::default()
         ),
         Err(Ok(Error::Message(String::from("u128 is not supported"))))
+    );
+    #[cfg(feature = "integer128")]
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B {
+                ho: 24,
+                a: A { hi: u128::MAX }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(()),
+    );
+    #[cfg(feature = "integer128")]
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>(&format!(
+            "(tag: B, content: (ho: 24, a: (hi: {})))",
+            u128::MAX
+        ),),
+        Ok(AdjacentlyTagged::B {
+            ho: 24,
+            a: A { hi: u128::MAX }
+        }),
+    );
+    #[cfg(feature = "integer128")]
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>(&format!(
+            "(content: (ho: 24, a: (hi: {})), tag: B)",
+            u128::MAX
+        ),),
+        Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any value"),
+                found: format!("integer `{}` as u128", u128::MAX)
+            },
+            position: Position { line: 1, col: 67 }
+        }),
     );
 }
 
@@ -293,19 +348,37 @@ fn i128_inside_untagged() {
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
-    enum InternallyTagged {
+    enum Untagged {
         B { ho: i32, a: A },
     }
 
+    #[cfg(not(feature = "integer128"))]
     assert_eq!(
         check_roundtrip(
-            &InternallyTagged::B {
+            &Untagged::B {
                 ho: 24,
                 a: A { hi: i128::MIN }
             },
             PrettyConfig::default()
         ),
         Err(Ok(Error::Message(String::from("i128 is not supported"))))
+    );
+    #[cfg(feature = "integer128")]
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::B {
+                ho: 24,
+                a: A { hi: i128::MIN }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any value"),
+                found: format!("integer `{}` as i128", i128::MIN)
+            },
+            position: Position { line: 4, col: 53 }
+        }))
     );
 }
 
@@ -328,6 +401,7 @@ fn u128_inside_flatten_struct() {
         a: B,
     }
 
+    #[cfg(not(feature = "integer128"))]
     assert_eq!(
         check_roundtrip(
             &FlattenedStruct {
@@ -339,6 +413,25 @@ fn u128_inside_flatten_struct() {
             PrettyConfig::default()
         ),
         Err(Ok(Error::Message(String::from("u128 is not supported"))))
+    );
+    #[cfg(feature = "integer128")]
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A { hi: u128::MAX }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any value"),
+                found: format!("integer `{}` as u128", u128::MAX)
+            },
+            position: Position { line: 4, col: 52 }
+        }))
     );
 }
 
@@ -363,6 +456,7 @@ fn i128_inside_flatten_struct_variant() {
         },
     }
 
+    #[cfg(not(feature = "integer128"))]
     assert_eq!(
         check_roundtrip(
             &FlattenedStructVariant::C {
@@ -374,6 +468,25 @@ fn i128_inside_flatten_struct_variant() {
             PrettyConfig::default()
         ),
         Err(Ok(Error::Message(String::from("i128 is not supported"))))
+    );
+    #[cfg(feature = "integer128")]
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A { hi: i128::MIN }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any value"),
+                found: format!("integer `{}` as i128", i128::MIN)
+            },
+            position: Position { line: 4, col: 53 }
+        }))
     );
 }
 
