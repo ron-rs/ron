@@ -23,6 +23,9 @@ mod tag;
 mod tests;
 mod value;
 
+const SERDE_CONTENT_CANARY: &str = "serde::__private::de::content::Content";
+const SERDE_TAG_KEY_CANARY: &str = "serde::__private::de::content::TagOrContent";
+
 /// The RON deserializer.
 ///
 /// If you just want to simply deserialize a value,
@@ -165,9 +168,8 @@ impl<'de> Deserializer<'de> {
     {
         // HACK: switch to JSON enum semantics for JSON content
         // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
-        let is_serde_content = std::any::type_name::<V::Value>()
-            == "serde::__private::de::content::Content"
-            || std::any::type_name::<V::Value>() == "serde::__private::de::content::TagOrContent";
+        let is_serde_content = std::any::type_name::<V::Value>() == SERDE_CONTENT_CANARY
+            || std::any::type_name::<V::Value>() == SERDE_TAG_KEY_CANARY;
 
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
@@ -849,7 +851,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     {
         if self.has_element()? {
             self.inside_internally_tagged_enum =
-                std::any::type_name::<K::Value>() == "serde::__private::de::content::TagOrContent";
+                std::any::type_name::<K::Value>() == SERDE_TAG_KEY_CANARY;
 
             match self.terminator {
                 Terminator::Struct => guard_recursion! { self.de =>
@@ -875,7 +877,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
             self.de.parser.skip_ws()?;
 
             let res = if self.inside_internally_tagged_enum
-                && std::any::type_name::<V::Value>() != "serde::__private::de::content::Content"
+                && std::any::type_name::<V::Value>() != SERDE_CONTENT_CANARY
             {
                 guard_recursion! { self.de =>
                     seed.deserialize(&mut tag::Deserializer::new(&mut *self.de))?
