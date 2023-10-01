@@ -186,7 +186,7 @@ RON is not designed to be a fully self-describing format (unlike JSON) and is th
 While data structures with any of these attributes should generally roundtrip through RON, some restrictions apply [^serde-restrictions] and their textual representation may not always match your expectation:
 
 - flattened structs are only serialised as maps and deserialised from maps
-- struct names inside an internally (or adjacently) tagged or untagged enum, e.g. by enabling the `PrettyConfig::struct_types` setting, are not supported
+- struct names inside an internally (or adjacently) tagged or untagged enum or a `#[serde(flatten)]` struct or struct variant, e.g. by enabling the `PrettyConfig::struct_names` setting, are not supported
 - enabling the `#![enable(implicit_some)]` extension on a document with internally (or adjacently) tagged or untagged enums is not supported
 - untagged tuple / struct variants with no fields are not supported
 - untagged tuple variants with just one field (that are not newtype variants) are not supported when the `#![enable(unwrap_variant_newtypes)]` extension is enabled
@@ -194,6 +194,10 @@ While data structures with any of these attributes should generally roundtrip th
 - serde does not yet support `i128` and `u128` inside internally (or adjacently) tagged or untagged enums
 - newtypes and zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants are not supported inside internally (or adjacently) tagged or untagged enums
 - externally tagged tuple variants with just one field (that are not newtype variants) are not supported inside internally (or adjacently) tagged or untagged enums
+- tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
+- ron only supports string keys inside maps flattened into structs
+- flattened structs with conflicting keys (e.g. an earlier inner-struct key matches a later outer-struct key or two flattened maps in the same struct share a key) are not supported by serde
+- `Option<T>` is not supported inside `#[serde(flatten)]` with `#[enable(implicit_some)]`
 
 Please file a [new issue](https://github.com/ron-rs/ron/issues/new) if you come across a use case which is not listed among the above restrictions but still breaks.
 
