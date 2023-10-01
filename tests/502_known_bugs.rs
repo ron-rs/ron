@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ron::{error::Position, error::SpannedError, ser::PrettyConfig, Error};
 use serde::{Deserialize, Serialize};
 
@@ -486,6 +488,56 @@ fn i128_inside_flatten_struct_variant() {
                 found: format!("integer `{}` as i128", i128::MIN)
             },
             position: Position { line: 4, col: 53 }
+        }))
+    );
+}
+
+#[test]
+fn non_string_key_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        other: HashMap<i32, bool>,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                other: [(1, true), (0, false)].into_iter().collect(),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::ExpectedString,
+            position: Position { line: 3, col: 5 }
+        }))
+    );
+}
+
+#[test]
+fn non_string_key_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        A {
+            ho: i32,
+            #[serde(flatten)]
+            other: HashMap<char, u8>,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::A {
+                ho: 24,
+                other: [('h', 0), ('i', 1)].into_iter().collect(),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::ExpectedString,
+            position: Position { line: 3, col: 5 }
         }))
     );
 }
