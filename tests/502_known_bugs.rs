@@ -1003,6 +1003,28 @@ fn zero_length_untagged_struct_variant() {
     );
 }
 
+#[test]
+fn unwrapped_one_element_untagged_tuple_variant() {
+    // A tuple variant with just one element that is not a newtype variant
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        OneTuple(i32, #[serde(skip)] ()),
+    }
+
+    assert_eq!(
+        check_roundtrip(&Untagged::OneTuple(42, ()), PrettyConfig::default()),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::OneTuple(42, ()),
+            PrettyConfig::default().extensions(Extensions::UNWRAP_VARIANT_NEWTYPES)
+        ),
+        Ok(())
+    );
+}
+
 fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
     val: &T,
     config: PrettyConfig,

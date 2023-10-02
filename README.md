@@ -192,7 +192,7 @@ While data structures with any of these attributes should generally roundtrip th
   - struct names, e.g. by enabling the `PrettyConfig::struct_names` setting
   - newtypes
   - zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants
-    - `Option`s with `#[enable(implicit_some)]` must nog contain any of these or a unit, unit struct, or an untagged unit variant
+    - `Option`s with `#[enable(implicit_some)]` must not contain any of these or a unit, unit struct, or an untagged unit variant
   - externally tagged tuple variants with just one field (that are not newtype variants)
   - tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
 - untagged tuple / struct variants with no fields are not supported
