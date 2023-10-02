@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix serialising reserved identifiers `true`, `false`, `Some`, `None`, `inf`[`f32`|`f64`], and `Nan`[`f32`|`f64`] ([#487](https://github.com/ron-rs/ron/pull/487))
 - Disallow unclosed line comments at the end of `ron::value::RawValue` ([#489](https://github.com/ron-rs/ron/pull/489))
 - Fix parsing of struct/variant names starting in `None`, `Some`, `true`, or `false` ([#499](https://github.com/ron-rs/ron/pull/499))
+- Fix deserialising owned string field names in struct formatted maps, allowing deserialization of `serde_json::Value` values ([#511](https://github.com/ron-rs/ron/pull/512))
 
 ### Miscellaneous
 
