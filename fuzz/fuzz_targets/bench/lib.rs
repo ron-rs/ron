@@ -4928,14 +4928,10 @@ impl<'a> SerdeDataType<'a> {
                 }
                 let value = SerdeDataValue::Struct { fields: r#struct };
                 for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
-                    if *flatten && !ty.supported_inside_untagged(pretty, false) {
+                    if *flatten && !ty.supported_inside_untagged(pretty, false, false) {
                         // Flattened fields are deserialised through serde's content type
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
-                    // if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
-                    //     // BUG: implicit options are not supported inside flattend structs
-                    //     return Err(arbitrary::Error::IncorrectFormat);
-                    // }
                     if *flatten && pretty.struct_names {
                         // BUG: struct names inside flattend structs do not roundtrip
                         return Err(arbitrary::Error::IncorrectFormat);
@@ -4955,16 +4951,7 @@ impl<'a> SerdeDataType<'a> {
                     representation,
                     SerdeEnumRepresentation::Untagged |
                     SerdeEnumRepresentation::InternallyTagged { tag: _ }
-                    if pretty.struct_names //|| pretty.extensions.contains(Extensions::IMPLICIT_SOME)
-                ) {
-                    return Err(arbitrary::Error::IncorrectFormat);
-                }
-
-                // BUG: implicit Some(()) inside untagged do not roundtrip
-                if matches!(
-                    representation,
-                    SerdeEnumRepresentation::Untagged
-                    if pretty.extensions.contains(Extensions::IMPLICIT_SOME)
+                    if pretty.struct_names
                 ) {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
@@ -5012,7 +4999,7 @@ impl<'a> SerdeDataType<'a> {
                     }
                     SerdeDataVariantType::Newtype { ref mut inner } => {
                         let value = Box::new(inner.arbitrary_value(u, pretty)?);
-                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_untagged(pretty, true))
+                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_untagged(pretty, true, false))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
@@ -5054,7 +5041,7 @@ impl<'a> SerdeDataType<'a> {
                             tuple.push(ty.arbitrary_value(u, pretty)?);
                         }
                         let value = SerdeDataVariantValue::Struct { fields: tuple };
-                        if matches!(representation, SerdeEnumRepresentation::Untagged if !fields.iter().all(|field| field.supported_inside_untagged(pretty, false)))
+                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !fields.iter().all(|field| field.supported_inside_untagged(pretty, false, false)))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
@@ -5074,19 +5061,15 @@ impl<'a> SerdeDataType<'a> {
                             r#struct.push(ty.arbitrary_value(u, pretty)?);
                         }
                         let value = SerdeDataVariantValue::Struct { fields: r#struct };
-                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !fields.1.iter().all(|field| field.supported_inside_untagged(pretty, false)))
+                        if matches!(representation, SerdeEnumRepresentation::Untagged | SerdeEnumRepresentation::InternallyTagged { tag: _ } if !fields.1.iter().all(|field| field.supported_inside_untagged(pretty, false, false)))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
                         for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
-                            if *flatten && !ty.supported_inside_untagged(pretty, false) {
+                            if *flatten && !ty.supported_inside_untagged(pretty, false, false) {
                                 // Flattened fields are deserialised through serde's content type
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
-                            // if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
-                            //     // BUG: implicit options are not supported inside flattend structs
-                            //     return Err(arbitrary::Error::IncorrectFormat);
-                            // }
                             if *flatten && pretty.struct_names {
                                 // BUG: struct names inside flattend structs do not roundtrip
                                 return Err(arbitrary::Error::IncorrectFormat);
@@ -5118,9 +5101,14 @@ impl<'a> SerdeDataType<'a> {
         &self,
         pretty: &PrettyConfig,
         inside_newtype_variant: bool,
+        inside_option: bool,
     ) -> bool {
         match self {
-            SerdeDataType::Unit => true,
+            SerdeDataType::Unit => {
+                // BUG: implicit `Some(())` is serialized as just `()`,
+                //      which Option's deserializer accepts as `None`
+                !(inside_option && pretty.extensions.contains(Extensions::IMPLICIT_SOME))
+            }
             SerdeDataType::Bool => true,
             SerdeDataType::I8 => true,
             SerdeDataType::I16 => true,
@@ -5139,7 +5127,7 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::Char => true,
             SerdeDataType::String => true,
             SerdeDataType::ByteBuf => true,
-            SerdeDataType::Option { inner } => inner.supported_inside_untagged(pretty, true),
+            SerdeDataType::Option { inner } => inner.supported_inside_untagged(pretty, true, true),
             SerdeDataType::Array { kind, len } => {
                 if *len == 0 {
                     // BUG: a zero-length array look like a unit to ron
@@ -5156,7 +5144,7 @@ impl<'a> SerdeDataType<'a> {
                     return false;
                 }
 
-                kind.supported_inside_untagged(pretty, false)
+                kind.supported_inside_untagged(pretty, false, false)
             }
             SerdeDataType::Tuple { elems } => {
                 if elems.is_empty() {
@@ -5176,20 +5164,31 @@ impl<'a> SerdeDataType<'a> {
 
                 elems
                     .iter()
-                    .all(|element| element.supported_inside_untagged(pretty, false))
+                    .all(|element| element.supported_inside_untagged(pretty, false, false))
             }
-            SerdeDataType::Vec { item } => item.supported_inside_untagged(pretty, false),
+            SerdeDataType::Vec { item } => item.supported_inside_untagged(pretty, false, false),
             SerdeDataType::Map { key, value } => {
-                key.supported_inside_untagged(pretty, false)
-                    && value.supported_inside_untagged(pretty, false)
+                key.supported_inside_untagged(pretty, false, false)
+                    && value.supported_inside_untagged(pretty, false, false)
             }
-            SerdeDataType::UnitStruct { name: _ } => true,
+            SerdeDataType::UnitStruct { name: _ } => {
+                // unit structs always serilize as units here since struct names
+                //  are never allowed inside untagged
+
+                // BUG: implicit `Some(())` is serialized as just `()`,
+                //      which Option's deserializer accepts as `None`
+                !(inside_option && pretty.extensions.contains(Extensions::IMPLICIT_SOME))
+            }
             SerdeDataType::Newtype { name: _, inner: _ } => {
                 // if *name == RAW_VALUE_TOKEN {
                 //     return false;
                 // }
 
-                // inner.supported_inside_untagged(pretty, false)
+                // inner.supported_inside_untagged(
+                //     pretty,
+                //     false,
+                //     inside_option && pretty.extensions.contains(Extensions::UNWRAP_NEWTYPES),
+                // )
 
                 // BUG: newtypes inside untagged look like 1-tuples to ron
                 false
@@ -5202,7 +5201,7 @@ impl<'a> SerdeDataType<'a> {
 
                 fields
                     .iter()
-                    .all(|field| field.supported_inside_untagged(pretty, false))
+                    .all(|field| field.supported_inside_untagged(pretty, false, false))
             }
             SerdeDataType::Struct {
                 name: _,
@@ -5219,7 +5218,7 @@ impl<'a> SerdeDataType<'a> {
                     .iter()
                     .zip(fields.2.iter())
                     .all(|(field, flatten)| {
-                        field.supported_inside_untagged(pretty, false)
+                        field.supported_inside_untagged(pretty, false, false)
                             && (!*flatten || field.supported_inside_flatten(false))
                     })
             }
@@ -5228,11 +5227,22 @@ impl<'a> SerdeDataType<'a> {
                 variants,
                 representation,
             } => variants.1.iter().all(|variant| match variant {
-                SerdeDataVariantType::Unit => true,
-                SerdeDataVariantType::TaggedOther => true,
-                SerdeDataVariantType::Newtype { inner } => {
-                    inner.supported_inside_untagged(pretty, true)
+                SerdeDataVariantType::Unit => {
+                    // BUG: implicit `Some(())` is serialized as just `()`,
+                    //      which Option's deserializer accepts as `None`
+                    !(inside_option
+                        && pretty.extensions.contains(Extensions::IMPLICIT_SOME)
+                        && matches!(representation, SerdeEnumRepresentation::Untagged))
                 }
+                SerdeDataVariantType::TaggedOther => true,
+                SerdeDataVariantType::Newtype { inner } => inner.supported_inside_untagged(
+                    pretty,
+                    true,
+                    inside_option
+                        && pretty
+                            .extensions
+                            .contains(Extensions::UNWRAP_VARIANT_NEWTYPES),
+                ),
                 SerdeDataVariantType::Tuple { fields } => {
                     if fields.is_empty() {
                         // BUG: an empty tuple struct looks like a unit to ron
@@ -5248,7 +5258,7 @@ impl<'a> SerdeDataType<'a> {
 
                     fields
                         .iter()
-                        .all(|field| field.supported_inside_untagged(pretty, false))
+                        .all(|field| field.supported_inside_untagged(pretty, false, false))
                 }
                 SerdeDataVariantType::Struct { fields } => {
                     if fields.0.is_empty() {
@@ -5261,7 +5271,7 @@ impl<'a> SerdeDataType<'a> {
                         .iter()
                         .zip(fields.2.iter())
                         .all(|(field, flatten)| {
-                            field.supported_inside_untagged(pretty, false)
+                            field.supported_inside_untagged(pretty, false, false)
                                 && (!*flatten || field.supported_inside_flatten(false))
                         })
                 }

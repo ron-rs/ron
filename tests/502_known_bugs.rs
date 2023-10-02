@@ -236,11 +236,11 @@ fn struct_names_inside_flatten_struct_variant() {
     );
 }
 
-/*#[test]
+#[test]
 fn implicit_some_inside_internally_tagged() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct A {
-        hi: Option<Option<i32>>,
+        hi: Option<Option<()>>,
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -253,7 +253,7 @@ fn implicit_some_inside_internally_tagged() {
         check_roundtrip(
             &InternallyTagged::B {
                 ho: 24,
-                a: A { hi: Some(Some(42)) }
+                a: A { hi: Some(Some(())) }
             },
             PrettyConfig::default()
         ),
@@ -263,17 +263,11 @@ fn implicit_some_inside_internally_tagged() {
         check_roundtrip(
             &InternallyTagged::B {
                 ho: 24,
-                a: A { hi: Some(Some(42)) }
+                a: A { hi: Some(Some(())) }
             },
             PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
         ),
-        Err(Err(SpannedError {
-            code: Error::MissingStructField {
-                field: "hi",
-                outer: None
-            },
-            position: Position { line: 7, col: 2 }
-        })),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: B { ho: 24, a: A { hi: Some(Some(())) } } != B { ho: 24, a: A { hi: None } }"))))
     );
 }
 
@@ -281,7 +275,7 @@ fn implicit_some_inside_internally_tagged() {
 fn implicit_some_inside_adjacently_tagged() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct A {
-        hi: Option<i32>,
+        hi: Option<Option<()>>,
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -294,7 +288,7 @@ fn implicit_some_inside_adjacently_tagged() {
         check_roundtrip(
             &AdjacentlyTagged::B {
                 ho: 24,
-                a: A { hi: Some(42) }
+                a: A { hi: Some(Some(())) }
             },
             PrettyConfig::default()
         ),
@@ -304,7 +298,7 @@ fn implicit_some_inside_adjacently_tagged() {
         check_roundtrip(
             &AdjacentlyTagged::B {
                 ho: 24,
-                a: A { hi: Some(42) }
+                a: A { hi: Some(Some(())) }
             },
             PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
         ),
@@ -312,32 +306,29 @@ fn implicit_some_inside_adjacently_tagged() {
     );
     assert_eq!(
         ron::from_str::<AdjacentlyTagged>(
-            "#[enable(implicit_some)] AdjacentlyTagged(tag: B, content: B(ho: 24, a: A(hi: 42)))"
+            "#![enable(implicit_some)] (tag: B, content: (ho: 24, a: A(hi: ())))"
         ),
         Ok(AdjacentlyTagged::B {
             ho: 24,
-            a: A { hi: Some(42) }
+            a: A { hi: Some(Some(())) }
         }),
     );
     assert_eq!(
         ron::from_str::<AdjacentlyTagged>(
-            "#[enable(implicit_some)] AdjacentlyTagged(content: B(ho: 24, a: A(hi: 42)), tag: B)"
+            "#![enable(implicit_some)] (content: (ho: 24, a: A(hi: ())), tag: B)"
         ),
-        Err(SpannedError {
-            code: Error::MissingStructField {
-                field: "ho",
-                outer: Some(String::from("AdjacentlyTagged"))
-            },
-            position: Position { line: 1, col: 58 }
+        Ok(AdjacentlyTagged::B {
+            ho: 24,
+            a: A { hi: None } // THIS IS WRONG
         }),
     );
-}*/
+}
 
 #[test]
 fn implicit_some_inside_untagged() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct A {
-        hi: Option<()>,
+        hi: Option<Option<()>>,
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -350,7 +341,7 @@ fn implicit_some_inside_untagged() {
         check_roundtrip(
             &Untagged::B {
                 ho: 24,
-                a: A { hi: Some(()) }
+                a: A { hi: Some(Some(())) }
             },
             PrettyConfig::default()
         ),
@@ -360,21 +351,21 @@ fn implicit_some_inside_untagged() {
         check_roundtrip(
             &Untagged::B {
                 ho: 24,
-                a: A { hi: Some(()) }
+                a: A { hi: Some(Some(())) }
             },
             PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
         ),
         Err(Ok(Error::Message(String::from(
-            "ROUNDTRIP error: B { ho: 24, a: A { hi: Some(()) } } != B { ho: 24, a: A { hi: None } }"
+            "ROUNDTRIP error: B { ho: 24, a: A { hi: Some(Some(())) } } != B { ho: 24, a: A { hi: None } }"
         )))),
     );
 }
 
-/*#[test]
+#[test]
 fn implicit_some_inside_flatten_struct() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct A {
-        hi: Option<i32>,
+        hi: Option<Option<()>>,
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -394,7 +385,7 @@ fn implicit_some_inside_flatten_struct() {
             &FlattenedStruct {
                 ho: 24,
                 a: B {
-                    a: A { hi: Some(42) }
+                    a: A { hi: Some(Some(())) }
                 }
             },
             PrettyConfig::default()
@@ -406,18 +397,12 @@ fn implicit_some_inside_flatten_struct() {
             &FlattenedStruct {
                 ho: 24,
                 a: B {
-                    a: A { hi: Some(42) }
+                    a: A { hi: Some(Some(())) }
                 }
             },
             PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
         ),
-        Err(Err(SpannedError {
-            code: Error::MissingStructField {
-                field: "hi",
-                outer: None
-            },
-            position: Position { line: 6, col: 1 }
-        })),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: FlattenedStruct { ho: 24, a: B { a: A { hi: Some(Some(())) } } } != FlattenedStruct { ho: 24, a: B { a: A { hi: None } } }"))))
     );
 }
 
@@ -425,7 +410,7 @@ fn implicit_some_inside_flatten_struct() {
 fn implicit_some_inside_flatten_struct_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct A {
-        hi: Option<i32>,
+        hi: Option<Option<()>>,
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -447,7 +432,7 @@ fn implicit_some_inside_flatten_struct_variant() {
             &FlattenedStructVariant::C {
                 ho: 24,
                 a: B {
-                    a: A { hi: Some(42) }
+                    a: A { hi: Some(Some(())) }
                 }
             },
             PrettyConfig::default()
@@ -459,20 +444,14 @@ fn implicit_some_inside_flatten_struct_variant() {
             &FlattenedStructVariant::C {
                 ho: 24,
                 a: B {
-                    a: A { hi: Some(42) }
+                    a: A { hi: Some(Some(())) }
                 }
             },
             PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
         ),
-        Err(Err(SpannedError {
-            code: Error::MissingStructField {
-                field: "hi",
-                outer: Some(String::from("C"))
-            },
-            position: Position { line: 6, col: 1 }
-        })),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: C { ho: 24, a: B { a: A { hi: Some(Some(())) } } } != C { ho: 24, a: B { a: A { hi: None } } }"))))
     );
-}*/
+}
 
 #[test]
 fn one_tuple_variant_inside_internally_tagged() {
@@ -1034,6 +1013,9 @@ fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::Deser
     if val == &de {
         Ok(())
     } else {
-        Err(Ok(Error::Message(format!("ROUNDTRIP error: {:?} != {:?}", val, de))))
+        Err(Ok(Error::Message(format!(
+            "ROUNDTRIP error: {:?} != {:?}",
+            val, de
+        ))))
     }
 }
