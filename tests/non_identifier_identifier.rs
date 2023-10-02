@@ -79,7 +79,11 @@ test_non_identifier! { test_u128 => deserialize_u128() }
 test_non_identifier! { test_f32 => deserialize_f32() }
 test_non_identifier! { test_f64 => deserialize_f64() }
 test_non_identifier! { test_char => deserialize_char() }
-test_non_identifier! { test_string => deserialize_string() }
+// Removed due to fix for #511 - string keys are allowed.
+// test_non_identifier! { test_string => deserialize_string() }
+// See comment above. If deserialize_str is to be added, it should give the same expected result as
+// deserialize_string. deserialize_str and deserialize_string should be consistently implemented.
+// test_non_identifier! { test_str => deserialize_str() }
 test_non_identifier! { test_bytes => deserialize_bytes() }
 test_non_identifier! { test_byte_buf => deserialize_byte_buf() }
 test_non_identifier! { test_option => deserialize_option() }

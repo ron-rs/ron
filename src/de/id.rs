@@ -144,11 +144,11 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
         Err(Error::ExpectedIdentifier)
     }
 
-    fn deserialize_string<V>(self, _: V) -> Result<V::Value>
+    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        Err(Error::ExpectedIdentifier)
+        self.deserialize_identifier(visitor)
     }
 
     fn deserialize_bytes<V>(self, _: V) -> Result<V::Value>
