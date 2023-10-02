@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ron::{error::Position, error::SpannedError, ser::PrettyConfig, Error};
+use ron::{error::Position, error::SpannedError, extensions::Extensions, ser::PrettyConfig, Error};
 use serde::{Deserialize, Serialize};
 
 #[test]
@@ -233,6 +233,450 @@ fn struct_names_inside_flatten_struct_variant() {
             },
             position: Position { line: 6, col: 1 }
         })),
+    );
+}
+
+/*#[test]
+fn implicit_some_inside_internally_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Option<Option<i32>>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A { hi: Some(Some(42)) }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A { hi: Some(Some(42)) }
+            },
+            PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
+        ),
+        Err(Err(SpannedError {
+            code: Error::MissingStructField {
+                field: "hi",
+                outer: None
+            },
+            position: Position { line: 7, col: 2 }
+        })),
+    );
+}
+
+#[test]
+fn implicit_some_inside_adjacently_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Option<i32>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag", content = "content")]
+    enum AdjacentlyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B {
+                ho: 24,
+                a: A { hi: Some(42) }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B {
+                ho: 24,
+                a: A { hi: Some(42) }
+            },
+            PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
+        ),
+        Ok(()),
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>(
+            "#[enable(implicit_some)] AdjacentlyTagged(tag: B, content: B(ho: 24, a: A(hi: 42)))"
+        ),
+        Ok(AdjacentlyTagged::B {
+            ho: 24,
+            a: A { hi: Some(42) }
+        }),
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>(
+            "#[enable(implicit_some)] AdjacentlyTagged(content: B(ho: 24, a: A(hi: 42)), tag: B)"
+        ),
+        Err(SpannedError {
+            code: Error::MissingStructField {
+                field: "ho",
+                outer: Some(String::from("AdjacentlyTagged"))
+            },
+            position: Position { line: 1, col: 58 }
+        }),
+    );
+}*/
+
+#[test]
+fn implicit_some_inside_untagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Option<()>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::B {
+                ho: 24,
+                a: A { hi: Some(()) }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::B {
+                ho: 24,
+                a: A { hi: Some(()) }
+            },
+            PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
+        ),
+        Err(Ok(Error::Message(String::from(
+            "ROUNDTRIP error: B { ho: 24, a: A { hi: Some(()) } } != B { ho: 24, a: A { hi: None } }"
+        )))),
+    );
+}
+
+/*#[test]
+fn implicit_some_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Option<i32>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: B,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A { hi: Some(42) }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A { hi: Some(42) }
+                }
+            },
+            PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
+        ),
+        Err(Err(SpannedError {
+            code: Error::MissingStructField {
+                field: "hi",
+                outer: None
+            },
+            position: Position { line: 6, col: 1 }
+        })),
+    );
+}
+
+#[test]
+fn implicit_some_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Option<i32>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        C {
+            ho: i32,
+            #[serde(flatten)]
+            a: B,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A { hi: Some(42) }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A { hi: Some(42) }
+                }
+            },
+            PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
+        ),
+        Err(Err(SpannedError {
+            code: Error::MissingStructField {
+                field: "hi",
+                outer: Some(String::from("C"))
+            },
+            position: Position { line: 6, col: 1 }
+        })),
+    );
+}*/
+
+#[test]
+fn one_tuple_variant_inside_internally_tagged() {
+    // A tuple variant with just one element that is not a newtype variant
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum OneEnum {
+        OneTuple(i32, #[serde(skip)] ()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: OneEnum,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A {
+                    hi: OneEnum::OneTuple(42, ())
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("tuple variant"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 7, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn one_tuple_variant_inside_adjacently_tagged() {
+    // A tuple variant with just one element that is not a newtype variant
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum OneEnum {
+        OneTuple(i32, #[serde(skip)] ()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: OneEnum,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag", content = "content")]
+    enum AdjacentlyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B {
+                ho: 24,
+                a: A {
+                    hi: OneEnum::OneTuple(42, ())
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+}
+
+#[test]
+fn one_tuple_variant_inside_untagged() {
+    // A tuple variant with just one element that is not a newtype variant
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum OneEnum {
+        OneTuple(i32, #[serde(skip)] ()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: OneEnum,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::B {
+                ho: 24,
+                a: A {
+                    hi: OneEnum::OneTuple(42, ())
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 6, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn one_tuple_variant_inside_flatten_struct() {
+    // A tuple variant with just one element that is not a newtype variant
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum OneEnum {
+        OneTuple(i32, #[serde(skip)] ()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: OneEnum,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: B,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A {
+                        hi: OneEnum::OneTuple(42, ())
+                    }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("tuple variant"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn one_tuple_variant_inside_flatten_struct_variant() {
+    // A tuple variant with just one element that is not a newtype variant
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum OneEnum {
+        OneTuple(i32, #[serde(skip)] ()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: OneEnum,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        C {
+            ho: i32,
+            #[serde(flatten)]
+            a: B,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A {
+                        hi: OneEnum::OneTuple(42, ())
+                    }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("tuple variant"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
     );
 }
 
@@ -587,6 +1031,9 @@ fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::Deser
     let ron = ron::ser::to_string_pretty(val, config).map_err(|err| Ok(err))?;
     println!("{ron}");
     let de = ron::from_str(&ron).map_err(|err| Err(err))?;
-    assert_eq!(val, &de);
-    Ok(())
+    if val == &de {
+        Ok(())
+    } else {
+        Err(Ok(Error::Message(format!("ROUNDTRIP error: {:?} != {:?}", val, de))))
+    }
 }

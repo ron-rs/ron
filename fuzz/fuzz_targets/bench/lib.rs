@@ -1121,6 +1121,17 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         }
                     }
 
+                    fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+                        if self.value.is_none() {
+                            Ok(())
+                        } else {
+                            Err(serde::de::Error::custom(format!(
+                                "expected {:?} found None-like unit",
+                                self.value
+                            )))
+                        }
+                    }
+
                     fn __private_visit_untagged_option<D: Deserializer<'de>>(
                         self,
                         deserializer: D,
@@ -4921,10 +4932,10 @@ impl<'a> SerdeDataType<'a> {
                         // Flattened fields are deserialised through serde's content type
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
-                    if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
-                        // BUG: implicit options are not supported inside flattend structs
-                        return Err(arbitrary::Error::IncorrectFormat);
-                    }
+                    // if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                    //     // BUG: implicit options are not supported inside flattend structs
+                    //     return Err(arbitrary::Error::IncorrectFormat);
+                    // }
                     if *flatten && pretty.struct_names {
                         // BUG: struct names inside flattend structs do not roundtrip
                         return Err(arbitrary::Error::IncorrectFormat);
@@ -4944,7 +4955,16 @@ impl<'a> SerdeDataType<'a> {
                     representation,
                     SerdeEnumRepresentation::Untagged |
                     SerdeEnumRepresentation::InternallyTagged { tag: _ }
-                    if pretty.struct_names || pretty.extensions.contains(Extensions::IMPLICIT_SOME)
+                    if pretty.struct_names //|| pretty.extensions.contains(Extensions::IMPLICIT_SOME)
+                ) {
+                    return Err(arbitrary::Error::IncorrectFormat);
+                }
+
+                // BUG: implicit Some(()) inside untagged do not roundtrip
+                if matches!(
+                    representation,
+                    SerdeEnumRepresentation::Untagged
+                    if pretty.extensions.contains(Extensions::IMPLICIT_SOME)
                 ) {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
@@ -5063,10 +5083,10 @@ impl<'a> SerdeDataType<'a> {
                                 // Flattened fields are deserialised through serde's content type
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
-                            if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
-                                // BUG: implicit options are not supported inside flattend structs
-                                return Err(arbitrary::Error::IncorrectFormat);
-                            }
+                            // if *flatten && pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                            //     // BUG: implicit options are not supported inside flattend structs
+                            //     return Err(arbitrary::Error::IncorrectFormat);
+                            // }
                             if *flatten && pretty.struct_names {
                                 // BUG: struct names inside flattend structs do not roundtrip
                                 return Err(arbitrary::Error::IncorrectFormat);
