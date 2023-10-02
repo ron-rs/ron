@@ -1176,11 +1176,14 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut seq: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for expected in self.elems {
-                            seq.next_element_seed(BorrowedTypedSerdeData {
+                        for (i, expected) in self.elems.iter().enumerate() {
+                            let Some(()) = seq.next_element_seed(BorrowedTypedSerdeData {
                                 ty: self.kind,
                                 value: expected,
-                            })?;
+                            })?
+                            else {
+                                return Err(serde::de::Error::invalid_length(i, &self));
+                            };
                         }
                         Ok(())
                     }
@@ -1209,37 +1212,18 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut seq: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for (ty, expected) in self.tys.iter().zip(self.values.iter()) {
-                            seq.next_element_seed(BorrowedTypedSerdeData {
+                        for (i, (ty, expected)) in
+                            self.tys.iter().zip(self.values.iter()).enumerate()
+                        {
+                            let Some(()) = seq.next_element_seed(BorrowedTypedSerdeData {
                                 ty,
                                 value: expected,
-                            })?;
+                            })?
+                            else {
+                                return Err(serde::de::Error::invalid_length(i, &self));
+                            };
                         }
                         Ok(())
-                    }
-                }
-
-                struct NewtypeVisitor<'a> {
-                    inner: &'a SerdeDataType<'a>,
-                    value: &'a SerdeDataValue<'a>,
-                }
-
-                impl<'a, 'de> Visitor<'de> for NewtypeVisitor<'a> {
-                    type Value = ();
-
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("a newtype tuple")
-                    }
-
-                    fn visit_newtype_struct<D: Deserializer<'de>>(
-                        self,
-                        deserializer: D,
-                    ) -> Result<Self::Value, D::Error> {
-                        BorrowedTypedSerdeData {
-                            ty: self.inner,
-                            value: self.value,
-                        }
-                        .deserialize(deserializer)
                     }
                 }
 
@@ -1266,11 +1250,17 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut seq: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for expected in self.elems {
-                            seq.next_element_seed(BorrowedTypedSerdeData {
+                        for (i, expected) in self.elems.iter().enumerate() {
+                            let Some(()) = seq.next_element_seed(BorrowedTypedSerdeData {
                                 ty: self.item,
                                 value: expected,
-                            })?;
+                            })?
+                            else {
+                                return Err(serde::de::Error::invalid_length(
+                                    i,
+                                    &format!("a sequence of length {}", self.elems.len()).as_str(),
+                                ));
+                            };
                         }
                         Ok(())
                     }
@@ -1296,8 +1286,8 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut map: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for (ekey, eval) in self.elems {
-                            map.next_entry_seed(
+                        for (i, (ekey, eval)) in self.elems.iter().enumerate() {
+                            let Some(((), ())) = map.next_entry_seed(
                                 BorrowedTypedSerdeData {
                                     ty: self.key,
                                     value: ekey,
@@ -1306,7 +1296,13 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     ty: self.value,
                                     value: eval,
                                 },
-                            )?;
+                            )?
+                            else {
+                                return Err(serde::de::Error::invalid_length(
+                                    i,
+                                    &format!("a map with {} elements", self.elems.len()).as_str(),
+                                ));
+                            };
                         }
                         Ok(())
                     }
@@ -1347,7 +1343,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_fmt(format_args!("newtype struct {}", self.name))
+                        formatter.write_fmt(format_args!("tuple struct {}", self.name))
                     }
 
                     fn visit_newtype_struct<D: Deserializer<'de>>(
@@ -1359,6 +1355,23 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             value: self.value,
                         }
                         .deserialize(deserializer)
+                    }
+
+                    fn visit_seq<A: SeqAccess<'de>>(
+                        self,
+                        mut seq: A,
+                    ) -> Result<Self::Value, A::Error> {
+                        let Some(()) = seq.next_element_seed(BorrowedTypedSerdeData {
+                            ty: self.inner,
+                            value: self.value,
+                        })?
+                        else {
+                            return Err(serde::de::Error::invalid_length(
+                                0,
+                                &format!("tuple struct {} with 1 element", self.name).as_str(),
+                            ));
+                        };
+                        Ok(())
                     }
 
                     fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
@@ -1408,11 +1421,24 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut seq: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for (ty, expected) in self.fields.iter().zip(self.values.iter()) {
-                            seq.next_element_seed(BorrowedTypedSerdeData {
+                        for (i, (ty, expected)) in
+                            self.fields.iter().zip(self.values.iter()).enumerate()
+                        {
+                            let Some(()) = seq.next_element_seed(BorrowedTypedSerdeData {
                                 ty,
                                 value: expected,
-                            })?;
+                            })?
+                            else {
+                                return Err(serde::de::Error::invalid_length(
+                                    i,
+                                    &format!(
+                                        "tuple struct {} with {} elements",
+                                        self.name,
+                                        self.values.len()
+                                    )
+                                    .as_str(),
+                                ));
+                            };
                         }
                         Ok(())
                     }
@@ -1661,11 +1687,24 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut seq: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for (ty, expected) in self.tys.iter().zip(self.values.iter()) {
-                            seq.next_element_seed(BorrowedTypedSerdeData {
+                        for (i, (ty, expected)) in
+                            self.tys.iter().zip(self.values.iter()).enumerate()
+                        {
+                            let Some(()) = seq.next_element_seed(BorrowedTypedSerdeData {
                                 ty,
                                 value: expected,
-                            })?;
+                            })?
+                            else {
+                                return Err(serde::de::Error::invalid_length(
+                                    i,
+                                    &format!(
+                                        "struct {} with {} elements",
+                                        self.name,
+                                        self.values.len()
+                                    )
+                                    .as_str(),
+                                ));
+                            };
                         }
                         Ok(())
                     }
@@ -1674,18 +1713,30 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         self,
                         mut map: A,
                     ) -> Result<Self::Value, A::Error> {
-                        for (((index, field), ty), expected) in (0..)
+                        for (i, (((index, field), ty), expected)) in (0..)
                             .zip(self.fields.iter())
                             .zip(self.tys.iter())
                             .zip(self.values.iter())
+                            .enumerate()
                         {
-                            map.next_entry_seed(
+                            let Some(((), ())) = map.next_entry_seed(
                                 FieldIdentifierVisitor { field, index },
                                 BorrowedTypedSerdeData {
                                     ty,
                                     value: expected,
                                 },
-                            )?;
+                            )?
+                            else {
+                                return Err(serde::de::Error::invalid_length(
+                                    i,
+                                    &format!(
+                                        "struct {} with {} elements",
+                                        self.name,
+                                        self.values.len()
+                                    )
+                                    .as_str(),
+                                ));
+                            };
                         }
                         Ok(())
                     }
@@ -1934,13 +1985,26 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         mut seq: A,
                                     ) -> Result<Self::Value, A::Error>
                                     {
-                                        for (ty, expected) in
-                                            self.fields.iter().zip(self.values.iter())
+                                        for (i, (ty, expected)) in
+                                            self.fields.iter().zip(self.values.iter()).enumerate()
                                         {
-                                            seq.next_element_seed(BorrowedTypedSerdeData {
-                                                ty,
-                                                value: expected,
-                                            })?;
+                                            let Some(()) =
+                                                seq.next_element_seed(BorrowedTypedSerdeData {
+                                                    ty,
+                                                    value: expected,
+                                                })?
+                                            else {
+                                                return Err(serde::de::Error::invalid_length(
+                                                    i,
+                                                    &format!(
+                                                        "tuple variant {}::{} with {} elements",
+                                                        self.name,
+                                                        self.variant,
+                                                        self.values.len()
+                                                    )
+                                                    .as_str(),
+                                                ));
+                                            };
                                         }
                                         Ok(())
                                     }
@@ -2066,13 +2130,26 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         mut seq: A,
                                     ) -> Result<Self::Value, A::Error>
                                     {
-                                        for (ty, expected) in
-                                            self.tys.iter().zip(self.values.iter())
+                                        for (i, (ty, expected)) in
+                                            self.tys.iter().zip(self.values.iter()).enumerate()
                                         {
-                                            seq.next_element_seed(BorrowedTypedSerdeData {
-                                                ty,
-                                                value: expected,
-                                            })?;
+                                            let Some(()) =
+                                                seq.next_element_seed(BorrowedTypedSerdeData {
+                                                    ty,
+                                                    value: expected,
+                                                })?
+                                            else {
+                                                return Err(serde::de::Error::invalid_length(
+                                                    i,
+                                                    &format!(
+                                                        "struct variant {}::{} with {} elements",
+                                                        self.name,
+                                                        self.variant,
+                                                        self.values.len()
+                                                    )
+                                                    .as_str(),
+                                                ));
+                                            };
                                         }
                                         Ok(())
                                     }
@@ -2082,18 +2159,31 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         mut map: A,
                                     ) -> Result<Self::Value, A::Error>
                                     {
-                                        for (((index, field), ty), expected) in (0..)
+                                        for (i, (((index, field), ty), expected)) in (0..)
                                             .zip(self.fields.iter())
                                             .zip(self.tys.iter())
                                             .zip(self.values.iter())
+                                            .enumerate()
                                         {
-                                            map.next_entry_seed(
+                                            let Some(((), ())) = map.next_entry_seed(
                                                 FieldIdentifierVisitor { field, index },
                                                 BorrowedTypedSerdeData {
                                                     ty,
                                                     value: expected,
                                                 },
-                                            )?;
+                                            )?
+                                            else {
+                                                return Err(serde::de::Error::invalid_length(
+                                                    i,
+                                                    &format!(
+                                                        "struct variant {}::{} with {} elements",
+                                                        self.name,
+                                                        self.variant,
+                                                        self.values.len()
+                                                    )
+                                                    .as_str(),
+                                                ));
+                                            };
                                         }
                                         Ok(())
                                     }
@@ -2537,11 +2627,26 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut seq: A,
                             ) -> Result<Self::Value, A::Error> {
-                                for (ty, expected) in self.fields.iter().zip(self.values.iter()) {
-                                    seq.next_element_seed(BorrowedTypedSerdeData {
-                                        ty,
-                                        value: expected,
-                                    })?;
+                                for (i, (ty, expected)) in
+                                    self.fields.iter().zip(self.values.iter()).enumerate()
+                                {
+                                    let Some(()) =
+                                        seq.next_element_seed(BorrowedTypedSerdeData {
+                                            ty,
+                                            value: expected,
+                                        })?
+                                    else {
+                                        return Err(serde::de::Error::invalid_length(
+                                            i,
+                                            &format!(
+                                                "tuple variant {}::{} with {} elements",
+                                                self.name,
+                                                self.variant,
+                                                self.values.len()
+                                            )
+                                            .as_str(),
+                                        ));
+                                    };
                                 }
                                 Ok(())
                             }
@@ -3412,11 +3517,26 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut seq: A,
                             ) -> Result<Self::Value, A::Error> {
-                                for (ty, expected) in self.fields.iter().zip(self.values.iter()) {
-                                    seq.next_element_seed(BorrowedTypedSerdeData {
-                                        ty,
-                                        value: expected,
-                                    })?;
+                                for (i, (ty, expected)) in
+                                    self.fields.iter().zip(self.values.iter()).enumerate()
+                                {
+                                    let Some(()) =
+                                        seq.next_element_seed(BorrowedTypedSerdeData {
+                                            ty,
+                                            value: expected,
+                                        })?
+                                    else {
+                                        return Err(serde::de::Error::invalid_length(
+                                            i,
+                                            &format!(
+                                                "tuple variant {}::{} with {} elements",
+                                                self.name,
+                                                self.variant,
+                                                self.values.len()
+                                            )
+                                            .as_str(),
+                                        ));
+                                    };
                                 }
                                 Ok(())
                             }
@@ -3464,12 +3584,17 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         to_static_str(self.tag)
                                     }));
                                 }
-                                seq.next_element_seed(TupleVariantSeed {
+                                let Some(()) = seq.next_element_seed(TupleVariantSeed {
                                     name: self.name,
                                     variant: self.variant,
                                     fields: self.fields,
                                     values: self.values,
-                                })?;
+                                })?
+                                else {
+                                    return Err(serde::de::Error::missing_field(unsafe {
+                                        to_static_str(self.content)
+                                    }));
+                                };
                                 Ok(())
                             }
 
@@ -3558,18 +3683,31 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut map: A,
                             ) -> Result<Self::Value, A::Error> {
-                                for (((index, field), ty), expected) in (0..)
+                                for (i, (((index, field), ty), expected)) in (0..)
                                     .zip(self.fields.iter())
                                     .zip(self.tys.iter())
                                     .zip(self.values.iter())
+                                    .enumerate()
                                 {
-                                    map.next_entry_seed(
+                                    let Some(((), ())) = map.next_entry_seed(
                                         FieldIdentifierVisitor { field, index },
                                         BorrowedTypedSerdeData {
                                             ty,
                                             value: expected,
                                         },
-                                    )?;
+                                    )?
+                                    else {
+                                        return Err(serde::de::Error::invalid_length(
+                                            i,
+                                            &format!(
+                                                "struct variant {}::{} with {} elements",
+                                                self.name,
+                                                self.variant,
+                                                self.values.len()
+                                            )
+                                            .as_str(),
+                                        ));
+                                    };
                                 }
                                 Ok(())
                             }
@@ -3910,22 +4048,33 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 }
 
                                 if self.flatten.iter().any(|x| *x) {
-                                    seq.next_element_seed(FlattenStructVariantSeed {
-                                        name: self.name,
-                                        variant: self.variant,
-                                        fields: self.fields,
-                                        tys: self.tys,
-                                        flatten: self.flatten,
-                                        values: self.values,
-                                    })?;
+                                    let Some(()) =
+                                        seq.next_element_seed(FlattenStructVariantSeed {
+                                            name: self.name,
+                                            variant: self.variant,
+                                            fields: self.fields,
+                                            tys: self.tys,
+                                            flatten: self.flatten,
+                                            values: self.values,
+                                        })?
+                                    else {
+                                        return Err(serde::de::Error::missing_field(unsafe {
+                                            to_static_str(self.content)
+                                        }));
+                                    };
                                 } else {
-                                    seq.next_element_seed(StructVariantSeed {
+                                    let Some(()) = seq.next_element_seed(StructVariantSeed {
                                         name: self.name,
                                         variant: self.variant,
                                         fields: self.fields,
                                         tys: self.tys,
                                         values: self.values,
-                                    })?;
+                                    })?
+                                    else {
+                                        return Err(serde::de::Error::missing_field(unsafe {
+                                            to_static_str(self.content)
+                                        }));
+                                    };
                                 }
 
                                 Ok(())
@@ -4261,11 +4410,26 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 self,
                                 mut seq: A,
                             ) -> Result<Self::Value, A::Error> {
-                                for (ty, expected) in self.tys.iter().zip(self.values.iter()) {
-                                    seq.next_element_seed(BorrowedTypedSerdeData {
-                                        ty,
-                                        value: expected,
-                                    })?;
+                                for (i, (ty, expected)) in
+                                    self.tys.iter().zip(self.values.iter()).enumerate()
+                                {
+                                    let Some(()) =
+                                        seq.next_element_seed(BorrowedTypedSerdeData {
+                                            ty,
+                                            value: expected,
+                                        })?
+                                    else {
+                                        return Err(serde::de::Error::invalid_length(
+                                            i,
+                                            &format!(
+                                                "struct variant {}::{} with {} elements",
+                                                self.name,
+                                                self.variant,
+                                                self.values.len()
+                                            )
+                                            .as_str(),
+                                        ));
+                                    };
                                 }
                                 Ok(())
                             }
