@@ -54,6 +54,22 @@ jobs:
       - run: cargo clippy --features integer128 -- -D warnings
       - run: cargo clippy --features indexmap -- -D warnings
       - run: cargo clippy --all-features -- -D warnings
+
+  clippy-fuzz:
+    name: "Clippy: Fuzzer"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+        with:
+          key: clippy-fuzz
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: clippy
+          override: true
       - run: cd fuzz && cargo clippy --all -- -D warnings
   
   rustfmt:
