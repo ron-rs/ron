@@ -1426,6 +1426,106 @@ fn unwrapped_one_element_untagged_tuple_variant() {
     );
 }
 
+#[test]
+fn unit_inside_untagged_newtype_variant_inside_internally_tagged_newtype_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Newtype(()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        Newtype(Untagged),
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::Newtype(Untagged::Newtype(())),
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 3, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn unit_struct_inside_untagged_newtype_variant_inside_internally_tagged_newtype_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Unit;
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Newtype(Unit),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        Newtype(Untagged),
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::Newtype(Untagged::Newtype(Unit)),
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 3, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn unit_variant_inside_untagged_newtype_variant_inside_internally_tagged_newtype_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum Enum {
+        Unit,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Unit,
+        Newtype(Enum),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        Newtype(Untagged),
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::Newtype(Untagged::Newtype(Enum::Unit)),
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::Newtype(Untagged::Unit),
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 3, col: 2 }
+        }))
+    );
+}
+
 fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
     val: &T,
     config: PrettyConfig,
