@@ -454,6 +454,170 @@ fn implicit_some_inside_flatten_struct_variant() {
 }
 
 #[test]
+fn newtype_inside_internally_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A(i32);
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    // NOTE:
+    // 1. ron is correctly collected into Content, newtype is a one-seq here
+    // 2. newtype asks ContentDeserializer for newtype
+    // 3. ContentDeserializer forwards any value to visit_newtype_struct
+    //    https://github.com/serde-rs/serde/blob/8c4aad3a59515f7b779f764d5e16d6bae297ab7f/serde/src/private/de.rs#L1347-L1359
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B { ho: 24, a: A(42) },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("i32"),
+                found: String::from("a sequence")
+            },
+            position: Position { line: 5, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn newtype_inside_adjacently_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A(i32);
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag", content = "content")]
+    enum AdjacentlyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B { ho: 24, a: A(42) },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>(
+            "#![enable(implicit_some)] (tag: B, content: (ho: 24, a: (42)))"
+        ),
+        Ok(AdjacentlyTagged::B { ho: 24, a: A(42) }),
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>(
+            "#![enable(implicit_some)] (content: (ho: 24, a: (42)), tag: B)"
+        ),
+        Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("i32"),
+                found: String::from("a sequence")
+            },
+            position: Position { line: 1, col: 62 }
+        })
+    );
+}
+
+#[test]
+fn newtype_inside_untagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A(i32);
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(&Untagged::B { ho: 24, a: A(42) }, PrettyConfig::default()),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 4, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn newtype_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A(i32);
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: B,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B { a: A(42) }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("i32"),
+                found: String::from("a sequence")
+            },
+            position: Position { line: 4, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn newtype_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A(i32);
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        C {
+            ho: i32,
+            #[serde(flatten)]
+            a: B,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B { a: A(42) }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("i32"),
+                found: String::from("a sequence")
+            },
+            position: Position { line: 4, col: 1 }
+        }))
+    );
+}
+
+#[test]
 fn one_tuple_variant_inside_internally_tagged() {
     // A tuple variant with just one element that is not a newtype variant
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
