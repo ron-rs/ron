@@ -54,6 +54,7 @@ jobs:
       - run: cargo clippy --features integer128 -- -D warnings
       - run: cargo clippy --features indexmap -- -D warnings
       - run: cargo clippy --all-features -- -D warnings
+      - run: cd fuzz && cargo clippy --all -- -D warnings
   
   rustfmt:
     name: "Format: stable"
@@ -69,7 +70,8 @@ jobs:
           profile: minimal
           components: rustfmt
           override: true
-      - run: cargo fmt -- --check
+      - run: cargo fmt --all -- --check
+      - run: cd fuzz && cargo fmt --all -- --check
 
   coverage:
     name: "Coverage: stable"

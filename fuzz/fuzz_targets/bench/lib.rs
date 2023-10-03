@@ -20,7 +20,7 @@ const LONG_NAME_COST_THRESHOLD: usize = 8_usize;
 
 const ARRAY_UNINIT_LEN: usize = usize::MAX;
 
-const FLATTEN_CONFLICT_MSG: &'static str = "ron::fuzz::FlattenFieldConflict";
+const FLATTEN_CONFLICT_MSG: &str = "ron::fuzz::FlattenFieldConflict";
 
 pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeData> {
     if let Ok(typed_value) = TypedSerdeData::arbitrary(&mut Unstructured::new(data)) {
@@ -104,6 +104,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
 // NOTE: Keep synchronised with ron::value::raw::RAW_VALUE_TOKEN
 const RAW_VALUE_TOKEN: &str = "$ron::private::RawValue";
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, PartialEq, Arbitrary)]
 struct ArbitraryPrettyConfig {
     /// Limit the pretty-ness up to the given depth.
@@ -341,6 +342,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                             &mut self,
                             key: &T,
                         ) -> Result<(), Self::Error> {
+                            #[allow(clippy::unwrap_used)] // FIXME
                             let key_str = ron::to_string(key).unwrap();
                             if self.keys.contains(&key_str) {
                                 return Err(serde::ser::Error::custom(FLATTEN_CONFLICT_MSG));
@@ -366,6 +368,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                             key: &K,
                             value: &V,
                         ) -> Result<(), Self::Error> {
+                            #[allow(clippy::unwrap_used)] // FIXME
                             let key_str = ron::to_string(key).unwrap();
                             if self.keys.contains(&key_str) {
                                 return Err(serde::ser::Error::custom(FLATTEN_CONFLICT_MSG));
@@ -396,6 +399,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     },
                                 ))?;
                         } else {
+                            #[allow(clippy::unwrap_used)] // FIXME
                             let field_str = ron::to_string(field).unwrap();
                             if flattened_keys.contains(&field_str) {
                                 return Err(serde::ser::Error::custom(FLATTEN_CONFLICT_MSG));
@@ -689,6 +693,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     &mut self,
                                     key: &T,
                                 ) -> Result<(), Self::Error> {
+                                    #[allow(clippy::unwrap_used)] // FIXME
                                     let key_str = ron::to_string(key).unwrap();
                                     if self.keys.contains(&key_str) {
                                         return Err(serde::ser::Error::custom(
@@ -716,6 +721,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                     key: &K,
                                     value: &V,
                                 ) -> Result<(), Self::Error> {
+                                    #[allow(clippy::unwrap_used)] // FIXME
                                     let key_str = ron::to_string(key).unwrap();
                                     if self.keys.contains(&key_str) {
                                         return Err(serde::ser::Error::custom(
@@ -761,6 +767,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                     ),
                                                 )?;
                                         } else {
+                                            #[allow(clippy::unwrap_used)] // FIXME
                                             let field_str = ron::to_string(field).unwrap();
                                             if flattened_keys.contains(&field_str) {
                                                 return Err(serde::ser::Error::custom(
@@ -810,6 +817,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                     ),
                                                 )?;
                                         } else {
+                                            #[allow(clippy::unwrap_used)] // FIXME
                                             let field_str = ron::to_string(field).unwrap();
                                             if flattened_keys.contains(&field_str) {
                                                 return Err(serde::ser::Error::custom(
@@ -867,6 +875,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                                     ),
                                                 )?;
                                         } else {
+                                            #[allow(clippy::unwrap_used)] // FIXME
                                             let field_str = ron::to_string(field).unwrap();
                                             if flattened_keys.contains(&field_str) {
                                                 return Err(serde::ser::Error::custom(
@@ -976,8 +985,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                 Ok(())
             } else {
                 Err(serde::de::Error::custom(format!(
-                    "expected {:?} found {:?}",
-                    check, value
+                    "expected {check:?} found {value:?}"
                 )))
             }
         }
@@ -1004,24 +1012,22 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
             (SerdeDataType::F32, SerdeDataValue::F32(v)) => {
                 let value = f32::deserialize(deserializer)?;
 
-                if (v.is_nan() && value.is_nan()) || (value == *v) {
+                if (v.is_nan() && value.is_nan()) || (value.to_bits() == v.to_bits()) {
                     Ok(())
                 } else {
                     Err(serde::de::Error::custom(format!(
-                        "expected {:?} found {:?}",
-                        v, value
+                        "expected {v:?} found {value:?}"
                     )))
                 }
             }
             (SerdeDataType::F64, SerdeDataValue::F64(v)) => {
                 let value = f64::deserialize(deserializer)?;
 
-                if (v.is_nan() && value.is_nan()) || (value == *v) {
+                if (v.is_nan() && value.is_nan()) || (value.to_bits() == v.to_bits()) {
                     Ok(())
                 } else {
                     Err(serde::de::Error::custom(format!(
-                        "expected {:?} found {:?}",
-                        v, value
+                        "expected {v:?} found {value:?}"
                     )))
                 }
             }
@@ -3196,11 +3202,11 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 Ok(())
                             }
                             DelayedVariantIdentifier::Index(v) => Err(serde::de::Error::custom(
-                                format!("expected variant index {} found {}", variant_index, v),
+                                format!("expected variant index {variant_index} found {v}"),
                             )),
                             DelayedVariantIdentifier::Str(ref v) if v == variant => Ok(()),
                             DelayedVariantIdentifier::Str(ref v) => Err(serde::de::Error::custom(
-                                format!("expected variant identifier {} found {}", variant, v),
+                                format!("expected variant identifier {variant} found {v}"),
                             )),
                             DelayedVariantIdentifier::Bytes(ref v) if v == variant.as_bytes() => {
                                 Ok(())
@@ -4047,6 +4053,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     }));
                                 }
 
+                                #[allow(clippy::redundant_else)]
                                 if self.flatten.iter().any(|x| *x) {
                                     let Some(()) =
                                         seq.next_element_seed(FlattenStructVariantSeed {
@@ -4179,7 +4186,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
 
                 let expecting = match (ty, value) {
                     (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit) => {
-                        format!("unit variant {}::{}", name, variant)
+                        format!("unit variant {name}::{variant}")
                     }
                     (
                         SerdeDataVariantType::TaggedOther,
@@ -4188,19 +4195,19 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             index: _,
                         },
                     ) => {
-                        format!("unit variant {}::{}", name, variant)
+                        format!("unit variant {name}::{variant}")
                     }
                     (
                         SerdeDataVariantType::Newtype { .. },
                         SerdeDataVariantValue::Newtype { .. },
-                    ) => format!("newtype variant {}::{}", name, variant),
+                    ) => format!("newtype variant {name}::{variant}"),
                     (SerdeDataVariantType::Tuple { .. }, SerdeDataVariantValue::Struct { .. }) => {
                         return Err(serde::de::Error::custom(
                             "invalid serde internally tagged tuple variant",
                         ))
                     }
                     (SerdeDataVariantType::Struct { .. }, SerdeDataVariantValue::Struct { .. }) => {
-                        format!("struct variant {}::{}", name, variant)
+                        format!("struct variant {name}::{variant}")
                     }
                     _ => return Err(serde::de::Error::custom("invalid serde enum data")),
                 };
@@ -4222,11 +4229,11 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 Ok(())
                             }
                             DelayedVariantIdentifier::Index(v) => Err(serde::de::Error::custom(
-                                format!("expected variant index {} found {}", variant_index, v),
+                                format!("expected variant index {variant_index} found {v}"),
                             )),
                             DelayedVariantIdentifier::Str(ref v) if v == variant => Ok(()),
                             DelayedVariantIdentifier::Str(ref v) => Err(serde::de::Error::custom(
-                                format!("expected variant identifier {} found {}", variant, v),
+                                format!("expected variant identifier {variant} found {v}"),
                             )),
                             DelayedVariantIdentifier::Bytes(ref v) if v == variant.as_bytes() => {
                                 Ok(())
@@ -5167,7 +5174,7 @@ impl<'a> SerdeDataType<'a> {
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
-                        if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_internally_tagged_newtype(&value, pretty, false))
+                        if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_internally_tagged_newtype(&value, false))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
@@ -5201,7 +5208,7 @@ impl<'a> SerdeDataType<'a> {
                         }
 
                         let mut tuple = Vec::with_capacity(fields.len());
-                        for ty in fields.iter_mut() {
+                        for ty in &mut *fields {
                             tuple.push(ty.arbitrary_value(u, pretty)?);
                         }
                         let value = SerdeDataVariantValue::Struct { fields: tuple };
@@ -5446,7 +5453,6 @@ impl<'a> SerdeDataType<'a> {
     fn supported_inside_internally_tagged_newtype(
         &self,
         value: &SerdeDataValue,
-        pretty: &PrettyConfig,
         inside_untagged_newtype_variant: bool,
     ) -> bool {
         // See https://github.com/serde-rs/serde/blob/ddc1ee564b33aa584e5a66817aafb27c3265b212/serde/src/private/ser.rs#L94-L336
@@ -5490,7 +5496,6 @@ impl<'a> SerdeDataType<'a> {
                 if let SerdeDataValue::Newtype { inner: value } = value {
                     ty.supported_inside_internally_tagged_newtype(
                         value,
-                        pretty,
                         inside_untagged_newtype_variant,
                     )
                 } else {
@@ -5536,7 +5541,7 @@ impl<'a> SerdeDataType<'a> {
                         SerdeDataVariantValue::Newtype { inner: value },
                     ) => {
                         if matches!(representation, SerdeEnumRepresentation::Untagged) {
-                            ty.supported_inside_internally_tagged_newtype(value, pretty, true)
+                            ty.supported_inside_internally_tagged_newtype(value, true)
                         } else {
                             true
                         }
