@@ -504,21 +504,17 @@ fn newtype_inside_adjacently_tagged() {
         Ok(())
     );
     assert_eq!(
-        ron::from_str::<AdjacentlyTagged>(
-            "#![enable(implicit_some)] (tag: B, content: (ho: 24, a: (42)))"
-        ),
+        ron::from_str::<AdjacentlyTagged>("(tag: B, content: (ho: 24, a: (42)))"),
         Ok(AdjacentlyTagged::B { ho: 24, a: A(42) }),
     );
     assert_eq!(
-        ron::from_str::<AdjacentlyTagged>(
-            "#![enable(implicit_some)] (content: (ho: 24, a: (42)), tag: B)"
-        ),
+        ron::from_str::<AdjacentlyTagged>("(content: (ho: 24, a: (42)), tag: B)"),
         Err(SpannedError {
             code: Error::InvalidValueForType {
                 expected: String::from("i32"),
                 found: String::from("a sequence")
             },
-            position: Position { line: 1, col: 62 }
+            position: Position { line: 1, col: 36 }
         })
     );
 }
@@ -613,6 +609,247 @@ fn newtype_inside_flatten_struct_variant() {
                 found: String::from("a sequence")
             },
             position: Position { line: 4, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn one_tuple_inside_unwrapped_newtype_variant_inside_internally_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum A {
+        Newtype((i32,)),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A::Newtype((42,))
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A::Newtype((42,))
+            },
+            PrettyConfig::default().extensions(Extensions::UNWRAP_VARIANT_NEWTYPES)
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("a tuple of size 1"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 6, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn one_tuple_inside_unwrapped_newtype_variant_inside_adjacently_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum A {
+        Newtype([i32; 1]),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag", content = "content")]
+    enum AdjacentlyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B {
+                ho: 24,
+                a: A::Newtype([42])
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B {
+                ho: 24,
+                a: A::Newtype([42])
+            },
+            PrettyConfig::default().extensions(Extensions::UNWRAP_VARIANT_NEWTYPES)
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>(
+            "#![enable(unwrap_variant_newtypes)] (tag: B, content: (ho: 24, a: Newtype(42)))"
+        ),
+        Ok(AdjacentlyTagged::B {
+            ho: 24,
+            a: A::Newtype([42])
+        }),
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>(
+            "#![enable(unwrap_variant_newtypes)] (content: (ho: 24, a: Newtype(42)), tag: B)"
+        ),
+        Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("an array of length 1"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 1, col: 79 }
+        })
+    );
+}
+
+#[test]
+fn one_tuple_inside_unwrapped_newtype_variant_inside_untagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum A {
+        Newtype((i32,)),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::B {
+                ho: 24,
+                a: A::Newtype((42,))
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::B {
+                ho: 24,
+                a: A::Newtype((42,))
+            },
+            PrettyConfig::default().extensions(Extensions::UNWRAP_VARIANT_NEWTYPES)
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 5, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn one_tuple_inside_unwrapped_newtype_variant_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum A {
+        Newtype([i32; 1]),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: B,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A::Newtype([42])
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A::Newtype([42])
+                }
+            },
+            PrettyConfig::default().extensions(Extensions::UNWRAP_VARIANT_NEWTYPES)
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("an array of length 1"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 5, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn one_tuple_inside_unwrapped_newtype_variant_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum A {
+        Newtype((i32,)),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        C {
+            ho: i32,
+            #[serde(flatten)]
+            a: B,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A::Newtype((42,))
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(()),
+    );
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A::Newtype((42,))
+                }
+            },
+            PrettyConfig::default().extensions(Extensions::UNWRAP_VARIANT_NEWTYPES)
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("a tuple of size 1"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 5, col: 1 }
         }))
     );
 }
