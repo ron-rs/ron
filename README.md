@@ -185,22 +185,34 @@ RON is not designed to be a fully self-describing format (unlike JSON) and is th
 
 While data structures with any of these attributes should generally roundtrip through RON, some restrictions apply [^serde-restrictions] and their textual representation may not always match your expectation:
 
-- flattened structs are only serialised as maps and deserialised from maps
 - ron only supports string keys inside maps flattened into structs
 - internally (or adjacently) tagged or untagged enum variants or `#[serde(flatten)]`ed fields must not contain:
-  - `i128` or `u128` values
   - struct names, e.g. by enabling the `PrettyConfig::struct_names` setting
   - newtypes
   - zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants
     - `Option`s with `#[enable(implicit_some)]` must not contain any of these or a unit, unit struct, or an untagged unit variant
   - externally tagged tuple variants with just one field (that are not newtype variants)
   - tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
+  - a `ron::value::RawValue`
 - internally tagged newtype variants must not contain:
   - a unit or a unit struct inside an untagged newtype variant
   - an untagged unit variant
 - untagged tuple / struct variants with no fields are not supported
 - untagged tuple variants with just one field (that are not newtype variants) are not supported when the `#![enable(unwrap_variant_newtypes)]` extension is enabled
-- flattened structs with conflicting keys (e.g. an earlier inner-struct key matches a later outer-struct key or two flattened maps in the same struct share a key) are not supported by serde
+
+Furthermore, serde imposes the following restrictions for data to roundtrip:
+
+- structs or struct variants that contain a `#[serde(flatten)]`ed field:
+  - are only serialised as maps and deserialised from maps
+  - must not contain duplicate fields / keys, e.g. where an inner-struct field matches an outer-struct or inner-struct field
+  - may only contain one (within the super-struct of all flattened structs) `#[serde(flatten)]`ed map field, which collects all unknown fields
+  - if they contain a `#[serde(flatten)]`ed map, they must not contain:
+    - a struct that is not flattened itself but contains some flattened fields
+    - a flattened newtype, tuple, or struct variant
+    - an internally tagged struct variant
+    - an untagged struct variant that contains some flattened fields
+- internally (or adjacently) tagged or untagged enum variants or `#[serde(flatten)]`ed fields must not contain:
+  - `i128` or `u128` values
 
 Please file a [new issue](https://github.com/ron-rs/ron/issues/new) if you come across a use case which is not listed among the above restrictions but still breaks.
 

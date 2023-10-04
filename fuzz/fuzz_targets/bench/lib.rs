@@ -87,8 +87,9 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
                 ron::error::Error::ExceededRecursionLimit => return None,
-                // Duplicate struct fields only cause issues inside internally tagged
-                //  or untagged enums, so we allow them otherwise
+                // Duplicate struct fields only cause issues inside internally (or adjacently)
+                //  tagged or untagged enums (or in flattened fields where we detect them
+                //  before they cause issues), so we allow them in arbitrary otherwise
                 ron::error::Error::DuplicateStructField { .. } => return None,
                 // Everything else is actually a bug we want to find
                 _ => panic!("{:#?} -> {} -! {:#?} @ {:#?}", typed_value, ron, err, path),
@@ -5098,9 +5099,20 @@ impl<'a> SerdeDataType<'a> {
                     r#struct.push(ty.arbitrary_value(u, pretty)?);
                 }
                 let value = SerdeDataValue::Struct { fields: r#struct };
+                let mut has_flatten_map = false;
+                let mut has_unknown_key_inside_flatten = false;
                 for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
                     if *flatten && !ty.supported_inside_untagged(pretty, false, false) {
                         // Flattened fields are deserialised through serde's content type
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    }
+                    if !ty.supported_flattened_map_inside_flatten_field(
+                        pretty,
+                        *flatten,
+                        &mut has_flatten_map,
+                        &mut has_unknown_key_inside_flatten,
+                    ) {
+                        // Flattened fields with maps must fulfil certain criteria
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
                     if *flatten && pretty.struct_names {
@@ -5236,9 +5248,20 @@ impl<'a> SerdeDataType<'a> {
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
+                        let mut has_flatten_map = false;
+                        let mut has_unknown_key_inside_flatten = false;
                         for (ty, flatten) in fields.1.iter().zip(fields.2.iter()) {
                             if *flatten && !ty.supported_inside_untagged(pretty, false, false) {
                                 // Flattened fields are deserialised through serde's content type
+                                return Err(arbitrary::Error::IncorrectFormat);
+                            }
+                            if !ty.supported_flattened_map_inside_flatten_field(
+                                pretty,
+                                *flatten,
+                                &mut has_flatten_map,
+                                &mut has_unknown_key_inside_flatten,
+                            ) {
+                                // Flattened fields with maps must fulfil certain criteria
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
                             if *flatten && pretty.struct_names {
@@ -5387,11 +5410,7 @@ impl<'a> SerdeDataType<'a> {
                 fields
                     .1
                     .iter()
-                    .zip(fields.2.iter())
-                    .all(|(field, flatten)| {
-                        field.supported_inside_untagged(pretty, false, false)
-                            && (!*flatten || field.supported_inside_flatten(false))
-                    })
+                    .all(|field| field.supported_inside_untagged(pretty, false, false))
             }
             SerdeDataType::Enum {
                 name: _,
@@ -5440,11 +5459,7 @@ impl<'a> SerdeDataType<'a> {
                     fields
                         .1
                         .iter()
-                        .zip(fields.2.iter())
-                        .all(|(field, flatten)| {
-                            field.supported_inside_untagged(pretty, false, false)
-                                && (!*flatten || field.supported_inside_flatten(false))
-                        })
+                        .all(|field| field.supported_inside_untagged(pretty, false, false))
                 }
             }),
         }
@@ -5651,6 +5666,168 @@ impl<'a> SerdeDataType<'a> {
         //  and have two different key types, deserializing will fail
         // Only allowing string keys (for now) is both sensible and easier
         matches!(self, SerdeDataType::String)
+    }
+
+    fn supported_flattened_map_inside_flatten_field(
+        &self,
+        pretty: &PrettyConfig,
+        is_flattened: bool,
+        has_flattened_map: &mut bool,
+        has_unknown_key: &mut bool,
+    ) -> bool {
+        match self {
+            SerdeDataType::Unit => true,
+            SerdeDataType::Bool => true,
+            SerdeDataType::I8 => true,
+            SerdeDataType::I16 => true,
+            SerdeDataType::I32 => true,
+            SerdeDataType::I64 => true,
+            SerdeDataType::I128 => true,
+            SerdeDataType::ISize => true,
+            SerdeDataType::U8 => true,
+            SerdeDataType::U16 => true,
+            SerdeDataType::U32 => true,
+            SerdeDataType::U64 => true,
+            SerdeDataType::U128 => true,
+            SerdeDataType::USize => true,
+            SerdeDataType::F32 => true,
+            SerdeDataType::F64 => true,
+            SerdeDataType::Char => true,
+            SerdeDataType::String => true,
+            SerdeDataType::ByteBuf => true,
+            SerdeDataType::Option { inner } => {
+                if is_flattened || pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                    inner.supported_flattened_map_inside_flatten_field(
+                        pretty,
+                        is_flattened,
+                        has_flattened_map,
+                        has_unknown_key,
+                    )
+                } else {
+                    true
+                }
+            }
+            SerdeDataType::Array { kind: _, len: _ } => true,
+            SerdeDataType::Tuple { elems: _ } => true,
+            SerdeDataType::Vec { item: _ } => true,
+            SerdeDataType::Map { key: _, value: _ } => {
+                if is_flattened {
+                    if *has_unknown_key {
+                        // BUG: a flattened map will also see the unknown key (serde)
+                        return false;
+                    }
+                    if *has_flattened_map {
+                        // BUG: at most one flattened map is supported (serde)
+                        return false;
+                    }
+                    *has_flattened_map = true;
+                }
+                true
+            }
+            SerdeDataType::UnitStruct { name: _ } => true,
+            SerdeDataType::Newtype { name: _, inner } => {
+                if is_flattened || pretty.extensions.contains(Extensions::UNWRAP_NEWTYPES) {
+                    inner.supported_flattened_map_inside_flatten_field(
+                        pretty,
+                        is_flattened,
+                        has_flattened_map,
+                        has_unknown_key,
+                    )
+                } else {
+                    true
+                }
+            }
+            SerdeDataType::TupleStruct { name: _, fields: _ } => true,
+            SerdeDataType::Struct {
+                name: _,
+                tag: _,
+                fields,
+            } => {
+                if is_flattened {
+                    fields
+                        .1
+                        .iter()
+                        .zip(fields.2.iter())
+                        .all(|(field, is_flattened)| {
+                            field.supported_flattened_map_inside_flatten_field(
+                                pretty,
+                                *is_flattened,
+                                has_flattened_map,
+                                has_unknown_key,
+                            )
+                        })
+                } else if fields.2.iter().any(|x| *x) {
+                    if *has_flattened_map {
+                        // BUG: a flattened map will also see the unknown key (serde)
+                        return false;
+                    }
+                    *has_unknown_key = true;
+                    true
+                } else {
+                    true
+                }
+            }
+            SerdeDataType::Enum {
+                name: _,
+                variants,
+                representation,
+            } => variants.1.iter().all(|variant| match variant {
+                SerdeDataVariantType::Unit => true,
+                SerdeDataVariantType::TaggedOther => true,
+                SerdeDataVariantType::Newtype { inner } => {
+                    if is_flattened {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                        true
+                    } else if matches!(representation, SerdeEnumRepresentation::Untagged) {
+                        inner.supported_flattened_map_inside_flatten_field(
+                            pretty,
+                            is_flattened,
+                            has_flattened_map,
+                            has_unknown_key,
+                        )
+                    } else {
+                        true
+                    }
+                }
+                SerdeDataVariantType::Tuple { fields: _ } => {
+                    if is_flattened {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                    }
+                    true
+                }
+                SerdeDataVariantType::Struct { fields } => {
+                    if is_flattened
+                        || matches!(
+                            representation,
+                            SerdeEnumRepresentation::InternallyTagged { tag: _ }
+                        )
+                    {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                    } else if matches!(representation, SerdeEnumRepresentation::Untagged)
+                        && fields.2.iter().any(|x| *x)
+                    {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                    }
+                    true
+                }
+            }),
+        }
     }
 }
 
