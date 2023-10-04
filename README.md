@@ -199,6 +199,7 @@ While data structures with any of these attributes should generally roundtrip th
   - an untagged unit variant
 - untagged tuple / struct variants with no fields are not supported
 - untagged tuple variants with just one field (that are not newtype variants) are not supported when the `#![enable(unwrap_variant_newtypes)]` extension is enabled
+- serializing a `ron::value::RawValue` using a `PrettyConfig` may add leading and trailing whitespace and comments, which the `ron::value::RawValue` absorbs upon deserialization
 
 Furthermore, serde imposes the following restrictions for data to roundtrip:
 

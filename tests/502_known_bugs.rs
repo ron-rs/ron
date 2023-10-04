@@ -924,6 +924,25 @@ fn one_tuple_variant_inside_adjacently_tagged() {
         ),
         Ok(())
     );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>("(tag: B, content: (ho: 24, a: (hi: OneTuple(42))))"),
+        Ok(AdjacentlyTagged::B {
+            ho: 24,
+            a: A {
+                hi: OneEnum::OneTuple(42, ())
+            }
+        }),
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>("(content: (ho: 24, a: (hi: OneTuple(42))), tag: B)"),
+        Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("tuple variant"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 1, col: 50 }
+        })
+    );
 }
 
 #[test]
@@ -1053,6 +1072,212 @@ fn one_tuple_variant_inside_flatten_struct_variant() {
         Err(Err(SpannedError {
             code: Error::InvalidValueForType {
                 expected: String::from("tuple variant"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn raw_value_inside_internally_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Box<ron::value::RawValue>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A {
+                    hi: ron::value::RawValue::from_boxed_ron(String::from("42").into_boxed_str())
+                        .unwrap(),
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any valid RON-value-string"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 7, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn raw_value_inside_adjacently_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Box<ron::value::RawValue>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag", content = "content")]
+    enum AdjacentlyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B {
+                ho: 24,
+                a: A {
+                    hi: ron::value::RawValue::from_boxed_ron(String::from("42").into_boxed_str())
+                        .unwrap(),
+                }
+            },
+            PrettyConfig::default()
+        ),
+        // adds an extra space
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: B { ho: 24, a: A { hi: RawValue(42) } } != B { ho: 24, a: A { hi: RawValue( 42) } }"))))
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>("(tag: B, content: (ho: 24, a: (hi:42)))"),
+        Ok(AdjacentlyTagged::B {
+            ho: 24,
+            a: A {
+                hi: ron::value::RawValue::from_boxed_ron(String::from("42").into_boxed_str())
+                    .unwrap(),
+            }
+        }),
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>("(content: (ho: 24, a: (hi:42)), tag: B)"),
+        Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any valid RON-value-string"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 1, col: 39 }
+        })
+    );
+}
+
+#[test]
+fn raw_value_inside_untagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Box<ron::value::RawValue>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::B {
+                ho: 24,
+                a: A {
+                    hi: ron::value::RawValue::from_boxed_ron(String::from("42").into_boxed_str())
+                        .unwrap(),
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 6, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn raw_value_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Box<ron::value::RawValue>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: B,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A {
+                        hi: ron::value::RawValue::from_boxed_ron(
+                            String::from("42").into_boxed_str()
+                        )
+                        .unwrap(),
+                    }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any valid RON-value-string"),
+                found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn raw_value_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Box<ron::value::RawValue>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        C {
+            ho: i32,
+            #[serde(flatten)]
+            a: B,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A {
+                        hi: ron::value::RawValue::from_boxed_ron(
+                            String::from("42").into_boxed_str()
+                        )
+                        .unwrap(),
+                    }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("any valid RON-value-string"),
                 found: String::from("the unsigned integer `42`")
             },
             position: Position { line: 6, col: 1 }
