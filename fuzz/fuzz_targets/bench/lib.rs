@@ -5808,15 +5808,7 @@ impl<'a> SerdeDataType<'a> {
                         || matches!(
                             representation,
                             SerdeEnumRepresentation::InternallyTagged { tag: _ }
-                        )
-                    {
-                        if *has_flattened_map {
-                            // BUG: a flattened map will also see the unknown key (serde)
-                            return false;
-                        }
-                        *has_unknown_key = true;
-                    } else if matches!(representation, SerdeEnumRepresentation::Untagged)
-                        && fields.2.iter().any(|x| *x)
+                        ) || matches!(representation, SerdeEnumRepresentation::Untagged if fields.2.iter().any(|x| *x))
                     {
                         if *has_flattened_map {
                             // BUG: a flattened map will also see the unknown key (serde)
