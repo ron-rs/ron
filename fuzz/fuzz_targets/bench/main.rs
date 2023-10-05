@@ -66,27 +66,30 @@ fn main() -> anyhow::Result<()> {
         let data = fs::read(&entry).context("could not read corpus entry")?;
 
         if let Some(typed_data) = typed_data::roundtrip_arbitrary_typed_ron_or_panic(&data) {
-            let ty = ron::ser::to_string_pretty(
-                &typed_data.ty(),
-                PrettyConfig::default().struct_names(true),
-            )
-            .unwrap();
-            let value = ron::ser::to_string_pretty(
-                &typed_data.value(),
-                PrettyConfig::default()
-                    .struct_names(true)
-                    .compact_arrays(true)
-                    .compact_maps(true),
-            )
-            .unwrap();
-            let pretty = ron::ser::to_string_pretty(
-                &typed_data.pretty_config(),
-                PrettyConfig::default()
-                    .struct_names(true)
-                    .compact_structs(true),
-            )
-            .unwrap();
-            let ron = ron::ser::to_string_pretty(&typed_data, typed_data.pretty_config()).unwrap();
+            let options = ron::Options::default().without_recursion_limit();
+            let ty = options
+                .to_string_pretty(&typed_data.ty(), PrettyConfig::default().struct_names(true))
+                .unwrap();
+            let value = options
+                .to_string_pretty(
+                    &typed_data.value(),
+                    PrettyConfig::default()
+                        .struct_names(true)
+                        .compact_arrays(true)
+                        .compact_maps(true),
+                )
+                .unwrap();
+            let pretty = options
+                .to_string_pretty(
+                    &typed_data.pretty_config(),
+                    PrettyConfig::default()
+                        .struct_names(true)
+                        .compact_structs(true),
+                )
+                .unwrap();
+            let ron = options
+                .to_string_pretty(&typed_data, typed_data.pretty_config())
+                .unwrap();
 
             if cases.insert((ty, value, ron), (entry, pretty)).is_some() {
                 continue;
