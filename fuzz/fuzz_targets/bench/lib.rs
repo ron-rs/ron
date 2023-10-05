@@ -4990,7 +4990,7 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::ByteBuf => SerdeDataValue::ByteBuf(<&[u8]>::arbitrary(u)?),
             SerdeDataType::Option { inner } => {
                 let value = match Option::<()>::arbitrary(u)? {
-                    Some(_) => Some(Box::new(inner.arbitrary_value(u, pretty)?)),
+                    Some(()) => Some(Box::new(inner.arbitrary_value(u, pretty)?)),
                     None => None,
                 };
                 SerdeDataValue::Option { inner: value }

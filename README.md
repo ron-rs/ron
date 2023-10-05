@@ -194,7 +194,7 @@ While data structures with any of these attributes should generally roundtrip th
   - externally tagged tuple variants with just one field (that are not newtype variants)
   - tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
   - a `ron::value::RawValue`
-- internally tagged newtype variants must not contain:
+- internally tagged newtype variants and `#[serde(flatten)]`ed fields must not contain:
   - a unit or a unit struct inside an untagged newtype variant
   - an untagged unit variant
 - untagged tuple / struct variants with no fields are not supported
@@ -206,7 +206,7 @@ Furthermore, serde imposes the following restrictions for data to roundtrip:
 - structs or struct variants that contain a `#[serde(flatten)]`ed field:
   - are only serialised as maps and deserialised from maps
   - must not contain duplicate fields / keys, e.g. where an inner-struct field matches an outer-struct or inner-struct field
-  - may only contain one (within the super-struct of all flattened structs) `#[serde(flatten)]`ed map field, which collects all unknown fields
+  - must not contain more than one (within the super-struct of all flattened structs) `#[serde(flatten)]`ed map field, which collects all unknown fields
   - if they contain a `#[serde(flatten)]`ed map, they must not contain:
     - a struct that is not flattened itself but contains some flattened fields
     - a flattened newtype, tuple, or struct variant

@@ -1697,6 +1697,38 @@ fn unit_inside_untagged_newtype_variant_inside_internally_tagged_newtype_variant
 }
 
 #[test]
+fn unit_inside_untagged_newtype_variant_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Newtype(()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: Untagged,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: Untagged::Newtype(()),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 3, col: 1 }
+        }))
+    );
+}
+
+#[test]
 fn unit_struct_inside_untagged_newtype_variant_inside_internally_tagged_newtype_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct Unit;
@@ -1728,7 +1760,41 @@ fn unit_struct_inside_untagged_newtype_variant_inside_internally_tagged_newtype_
 }
 
 #[test]
-fn unit_variant_inside_untagged_newtype_variant_inside_internally_tagged_newtype_variant() {
+fn untagged_unit_variant_inside_internally_tagged_newtype_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Unit,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        C {
+            ho: i32,
+            #[serde(flatten)]
+            a: Untagged,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: Untagged::Unit,
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 3, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn untagged_unit_variant_inside_flatten_struct_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     enum Enum {
         Unit,
