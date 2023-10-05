@@ -961,8 +961,8 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
-        if (self.cursor.last_ws_len == WS_CURSOR_UNCLOSED_LINE)
-            || ((self.cursor.pre_ws_cursor + self.cursor.last_ws_len) < self.cursor.cursor)
+        if (self.cursor.last_ws_len != WS_CURSOR_UNCLOSED_LINE)
+            && ((self.cursor.pre_ws_cursor + self.cursor.last_ws_len) < self.cursor.cursor)
         {
             // the last whitespace is disjoint from this one, we need to track a new one
             self.cursor.pre_ws_cursor = self.cursor.cursor;
@@ -1667,6 +1667,39 @@ mod tests {
 
         assert_eq!(bytes.src(), "24  ");
         assert_eq!(bytes.pre_ws_src(), "       /*bye*/ 24  ");
+
+        let mut bytes = Parser::new("42").unwrap();
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "42");
+        assert_eq!(bytes.pre_ws_src(), "42");
+        assert_eq!(bytes.integer::<u8>().unwrap(), 42);
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "");
+        assert_eq!(bytes.pre_ws_src(), "");
+
+        let mut bytes = Parser::new("  42  ").unwrap();
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "42  ");
+        assert_eq!(bytes.pre_ws_src(), "  42  ");
+        assert_eq!(bytes.integer::<u8>().unwrap(), 42);
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "");
+        assert_eq!(bytes.pre_ws_src(), "  ");
+
+        let mut bytes = Parser::new("  42  //").unwrap();
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "42  //");
+        assert_eq!(bytes.pre_ws_src(), "  42  //");
+        assert_eq!(bytes.integer::<u8>().unwrap(), 42);
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "");
+        assert_eq!(bytes.pre_ws_src(), "  //");
     }
 
     #[test]
