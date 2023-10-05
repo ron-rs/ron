@@ -274,8 +274,11 @@ fn implicit_some_inside_internally_tagged() {
 #[test]
 fn implicit_some_inside_adjacently_tagged() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Unit;
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct A {
-        hi: Option<Option<()>>,
+        hi: Option<Option<Unit>>,
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -288,7 +291,9 @@ fn implicit_some_inside_adjacently_tagged() {
         check_roundtrip(
             &AdjacentlyTagged::B {
                 ho: 24,
-                a: A { hi: Some(Some(())) }
+                a: A {
+                    hi: Some(Some(Unit))
+                }
             },
             PrettyConfig::default()
         ),
@@ -298,7 +303,9 @@ fn implicit_some_inside_adjacently_tagged() {
         check_roundtrip(
             &AdjacentlyTagged::B {
                 ho: 24,
-                a: A { hi: Some(Some(())) }
+                a: A {
+                    hi: Some(Some(Unit))
+                }
             },
             PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
         ),
@@ -310,7 +317,9 @@ fn implicit_some_inside_adjacently_tagged() {
         ),
         Ok(AdjacentlyTagged::B {
             ho: 24,
-            a: A { hi: Some(Some(())) }
+            a: A {
+                hi: Some(Some(Unit))
+            }
         }),
     );
     assert_eq!(
@@ -364,8 +373,14 @@ fn implicit_some_inside_untagged() {
 #[test]
 fn implicit_some_inside_flatten_struct() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Unit,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct A {
-        hi: Option<Option<()>>,
+        hi: Option<Option<Untagged>>,
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -385,7 +400,9 @@ fn implicit_some_inside_flatten_struct() {
             &FlattenedStruct {
                 ho: 24,
                 a: B {
-                    a: A { hi: Some(Some(())) }
+                    a: A {
+                        hi: Some(Some(Untagged::Unit))
+                    }
                 }
             },
             PrettyConfig::default()
@@ -397,12 +414,12 @@ fn implicit_some_inside_flatten_struct() {
             &FlattenedStruct {
                 ho: 24,
                 a: B {
-                    a: A { hi: Some(Some(())) }
+                    a: A { hi: Some(Some(Untagged::Unit)) }
                 }
             },
             PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
         ),
-        Err(Ok(Error::Message(String::from("ROUNDTRIP error: FlattenedStruct { ho: 24, a: B { a: A { hi: Some(Some(())) } } } != FlattenedStruct { ho: 24, a: B { a: A { hi: None } } }"))))
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: FlattenedStruct { ho: 24, a: B { a: A { hi: Some(Some(Unit)) } } } != FlattenedStruct { ho: 24, a: B { a: A { hi: None } } }"))))
     );
 }
 
