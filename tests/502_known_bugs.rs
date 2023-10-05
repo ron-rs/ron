@@ -427,7 +427,7 @@ fn implicit_some_inside_flatten_struct() {
 fn implicit_some_inside_flatten_struct_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct A {
-        hi: Option<Option<()>>,
+        hi: Option<Option<[u8; 0]>>,
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -449,24 +449,30 @@ fn implicit_some_inside_flatten_struct_variant() {
             &FlattenedStructVariant::C {
                 ho: 24,
                 a: B {
-                    a: A { hi: Some(Some(())) }
+                    a: A { hi: Some(Some([])) }
                 }
             },
             PrettyConfig::default()
         ),
-        Ok(())
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("an empty array"),
+                found: String::from("a unit value")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
     );
     assert_eq!(
         check_roundtrip(
             &FlattenedStructVariant::C {
                 ho: 24,
                 a: B {
-                    a: A { hi: Some(Some(())) }
+                    a: A { hi: Some(Some([])) }
                 }
             },
             PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME)
         ),
-        Err(Ok(Error::Message(String::from("ROUNDTRIP error: C { ho: 24, a: B { a: A { hi: Some(Some(())) } } } != C { ho: 24, a: B { a: A { hi: None } } }"))))
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: C { ho: 24, a: B { a: A { hi: Some(Some([])) } } } != C { ho: 24, a: B { a: A { hi: None } } }"))))
     );
 }
 
@@ -1296,6 +1302,207 @@ fn raw_value_inside_flatten_struct_variant() {
             code: Error::InvalidValueForType {
                 expected: String::from("any valid RON-value-string"),
                 found: String::from("the unsigned integer `42`")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn unit_like_zero_length_inside_internally_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: [i32; 0],
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &InternallyTagged::B {
+                ho: 24,
+                a: A { hi: [] }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("an empty array"),
+                found: String::from("a unit value")
+            },
+            position: Position { line: 7, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn unit_like_zero_length_inside_adjacently_tagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct TupleStruct();
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: TupleStruct,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag", content = "content")]
+    enum AdjacentlyTagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &AdjacentlyTagged::B {
+                ho: 24,
+                a: A { hi: TupleStruct() }
+            },
+            PrettyConfig::default()
+        ),
+        Ok(()),
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>("(tag: B, content: (ho: 24, a: (hi: ())))"),
+        Ok(AdjacentlyTagged::B {
+            ho: 24,
+            a: A { hi: TupleStruct() }
+        }),
+    );
+    assert_eq!(
+        ron::from_str::<AdjacentlyTagged>("(content: (ho: 24, a: (hi: ())), tag: B)"),
+        Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("tuple struct TupleStruct"),
+                found: String::from("a unit value")
+            },
+            position: Position { line: 1, col: 40 }
+        })
+    );
+}
+
+#[test]
+fn unit_like_zero_length_inside_untagged() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Struct {}
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Struct,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        B { ho: i32, a: A },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Untagged::B {
+                ho: 24,
+                a: A { hi: Struct {} }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 6, col: 2 }
+        }))
+    );
+}
+
+#[test]
+fn unit_like_zero_length_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum Enum {
+        Tuple(),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Enum,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: B,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: B {
+                    a: A { hi: Enum::Tuple() }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("tuple variant"),
+                found: String::from("a unit value")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn unit_like_zero_length_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum Enum {
+        Struct {},
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct A {
+        hi: Enum,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        a: A,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        C {
+            ho: i32,
+            #[serde(flatten)]
+            a: B,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::C {
+                ho: 24,
+                a: B {
+                    a: A {
+                        hi: Enum::Struct {}
+                    }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("struct variant"),
+                found: String::from("a unit value")
             },
             position: Position { line: 6, col: 1 }
         }))
