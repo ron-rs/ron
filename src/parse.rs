@@ -68,6 +68,8 @@ pub struct ParserCursor {
     last_ws_len: usize,
 }
 
+const WS_CURSOR_UNCLOSED_LINE: usize = usize::MAX;
+
 impl PartialEq for ParserCursor {
     fn eq(&self, other: &Self) -> bool {
         self.cursor == other.cursor
@@ -110,7 +112,7 @@ impl<'a> Parser<'a> {
         Ok(parser)
     }
 
-    pub fn set_cursor(&mut self, cursor: ParserCursor) {
+    fn set_cursor(&mut self, cursor: ParserCursor) {
         self.cursor = cursor;
     }
 
@@ -959,13 +961,15 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
-        if self.src().is_empty() {
-            return Ok(());
-        }
-
-        if (self.cursor.pre_ws_cursor + self.cursor.last_ws_len) < self.cursor.cursor {
+        if (self.cursor.last_ws_len == WS_CURSOR_UNCLOSED_LINE)
+            || ((self.cursor.pre_ws_cursor + self.cursor.last_ws_len) < self.cursor.cursor)
+        {
             // the last whitespace is disjoint from this one, we need to track a new one
             self.cursor.pre_ws_cursor = self.cursor.cursor;
+        }
+
+        if self.src().is_empty() {
+            return Ok(());
         }
 
         loop {
@@ -974,7 +978,7 @@ impl<'a> Parser<'a> {
             match self.skip_comment()? {
                 None => break,
                 Some(Comment::UnclosedLine) => {
-                    self.cursor.last_ws_len = usize::MAX;
+                    self.cursor.last_ws_len = WS_CURSOR_UNCLOSED_LINE;
                     return Ok(());
                 }
                 Some(Comment::ClosedLine | Comment::Block) => continue,
@@ -987,7 +991,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn has_unclosed_line_comment(&self) -> bool {
-        self.src().is_empty() && self.cursor.last_ws_len == usize::MAX
+        self.src().is_empty() && self.cursor.last_ws_len == WS_CURSOR_UNCLOSED_LINE
     }
 
     pub fn byte_string(&mut self) -> Result<ParsedByteStr<'a>> {

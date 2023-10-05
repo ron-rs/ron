@@ -31,7 +31,7 @@ const SERDE_TAG_KEY_CANARY: &str = "serde::__private::de::content::TagOrContent"
 /// If you just want to simply deserialize a value,
 /// you can use the [`from_str`] convenience function.
 pub struct Deserializer<'de> {
-    parser: Parser<'de>,
+    pub(crate) parser: Parser<'de>,
     newtype_variant: bool,
     serde_content_newtype: bool,
     last_identifier: Option<&'de str>,

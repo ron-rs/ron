@@ -1386,10 +1386,15 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                         //  even though it's disguised as a newtype
                         if self.name == RAW_VALUE_TOKEN {
                             if let SerdeDataValue::String(ron) = &self.value {
-                                // pretty serialising can add whitespace and comments
-                                //  before and after the raw value
-                                if v.contains(ron) {
-                                    return Ok(());
+                                if let (Ok(v_ron), Ok(ron)) = (
+                                    ron::value::RawValue::from_ron(v),
+                                    ron::value::RawValue::from_ron(ron),
+                                ) {
+                                    // pretty serialising can add whitespace and comments
+                                    //  before and after the raw value
+                                    if v_ron.trim().get_ron() == ron.trim().get_ron() {
+                                        return Ok(());
+                                    }
                                 }
                             }
                         }
