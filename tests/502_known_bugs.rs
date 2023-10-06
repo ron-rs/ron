@@ -2064,6 +2064,76 @@ fn flatten_struct_beside_map_inside_flatten_struct_variant() {
 }
 
 #[test]
+fn untagged_flatten_struct_variant_beside_map_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Flattened {
+        Struct {
+            hi: i32,
+            #[serde(flatten)]
+            flat: (),
+        },
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        other: HashMap<String, i32>,
+        #[serde(flatten)]
+        flat: Flattened,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                other: HashMap::new(),
+                flat: Flattened::Struct { hi: 42, flat: () },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: FlattenedStruct { ho: 24, other: {}, flat: Struct { hi: 42, flat: () } } != FlattenedStruct { ho: 24, other: {\"hi\": 42}, flat: Struct { hi: 42, flat: () } }"))))
+    );
+}
+
+#[test]
+fn untagged_flatten_struct_variant_beside_map_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Flattened {
+        Struct {
+            hi: i32,
+            #[serde(flatten)]
+            flat: (),
+        },
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        A {
+            ho: i32,
+            #[serde(flatten)]
+            other: HashMap<String, i32>,
+            #[serde(flatten)]
+            flat: Flattened,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::A {
+                ho: 24,
+                other: HashMap::new(),
+                flat: Flattened::Struct { hi: 42, flat: () },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: A { ho: 24, other: {}, flat: Struct { hi: 42, flat: () } } != A { ho: 24, other: {\"hi\": 42}, flat: Struct { hi: 42, flat: () } }"))))
+    );
+}
+
+#[test]
 fn zero_length_untagged_tuple_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
