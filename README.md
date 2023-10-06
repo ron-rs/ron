@@ -208,8 +208,8 @@ Furthermore, serde imposes the following restrictions for data to roundtrip:
   - must not contain duplicate fields / keys, e.g. where an inner-struct field matches an outer-struct or inner-struct field
   - must not contain more than one (within the super-struct of all flattened structs) `#[serde(flatten)]`ed map field, which collects all unknown fields
   - if they contain a `#[serde(flatten)]`ed map, they must not contain:
-    - a struct that is not flattened itself but contains some flattened fields
-    - a flattened newtype, tuple, or struct variant
+    - a struct that is not flattened itself but contains some flattened fields and is flattened into the outer struct (variant)
+    - a flattened externally tagged newtype, tuple, or struct variant
     - an internally tagged struct variant
     - an untagged struct variant that contains some flattened fields
 - internally (or adjacently) tagged or untagged enum variants or `#[serde(flatten)]`ed fields must not contain:

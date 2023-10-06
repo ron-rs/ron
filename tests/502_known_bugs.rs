@@ -1970,6 +1970,100 @@ fn more_than_one_flatten_map_inside_flatten_struct_variant() {
 }
 
 #[test]
+fn flatten_struct_beside_map_inside_flatten_struct() {
+    // The non-flattened struct must contain some flattened fields
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Flattened {
+        hi: i32,
+        #[serde(flatten)]
+        flat: (),
+    }
+
+    // The non-flattened struct must be behind a level of flatten
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Inner {
+        flat: Flattened,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        other: HashMap<String, i32>,
+        #[serde(flatten)]
+        inner: Inner,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                other: HashMap::new(),
+                inner: Inner {
+                    flat: Flattened { hi: 42, flat: () },
+                },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("i32"),
+                found: String::from("a map")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn flatten_struct_beside_map_inside_flatten_struct_variant() {
+    // The non-flattened struct must contain some flattened fields
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Flattened {
+        hi: i32,
+        #[serde(flatten)]
+        flat: (),
+    }
+
+    // The non-flattened struct must be behind a level of flatten
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Inner {
+        flat: Flattened,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        A {
+            ho: i32,
+            #[serde(flatten)]
+            other: HashMap<String, i32>,
+            #[serde(flatten)]
+            inner: Inner,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::A {
+                ho: 24,
+                other: HashMap::new(),
+                inner: Inner {
+                    flat: Flattened { hi: 42, flat: () },
+                },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("i32"),
+                found: String::from("a map")
+            },
+            position: Position { line: 6, col: 1 }
+        }))
+    );
+}
+
+#[test]
 fn zero_length_untagged_tuple_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
