@@ -1766,6 +1766,76 @@ fn i128_inside_flatten_struct_variant() {
 }
 
 #[test]
+fn duplicate_key_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        other: HashMap<String, i32>,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                other: [(String::from("ho"), 42)].into_iter().collect(),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::DuplicateStructField {
+                field: "ho",
+                outer: None
+            },
+            position: Position { line: 3, col: 9 }
+        }))
+    );
+}
+
+#[test]
+fn duplicate_key_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct C {
+        ho: i32,
+        hi: bool,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct B {
+        #[serde(flatten)]
+        inner: C,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        A {
+            ho: i32,
+            #[serde(flatten)]
+            inner: B,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::A {
+                ho: 24,
+                inner: B {
+                    inner: C { ho: 42, hi: false }
+                }
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::DuplicateStructField {
+                field: "ho",
+                outer: Some(String::from("A"))
+            },
+            position: Position { line: 3, col: 9 }
+        }))
+    );
+}
+
+#[test]
 fn non_string_key_inside_flatten_struct() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     struct FlattenedStruct {
