@@ -15,9 +15,12 @@ fn test_map_custom_deserialize() {
             struct CVisitor;
             impl<'de> serde::de::Visitor<'de> for CVisitor {
                 type Value = CustomMap;
+                
+                // GRCOV_EXCL_START
                 fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                     write!(formatter, "a map with string keys and values")
                 }
+                // GRCOV_EXCL_STOP
 
                 fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
                 where
