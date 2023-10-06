@@ -2501,6 +2501,80 @@ fn adjacently_tagged_tuple_variant_beside_map_inside_flatten_struct_variant() {
 }
 
 #[test]
+fn tagged_struct_beside_map_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    struct Flattened {
+        hi: i32,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        other: HashMap<String, i32>,
+        #[serde(flatten)]
+        flat: Flattened,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                other: HashMap::new(),
+                flat: Flattened { hi: 42 },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("i32"),
+                found: String::from("the string \"Flattened\"")
+            },
+            position: Position { line: 5, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn tagged_struct_beside_map_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    struct Flattened {
+        hi: i32,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        A {
+            ho: i32,
+            #[serde(flatten)]
+            other: HashMap<String, i32>,
+            #[serde(flatten)]
+            flat: Flattened,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::A {
+                ho: 24,
+                other: HashMap::new(),
+                flat: Flattened { hi: 42 },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("i32"),
+                found: String::from("the string \"Flattened\"")
+            },
+            position: Position { line: 5, col: 1 }
+        }))
+    );
+}
+
+#[test]
 fn zero_length_untagged_tuple_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
