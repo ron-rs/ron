@@ -1816,6 +1816,90 @@ fn non_string_key_inside_flatten_struct_variant() {
 }
 
 #[test]
+fn more_than_one_flatten_map_inside_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Deep {
+        #[serde(flatten)]
+        other: HashMap<String, bool>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Inner {
+        #[serde(flatten)]
+        deep: Deep,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        hi: Inner,
+        #[serde(flatten)]
+        other: HashMap<String, bool>,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                hi: Inner {
+                    deep: Deep {
+                        other: HashMap::new(),
+                    },
+                },
+                other: [(String::from("42"), true)].into_iter().collect(),
+            },
+            PrettyConfig::default()
+        ),
+        // both maps collect all the unknown keys
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: FlattenedStruct { ho: 24, hi: Inner { deep: Deep { other: {} } }, other: {\"42\": true} } != FlattenedStruct { ho: 24, hi: Inner { deep: Deep { other: {\"42\": true} } }, other: {\"42\": true} }"))))
+    );
+}
+
+#[test]
+fn more_than_one_flatten_map_inside_flatten_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Deep {
+        #[serde(flatten)]
+        other: HashMap<String, bool>,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Inner {
+        #[serde(flatten)]
+        deep: Deep,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum FlattenedStructVariant {
+        A {
+            ho: i32,
+            #[serde(flatten)]
+            hi: Inner,
+            #[serde(flatten)]
+            other: HashMap<String, bool>,
+        },
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStructVariant::A {
+                ho: 24,
+                hi: Inner {
+                    deep: Deep {
+                        other: [(String::from("24"), false)].into_iter().collect(),
+                    },
+                },
+                other: HashMap::new(),
+            },
+            PrettyConfig::default()
+        ),
+        // both maps collect all the unknown keys
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: A { ho: 24, hi: Inner { deep: Deep { other: {\"24\": false} } }, other: {} } != A { ho: 24, hi: Inner { deep: Deep { other: {\"24\": false} } }, other: {\"24\": false} }"))))
+    );
+}
+
+#[test]
 fn zero_length_untagged_tuple_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
