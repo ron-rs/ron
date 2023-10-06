@@ -5777,29 +5777,43 @@ impl<'a> SerdeDataType<'a> {
                 variants,
                 representation,
             } => variants.1.iter().all(|variant| match variant {
-                SerdeDataVariantType::Unit => true,
-                SerdeDataVariantType::TaggedOther => true,
+                SerdeDataVariantType::Unit => if is_flattened && matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ } | SerdeEnumRepresentation::AdjacentlyTagged { tag: _, content: _ }) {
+                    if *has_flattened_map {
+                        // BUG: a flattened map will also see the unknown key (serde)
+                        return false;
+                    }
+                    *has_unknown_key = true;
+                    true
+                } else { true },
+                SerdeDataVariantType::TaggedOther => if is_flattened && matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ } | SerdeEnumRepresentation::AdjacentlyTagged { tag: _, content: _ }) {
+                    if *has_flattened_map {
+                        // BUG: a flattened map will also see the unknown key (serde)
+                        return false;
+                    }
+                    *has_unknown_key = true;
+                    true
+                } else { true },
                 SerdeDataVariantType::Newtype { inner } => {
-                    if is_flattened {
-                        if *has_flattened_map {
-                            // BUG: a flattened map will also see the unknown key (serde)
-                            return false;
-                        }
-                        *has_unknown_key = true;
-                        true
-                    } else if matches!(representation, SerdeEnumRepresentation::Untagged) {
+                    if matches!(representation, SerdeEnumRepresentation::Untagged) {
                         inner.supported_flattened_map_inside_flatten_field(
                             pretty,
                             is_flattened,
                             has_flattened_map,
                             has_unknown_key,
                         )
+                    } else if is_flattened {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                        true
                     } else {
                         true
                     }
                 }
                 SerdeDataVariantType::Tuple { fields: _ } => {
-                    if is_flattened {
+                    if is_flattened && matches!(representation, SerdeEnumRepresentation::ExternallyTagged | SerdeEnumRepresentation::AdjacentlyTagged { tag: _, content: _ }) {
                         if *has_flattened_map {
                             // BUG: a flattened map will also see the unknown key (serde)
                             return false;
@@ -5809,11 +5823,7 @@ impl<'a> SerdeDataType<'a> {
                     true
                 }
                 SerdeDataVariantType::Struct { fields } => {
-                    if is_flattened
-                        || matches!(
-                            representation,
-                            SerdeEnumRepresentation::InternallyTagged { tag: _ }
-                        ) || matches!(representation, SerdeEnumRepresentation::Untagged if fields.2.iter().any(|x| *x))
+                    if (is_flattened && !matches!(representation, SerdeEnumRepresentation::Untagged)) || matches!(representation, SerdeEnumRepresentation::Untagged if fields.2.iter().any(|x| *x))
                     {
                         if *has_flattened_map {
                             // BUG: a flattened map will also see the unknown key (serde)
