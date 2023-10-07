@@ -2,7 +2,7 @@
 // https://github.com/serde-rs/json/blob/master/src/raw.rs
 // Licensed under either of Apache License, Version 2.0 or MIT license at your option.
 
-use std::fmt;
+use std::{fmt, ops::Range};
 
 use serde::{de, ser, Deserialize, Serialize};
 
@@ -36,6 +36,25 @@ impl RawValue {
     fn into_boxed_str(raw_value: Box<Self>) -> Box<str> {
         // Safety: RawValue is a transparent newtype around str
         unsafe { std::mem::transmute::<Box<RawValue>, Box<str>>(raw_value) }
+    }
+
+    #[allow(clippy::expect_used)]
+    fn trim_range(ron: &str) -> Range<usize> {
+        fn trim_range_inner(ron: &str) -> Result<Range<usize>, Error> {
+            let mut deserializer = crate::Deserializer::from_str(ron).map_err(Error::from)?;
+
+            deserializer.parser.skip_ws()?;
+            let start_offset = ron.len() - deserializer.parser.src().len();
+
+            let _ = serde::de::IgnoredAny::deserialize(&mut deserializer)?;
+
+            deserializer.parser.skip_ws()?;
+            let end_offset = deserializer.parser.pre_ws_src().len();
+
+            Ok(start_offset..(ron.len() - end_offset))
+        }
+
+        trim_range_inner(ron).expect("RawValue must contain valid ron")
     }
 }
 
@@ -112,6 +131,31 @@ impl RawValue {
         let ron = Options::default().to_string(value)?;
 
         Ok(RawValue::from_boxed_str(ron.into_boxed_str()))
+    }
+}
+
+impl RawValue {
+    #[must_use]
+    /// Trims any leadning and trailing whitespace off the raw RON string,
+    /// including whitespace characters and comments.
+    pub fn trim(&self) -> &Self {
+        Self::from_borrowed_str(&self.ron[RawValue::trim_range(&self.ron)])
+    }
+
+    #[must_use]
+    #[allow(unsafe_code)]
+    /// Trims any leadning and trailing whitespace off the boxed raw RON string,
+    /// including whitespace characters and comments.
+    pub fn trim_boxed(self: Box<Self>) -> Box<Self> {
+        let trim_range = RawValue::trim_range(&self.ron);
+        let mut boxed_ron = RawValue::into_boxed_str(self).into_string();
+        // SAFETY: ron[trim_range] is a valid str, so draining everything
+        //         before and after leaves a valid str
+        unsafe {
+            boxed_ron.as_mut_vec().drain(trim_range.end..);
+            boxed_ron.as_mut_vec().drain(0..trim_range.start);
+        }
+        RawValue::from_boxed_str(boxed_ron.into_boxed_str())
     }
 }
 

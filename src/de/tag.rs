@@ -22,6 +22,13 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
         self.de.deserialize_str(visitor)
     }
 
+    fn deserialize_string<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'b>,
+    {
+        self.deserialize_str(visitor)
+    }
+
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
@@ -33,219 +40,212 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_any(visitor)
+        self.deserialize_str(visitor)
     }
 
-    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_bool(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_i8<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_i8(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_i16<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_i16(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_i32<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_i32(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_i64<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_i64(visitor)
-    }
-
-    #[cfg(feature = "integer128")]
-    fn deserialize_i128<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'b>,
-    {
-        self.de.deserialize_i128(visitor)
-    }
-
-    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'b>,
-    {
-        self.de.deserialize_u8(visitor)
-    }
-
-    fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'b>,
-    {
-        self.de.deserialize_u16(visitor)
-    }
-
-    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'b>,
-    {
-        self.de.deserialize_u32(visitor)
-    }
-
-    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'b>,
-    {
-        self.de.deserialize_u64(visitor)
+        Err(Error::ExpectedString)
     }
 
     #[cfg(feature = "integer128")]
-    fn deserialize_u128<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_i128<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_u128(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_u8<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_f32(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_u16<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_f64(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_u32<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_char(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_u64<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_string(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_bytes<V>(self, visitor: V) -> Result<V::Value>
+    #[cfg(feature = "integer128")]
+    fn deserialize_u128<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_bytes(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_byte_buf(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_option(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_unit(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_unit_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_unit_struct(name, visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_newtype_struct<V>(self, name: &'static str, visitor: V) -> Result<V::Value>
+    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_newtype_struct(name, visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_seq(visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_tuple<V>(self, len: usize, visitor: V) -> Result<V::Value>
+    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_tuple(len, visitor)
+        Err(Error::ExpectedString)
+    }
+
+    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'b>,
+    {
+        Err(Error::ExpectedString)
+    }
+
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'b>,
+    {
+        Err(Error::ExpectedString)
+    }
+
+    fn deserialize_seq<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'b>,
+    {
+        Err(Error::ExpectedString)
+    }
+
+    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'b>,
+    {
+        Err(Error::ExpectedString)
     }
 
     fn deserialize_tuple_struct<V>(
         self,
-        name: &'static str,
-        len: usize,
-        visitor: V,
+        _name: &'static str,
+        _len: usize,
+        _visitor: V,
     ) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_tuple_struct(name, len, visitor)
+        Err(Error::ExpectedString)
     }
 
-    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_map(visitor)
+        Err(Error::ExpectedString)
     }
 
     fn deserialize_struct<V>(
         self,
-        name: &'static str,
-        fields: &'static [&'static str],
-        visitor: V,
+        _name: &'static str,
+        _fields: &'static [&'static str],
+        _visitor: V,
     ) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_struct(name, fields, visitor)
+        Err(Error::ExpectedString)
     }
 
     fn deserialize_enum<V>(
         self,
-        name: &'static str,
-        variants: &'static [&'static str],
-        visitor: V,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        _visitor: V,
     ) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_enum(name, variants, visitor)
+        Err(Error::ExpectedString)
     }
 
     fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'b>,
     {
-        self.de.deserialize_ignored_any(visitor)
+        self.deserialize_any(visitor)
     }
 }

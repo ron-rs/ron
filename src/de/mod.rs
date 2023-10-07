@@ -23,12 +23,15 @@ mod tag;
 mod tests;
 mod value;
 
+const SERDE_CONTENT_CANARY: &str = "serde::__private::de::content::Content";
+const SERDE_TAG_KEY_CANARY: &str = "serde::__private::de::content::TagOrContent";
+
 /// The RON deserializer.
 ///
 /// If you just want to simply deserialize a value,
 /// you can use the [`from_str`] convenience function.
 pub struct Deserializer<'de> {
-    parser: Parser<'de>,
+    pub(crate) parser: Parser<'de>,
     newtype_variant: bool,
     serde_content_newtype: bool,
     last_identifier: Option<&'de str>,
@@ -165,8 +168,8 @@ impl<'de> Deserializer<'de> {
     {
         // HACK: switch to JSON enum semantics for JSON content
         // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
-        let is_serde_content =
-            std::any::type_name::<V::Value>() == "serde::__private::de::content::Content";
+        let is_serde_content = std::any::type_name::<V::Value>() == SERDE_CONTENT_CANARY
+            || std::any::type_name::<V::Value>() == SERDE_TAG_KEY_CANARY;
 
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
@@ -198,7 +201,7 @@ impl<'de> Deserializer<'de> {
                 // giving no name results in worse errors but is necessary here
                 self.handle_struct_after_name("", visitor)
             }
-            (StructType::NewtypeOrTuple, _) if old_serde_content_newtype => {
+            (StructType::NewtypeTuple, _) if old_serde_content_newtype => {
                 // deserialize a newtype struct or variant
                 self.parser.consume_char('(');
                 self.parser.skip_ws()?;
@@ -208,7 +211,13 @@ impl<'de> Deserializer<'de> {
 
                 result
             }
-            (StructType::Tuple | StructType::NewtypeOrTuple, _) => {
+            (
+                StructType::AnyTuple
+                | StructType::EmptyTuple
+                | StructType::NewtypeTuple
+                | StructType::NonNewtypeTuple,
+                _,
+            ) => {
                 // first argument is technically incorrect, but ignored anyway
                 self.deserialize_tuple(0, visitor)
             }
@@ -277,6 +286,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 return self.deserialize_unit(visitor);
             }
 
+            #[allow(clippy::wildcard_in_or_patterns)]
             match self
                 .parser
                 .check_struct_type(NewtypeMode::InsideNewtype, TupleMode::DifferentiateNewtype)?
@@ -286,14 +296,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     // giving no name results in worse errors but is necessary here
                     return self.handle_struct_after_name("", visitor);
                 }
-                StructType::Tuple => {
+                StructType::EmptyTuple | StructType::NonNewtypeTuple => {
                     // newtype variant wraps a tuple (struct)
                     // first argument is technically incorrect, but ignored anyway
                     return self.deserialize_tuple(0, visitor);
                 }
-                /* StructType::NewtypeOrTuple */
                 // StructType::Unit is impossible with NewtypeMode::InsideNewtype
-                _ => {
+                // StructType::AnyTuple is impossible with TupleMode::DifferentiateNewtype
+                StructType::NewtypeTuple | _ => {
                     // continue as usual with the inner content of the newtype variant
                     self.newtype_variant = false;
                 }
@@ -783,6 +793,7 @@ struct CommaSeparated<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     terminator: Terminator,
     had_comma: bool,
+    inside_internally_tagged_enum: bool,
 }
 
 impl<'a, 'de> CommaSeparated<'a, 'de> {
@@ -791,6 +802,7 @@ impl<'a, 'de> CommaSeparated<'a, 'de> {
             de,
             terminator,
             had_comma: true,
+            inside_internally_tagged_enum: false,
         }
     }
 
@@ -838,6 +850,9 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         K: DeserializeSeed<'de>,
     {
         if self.has_element()? {
+            self.inside_internally_tagged_enum =
+                std::any::type_name::<K::Value>() == SERDE_TAG_KEY_CANARY;
+
             match self.terminator {
                 Terminator::Struct => guard_recursion! { self.de =>
                     seed.deserialize(&mut id::Deserializer::new(&mut *self.de, false)).map(Some)
@@ -861,8 +876,16 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         if self.de.parser.consume_char(':') {
             self.de.parser.skip_ws()?;
 
-            let res = guard_recursion! { self.de =>
-                seed.deserialize(&mut tag::Deserializer::new(&mut *self.de))?
+            let res = if self.inside_internally_tagged_enum
+                && std::any::type_name::<V::Value>() != SERDE_CONTENT_CANARY
+            {
+                guard_recursion! { self.de =>
+                    seed.deserialize(&mut tag::Deserializer::new(&mut *self.de))?
+                }
+            } else {
+                guard_recursion! { self.de =>
+                    seed.deserialize(&mut *self.de)?
+                }
             };
 
             self.had_comma = self.de.parser.comma()?;

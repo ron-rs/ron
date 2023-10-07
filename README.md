@@ -185,15 +185,35 @@ RON is not designed to be a fully self-describing format (unlike JSON) and is th
 
 While data structures with any of these attributes should generally roundtrip through RON, some restrictions apply [^serde-restrictions] and their textual representation may not always match your expectation:
 
-- flattened structs are only serialised as maps and deserialised from maps
-- struct names inside an internally (or adjacently) tagged or untagged enum, e.g. by enabling the `PrettyConfig::struct_types` setting, are not supported
-- enabling the `#![enable(implicit_some)]` extension on a document with internally (or adjacently) tagged or untagged enums is not supported
+- ron only supports string keys inside maps flattened into structs
+- internally (or adjacently) tagged or untagged enum variants or `#[serde(flatten)]`ed fields must not contain:
+  - struct names, e.g. by enabling the `PrettyConfig::struct_names` setting
+  - newtypes
+  - zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants
+    - `Option`s with `#[enable(implicit_some)]` must not contain any of these or a unit, unit struct, or an untagged unit variant
+  - externally tagged tuple variants with just one field (that are not newtype variants)
+  - tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
+  - a `ron::value::RawValue`
+- internally tagged newtype variants and `#[serde(flatten)]`ed fields must not contain:
+  - a unit or a unit struct inside an untagged newtype variant
+  - an untagged unit variant
 - untagged tuple / struct variants with no fields are not supported
 - untagged tuple variants with just one field (that are not newtype variants) are not supported when the `#![enable(unwrap_variant_newtypes)]` extension is enabled
-- internally tagged newtype variants must not contain a unit / unit struct inside an untagged newtype variant, or an untagged unit variant
-- serde does not yet support `i128` and `u128` inside internally (or adjacently) tagged or untagged enums
-- newtypes and zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants are not supported inside internally (or adjacently) tagged or untagged enums
-- externally tagged tuple variants with just one field (that are not newtype variants) are not supported inside internally (or adjacently) tagged or untagged enums
+- serializing a `ron::value::RawValue` using a `PrettyConfig` may add leading and trailing whitespace and comments, which the `ron::value::RawValue` absorbs upon deserialization
+
+Furthermore, serde imposes the following restrictions for data to roundtrip:
+
+- structs or struct variants that contain a `#[serde(flatten)]`ed field:
+  - are only serialised as maps and deserialised from maps
+  - must not contain duplicate fields / keys, e.g. where an inner-struct field matches an outer-struct or inner-struct field
+  - must not contain more than one (within the super-struct of all flattened structs) `#[serde(flatten)]`ed map field, which collects all unknown fields
+  - if they contain a `#[serde(flatten)]`ed map, they must not contain:
+    - a struct that is not flattened itself but contains some flattened fields and is flattened into the outer struct (variant)
+    - an untagged struct variant that contains some flattened fields
+    - a flattened externally tagged newtype, tuple, or struct variant, flattened internally tagged unit, newtype, or struct variant, or any flattened adjacently tagged variant
+    - a flattened tagged struct
+- internally (or adjacently) tagged or untagged enum variants or `#[serde(flatten)]`ed fields must not contain:
+  - `i128` or `u128` values
 
 Please file a [new issue](https://github.com/ron-rs/ron/issues/new) if you come across a use case which is not listed among the above restrictions but still breaks.
 
@@ -203,7 +223,7 @@ While RON guarantees roundtrips like Rust -> RON -> Rust for Rust types using no
 
 [^serde-flatten-hack]: Deserialising a flattened struct from a map requires that the struct's [`Visitor::expecting`](https://docs.rs/serde/latest/serde/de/trait.Visitor.html#tymethod.expecting) implementation formats a string starting with `"struct "`. This is the case for automatically-derived [`Deserialize`](https://docs.rs/serde/latest/serde/de/trait.Deserialize.html) impls on structs. See [#455](https://github.com/ron-rs/ron/pull/455) for more details.
 
-[^serde-restrictions]: Most of these restrictions are currently blocked on [serde#1183](https://github.com/serde-rs/serde/issues/1183), which limits non-self-describing formats from roundtripping format-specific information through internally (or adjacently) tagged or untagged enums.
+[^serde-restrictions]: Most of these restrictions are currently blocked on [serde#1183](https://github.com/serde-rs/serde/issues/1183), which limits non-self-describing formats from roundtripping format-specific information through internally (or adjacently) tagged or untagged enums or `#[serde(flatten)]`ed fields.
 
 ## License
 

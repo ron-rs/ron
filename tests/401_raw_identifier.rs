@@ -15,6 +15,7 @@ struct EmptyStruct;
 struct RawStruct {
     #[serde(rename = "ab.cd-ef")]
     field: bool,
+    really_not_raw: i32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
@@ -132,7 +133,7 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::NoSuchStructField {
-                expected: &["ab.cd-ef"],
+                expected: &["ab.cd-ef", "really_not_raw"],
                 found: String::from("ab.cd+ef"),
                 outer: Some(String::from("Hello+World")),
             },
@@ -171,12 +172,18 @@ fn test_invalid_identifiers() {
 
 #[test]
 fn test_raw_identifier_roundtrip() {
-    let val = RawStruct { field: true };
+    let val = RawStruct {
+        field: true,
+        really_not_raw: 42,
+    };
 
     let ser =
         ron::ser::to_string_pretty(&val, ron::ser::PrettyConfig::default().struct_names(true))
             .unwrap();
-    assert_eq!(ser, "r#Hello+World(\n    r#ab.cd-ef: true,\n)");
+    assert_eq!(
+        ser,
+        "r#Hello+World(\n    r#ab.cd-ef: true,\n    really_not_raw: 42,\n)"
+    );
 
     let de: RawStruct = ron::from_str(&ser).unwrap();
     assert_eq!(de, val);

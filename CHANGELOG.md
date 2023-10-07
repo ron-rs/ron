@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add CIFuzz GitHub action ([#429](https://github.com/ron-rs/ron/pull/429))
 - Update the arbitrary fuzzer to check arbitrary serde data types, values, and `ron::ser::PrettyConfig`s ([#465](https://github.com/ron-rs/ron/pull/465))
 - Add a benchmark for PRs that runs over the latest fuzzer corpus ([#465](https://github.com/ron-rs/ron/pull/465))
+- Fuzz serde enum representation and flatten attributes and collect current limitations in ron and serde ([#502](https://github.com/ron-rs/ron/pull/502))
 
 ## [0.8.1] - 2023-08-17
 

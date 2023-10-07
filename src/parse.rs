@@ -68,6 +68,8 @@ pub struct ParserCursor {
     last_ws_len: usize,
 }
 
+const WS_CURSOR_UNCLOSED_LINE: usize = usize::MAX;
+
 impl PartialEq for ParserCursor {
     fn eq(&self, other: &Self) -> bool {
         self.cursor == other.cursor
@@ -110,7 +112,7 @@ impl<'a> Parser<'a> {
         Ok(parser)
     }
 
-    pub fn set_cursor(&mut self, cursor: ParserCursor) {
+    fn set_cursor(&mut self, cursor: ParserCursor) {
         self.cursor = cursor;
     }
 
@@ -563,23 +565,39 @@ impl<'a> Parser<'a> {
 
             parser.skip_ws()?;
 
+            // Check for `Ident()`, which could be
+            // - a zero-field struct or tuple (variant)
+            // - an unwrapped newtype around a unit
+            if matches!(newtype, NewtypeMode::NoParensMeanUnit) && parser.check_char(')') {
+                return Ok(StructType::EmptyTuple);
+            }
+
             if parser.skip_identifier().is_some() {
                 parser.skip_ws()?;
 
                 match parser.peek_char() {
                     // Definitely a struct with named fields
                     Some(':') => return Ok(StructType::Named),
-                    // Definitely a tuple struct with fields
-                    Some(',') => return Ok(StructType::Tuple),
+                    // Definitely a tuple-like struct with fields
+                    Some(',') => {
+                        parser.skip_next_char();
+                        parser.skip_ws()?;
+                        if parser.check_char(')') {
+                            // A one-element tuple could be a newtype
+                            return Ok(StructType::NewtypeTuple);
+                        }
+                        // Definitely a tuple struct with more than one field
+                        return Ok(StructType::NonNewtypeTuple);
+                    }
                     // Either a newtype or a tuple struct
-                    Some(')') => return Ok(StructType::NewtypeOrTuple),
+                    Some(')') => return Ok(StructType::NewtypeTuple),
                     // Something else, let's investigate further
                     Some(_) | None => (),
                 };
             }
 
             if matches!(tuple, TupleMode::ImpreciseTupleOrNewtype) {
-                return Ok(StructType::NewtypeOrTuple);
+                return Ok(StructType::AnyTuple);
             }
 
             let mut braces = 1_usize;
@@ -615,9 +633,9 @@ impl<'a> Parser<'a> {
             }
 
             if more_than_one {
-                Ok(StructType::Tuple)
+                Ok(StructType::NonNewtypeTuple)
             } else {
-                Ok(StructType::NewtypeOrTuple)
+                Ok(StructType::NewtypeTuple)
             }
         }
 
@@ -943,13 +961,15 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_ws(&mut self) -> Result<()> {
-        if self.src().is_empty() {
-            return Ok(());
-        }
-
-        if (self.cursor.pre_ws_cursor + self.cursor.last_ws_len) < self.cursor.cursor {
+        if (self.cursor.last_ws_len != WS_CURSOR_UNCLOSED_LINE)
+            && ((self.cursor.pre_ws_cursor + self.cursor.last_ws_len) < self.cursor.cursor)
+        {
             // the last whitespace is disjoint from this one, we need to track a new one
             self.cursor.pre_ws_cursor = self.cursor.cursor;
+        }
+
+        if self.src().is_empty() {
+            return Ok(());
         }
 
         loop {
@@ -958,7 +978,7 @@ impl<'a> Parser<'a> {
             match self.skip_comment()? {
                 None => break,
                 Some(Comment::UnclosedLine) => {
-                    self.cursor.last_ws_len = usize::MAX;
+                    self.cursor.last_ws_len = WS_CURSOR_UNCLOSED_LINE;
                     return Ok(());
                 }
                 Some(Comment::ClosedLine | Comment::Block) => continue,
@@ -971,7 +991,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn has_unclosed_line_comment(&self) -> bool {
-        self.src().is_empty() && self.cursor.last_ws_len == usize::MAX
+        self.src().is_empty() && self.cursor.last_ws_len == WS_CURSOR_UNCLOSED_LINE
     }
 
     pub fn byte_string(&mut self) -> Result<ParsedByteStr<'a>> {
@@ -1550,8 +1570,10 @@ impl Float for ParsedFloat {
 }
 
 pub enum StructType {
-    NewtypeOrTuple,
-    Tuple,
+    AnyTuple,
+    EmptyTuple,
+    NewtypeTuple,
+    NonNewtypeTuple,
     Named,
     Unit,
 }
@@ -1645,6 +1667,39 @@ mod tests {
 
         assert_eq!(bytes.src(), "24  ");
         assert_eq!(bytes.pre_ws_src(), "       /*bye*/ 24  ");
+
+        let mut bytes = Parser::new("42").unwrap();
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "42");
+        assert_eq!(bytes.pre_ws_src(), "42");
+        assert_eq!(bytes.integer::<u8>().unwrap(), 42);
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "");
+        assert_eq!(bytes.pre_ws_src(), "");
+
+        let mut bytes = Parser::new("  42  ").unwrap();
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "42  ");
+        assert_eq!(bytes.pre_ws_src(), "  42  ");
+        assert_eq!(bytes.integer::<u8>().unwrap(), 42);
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "");
+        assert_eq!(bytes.pre_ws_src(), "  ");
+
+        let mut bytes = Parser::new("  42  //").unwrap();
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "42  //");
+        assert_eq!(bytes.pre_ws_src(), "  42  //");
+        assert_eq!(bytes.integer::<u8>().unwrap(), 42);
+        bytes.skip_ws().unwrap();
+        bytes.skip_ws().unwrap();
+        assert_eq!(bytes.src(), "");
+        assert_eq!(bytes.pre_ws_src(), "  //");
     }
 
     #[test]

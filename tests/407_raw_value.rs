@@ -220,6 +220,54 @@ fn test_boxed_raw_value_deserialise_from_string() {
 }
 
 #[test]
+fn test_whitespace_rountrip_issues_and_trim() {
+    let mut v = WithRawValue {
+        a: true,
+        b: RawValue::from_ron("42 ").unwrap().to_owned(),
+    };
+    v = ron::from_str(&ron::to_string(&v).unwrap()).unwrap();
+    assert_eq!(v.b.get_ron(), "42 ");
+    assert_eq!(v.b.trim().get_ron(), "42");
+    assert_eq!(v.b.to_owned().trim_boxed().get_ron(), "42");
+
+    for i in 1..=10 {
+        v = ron::from_str(
+            &ron::ser::to_string_pretty(&v, ron::ser::PrettyConfig::default()).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(v.b.get_ron(), &format!("{: <1$}42 ", "", i));
+        assert_eq!(v.b.trim().get_ron(), "42");
+        assert_eq!(v.b.to_owned().trim_boxed().get_ron(), "42");
+    }
+
+    assert_eq!(RawValue::from_ron("42").unwrap().trim().get_ron(), "42");
+    assert_eq!(
+        RawValue::from_ron(" /* start */ 42    // end\n ")
+            .unwrap()
+            .trim()
+            .get_ron(),
+        "42"
+    );
+
+    assert_eq!(
+        RawValue::from_ron("42")
+            .unwrap()
+            .to_owned()
+            .trim_boxed()
+            .get_ron(),
+        "42"
+    );
+    assert_eq!(
+        RawValue::from_ron(" /* start */ 42    // end\n ")
+            .unwrap()
+            .to_owned()
+            .trim_boxed()
+            .get_ron(),
+        "42"
+    );
+}
+
+#[test]
 fn test_fuzzer_found_issue() {
     assert_eq!(
         RawValue::from_ron(""),
