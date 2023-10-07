@@ -15,7 +15,7 @@ fn test_map_custom_deserialize() {
             struct CVisitor;
             impl<'de> serde::de::Visitor<'de> for CVisitor {
                 type Value = CustomMap;
-                
+
                 // GRCOV_EXCL_START
                 fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                     write!(formatter, "a map with string keys and values")
@@ -51,4 +51,26 @@ fn test_map_custom_deserialize() {
     );
 
     assert_eq!(result, Ok(CustomMap(map)));
+}
+
+#[test]
+fn test_ron_struct_as_json_map() {
+    let json: serde_json::Value = ron::from_str("(f1: 0, f2: 1)").unwrap();
+    assert_eq!(
+        json,
+        serde_json::Value::Object(
+            [
+                (
+                    String::from("f1"),
+                    serde_json::Value::Number(serde_json::Number::from(0))
+                ),
+                (
+                    String::from("f2"),
+                    serde_json::Value::Number(serde_json::Number::from(1))
+                ),
+            ]
+            .into_iter()
+            .collect()
+        )
+    );
 }
