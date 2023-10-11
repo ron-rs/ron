@@ -5191,7 +5191,7 @@ impl<'a> SerdeDataType<'a> {
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
-                        if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_internally_tagged_newtype(&value, false))
+                        if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ } if !inner.supported_inside_internally_tagged_newtype(false))
                         {
                             return Err(arbitrary::Error::IncorrectFormat);
                         }
@@ -5472,7 +5472,6 @@ impl<'a> SerdeDataType<'a> {
 
     fn supported_inside_internally_tagged_newtype(
         &self,
-        value: &SerdeDataValue,
         inside_untagged_newtype_variant: bool,
     ) -> bool {
         // See https://github.com/serde-rs/serde/blob/ddc1ee564b33aa584e5a66817aafb27c3265b212/serde/src/private/ser.rs#L94-L336
@@ -5513,14 +5512,7 @@ impl<'a> SerdeDataType<'a> {
                 !inside_untagged_newtype_variant
             }
             SerdeDataType::Newtype { name: _, inner: ty } => {
-                if let SerdeDataValue::Newtype { inner: value } = value {
-                    ty.supported_inside_internally_tagged_newtype(
-                        value,
-                        inside_untagged_newtype_variant,
-                    )
-                } else {
-                    false
-                }
+                ty.supported_inside_internally_tagged_newtype(inside_untagged_newtype_variant)
             }
             SerdeDataType::TupleStruct { name: _, fields: _ } => false,
             SerdeDataType::Struct {
@@ -5533,53 +5525,27 @@ impl<'a> SerdeDataType<'a> {
                 variants,
                 representation,
             } => {
-                let SerdeDataValue::Enum {
-                    variant: variant_index,
-                    value,
-                } = value
-                else {
-                    return false;
-                };
-
-                let Some(ty) = variants.1.get(*variant_index as usize) else {
-                    return false;
-                };
-
-                match (ty, value) {
-                    (SerdeDataVariantType::Unit, SerdeDataVariantValue::Unit)
-                    | (
-                        SerdeDataVariantType::TaggedOther,
-                        SerdeDataVariantValue::TaggedOther { .. },
-                    ) => {
+                variants.1.iter().all(|ty| match ty {
+                    SerdeDataVariantType::Unit | SerdeDataVariantType::TaggedOther => {
                         // BUG: an untagged unit variant requires a unit,
                         //      but it won't get one because it serialises itself as a unit,
                         //      which is only serialised with the tag
                         !matches!(representation, SerdeEnumRepresentation::Untagged)
                     }
-                    (
-                        SerdeDataVariantType::Newtype { inner: ty },
-                        SerdeDataVariantValue::Newtype { inner: value },
-                    ) => {
+                    SerdeDataVariantType::Newtype { inner: ty } => {
                         if matches!(representation, SerdeEnumRepresentation::Untagged) {
-                            ty.supported_inside_internally_tagged_newtype(value, true)
+                            ty.supported_inside_internally_tagged_newtype(true)
                         } else {
                             true
                         }
                     }
-                    (
-                        SerdeDataVariantType::Tuple { fields: _ },
-                        SerdeDataVariantValue::Struct { fields: _ },
-                    ) => !matches!(
+                    SerdeDataVariantType::Tuple { fields: _ } => !matches!(
                         representation,
                         SerdeEnumRepresentation::Untagged
                             | SerdeEnumRepresentation::AdjacentlyTagged { .. }
                     ),
-                    (
-                        SerdeDataVariantType::Struct { fields: _ },
-                        SerdeDataVariantValue::Struct { fields: _ },
-                    ) => true,
-                    _ => false,
-                }
+                    SerdeDataVariantType::Struct { fields: _ } => true,
+                })
             }
         }
     }
@@ -5802,6 +5768,14 @@ impl<'a> SerdeDataType<'a> {
                             has_unknown_key,
                         )
                     } else if is_flattened {
+                        if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ }) {
+                            // BUG: an flattened internally tagged newtype alongside other flattened data
+                            //      must not contain a unit, unit struct, or untagged unit variant
+                            if !inner.supported_inside_internally_tagged_newtype(true) {
+                                return false;
+                            }
+                        }
+
                         if *has_flattened_map {
                             // BUG: a flattened map will also see the unknown key (serde)
                             return false;

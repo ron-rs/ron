@@ -194,9 +194,6 @@ While data structures with any of these attributes should generally roundtrip th
   - externally tagged tuple variants with just one field (that are not newtype variants)
   - tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
   - a `ron::value::RawValue`
-- internally tagged newtype variants and `#[serde(flatten)]`ed fields must not contain:
-  - a unit or a unit struct inside an untagged newtype variant
-  - an untagged unit variant
 - untagged tuple / struct variants with no fields are not supported
 - untagged tuple variants with just one field (that are not newtype variants) are not supported when the `#![enable(unwrap_variant_newtypes)]` extension is enabled
 - serializing a `ron::value::RawValue` using a `PrettyConfig` may add leading and trailing whitespace and comments, which the `ron::value::RawValue` absorbs upon deserialization
@@ -214,6 +211,11 @@ Furthermore, serde imposes the following restrictions for data to roundtrip:
     - a flattened tagged struct
 - internally (or adjacently) tagged or untagged enum variants or `#[serde(flatten)]`ed fields must not contain:
   - `i128` or `u128` values
+- internally tagged newtype variants and `#[serde(flatten)]`ed fields must not contain:
+  - a unit or a unit struct inside an untagged newtype variant
+  - an untagged unit variant
+- internally tagged newtype variants, which are `#[serde(flatten)]`ed together with other fields, must not contain:
+  - a unit or unit struct or an untagged unit variant
 
 Please file a [new issue](https://github.com/ron-rs/ron/issues/new) if you come across a use case which is not listed among the above restrictions but still breaks.
 
