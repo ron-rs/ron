@@ -2800,6 +2800,93 @@ fn untagged_unit_variant_inside_flatten_struct_variant() {
     );
 }
 
+#[test]
+fn unit_inside_internally_tagged_newtype_variant_inside_multi_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct AnotherFlattenedStruct {
+        hi: i32,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        Newtype(()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: InternallyTagged,
+        #[serde(flatten)]
+        b: AnotherFlattenedStruct,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: InternallyTagged::Newtype(()),
+                b: AnotherFlattenedStruct { hi: 42 },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("unit"),
+                found: String::from("a map")
+            },
+            position: Position { line: 5, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn untagged_unit_variant_inside_internally_tagged_newtype_variant_inside_multi_flatten_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Unit,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct AnotherFlattenedStruct {
+        hi: i32,
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        Newtype(Untagged),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct FlattenedStruct {
+        ho: i32,
+        #[serde(flatten)]
+        a: InternallyTagged,
+        #[serde(flatten)]
+        b: AnotherFlattenedStruct,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &FlattenedStruct {
+                ho: 24,
+                a: InternallyTagged::Newtype(Untagged::Unit),
+                b: AnotherFlattenedStruct { hi: 42 },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 5, col: 1 }
+        }))
+    );
+}
+
 fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
     val: &T,
     config: PrettyConfig,
