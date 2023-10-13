@@ -5398,6 +5398,16 @@ impl<'a> SerdeDataType<'a> {
                     return false;
                 }
 
+                if fields.len() == 1
+                    && inside_newtype_variant
+                    && pretty
+                        .extensions
+                        .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
+                {
+                    // BUG: a one-length tuple struct inside an unwrapped variant newtype will be swallowed
+                    return false;
+                }
+
                 fields
                     .iter()
                     .all(|field| field.supported_inside_untagged(pretty, false, false))
