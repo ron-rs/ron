@@ -736,21 +736,19 @@ fn one_tuple_inside_unwrapped_newtype_variant_inside_adjacently_tagged() {
 #[test]
 fn one_tuple_inside_unwrapped_newtype_variant_inside_untagged() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
-    enum A {
-        Newtype((i32,)),
-    }
+    struct OneTuple(i32, #[serde(skip)] ());
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
     enum Untagged {
-        B { ho: i32, a: A },
+        B { ho: i32, a: Option<OneTuple> },
     }
 
     assert_eq!(
         check_roundtrip(
             &Untagged::B {
                 ho: 24,
-                a: A::Newtype((42,))
+                a: Some(OneTuple(42, ()))
             },
             PrettyConfig::default()
         ),
@@ -760,7 +758,7 @@ fn one_tuple_inside_unwrapped_newtype_variant_inside_untagged() {
         check_roundtrip(
             &Untagged::B {
                 ho: 24,
-                a: A::Newtype((42,))
+                a: Some(OneTuple(42, ()))
             },
             PrettyConfig::default().extensions(Extensions::UNWRAP_VARIANT_NEWTYPES)
         ),

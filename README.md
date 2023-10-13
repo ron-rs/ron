@@ -192,7 +192,7 @@ While data structures with any of these attributes should generally roundtrip th
   - zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants
     - `Option`s with `#[enable(implicit_some)]` must not contain any of these or a unit, unit struct, or an untagged unit variant
   - externally tagged tuple variants with just one field (that are not newtype variants)
-  - tuples or arrays with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]`
+  - tuples or arrays or tuple structs with just one element are not supported inside newtype variants with `#[enable(unwrap_variant_newtypes)]` (including `Some`)
   - a `ron::value::RawValue`
 - untagged tuple / struct variants with no fields are not supported
 - untagged tuple variants with just one field (that are not newtype variants) are not supported when the `#![enable(unwrap_variant_newtypes)]` extension is enabled
