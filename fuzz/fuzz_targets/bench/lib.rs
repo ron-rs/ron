@@ -1750,6 +1750,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 ));
                             };
                         }
+                        // flattened structs are incompatible with strict fields
+                        while map.next_key::<serde::de::IgnoredAny>()?.is_some() {
+                            map.next_value::<serde::de::IgnoredAny>().map(|_| ())?;
+                        }
                         Ok(())
                     }
                 }
@@ -2196,6 +2200,11 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                                     .as_str(),
                                                 ));
                                             };
+                                        }
+                                        // flattened struct variants are incompatible with strict fields
+                                        while map.next_key::<serde::de::IgnoredAny>()?.is_some() {
+                                            map.next_value::<serde::de::IgnoredAny>()
+                                                .map(|_| ())?;
                                         }
                                         Ok(())
                                     }
@@ -3720,6 +3729,10 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                             .as_str(),
                                         ));
                                     };
+                                }
+                                // flattened struct variants are incompatible with strict fields
+                                while map.next_key::<serde::de::IgnoredAny>()?.is_some() {
+                                    map.next_value::<serde::de::IgnoredAny>().map(|_| ())?;
                                 }
                                 Ok(())
                             }
