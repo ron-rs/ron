@@ -56,6 +56,8 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             Err(err) => panic!("{:#?} -! {:#?}", typed_value, err),
         };
 
+        println!("{:?} -> {:?} -> {}", typed_value.ty, typed_value.value, ron);
+
         if let Err(err) = options.from_str::<ron::Value>(&ron) {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
@@ -5791,6 +5793,14 @@ impl<'a> SerdeDataType<'a> {
                             has_unknown_key,
                         )
                     } else if is_flattened {
+                        if matches!(representation, SerdeEnumRepresentation::ExternallyTagged) {
+                            if *has_unknown_key {
+                                // BUG: flattened enums are deserialised using the content deserialiser,
+                                //      which expects to see a map with just one field (serde)
+                                return false;
+                            }
+                        }
+
                         if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ }) {
                             // BUG: an flattened internally tagged newtype alongside other flattened data
                             //      must not contain a unit, unit struct, or untagged unit variant
@@ -5820,7 +5830,7 @@ impl<'a> SerdeDataType<'a> {
                     true
                 }
                 SerdeDataVariantType::Struct { fields } => {
-                    if (is_flattened && !matches!(representation, SerdeEnumRepresentation::Untagged)) || matches!(representation, SerdeEnumRepresentation::Untagged if fields.2.iter().any(|x| *x))
+                    if (is_flattened && !matches!(representation, SerdeEnumRepresentation::Untagged)) || matches!(representation, SerdeEnumRepresentation::Untagged if is_flattened || fields.2.iter().any(|x| *x))
                     {
                         if *has_flattened_map {
                             // BUG: a flattened map will also see the unknown key (serde)
@@ -5828,6 +5838,15 @@ impl<'a> SerdeDataType<'a> {
                         }
                         *has_unknown_key = true;
                     }
+
+                    if is_flattened && matches!(representation, SerdeEnumRepresentation::ExternallyTagged) {
+                        if *has_unknown_key {
+                            // BUG: flattened enums are deserialised using the content deserialiser,
+                            //      which expects to see a map with just one field (serde)
+                            return false;
+                        }
+                    }
+
                     true
                 }
             }),
