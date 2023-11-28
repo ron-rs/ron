@@ -5830,10 +5830,22 @@ impl<'a> SerdeDataType<'a> {
                     true
                 }
                 SerdeDataVariantType::Struct { fields } => {
-                    if (is_flattened && !matches!(representation, SerdeEnumRepresentation::Untagged)) || matches!(representation, SerdeEnumRepresentation::Untagged if is_flattened || fields.2.iter().any(|x| *x))
+                    if is_flattened {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                    }
+
+                    if matches!(representation, SerdeEnumRepresentation::Untagged if is_flattened || fields.2.iter().any(|x| *x))
                     {
                         if *has_flattened_map {
                             // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        if *has_unknown_key {
+                            // BUG: a flattened untagged enum struct will also see the unknown key (serde)
                             return false;
                         }
                         *has_unknown_key = true;
