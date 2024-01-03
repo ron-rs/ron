@@ -723,6 +723,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         self.parser.skip_ws()?;
 
+        if self.parser.exts.contains(Extensions::EXPLICIT_STRUCT_NAMES) && name.len() == 0 {
+            return Err(Error::ExpectedStructName)
+        }
+
         self.handle_struct_after_name(name, visitor)
     }
 
