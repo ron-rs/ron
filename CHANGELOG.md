@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Allow `ron::value::RawValue` to capture any whitespace to the left and right of a ron value ([#487](https://github.com/ron-rs/ron/pull/487))
 - Breaking: Enforce that ron always writes valid UTF-8 ([#488](https://github.com/ron-rs/ron/pull/488))
 - Add convenient `Value::from` impls ([#498](https://github.com/ron-rs/ron/pull/498))
+- Add new extension `explicit_struct_names` which requires that struct names are included during deserialization ([#522](https://github.com/ron-rs/ron/pull/522))
 
 ### Format Changes
 
