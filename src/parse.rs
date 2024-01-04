@@ -668,9 +668,9 @@ impl<'a> Parser<'a> {
         if self.check_ident("") {
             if self.exts.contains(Extensions::EXPLICIT_STRUCT_NAMES) {
                 return Err(Error::ExpectedStructName(ident.to_string()))
-            } else {
-                return Ok(false);
             }
+
+            return Ok(false);
         }
 
         let found_ident = match self.identifier() {
