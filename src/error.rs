@@ -570,6 +570,7 @@ mod tests {
             "Unexpected leading underscore in a number",
         );
         check_error_message(&Error::UnexpectedChar('🦀'), "Unexpected char \'🦀\'");
+        #[allow(invalid_from_utf8)]
         check_error_message(
             &Error::Utf8Error(std::str::from_utf8(b"error: \xff\xff\xff\xff").unwrap_err()),
             "invalid utf-8 sequence of 1 bytes from index 7",
@@ -668,6 +669,10 @@ mod tests {
             "Exceeded recursion limit, try increasing `ron::Options::recursion_limit` \
             and using `serde_stacker` to protect against a stack overflow",
         );
+        check_error_message(
+            &Error::ExpectedStructName(String::from("Struct")),
+            "Expected the explicit struct name `Struct`, but none was found",
+        )
     }
 
     fn check_error_message<T: std::fmt::Display>(err: &T, msg: &str) {
