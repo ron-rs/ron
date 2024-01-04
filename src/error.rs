@@ -282,7 +282,7 @@ impl fmt::Display for Error {
                 "Exceeded recursion limit, try increasing `ron::Options::recursion_limit` \
                 and using `serde_stacker` to protect against a stack overflow",
             ),
-            Error::ExpectedStructName(ref name) => write!(f, "Expected a struct name `{}`, but none was found", name),
+            Error::ExpectedStructName(ref name) => write!(f, "Expected the explicit struct name `{}`, but none was found", name),
         }
     }
 }
