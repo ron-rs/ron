@@ -47,7 +47,7 @@ fn explicit_struct_names() {
     assert_eq!(foo.expect_err(EXPECT_ERROR_MESSAGE).code, Error::ExpectedStructName("Position".to_string()));
 
     // phase 4 (test without this extension)
-    let _foo = from_str::<Foo>(content_regular).unwrap();
-    let _foo = from_str::<Foo>(content_newtype).unwrap();
-    let _foo = from_str::<Foo>(content_tuple).unwrap();
+    let _foo1 = from_str::<Foo>(content_regular).unwrap();
+    let _foo2 = from_str::<Foo>(content_newtype).unwrap();
+    let _foo3 = from_str::<Foo>(content_tuple).unwrap();
 }
