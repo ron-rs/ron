@@ -162,11 +162,13 @@ impl PrettyConfig {
     }
 
     /// Configures whether to emit struct names.
+    /// 
+    /// Note that when using the `explicit_struct_names` extension, this method will use an OR operation on the extension and the [`PrettyConfig`] option. See also [`Extensions::EXPLICIT_STRUCT_NAMES`] for the extension equivalent.
     ///
     /// Default: `false`
     #[must_use]
     pub fn struct_names(mut self, struct_names: bool) -> Self {
-        self.struct_names = struct_names;
+        self.struct_names = struct_names | self.extensions.contains(Extensions::EXPLICIT_STRUCT_NAMES);
 
         self
     }

@@ -116,7 +116,14 @@ With the `unwrap_variant_newtypes` extension, the first structural layer inside 
 Note that when the `unwrap_variant_newtypes` extension is enabled, the first layer inside a newtype variant will **always** be unwrapped, i.e. it is no longer possible to write `A(Inner(a: 4, b: true))` or `A((a: 4, b: true))`.
 
 # explicit_struct_names
-This extension requires that all structs have names attached to them. For example, the following deserializes perfectly fine:
+During serialization, this extension emits struct names. For instance, this would be emitted:
+```ron
+Foo(
+    bar: Bar(42),
+)
+```
+
+During deserialization, this extension requires that all structs have names attached to them. For example, the following deserializes perfectly fine:
 ```ron
 Foo(
     bar: Bar(42),
