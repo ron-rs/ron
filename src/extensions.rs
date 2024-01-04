@@ -43,25 +43,12 @@ mod tests {
         assert_eq!(ext, ext2);
     }
 
-    // todo: maybe make a macro for this?
     #[test]
     fn test_extension_serde() {
-        roundtrip_extensions(Extensions::default());
-        roundtrip_extensions(Extensions::UNWRAP_NEWTYPES);
-        roundtrip_extensions(Extensions::IMPLICIT_SOME);
-        roundtrip_extensions(Extensions::UNWRAP_VARIANT_NEWTYPES);
-        roundtrip_extensions(Extensions::EXPLICIT_STRUCT_NAMES);
-        roundtrip_extensions(Extensions::UNWRAP_NEWTYPES | Extensions::IMPLICIT_SOME);
-        roundtrip_extensions(Extensions::UNWRAP_NEWTYPES | Extensions::UNWRAP_VARIANT_NEWTYPES);
-        roundtrip_extensions(Extensions::UNWRAP_NEWTYPES | Extensions::EXPLICIT_STRUCT_NAMES);
-        roundtrip_extensions(Extensions::IMPLICIT_SOME | Extensions::UNWRAP_VARIANT_NEWTYPES);
-        roundtrip_extensions(Extensions::IMPLICIT_SOME | Extensions::EXPLICIT_STRUCT_NAMES);
-        roundtrip_extensions(Extensions::UNWRAP_VARIANT_NEWTYPES | Extensions::EXPLICIT_STRUCT_NAMES);
-        roundtrip_extensions(
-            Extensions::UNWRAP_NEWTYPES
-                | Extensions::IMPLICIT_SOME
-                | Extensions::UNWRAP_VARIANT_NEWTYPES
-                | Extensions::EXPLICIT_STRUCT_NAMES,
-        );
+        // iterate over the powerset of all extensions (i.e. every possible combination of extensions)
+        for bits in Extensions::empty().bits()..=Extensions::all().bits() {
+            let extensions = Extensions::from_bits_retain(bits);
+            roundtrip_extensions(extensions);
+        }
     }
 }
