@@ -29,11 +29,13 @@ impl Extensions {
     }
 }
 
+// GRCOV_EXCL_START
 impl Default for Extensions {
     fn default() -> Self {
         Extensions::empty()
     }
 }
+// GRCOV_EXCL_STOP
 
 #[cfg(test)]
 mod tests {

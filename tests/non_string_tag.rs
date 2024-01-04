@@ -26,7 +26,7 @@ macro_rules! test_non_tag {
                 }
             }
 
-            #[derive(Debug)]
+            #[derive(Debug)] // GRCOV_EXCL_LINE
             struct InternallyTagged;
 
             impl<'de> Deserialize<'de> for InternallyTagged {
