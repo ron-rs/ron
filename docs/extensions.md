@@ -138,3 +138,16 @@ Foo(
 ```
 
 Note that if what you are parsing is spread across many files, you would likely use `Options::with_default_extension` to enable `Extensions::EXPLICIT_STRUCT_NAMES` before the parsing stage. This is because prepending `#![enable(explicit_struct_names)]` to the contents of every file you parse would violate DRY (Don't Repeat Yourself).
+
+Here is an example of how to enable `explicit_struct_names` using this method:
+```rust
+use ron::extensions::Extensions;
+use ron::options::Options;
+
+// Setup the options
+let options = Options::default().with_default_extension(Extensions::EXPLICIT_STRUCT_NAMES);
+// Retrieve the contents of the file
+let file_contents: &str = /* ... */;
+// Parse the file's contents
+let foo: Foo = options.from_str(file_contents)?;
+```
