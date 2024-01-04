@@ -18,7 +18,7 @@ fn explicit_struct_names() {
     let options = Options::default()
         .with_default_extension(Extensions::EXPLICIT_STRUCT_NAMES);
 
-    // phase 1
+    // phase 1 (regular structs)
     let content = r#"(
         id: Id(3),
     )"#;
@@ -28,7 +28,7 @@ fn explicit_struct_names() {
         err => panic!("{INCORRECT_ERROR_MESSAGE} \"{err}\""),
     }
 
-    // phase 2
+    // phase 2 (newtype structs)
     let content = r#"Foo(
         id: (3),
     )"#;
@@ -38,6 +38,6 @@ fn explicit_struct_names() {
         err => panic!("{INCORRECT_ERROR_MESSAGE} \"{err}\""),
     }
 
-    // phase 3 (use content from phase 2)
+    // phase 3 (test without this extension)
     let _foo = from_str::<Foo>(content).unwrap();
 }
