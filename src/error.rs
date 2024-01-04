@@ -110,7 +110,7 @@ pub enum Error {
     SuggestRawIdentifier(String),
     ExpectedRawValue,
     ExceededRecursionLimit,
-    ExpectedStructName,
+    ExpectedStructName(String),
 }
 
 impl fmt::Display for SpannedError {
@@ -282,7 +282,7 @@ impl fmt::Display for Error {
                 "Exceeded recursion limit, try increasing `ron::Options::recursion_limit` \
                 and using `serde_stacker` to protect against a stack overflow",
             ),
-            Error::ExpectedStructName => f.write_str("Expected a struct name")
+            Error::ExpectedStructName(ref name) => write!(f, "Expected a struct name `{}`, but none was found", name),
         }
     }
 }

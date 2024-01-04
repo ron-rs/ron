@@ -666,7 +666,11 @@ impl<'a> Parser<'a> {
 
     pub fn consume_struct_name(&mut self, ident: &'static str) -> Result<bool> {
         if self.check_ident("") {
-            return Ok(false);
+            if self.exts.contains(Extensions::EXPLICIT_STRUCT_NAMES) {
+                return Err(Error::ExpectedStructName(ident.to_string()))
+            } else {
+                return Ok(false);
+            }
         }
 
         let found_ident = match self.identifier() {
