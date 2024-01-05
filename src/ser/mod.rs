@@ -642,11 +642,12 @@ impl<W: fmt::Write> Serializer<W> {
     ///
     /// Note that when using the `explicit_struct_names` extension, this method will use an OR operation on the extension and the [`PrettyConfig::struct_names`] option. See also [`Extensions::EXPLICIT_STRUCT_NAMES`] for the extension equivalent.
     fn struct_names(&self) -> bool {
-        self.pretty
-            .as_ref()
-            .map_or(false, |(pc, _)| {
-                pc.struct_names | pc.extensions.contains(Extensions::EXPLICIT_STRUCT_NAMES)
-            })
+        self.extensions()
+            .contains(Extensions::EXPLICIT_STRUCT_NAMES)
+            || self
+                .pretty
+                .as_ref()
+                .map_or(false, |(pc, _)| pc.struct_names)
     }
 }
 
