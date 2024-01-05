@@ -284,8 +284,8 @@ impl fmt::Display for Error {
             ),
             Error::ExpectedStructName(ref name) => write!(
                 f,
-                "Expected the explicit struct name `{}`, but none was found",
-                name
+                "Expected the explicit struct name {}, but none was found",
+                Identifier(name)
             ),
         }
     }
