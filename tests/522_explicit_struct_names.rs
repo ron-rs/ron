@@ -6,20 +6,20 @@ use ron::{
 };
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Id(u32);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Position(f32, f32);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 enum Query {
     None,
     Creature(Id),
     Location(Position),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct Foo {
     #[allow(unused)]
     pub id: Id,
@@ -83,7 +83,8 @@ fn explicit_struct_names() {
     let _foo3 = from_str::<Foo>(content_tuple).unwrap();
 
     // phase 5 (test serialization)
-    let pretty_config = PrettyConfig::new().extensions(Extensions::EXPLICIT_STRUCT_NAMES | Extensions::UNWRAP_VARIANT_NEWTYPES);
+    let pretty_config = PrettyConfig::new()
+        .extensions(Extensions::EXPLICIT_STRUCT_NAMES | Extensions::UNWRAP_VARIANT_NEWTYPES);
     let content = to_string_pretty(&foo_ser, pretty_config).unwrap();
     assert_eq!(
         content,
@@ -95,4 +96,12 @@ Foo(
     query: Creature(4),
 )"#
     );
+    let foo_de = from_str::<Foo>(&content);
+    match foo_de {
+        Err(err) => panic!(
+            "failed to deserialize with `explicit_struct_names` and `unwrap_variant_newtypes`: {}",
+            err
+        ),
+        Ok(foo_de) => assert_eq!(foo_de, foo_ser),
+    }
 }
