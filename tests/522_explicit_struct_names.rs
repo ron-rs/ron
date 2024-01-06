@@ -83,15 +83,16 @@ fn explicit_struct_names() {
     let _foo3 = from_str::<Foo>(content_tuple).unwrap();
 
     // phase 5 (test serialization)
-    let pretty_config = PrettyConfig::new().extensions(Extensions::EXPLICIT_STRUCT_NAMES);
+    let pretty_config = PrettyConfig::new().extensions(Extensions::EXPLICIT_STRUCT_NAMES | Extensions::UNWRAP_VARIANT_NEWTYPES);
     let content = to_string_pretty(&foo_ser, pretty_config).unwrap();
     assert_eq!(
         content,
-        r#"#![enable(explicit_struct_names)]
+        r#"#![enable(unwrap_variant_newtypes)]
+#![enable(explicit_struct_names)]
 Foo(
     id: Id(3),
     position: Position(0.0, 8.72),
-    query: Creature(Id(4)),
+    query: Creature(4),
 )"#
     );
 }
