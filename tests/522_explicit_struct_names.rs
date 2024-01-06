@@ -1,18 +1,32 @@
-use ron::{extensions::Extensions, from_str, Error, Options};
-use serde_derive::Deserialize;
+use ron::{
+    extensions::Extensions,
+    from_str,
+    ser::{to_string_pretty, PrettyConfig},
+    Error, Options,
+};
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Id(u32);
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Position(f32, f32);
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
+enum Query {
+    None,
+    Creature(Id),
+    Location(Position),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct Foo {
     #[allow(unused)]
     pub id: Id,
     #[allow(unused)]
     pub position: Position,
+    #[allow(unused)]
+    pub query: Query,
 }
 
 const EXPECT_ERROR_MESSAGE: &'static str =
@@ -21,11 +35,17 @@ const EXPECT_ERROR_MESSAGE: &'static str =
 #[test]
 fn explicit_struct_names() {
     let options = Options::default().with_default_extension(Extensions::EXPLICIT_STRUCT_NAMES);
+    let foo_ser = Foo {
+        id: Id(3),
+        position: Position(0.0, 8.72),
+        query: Query::Creature(Id(4)),
+    };
 
     // phase 1 (regular structs)
     let content_regular = r#"(
         id: Id(3),
         position: Position(0.0, 8.72),
+        query: None,
     )"#;
     let foo = options.from_str::<Foo>(content_regular);
     assert_eq!(
@@ -37,6 +57,7 @@ fn explicit_struct_names() {
     let content_newtype = r#"Foo(
         id: (3),
         position: Position(0.0, 8.72),
+        query: None,
     )"#;
     let foo = options.from_str::<Foo>(content_newtype);
     assert_eq!(
@@ -48,6 +69,7 @@ fn explicit_struct_names() {
     let content_tuple = r#"Foo(
         id: Id(3),
         position: (0.0, 8.72),
+        query: None,
     )"#;
     let foo = options.from_str::<Foo>(content_tuple);
     assert_eq!(
@@ -59,4 +81,17 @@ fn explicit_struct_names() {
     let _foo1 = from_str::<Foo>(content_regular).unwrap();
     let _foo2 = from_str::<Foo>(content_newtype).unwrap();
     let _foo3 = from_str::<Foo>(content_tuple).unwrap();
+
+    // phase 5 (test serialization)
+    let pretty_config = PrettyConfig::new().extensions(Extensions::EXPLICIT_STRUCT_NAMES);
+    let content = to_string_pretty(&foo_ser, pretty_config).unwrap();
+    assert_eq!(
+        content,
+        r#"#![enable(explicit_struct_names)]
+Foo(
+    id: Id(3),
+    position: Position(0.0, 8.72),
+    query: Creature(Id(4)),
+)"#
+    );
 }

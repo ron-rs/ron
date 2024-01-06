@@ -16,16 +16,16 @@ bitflags::bitflags! {
 // GRCOV_EXCL_STOP
 
 impl Extensions {
-    /// Creates an extension flag from an ident.
+    /// Creates an extension flag from an idents.
     #[must_use]
     pub fn from_ident(ident: &str) -> Option<Extensions> {
-        match ident {
-            "unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
-            "implicit_some" => Some(Extensions::IMPLICIT_SOME),
-            "unwrap_variant_newtypes" => Some(Extensions::UNWRAP_VARIANT_NEWTYPES),
-            "explicit_struct_names" => Some(Extensions::EXPLICIT_STRUCT_NAMES),
-            _ => None,
+        for (name, extension) in Extensions::all().iter_names() {
+            if ident == name.to_lowercase() {
+                return Some(extension);
+            }
         }
+
+        None
     }
 }
 
