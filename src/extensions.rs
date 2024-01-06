@@ -16,7 +16,7 @@ bitflags::bitflags! {
 // GRCOV_EXCL_STOP
 
 impl Extensions {
-    /// Creates an extension flag from an idents.
+    /// Creates an extension flag from an ident.
     #[must_use]
     pub fn from_ident(ident: &str) -> Option<Extensions> {
         for (name, extension) in Extensions::all().iter_names() {
