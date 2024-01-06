@@ -98,10 +98,12 @@ Foo(
     );
     let foo_de = from_str::<Foo>(&content);
     match foo_de {
+        // GRCOV_EXCL_START
         Err(err) => panic!(
             "failed to deserialize with `explicit_struct_names` and `unwrap_variant_newtypes`: {}",
             err
         ),
+        // GRCOV_EXCL_STOP
         Ok(foo_de) => assert_eq!(foo_de, foo_ser),
     }
 }
