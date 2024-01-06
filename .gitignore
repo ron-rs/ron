@@ -13,3 +13,6 @@
 
 # VSCode Extensions
 /.trunk
+
+# MacOS Shenanigans
+.DS_Store
