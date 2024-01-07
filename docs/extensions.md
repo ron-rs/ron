@@ -114,3 +114,47 @@ With the `unwrap_variant_newtypes` extension, the first structural layer inside 
 ```
 
 Note that when the `unwrap_variant_newtypes` extension is enabled, the first layer inside a newtype variant will **always** be unwrapped, i.e. it is no longer possible to write `A(Inner(a: 4, b: true))` or `A((a: 4, b: true))`.
+
+# explicit_struct_names
+During serialization, this extension emits struct names. For instance, this would be emitted:
+```ron
+Foo(
+    bar: Bar(42),
+)
+```
+
+During deserialization, this extension requires that all structs have names attached to them. For example, the following deserializes perfectly fine:
+```ron
+Foo(
+    bar: Bar(42),
+)
+```
+
+However, with the `explicit_struct_names` extension enabled, the following will throw an `ExpectedStructName` error:
+```ron
+(
+    bar: Bar(42),
+)
+```
+
+Similarly, the following will throw the same error:
+```ron
+Foo(
+    bar: (42),
+)
+```
+
+Note that if what you are parsing is spread across many files, you would likely use `Options::with_default_extension` to enable `Extensions::EXPLICIT_STRUCT_NAMES` before the parsing stage. This is because prepending `#![enable(explicit_struct_names)]` to the contents of every file you parse would violate DRY (Don't Repeat Yourself).
+
+Here is an example of how to enable `explicit_struct_names` using this method:
+```rust
+use ron::extensions::Extensions;
+use ron::options::Options;
+
+// Setup the options
+let options = Options::default().with_default_extension(Extensions::EXPLICIT_STRUCT_NAMES);
+// Retrieve the contents of the file
+let file_contents: &str = /* ... */;
+// Parse the file's contents
+let foo: Foo = options.from_str(file_contents)?;
+```

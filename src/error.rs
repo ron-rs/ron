@@ -110,6 +110,7 @@ pub enum Error {
     SuggestRawIdentifier(String),
     ExpectedRawValue,
     ExceededRecursionLimit,
+    ExpectedStructName(String),
 }
 
 impl fmt::Display for SpannedError {
@@ -280,6 +281,11 @@ impl fmt::Display for Error {
             Error::ExceededRecursionLimit => f.write_str(
                 "Exceeded recursion limit, try increasing `ron::Options::recursion_limit` \
                 and using `serde_stacker` to protect against a stack overflow",
+            ),
+            Error::ExpectedStructName(ref name) => write!(
+                f,
+                "Expected the explicit struct name {}, but none was found",
+                Identifier(name)
             ),
         }
     }
@@ -568,6 +574,7 @@ mod tests {
             "Unexpected leading underscore in a number",
         );
         check_error_message(&Error::UnexpectedChar('🦀'), "Unexpected char \'🦀\'");
+        #[allow(invalid_from_utf8)]
         check_error_message(
             &Error::Utf8Error(std::str::from_utf8(b"error: \xff\xff\xff\xff").unwrap_err()),
             "invalid utf-8 sequence of 1 bytes from index 7",
@@ -665,6 +672,10 @@ mod tests {
             &Error::ExceededRecursionLimit,
             "Exceeded recursion limit, try increasing `ron::Options::recursion_limit` \
             and using `serde_stacker` to protect against a stack overflow",
+        );
+        check_error_message(
+            &Error::ExpectedStructName(String::from("Struct")),
+            "Expected the explicit struct name `Struct`, but none was found",
         );
     }
 

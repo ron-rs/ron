@@ -7,6 +7,10 @@ bitflags::bitflags! {
         const UNWRAP_NEWTYPES = 0x1;
         const IMPLICIT_SOME = 0x2;
         const UNWRAP_VARIANT_NEWTYPES = 0x4;
+        /// During serialization, this extension emits struct names. See also [`PrettyConfig::struct_names`](crate::ser::PrettyConfig::struct_names) for the [`PrettyConfig`](crate::ser::PrettyConfig) equivalent.
+        ///
+        /// During deserialization, this extension requires that structs' names are stated explicitly.
+        const EXPLICIT_STRUCT_NAMES = 0x8;
     }
 }
 // GRCOV_EXCL_STOP
@@ -15,20 +19,23 @@ impl Extensions {
     /// Creates an extension flag from an ident.
     #[must_use]
     pub fn from_ident(ident: &str) -> Option<Extensions> {
-        match ident {
-            "unwrap_newtypes" => Some(Extensions::UNWRAP_NEWTYPES),
-            "implicit_some" => Some(Extensions::IMPLICIT_SOME),
-            "unwrap_variant_newtypes" => Some(Extensions::UNWRAP_VARIANT_NEWTYPES),
-            _ => None,
+        for (name, extension) in Extensions::all().iter_names() {
+            if ident == name.to_lowercase() {
+                return Some(extension);
+            }
         }
+
+        None
     }
 }
 
+// GRCOV_EXCL_START
 impl Default for Extensions {
     fn default() -> Self {
         Extensions::empty()
     }
 }
+// GRCOV_EXCL_STOP
 
 #[cfg(test)]
 mod tests {
@@ -42,17 +49,10 @@ mod tests {
 
     #[test]
     fn test_extension_serde() {
-        roundtrip_extensions(Extensions::default());
-        roundtrip_extensions(Extensions::UNWRAP_NEWTYPES);
-        roundtrip_extensions(Extensions::IMPLICIT_SOME);
-        roundtrip_extensions(Extensions::UNWRAP_VARIANT_NEWTYPES);
-        roundtrip_extensions(Extensions::UNWRAP_NEWTYPES | Extensions::IMPLICIT_SOME);
-        roundtrip_extensions(Extensions::UNWRAP_NEWTYPES | Extensions::UNWRAP_VARIANT_NEWTYPES);
-        roundtrip_extensions(Extensions::IMPLICIT_SOME | Extensions::UNWRAP_VARIANT_NEWTYPES);
-        roundtrip_extensions(
-            Extensions::UNWRAP_NEWTYPES
-                | Extensions::IMPLICIT_SOME
-                | Extensions::UNWRAP_VARIANT_NEWTYPES,
-        );
+        // iterate over the powerset of all extensions (i.e. every possible combination of extensions)
+        for bits in Extensions::empty().bits()..=Extensions::all().bits() {
+            let extensions = Extensions::from_bits_retain(bits);
+            roundtrip_extensions(extensions);
+        }
     }
 }

@@ -163,6 +163,8 @@ impl PrettyConfig {
 
     /// Configures whether to emit struct names.
     ///
+    /// See also [`Extensions::EXPLICIT_STRUCT_NAMES`] for the extension equivalent.
+    ///
     /// Default: `false`
     #[must_use]
     pub fn struct_names(mut self, struct_names: bool) -> Self {
@@ -413,20 +415,10 @@ impl<W: fmt::Write> Serializer<W> {
 
             let non_default_extensions = !options.default_extensions;
 
-            if (non_default_extensions & conf.extensions).contains(Extensions::IMPLICIT_SOME) {
-                writer.write_str("#![enable(implicit_some)]")?;
+            for (extension_name, _) in (non_default_extensions & conf.extensions).iter_names() {
+                write!(writer, "#![enable({})]", extension_name.to_lowercase())?;
                 writer.write_str(&conf.new_line)?;
-            };
-            if (non_default_extensions & conf.extensions).contains(Extensions::UNWRAP_NEWTYPES) {
-                writer.write_str("#![enable(unwrap_newtypes)]")?;
-                writer.write_str(&conf.new_line)?;
-            };
-            if (non_default_extensions & conf.extensions)
-                .contains(Extensions::UNWRAP_VARIANT_NEWTYPES)
-            {
-                writer.write_str("#![enable(unwrap_variant_newtypes)]")?;
-                writer.write_str(&conf.new_line)?;
-            };
+            }
         };
         Ok(Serializer {
             output: writer,
@@ -636,10 +628,16 @@ impl<W: fmt::Write> Serializer<W> {
         Ok(())
     }
 
+    /// Checks if struct names should be emitted
+    ///
+    /// Note that when using the `explicit_struct_names` extension, this method will use an OR operation on the extension and the [`PrettyConfig::struct_names`] option. See also [`Extensions::EXPLICIT_STRUCT_NAMES`] for the extension equivalent.
     fn struct_names(&self) -> bool {
-        self.pretty
-            .as_ref()
-            .map_or(false, |(pc, _)| pc.struct_names)
+        self.extensions()
+            .contains(Extensions::EXPLICIT_STRUCT_NAMES)
+            || self
+                .pretty
+                .as_ref()
+                .map_or(false, |(pc, _)| pc.struct_names)
     }
 }
 
