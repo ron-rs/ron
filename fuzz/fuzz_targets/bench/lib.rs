@@ -56,8 +56,6 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             Err(err) => panic!("{:#?} -! {:#?}", typed_value, err),
         };
 
-        println!("{:?} -> {:?} -> {}", typed_value.ty, typed_value.value, ron);
-
         if let Err(err) = options.from_str::<ron::Value>(&ron) {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
@@ -5179,6 +5177,15 @@ impl<'a> SerdeDataType<'a> {
                     u32::try_from(variant_index).map_err(|_| arbitrary::Error::IncorrectFormat)?;
 
                 name_length += variant.len();
+
+                match representation {
+                    SerdeEnumRepresentation::ExternallyTagged
+                    | SerdeEnumRepresentation::Untagged => (),
+                    SerdeEnumRepresentation::InternallyTagged { tag } => name_length += tag.len(),
+                    SerdeEnumRepresentation::AdjacentlyTagged { tag, content } => {
+                        name_length += tag.len() + content.len()
+                    }
+                };
 
                 let value = match ty {
                     SerdeDataVariantType::Unit => SerdeDataVariantValue::Unit,
