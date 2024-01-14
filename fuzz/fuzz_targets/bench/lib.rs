@@ -56,6 +56,11 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             Err(err) => panic!("{:#?} -! {:#?}", typed_value, err),
         };
 
+        println!(
+            "{:#?} -> {:#?} -> {}",
+            typed_value.ty, typed_value.value, ron
+        );
+
         if let Err(err) = options.from_str::<ron::Value>(&ron) {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
@@ -5063,21 +5068,34 @@ impl<'a> SerdeDataType<'a> {
                 SerdeDataValue::UnitStruct
             }
             SerdeDataType::Newtype { name, inner } => {
-                let inner = inner.arbitrary_value(u, pretty)?;
+                let inner_value = inner.arbitrary_value(u, pretty)?;
 
                 // ron::value::RawValue cannot safely be constructed from syntactically invalid ron
                 if *name == RAW_VALUE_TOKEN {
-                    if let SerdeDataValue::String(ron) = &inner {
-                        if ron::value::RawValue::from_ron(ron).is_err() {
-                            return Err(arbitrary::Error::IncorrectFormat);
-                        }
+                    // Hacky way to find out if a string is serialised:
+                    //  1. serialise into RON
+                    //  2. try to deserialise into a String
+                    let Ok(inner_ron) = ron::to_string(&BorrowedTypedSerdeData {
+                        ty: inner,
+                        value: &inner_value,
+                    }) else {
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    };
+
+                    let Ok(ron) = ron::from_str::<String>(&inner_ron) else {
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    };
+
+                    // Check that the raw value content is valid
+                    if ron::value::RawValue::from_ron(&ron).is_err() {
+                        return Err(arbitrary::Error::IncorrectFormat);
                     }
                 }
 
                 name_length += name.len();
 
                 SerdeDataValue::Newtype {
-                    inner: Box::new(inner),
+                    inner: Box::new(inner_value),
                 }
             }
             SerdeDataType::TupleStruct { name, fields } => {
@@ -5183,7 +5201,7 @@ impl<'a> SerdeDataType<'a> {
                     | SerdeEnumRepresentation::Untagged => (),
                     SerdeEnumRepresentation::InternallyTagged { tag } => name_length += tag.len(),
                     SerdeEnumRepresentation::AdjacentlyTagged { tag, content } => {
-                        name_length += tag.len() + content.len()
+                        name_length += tag.len() + content.len();
                     }
                 };
 
@@ -5743,10 +5761,20 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::TupleStruct { name: _, fields: _ } => true,
             SerdeDataType::Struct {
                 name: _,
-                tag: _,
+                tag,
                 fields,
             } => {
                 if is_flattened {
+                    // TODO: is this really the correct requirement?
+                    // case clusterfuzz-testcase-minimized-arbitrary-6364230921879552
+                    if tag.is_some() {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                    }
+
                     fields
                         .1
                         .iter()
@@ -5800,12 +5828,10 @@ impl<'a> SerdeDataType<'a> {
                             has_unknown_key,
                         )
                     } else if is_flattened {
-                        if matches!(representation, SerdeEnumRepresentation::ExternallyTagged) {
-                            if *has_unknown_key {
-                                // BUG: flattened enums are deserialised using the content deserialiser,
-                                //      which expects to see a map with just one field (serde)
-                                return false;
-                            }
+                        if matches!(representation, SerdeEnumRepresentation::ExternallyTagged) && *has_unknown_key {
+                            // BUG: flattened enums are deserialised using the content deserialiser,
+                            //      which expects to see a map with just one field (serde)
+                            return false;
                         }
 
                         if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ }) {
@@ -5858,12 +5884,10 @@ impl<'a> SerdeDataType<'a> {
                         *has_unknown_key = true;
                     }
 
-                    if is_flattened && matches!(representation, SerdeEnumRepresentation::ExternallyTagged) {
-                        if *has_unknown_key {
-                            // BUG: flattened enums are deserialised using the content deserialiser,
-                            //      which expects to see a map with just one field (serde)
-                            return false;
-                        }
+                    if is_flattened && matches!(representation, SerdeEnumRepresentation::ExternallyTagged) && *has_unknown_key {
+                        // BUG: flattened enums are deserialised using the content deserialiser,
+                        //      which expects to see a map with just one field (serde)
+                        return false;
                     }
 
                     true
