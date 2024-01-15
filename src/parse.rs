@@ -612,12 +612,18 @@ impl<'a> Parser<'a> {
                     parser.set_cursor(cursor_backup);
                 }
                 let cursor_backup = parser.cursor;
-                if parser.string().is_err() {
-                    parser.set_cursor(cursor_backup);
+                match parser.string() {
+                    Ok(_) => (),
+                    // prevent quadratic complexity backtracking for unterminated string
+                    Err(err @ (Error::ExpectedStringEnd | Error::Eof)) => return Err(err),
+                    Err(_) => parser.set_cursor(cursor_backup),
                 }
                 let cursor_backup = parser.cursor;
-                if parser.byte_string().is_err() {
-                    parser.set_cursor(cursor_backup);
+                match parser.byte_string() {
+                    Ok(_) => (),
+                    // prevent quadratic complexity backtracking for unterminated byte string
+                    Err(err @ (Error::ExpectedStringEnd | Error::Eof)) => return Err(err),
+                    Err(_) => parser.set_cursor(cursor_backup),
                 }
 
                 let c = parser.next_char()?;

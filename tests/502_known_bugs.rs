@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use ron::{error::Position, error::SpannedError, extensions::Extensions, ser::PrettyConfig, Error};
 use serde::{Deserialize, Serialize};
@@ -2882,6 +2882,149 @@ fn untagged_unit_variant_inside_internally_tagged_newtype_variant_inside_multi_f
             )),
             position: Position { line: 5, col: 1 }
         }))
+    );
+}
+
+#[test]
+fn flattened_externally_tagged_newtype_variant_beside_flattened_intenally_tagged_enum() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum ExternallyTagged {
+        Newtype(()),
+        Other(()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        Newtype(ExternallyTagged),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Flattened {
+        #[serde(flatten)]
+        a: InternallyTagged,
+        #[serde(flatten)]
+        b: ExternallyTagged,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Flattened {
+                a: InternallyTagged::Newtype(ExternallyTagged::Other(())),
+                b: ExternallyTagged::Newtype(()),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("map with a single key"),
+                found: String::from("a map"),
+            },
+            position: Position { line: 5, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn flattened_externally_tagged_struct_variant_beside_flattened_intenally_tagged_enum() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    enum ExternallyTagged {
+        Struct { a: i32 },
+        Other(()),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTagged {
+        Newtype(ExternallyTagged),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Flattened {
+        #[serde(flatten)]
+        a: InternallyTagged,
+        #[serde(flatten)]
+        b: ExternallyTagged,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Flattened {
+                a: InternallyTagged::Newtype(ExternallyTagged::Other(())),
+                b: ExternallyTagged::Struct { a: 42 },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::InvalidValueForType {
+                expected: String::from("map with a single key"),
+                found: String::from("a map"),
+            },
+            position: Position { line: 7, col: 1 }
+        }))
+    );
+}
+
+#[test]
+fn flattened_map_inside_option_beside_flattened_struct_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Struct { a: i32 },
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Flattened {
+        #[serde(flatten)]
+        a: Untagged,
+        #[serde(flatten)]
+        b: Option<BTreeMap<String, i32>>,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Flattened {
+                a: Untagged::Struct {
+                    a: 42,
+                },
+                b: Some([(String::from("b"), 24)].into_iter().collect()),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: Flattened { a: Struct { a: 42 }, b: Some({\"b\": 24}) } != Flattened { a: Struct { a: 42 }, b: Some({\"a\": 42, \"b\": 24}) }"))))
+    );
+}
+
+#[test]
+fn flattened_untagged_struct_beside_flattened_untagged_struct() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Struct { a: i32 },
+        Other { b: i32 },
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Flattened {
+        #[serde(flatten)]
+        a: Untagged,
+        #[serde(flatten)]
+        b: Untagged,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Flattened {
+                a: Untagged::Struct {
+                    a: 42,
+                },
+                b: Untagged::Other {
+                    b: 24,
+                },
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: Flattened { a: Struct { a: 42 }, b: Other { b: 24 } } != Flattened { a: Struct { a: 42 }, b: Struct { a: 42 } }"))))
     );
 }
 

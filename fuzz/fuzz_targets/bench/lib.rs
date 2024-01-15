@@ -5063,21 +5063,34 @@ impl<'a> SerdeDataType<'a> {
                 SerdeDataValue::UnitStruct
             }
             SerdeDataType::Newtype { name, inner } => {
-                let inner = inner.arbitrary_value(u, pretty)?;
+                let inner_value = inner.arbitrary_value(u, pretty)?;
 
                 // ron::value::RawValue cannot safely be constructed from syntactically invalid ron
                 if *name == RAW_VALUE_TOKEN {
-                    if let SerdeDataValue::String(ron) = &inner {
-                        if ron::value::RawValue::from_ron(ron).is_err() {
-                            return Err(arbitrary::Error::IncorrectFormat);
-                        }
+                    // Hacky way to find out if a string is serialised:
+                    //  1. serialise into RON
+                    //  2. try to deserialise into a String
+                    let Ok(inner_ron) = ron::to_string(&BorrowedTypedSerdeData {
+                        ty: inner,
+                        value: &inner_value,
+                    }) else {
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    };
+
+                    let Ok(ron) = ron::from_str::<String>(&inner_ron) else {
+                        return Err(arbitrary::Error::IncorrectFormat);
+                    };
+
+                    // Check that the raw value content is valid
+                    if ron::value::RawValue::from_ron(&ron).is_err() {
+                        return Err(arbitrary::Error::IncorrectFormat);
                     }
                 }
 
                 name_length += name.len();
 
                 SerdeDataValue::Newtype {
-                    inner: Box::new(inner),
+                    inner: Box::new(inner_value),
                 }
             }
             SerdeDataType::TupleStruct { name, fields } => {
@@ -5127,13 +5140,19 @@ impl<'a> SerdeDataType<'a> {
                     if !ty.supported_flattened_map_inside_flatten_field(
                         pretty,
                         *flatten,
+                        false,
                         &mut has_flatten_map,
                         &mut has_unknown_key_inside_flatten,
                     ) {
                         // Flattened fields with maps must fulfil certain criteria
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
-                    if *flatten && pretty.struct_names {
+                    if *flatten
+                        && (pretty.struct_names
+                            || pretty
+                                .extensions
+                                .contains(Extensions::EXPLICIT_STRUCT_NAMES))
+                    {
                         // BUG: struct names inside flattend structs do not roundtrip
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
@@ -5152,7 +5171,7 @@ impl<'a> SerdeDataType<'a> {
                     representation,
                     SerdeEnumRepresentation::Untagged |
                     SerdeEnumRepresentation::InternallyTagged { tag: _ }
-                    if pretty.struct_names
+                    if pretty.struct_names || pretty.extensions.contains(Extensions::EXPLICIT_STRUCT_NAMES)
                 ) {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
@@ -5177,6 +5196,15 @@ impl<'a> SerdeDataType<'a> {
                     u32::try_from(variant_index).map_err(|_| arbitrary::Error::IncorrectFormat)?;
 
                 name_length += variant.len();
+
+                match representation {
+                    SerdeEnumRepresentation::ExternallyTagged
+                    | SerdeEnumRepresentation::Untagged => (),
+                    SerdeEnumRepresentation::InternallyTagged { tag } => name_length += tag.len(),
+                    SerdeEnumRepresentation::AdjacentlyTagged { tag, content } => {
+                        name_length += tag.len() + content.len();
+                    }
+                };
 
                 let value = match ty {
                     SerdeDataVariantType::Unit => SerdeDataVariantValue::Unit,
@@ -5276,13 +5304,19 @@ impl<'a> SerdeDataType<'a> {
                             if !ty.supported_flattened_map_inside_flatten_field(
                                 pretty,
                                 *flatten,
+                                false,
                                 &mut has_flatten_map,
                                 &mut has_unknown_key_inside_flatten,
                             ) {
                                 // Flattened fields with maps must fulfil certain criteria
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
-                            if *flatten && pretty.struct_names {
+                            if *flatten
+                                && (pretty.struct_names
+                                    || pretty
+                                        .extensions
+                                        .contains(Extensions::EXPLICIT_STRUCT_NAMES))
+                            {
                                 // BUG: struct names inside flattend structs do not roundtrip
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
@@ -5666,6 +5700,7 @@ impl<'a> SerdeDataType<'a> {
         &self,
         pretty: &PrettyConfig,
         is_flattened: bool,
+        is_untagged: bool,
         has_flattened_map: &mut bool,
         has_unknown_key: &mut bool,
     ) -> bool {
@@ -5690,10 +5725,17 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::String => true,
             SerdeDataType::ByteBuf => true,
             SerdeDataType::Option { inner } => {
-                if is_flattened || pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                if is_flattened && is_untagged {
+                    // BUG: (serde)
+                    //  - serialising a flattened None only produces an empty struct
+                    //  - deserialising content from an empty flatten struct produces an empty map
+                    //  - deserialising an option from a content empty map produces some
+                    false
+                } else if is_flattened || pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
                     inner.supported_flattened_map_inside_flatten_field(
                         pretty,
                         is_flattened,
+                        is_untagged,
                         has_flattened_map,
                         has_unknown_key,
                     )
@@ -5724,6 +5766,7 @@ impl<'a> SerdeDataType<'a> {
                     inner.supported_flattened_map_inside_flatten_field(
                         pretty,
                         is_flattened,
+                        is_untagged,
                         has_flattened_map,
                         has_unknown_key,
                     )
@@ -5734,10 +5777,25 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::TupleStruct { name: _, fields: _ } => true,
             SerdeDataType::Struct {
                 name: _,
-                tag: _,
+                tag,
                 fields,
             } => {
                 if is_flattened {
+                    // TODO: is this really the correct requirement?
+                    // case clusterfuzz-testcase-minimized-arbitrary-6364230921879552
+                    if tag.is_some() {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        if *has_unknown_key && is_untagged {
+                            // BUG: an untagged struct will use a map intermediary and see
+                            //      the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                    }
+
                     fields
                         .1
                         .iter()
@@ -5746,6 +5804,7 @@ impl<'a> SerdeDataType<'a> {
                             field.supported_flattened_map_inside_flatten_field(
                                 pretty,
                                 *is_flattened,
+                                is_untagged,
                                 has_flattened_map,
                                 has_unknown_key,
                             )
@@ -5787,14 +5846,31 @@ impl<'a> SerdeDataType<'a> {
                         inner.supported_flattened_map_inside_flatten_field(
                             pretty,
                             is_flattened,
+                            true,
                             has_flattened_map,
                             has_unknown_key,
                         )
                     } else if is_flattened {
+                        if matches!(representation, SerdeEnumRepresentation::ExternallyTagged) && *has_unknown_key {
+                            // BUG: flattened enums are deserialised using the content deserialiser,
+                            //      which expects to see a map with just one field (serde)
+                            return false;
+                        }
+
                         if matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ }) {
                             // BUG: an flattened internally tagged newtype alongside other flattened data
                             //      must not contain a unit, unit struct, or untagged unit variant
                             if !inner.supported_inside_internally_tagged_newtype(true) {
+                                return false;
+                            }
+
+                            if !inner.supported_flattened_map_inside_flatten_field(
+                                pretty,
+                                is_flattened,
+                                false,
+                                has_flattened_map,
+                                has_unknown_key,
+                            ) {
                                 return false;
                             }
                         }
@@ -5820,14 +5896,33 @@ impl<'a> SerdeDataType<'a> {
                     true
                 }
                 SerdeDataVariantType::Struct { fields } => {
-                    if (is_flattened && !matches!(representation, SerdeEnumRepresentation::Untagged)) || matches!(representation, SerdeEnumRepresentation::Untagged if fields.2.iter().any(|x| *x))
-                    {
+                    if is_flattened {
                         if *has_flattened_map {
                             // BUG: a flattened map will also see the unknown key (serde)
                             return false;
                         }
                         *has_unknown_key = true;
                     }
+
+                    if matches!(representation, SerdeEnumRepresentation::Untagged if is_flattened || fields.2.iter().any(|x| *x))
+                    {
+                        if *has_flattened_map {
+                            // BUG: a flattened map will also see the unknown key (serde)
+                            return false;
+                        }
+                        if *has_unknown_key {
+                            // BUG: a flattened untagged enum struct will also see the unknown key (serde)
+                            return false;
+                        }
+                        *has_unknown_key = true;
+                    }
+
+                    if is_flattened && matches!(representation, SerdeEnumRepresentation::ExternallyTagged) && *has_unknown_key {
+                        // BUG: flattened enums are deserialised using the content deserialiser,
+                        //      which expects to see a map with just one field (serde)
+                        return false;
+                    }
+
                     true
                 }
             }),
