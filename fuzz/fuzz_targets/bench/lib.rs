@@ -5783,6 +5783,11 @@ impl<'a> SerdeDataType<'a> {
                             // BUG: a flattened map will also see the unknown key (serde)
                             return false;
                         }
+                        if *has_unknown_key && is_untagged {
+                            // BUG: an untagged struct will use a map intermediary and see
+                            //      the unknown key (serde)
+                            return false;
+                        }
                         *has_unknown_key = true;
                     }
 
@@ -5851,6 +5856,16 @@ impl<'a> SerdeDataType<'a> {
                             // BUG: an flattened internally tagged newtype alongside other flattened data
                             //      must not contain a unit, unit struct, or untagged unit variant
                             if !inner.supported_inside_internally_tagged_newtype(true) {
+                                return false;
+                            }
+
+                            if !inner.supported_flattened_map_inside_flatten_field(
+                                pretty,
+                                is_flattened,
+                                false,
+                                has_flattened_map,
+                                has_unknown_key,
+                            ) {
                                 return false;
                             }
                         }
