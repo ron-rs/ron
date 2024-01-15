@@ -5145,6 +5145,7 @@ impl<'a> SerdeDataType<'a> {
                     if !ty.supported_flattened_map_inside_flatten_field(
                         pretty,
                         *flatten,
+                        false,
                         &mut has_flatten_map,
                         &mut has_unknown_key_inside_flatten,
                     ) {
@@ -5303,6 +5304,7 @@ impl<'a> SerdeDataType<'a> {
                             if !ty.supported_flattened_map_inside_flatten_field(
                                 pretty,
                                 *flatten,
+                                false,
                                 &mut has_flatten_map,
                                 &mut has_unknown_key_inside_flatten,
                             ) {
@@ -5693,6 +5695,7 @@ impl<'a> SerdeDataType<'a> {
         &self,
         pretty: &PrettyConfig,
         is_flattened: bool,
+        is_untagged: bool,
         has_flattened_map: &mut bool,
         has_unknown_key: &mut bool,
     ) -> bool {
@@ -5717,10 +5720,17 @@ impl<'a> SerdeDataType<'a> {
             SerdeDataType::String => true,
             SerdeDataType::ByteBuf => true,
             SerdeDataType::Option { inner } => {
-                if is_flattened || pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
+                if is_flattened && is_untagged {
+                    // BUG: (serde)
+                    //  - serialising a flattened None only produces an empty struct
+                    //  - deserialising content from an empty flatten struct produces an empty map
+                    //  - deserialising an option from a content empty map produces some
+                    false
+                } else if is_flattened || pretty.extensions.contains(Extensions::IMPLICIT_SOME) {
                     inner.supported_flattened_map_inside_flatten_field(
                         pretty,
                         is_flattened,
+                        is_untagged,
                         has_flattened_map,
                         has_unknown_key,
                     )
@@ -5751,6 +5761,7 @@ impl<'a> SerdeDataType<'a> {
                     inner.supported_flattened_map_inside_flatten_field(
                         pretty,
                         is_flattened,
+                        is_untagged,
                         has_flattened_map,
                         has_unknown_key,
                     )
@@ -5783,6 +5794,7 @@ impl<'a> SerdeDataType<'a> {
                             field.supported_flattened_map_inside_flatten_field(
                                 pretty,
                                 *is_flattened,
+                                is_untagged,
                                 has_flattened_map,
                                 has_unknown_key,
                             )
@@ -5824,6 +5836,7 @@ impl<'a> SerdeDataType<'a> {
                         inner.supported_flattened_map_inside_flatten_field(
                             pretty,
                             is_flattened,
+                            true,
                             has_flattened_map,
                             has_unknown_key,
                         )
