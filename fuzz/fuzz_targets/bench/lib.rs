@@ -5152,7 +5152,12 @@ impl<'a> SerdeDataType<'a> {
                         // Flattened fields with maps must fulfil certain criteria
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
-                    if *flatten && pretty.struct_names {
+                    if *flatten
+                        && (pretty.struct_names
+                            || pretty
+                                .extensions
+                                .contains(Extensions::EXPLICIT_STRUCT_NAMES))
+                    {
                         // BUG: struct names inside flattend structs do not roundtrip
                         return Err(arbitrary::Error::IncorrectFormat);
                     }
@@ -5171,7 +5176,7 @@ impl<'a> SerdeDataType<'a> {
                     representation,
                     SerdeEnumRepresentation::Untagged |
                     SerdeEnumRepresentation::InternallyTagged { tag: _ }
-                    if pretty.struct_names
+                    if pretty.struct_names || pretty.extensions.contains(Extensions::EXPLICIT_STRUCT_NAMES)
                 ) {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
@@ -5311,7 +5316,12 @@ impl<'a> SerdeDataType<'a> {
                                 // Flattened fields with maps must fulfil certain criteria
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }
-                            if *flatten && pretty.struct_names {
+                            if *flatten
+                                && (pretty.struct_names
+                                    || pretty
+                                        .extensions
+                                        .contains(Extensions::EXPLICIT_STRUCT_NAMES))
+                            {
                                 // BUG: struct names inside flattend structs do not roundtrip
                                 return Err(arbitrary::Error::IncorrectFormat);
                             }

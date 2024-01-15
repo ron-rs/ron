@@ -187,7 +187,7 @@ While data structures with any of these attributes should generally roundtrip th
 
 - ron only supports string keys inside maps flattened into structs
 - internally (or adjacently) tagged or untagged enum variants or `#[serde(flatten)]`ed fields must not contain:
-  - struct names, e.g. by enabling the `PrettyConfig::struct_names` setting
+  - struct names, e.g. by enabling the `#[enable(explicit_struct_names)]` extension or the `PrettyConfig::struct_names` setting
   - newtypes
   - zero-length arrays / tuples / tuple structs / structs / tuple variants / struct variants
     - `Option`s with `#[enable(implicit_some)]` must not contain any of these or a unit, unit struct, or an untagged unit variant
