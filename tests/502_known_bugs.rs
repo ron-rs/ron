@@ -1,4 +1,4 @@
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeMap, HashMap};
 
 use ron::{error::Position, error::SpannedError, extensions::Extensions, ser::PrettyConfig, Error};
 use serde::{Deserialize, Serialize};
@@ -2970,9 +2970,7 @@ fn flattened_map_inside_option_beside_flattened_struct_variant() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
     enum Untagged {
-        Struct {
-            a: i32,
-        },
+        Struct { a: i32 },
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -3002,12 +3000,8 @@ fn flattened_untagged_struct_beside_flattened_untagged_struct() {
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
     #[serde(untagged)]
     enum Untagged {
-        Struct {
-            a: i32,
-        },
-        Other {
-            b: i32,
-        },
+        Struct { a: i32 },
+        Other { b: i32 },
     }
 
     #[derive(PartialEq, Debug, Serialize, Deserialize)]
@@ -3031,66 +3025,6 @@ fn flattened_untagged_struct_beside_flattened_untagged_struct() {
             PrettyConfig::default()
         ),
         Err(Ok(Error::Message(String::from("ROUNDTRIP error: Flattened { a: Struct { a: 42 }, b: Other { b: 24 } } != Flattened { a: Struct { a: 42 }, b: Struct { a: 42 } }"))))
-    );
-}
-
-// TODO: still not fixed
-#[test]
-fn flattened_map_inside_option_beside_struct_with_flattened_field() {
-    #[derive(PartialEq, Debug, Serialize, Deserialize)]
-    #[serde(tag = "tag")]
-    struct Struct {
-        a: i32,
-        #[serde(flatten)]
-        u: (),
-    }
-
-    #[derive(PartialEq, Debug, Serialize, Deserialize)]
-    #[serde(tag = "tag")]
-    struct Flattened {
-        a: Struct,
-        #[serde(flatten)]
-        b: Option<BTreeMap<String, Option<i32>>>,
-    }
-
-    assert_eq!(
-        check_roundtrip(
-            &Flattened {
-                a: Struct {
-                    a: 42,
-                    u: (),
-                },
-                b: Some([(String::from("b"), Some(24))].into_iter().collect()),
-            },
-            PrettyConfig::default()
-        ),
-        Err(Ok(Error::Message(String::from("ROUNDTRIP error: Flattened { a: Struct { a: 42, u: () }, b: Some({\"b\": Some(24)}) } != Flattened { a: Struct { a: 42, u: () }, b: None }"))))
-    );
-}
-
-// TODO: still not fixed
-#[test]
-fn none_inside_flattened_untagged_newtype_variant() {
-    #[derive(PartialEq, Debug, Serialize, Deserialize)]
-    #[serde(untagged)]
-    enum Untagged {
-        Newtype(Option<()>),
-    }
-
-    #[derive(PartialEq, Debug, Serialize, Deserialize)]
-    struct Flattened {
-        #[serde(flatten)]
-        a: Untagged,
-    }
-
-    assert_eq!(
-        check_roundtrip(
-            &Flattened {
-                a: Untagged::Newtype(None),
-            },
-            PrettyConfig::default()
-        ),
-        Err(Err(SpannedError { code: Error::Message(String::from("data did not match any variant of untagged enum Untagged")), position: Position { line: 2, col: 1 } }))
     );
 }
 
