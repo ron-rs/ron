@@ -56,11 +56,6 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
             Err(err) => panic!("{:#?} -! {:#?}", typed_value, err),
         };
 
-        println!(
-            "{:#?} -> {:#?} -> {}",
-            typed_value.ty, typed_value.value, ron
-        );
-
         if let Err(err) = options.from_str::<ron::Value>(&ron) {
             match err.code {
                 // Erroring on deep recursion is better than crashing on a stack overflow
