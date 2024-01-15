@@ -3028,6 +3028,71 @@ fn flattened_untagged_struct_beside_flattened_untagged_struct() {
     );
 }
 
+// TODO: still not fixed
+#[test]
+fn flattened_map_inside_option_beside_struct_with_flattened_field() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    struct Struct {
+        a: i32,
+        #[serde(flatten)]
+        u: (),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(tag = "tag")]
+    struct Flattened {
+        a: Struct,
+        #[serde(flatten)]
+        b: Option<BTreeMap<String, Option<i32>>>,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Flattened {
+                a: Struct {
+                    a: 42,
+                    u: (),
+                },
+                b: Some([(String::from("b"), Some(24))].into_iter().collect()),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: Flattened { a: Struct { a: 42, u: () }, b: Some({\"b\": Some(24)}) } != Flattened { a: Struct { a: 42, u: () }, b: None }"))))
+    );
+}
+
+// TODO: still not fixed
+#[test]
+fn none_inside_flattened_untagged_newtype_variant() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Newtype(Option<()>),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Flattened {
+        #[serde(flatten)]
+        a: Untagged,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Flattened {
+                a: Untagged::Newtype(None),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Err(SpannedError {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum Untagged"
+            )),
+            position: Position { line: 2, col: 1 }
+        }))
+    );
+}
+
 fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
     val: &T,
     config: PrettyConfig,
