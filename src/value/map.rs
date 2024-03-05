@@ -62,7 +62,14 @@ impl Map {
 
     /// Removes an element by its `key`.
     pub fn remove(&mut self, key: &Value) -> Option<Value> {
-        self.0.remove(key)
+        #[cfg(feature = "indexmap")]
+        {
+            self.0.shift_remove(key)
+        }
+        #[cfg(not(feature = "indexmap"))]
+        {
+            self.0.remove(key)
+        }
     }
 
     /// Iterate all key-value pairs.
