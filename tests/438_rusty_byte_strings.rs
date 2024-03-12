@@ -72,7 +72,7 @@ fn v_9_deprecated_base64_bytes_support() {
     // Too much padding
     assert_eq!(
         Err(SpannedError {
-            code: Error::Base64Error(base64::DecodeError::InvalidLength),
+            code: Error::Base64Error(base64::DecodeError::InvalidByte(6, b'=')),
             position: Position { line: 1, col: 45 }
         }),
         ron::from_str::<BytesStruct>("BytesStruct( small:[1, 2], large:\"AQIDBA===\" )"),
