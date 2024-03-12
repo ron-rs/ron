@@ -25,7 +25,7 @@ integer128 = []
 
 [dependencies]
 # FIXME @juntyr remove base64 once old byte strings are fully deprecated
-base64 = "0.21"
+base64 = "0.22"
 bitflags = { version = "2.0", features = ["serde"] }
 indexmap = { version = "2.0", features = ["serde"], optional = true }
 # serde supports i128/u128 from 1.0.60 onwards
