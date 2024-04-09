@@ -214,11 +214,6 @@ impl<'a> Parser<'a> {
             .find(|c| !condition(c))
             .unwrap_or(self.src().len() - from)
     }
-
-    #[must_use]
-    pub fn find_char_index(&self, condition: fn(char) -> bool) -> Option<(usize, char)> {
-        self.src().char_indices().find(|&(_, c)| condition(c))
-    }
 }
 
 /// actual parsing of ron tokens
@@ -619,7 +614,8 @@ impl<'a> Parser<'a> {
                     Err(_) => parser.set_cursor(cursor_backup),
                 }
                 let cursor_backup = parser.cursor;
-                match parser.byte_string() {
+                // we have already checked for strings, which subsume base64 byte strings
+                match parser.byte_string_no_base64() {
                     Ok(_) => (),
                     // prevent quadratic complexity backtracking for unterminated byte string
                     Err(err @ (Error::ExpectedStringEnd | Error::Eof)) => return Err(err),
@@ -1058,7 +1054,13 @@ impl<'a> Parser<'a> {
                     Err(_) => Err(Error::ExpectedByteString),
                 }
             }
-        } else if self.consume_str("b\"") {
+        } else {
+            self.byte_string_no_base64()
+        }
+    }
+
+    pub fn byte_string_no_base64(&mut self) -> Result<ParsedByteStr<'a>> {
+        if self.consume_str("b\"") {
             self.escaped_byte_string()
         } else if self.consume_str("br") {
             self.raw_byte_string()
@@ -1121,17 +1123,13 @@ impl<'a> Parser<'a> {
     }
 
     fn escaped_byte_buf(&mut self, encoding: EscapeEncoding) -> Result<(ParsedByteStr<'a>, usize)> {
-        let (i, end_or_escape) = self
-            .find_char_index(|c| matches!(c, '\\' | '"'))
-            .ok_or(Error::ExpectedStringEnd)?;
+        // Checking for '"' and '\\' separately is faster than searching for both at the same time
+        let str_end = self.src().find('"').ok_or(Error::ExpectedStringEnd)?;
+        let escape = self.src()[..str_end].find('\\');
 
-        if end_or_escape == '"' {
-            let s = &self.src().as_bytes()[..i];
-
-            // Advance by the number of bytes of the string + 1 for the `"`.
-            Ok((ParsedByteStr::Slice(s), i + 1))
-        } else {
-            let mut i = i;
+        if let Some(escape) = escape {
+            // Now check if escaping is used inside the string
+            let mut i = escape;
             let mut s = self.src().as_bytes()[..i].to_vec();
 
             loop {
@@ -1149,18 +1147,24 @@ impl<'a> Parser<'a> {
                     },
                 }
 
-                let (new_i, end_or_escape) = self
-                    .find_char_index(|c| matches!(c, '\\' | '"'))
-                    .ok_or(Error::ExpectedStringEnd)?;
+                // Checking for '"' and '\\' separately is faster than searching for both at the same time
+                let new_str_end = self.src().find('"').ok_or(Error::ExpectedStringEnd)?;
+                let new_escape = self.src()[..new_str_end].find('\\');
 
-                i = new_i;
-                s.extend_from_slice(&self.src().as_bytes()[..i]);
-
-                if end_or_escape == '"' {
+                if let Some(new_escape) = new_escape {
+                    s.extend_from_slice(&self.src().as_bytes()[..new_escape]);
+                    i = new_escape;
+                } else {
+                    s.extend_from_slice(&self.src().as_bytes()[..new_str_end]);
                     // Advance to the end of the string + 1 for the `"`.
-                    break Ok((ParsedByteStr::Allocated(s), i + 1));
+                    break Ok((ParsedByteStr::Allocated(s), new_str_end + 1));
                 }
             }
+        } else {
+            let s = &self.src().as_bytes()[..str_end];
+
+            // Advance by the number of bytes of the string + 1 for the `"`.
+            Ok((ParsedByteStr::Slice(s), str_end + 1))
         }
     }
 
