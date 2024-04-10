@@ -5878,7 +5878,9 @@ impl<'a> SerdeDataType<'a> {
                             if !inner.supported_flattened_map_inside_flatten_field(
                                 pretty,
                                 is_flattened,
-                                false,
+                                // TODO: find a good explanation
+                                // e.g. clusterfuzz-testcase-minimized-arbitrary-6729835718180864
+                                matches!(representation, SerdeEnumRepresentation::InternallyTagged { tag: _ }),
                                 has_flattened_map,
                                 has_unknown_key,
                             ) {
@@ -5931,6 +5933,11 @@ impl<'a> SerdeDataType<'a> {
                     if is_flattened && matches!(representation, SerdeEnumRepresentation::ExternallyTagged) && *has_unknown_key {
                         // BUG: flattened enums are deserialised using the content deserialiser,
                         //      which expects to see a map with just one field (serde)
+                        return false;
+                    }
+
+                    if is_flattened && matches!(representation, SerdeEnumRepresentation::InternallyTagged { .. }) && *has_unknown_key {
+                        // TODO: find a good explanation and example
                         return false;
                     }
 
