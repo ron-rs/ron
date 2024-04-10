@@ -1145,18 +1145,22 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     ) -> Result<Self::Value, ()> {
                         match self.value {
                             None => Ok(()),
-                            Some(expected) => BorrowedTypedSerdeData {
+                            Some(expected) => match (BorrowedTypedSerdeData {
                                 ty: self.ty,
                                 value: expected,
-                            }
-                            .deserialize(deserializer)
-                            .map_err(|err| {
-                                panic!(
+                            })
+                            .deserialize(deserializer) {
+                                Ok(()) => Ok(()),
+                                // Duplicate struct fields only cause issues inside internally (or adjacently)
+                                //  tagged or untagged enums (or in flattened fields where we detect them
+                                //  before they cause issues), so we allow them in arbitrary otherwise
+                                Err(err) if format!("{err}").starts_with("Unexpected duplicate field named") => Ok(()),
+                                Err(err) => panic!(
                                     "expected untagged {:?} but failed with {}",
                                     Some(expected),
                                     err
-                                )
-                            }),
+                                ),
+                            },
                         }
                     }
                 }
@@ -5793,6 +5797,13 @@ impl<'a> SerdeDataType<'a> {
                             //      the unknown key (serde)
                             return false;
                         }
+                        *has_unknown_key = true;
+                    }
+
+                    // once there are some flattened fields, the unflattened
+                    //  ones will be unknown keys for later maps
+                    // e.g. clusterfuzz-testcase-minimized-arbitrary-6266237281697792
+                    if fields.2.iter().any(|x| *x) && !fields.2.iter().all(|x| *x) {
                         *has_unknown_key = true;
                     }
 

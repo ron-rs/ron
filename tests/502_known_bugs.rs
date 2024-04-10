@@ -3028,6 +3028,38 @@ fn flattened_untagged_struct_beside_flattened_untagged_struct() {
     );
 }
 
+#[test]
+fn flattened_field_inside_flattened_struct_alongside_map() {
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Units {
+        a: i32,
+        #[serde(flatten)]
+        b: (),
+    }
+
+    #[derive(PartialEq, Debug, Serialize, Deserialize)]
+    struct Flattened {
+        #[serde(flatten)]
+        a: Units,
+        #[serde(flatten)]
+        b: BTreeMap<String, i32>,
+    }
+
+    assert_eq!(
+        check_roundtrip(
+            &Flattened {
+                a: Units {
+                    a: 42,
+                    b: (),
+                },
+                b: [(String::from("c"), 24)].into_iter().collect(),
+            },
+            PrettyConfig::default()
+        ),
+        Err(Ok(Error::Message(String::from("ROUNDTRIP error: Flattened { a: Units { a: 42, b: () }, b: {\"c\": 24} } != Flattened { a: Units { a: 42, b: () }, b: {\"a\": 42, \"c\": 24} }"))))
+    );
+}
+
 fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
     val: &T,
     config: PrettyConfig,
