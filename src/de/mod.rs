@@ -63,6 +63,8 @@ impl<'de> Deserializer<'de> {
         Ok(deserializer)
     }
 
+    // FIXME: panic is not actually possible, remove once utf8_chunks is stabilized
+    #[allow(clippy::missing_panics_doc)]
     pub fn from_bytes_with_options(input: &'de [u8], options: &Options) -> SpannedResult<Self> {
         let err = match str::from_utf8(input) {
             Ok(input) => return Self::from_str_with_options(input, options),

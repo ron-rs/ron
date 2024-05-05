@@ -192,7 +192,7 @@ impl<'a> Parser<'a> {
                     Ok(false)
                 }
             })
-            .fold(Ok(true), |acc, x| acc.and_then(|val| x.map(|x| x && val)))
+            .try_fold(true, |acc, x| x.map(|x| x && acc))
     }
 
     pub fn expect_char(&mut self, expected: char, error: Error) -> Result<()> {
@@ -256,10 +256,10 @@ impl<'a> Parser<'a> {
 
     fn parse_integer<T: Num>(&mut self, sign: i8) -> Result<T> {
         let base = match () {
-            _ if self.consume_str("0b") => 2,
-            _ if self.consume_str("0o") => 8,
-            _ if self.consume_str("0x") => 16,
-            _ => 10,
+            () if self.consume_str("0b") => 2,
+            () if self.consume_str("0o") => 8,
+            () if self.consume_str("0x") => 16,
+            () => 10,
         };
 
         let num_bytes = self.next_chars_while_len(is_int_char);
@@ -324,7 +324,7 @@ impl<'a> Parser<'a> {
 
         let num_bytes = self.next_chars_while_len(is_int_char);
 
-        if self.src()[num_bytes..].starts_with(&['i', 'u']) {
+        if self.src()[num_bytes..].starts_with(['i', 'u']) {
             let int_cursor = self.cursor;
             self.advance_bytes(num_bytes);
 

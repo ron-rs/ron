@@ -121,6 +121,8 @@ impl Options {
     /// A convenience function for building a deserializer
     /// and deserializing a value of type `T` from a reader
     /// and a seed.
+    // FIXME: panic is not actually possible, remove once utf8_chunks is stabilized
+    #[allow(clippy::missing_panics_doc)]
     pub fn from_reader_seed<R, S, T>(&self, mut rdr: R, seed: S) -> SpannedResult<T>
     where
         R: io::Read,
