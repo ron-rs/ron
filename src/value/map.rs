@@ -73,27 +73,32 @@ impl Map {
     }
 
     /// Iterate all key-value pairs.
-    pub fn iter(&self) -> impl Iterator<Item = (&Value, &Value)> + DoubleEndedIterator {
+    #[must_use]
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&Value, &Value)> {
         self.0.iter()
     }
 
     /// Iterate all key-value pairs mutably.
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&Value, &mut Value)> + DoubleEndedIterator {
+    #[must_use]
+    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = (&Value, &mut Value)> {
         self.0.iter_mut()
     }
 
     /// Iterate all keys.
-    pub fn keys(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
+    #[must_use]
+    pub fn keys(&self) -> impl DoubleEndedIterator<Item = &Value> {
         self.0.keys()
     }
 
     /// Iterate all values.
-    pub fn values(&self) -> impl Iterator<Item = &Value> + DoubleEndedIterator {
+    #[must_use]
+    pub fn values(&self) -> impl DoubleEndedIterator<Item = &Value> {
         self.0.values()
     }
 
     /// Iterate all values mutably.
-    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut Value> + DoubleEndedIterator {
+    #[must_use]
+    pub fn values_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut Value> {
         self.0.values_mut()
     }
 
@@ -158,7 +163,7 @@ impl Eq for Map {}
 
 impl PartialOrd for Map {
     fn partial_cmp(&self, other: &Map) -> Option<Ordering> {
-        self.iter().partial_cmp(other.iter())
+        Some(self.cmp(other))
     }
 }
 

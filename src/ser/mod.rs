@@ -92,8 +92,8 @@ pub struct PrettyConfig {
     pub separate_tuple_members: bool,
     /// Enumerate array items in comments
     pub enumerate_arrays: bool,
-    /// Enable extensions. Only configures 'implicit_some',
-    ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
+    /// Enable extensions. Only configures `implicit_some`,
+    ///  `unwrap_newtypes`, and `unwrap_variant_newtypes` for now.
     pub extensions: Extensions,
     /// Enable compact arrays, which do not insert new lines and indentation
     ///  between the elements of an array

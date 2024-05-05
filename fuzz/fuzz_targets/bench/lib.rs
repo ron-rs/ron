@@ -117,8 +117,8 @@ struct ArbitraryPrettyConfig {
     /// Enumerate array items in comments
     enumerate_arrays: bool,
     #[arbitrary(with = arbitrary_ron_extensions)]
-    /// Enable extensions. Only configures 'implicit_some',
-    ///  'unwrap_newtypes', and 'unwrap_variant_newtypes' for now.
+    /// Enable extensions. Only configures `implicit_some`,
+    ///  `unwrap_newtypes`, and `unwrap_variant_newtypes` for now.
     extensions: Extensions,
     /// Enable compact arrays, which do not insert new lines and indentation
     ///  between the elements of an array
