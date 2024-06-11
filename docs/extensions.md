@@ -21,7 +21,7 @@ struct Object {
 
 Without `unwrap_newtypes`, because the value `5` can not be saved into `NewType(u32)`, your RON document would look like this:
 
-``` ron
+```ron
 (
     new_type: (5),
 )
@@ -29,7 +29,7 @@ Without `unwrap_newtypes`, because the value `5` can not be saved into `NewType(
 
 With the `unwrap_newtypes` extension, this coercion is done automatically. So `5` will be interpreted as `(5)`.
 
-``` ron
+```ron
 #![enable(unwrap_newtypes)]
 (
     new_type: 5,
@@ -98,7 +98,7 @@ pub enum Enum {
 
 Without `unwrap_variant_newtypes`, your RON document would look like this:
 
-``` ron
+```ron
 (
     variant: A(Inner(a: 4, b: true)),
 )
@@ -106,7 +106,7 @@ Without `unwrap_variant_newtypes`, your RON document would look like this:
 
 With the `unwrap_variant_newtypes` extension, the first structural layer inside a newtype variant will be unwrapped automatically:
 
-``` ron
+```ron
 #![enable(unwrap_newtypes)]
 (
     variant: A(a: 4, b: true),

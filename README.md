@@ -16,7 +16,7 @@ structs, enums, tuples, arrays, generic maps, and primitive values.
 
 ## Example
 
-```rust,ignore
+```ron
 GameConfig( // optional struct name
     window_size: (800, 600),
     window_title: "PAC-MAN",
@@ -98,7 +98,7 @@ There also is a very basic, work in progress specification available on
 
 ### Same example in RON
 
-```rust,ignore
+```ron
 Scene( // class name is optional
     materials: { // this is a map
         "metal": (
