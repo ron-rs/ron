@@ -138,11 +138,11 @@ jobs:
             --excl-start GRCOV_EXCL_START \
             --excl-stop GRCOV_EXCL_STOP
           rm -rf html/badges
-      - name: Upload the coverage report to codecov.io
-        uses: codecov/codecov-action@v1
-        with:
-          files: coverage.lcov
-          fail_ci_if_error: true
+      # - name: Upload the coverage report to codecov.io
+      #   uses: codecov/codecov-action@v1
+      #   with:
+      #     files: coverage.lcov
+      #     fail_ci_if_error: true
       - name: Deploy the code coverage report
         uses: peaceiris/actions-gh-pages@v3
         with:
