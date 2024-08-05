@@ -7,6 +7,7 @@ use unicode_ident::is_xid_continue;
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
+    meta::Meta,
     options::Options,
     parse::{is_ident_first_char, is_ident_raw_char, is_whitespace_char, LargeSInt, LargeUInt},
 };
@@ -109,6 +110,8 @@ pub struct PrettyConfig {
     pub compact_maps: bool,
     /// Enable explicit number type suffixes like `1u16`
     pub number_suffixes: bool,
+    /// Additional metadata to serialize
+    pub meta: Meta,
 }
 
 impl PrettyConfig {
@@ -359,6 +362,7 @@ impl Default for PrettyConfig {
             compact_structs: false,
             compact_maps: false,
             number_suffixes: false,
+            meta: Meta::default(),
         }
     }
 }
@@ -618,6 +622,10 @@ impl<W: fmt::Write> Serializer<W> {
         }
         self.output.write_str(name)?;
         Ok(())
+    }
+
+    fn fmt_meta(&self, meta: &str) -> String {
+        meta.lines().map(|line| format!("/// {line}\n")).collect()
     }
 
     #[allow(clippy::unused_self)]
@@ -1329,6 +1337,14 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
 
         if !self.ser.compact_structs() {
             self.ser.indent()?;
+
+            if let Some((ref config, ref _pretty)) = self.ser.pretty {
+                if let Some(meta) = config.meta.get(key) {
+                    let s = self.ser.fmt_meta(meta);
+                    self.ser.output.write_str(&s)?;
+                    self.ser.indent()?;
+                }
+            }
         }
 
         self.ser.write_identifier(key)?;

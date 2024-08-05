@@ -19,6 +19,7 @@ pub mod de;
 pub mod ser;
 
 pub mod error;
+pub mod meta;
 pub mod value;
 
 pub mod extensions;
