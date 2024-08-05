@@ -7,7 +7,7 @@ use unicode_ident::is_xid_continue;
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
-    meta::Meta,
+    meta::Fields,
     options::Options,
     parse::{is_ident_first_char, is_ident_raw_char, is_whitespace_char, LargeSInt, LargeUInt},
 };
@@ -111,7 +111,7 @@ pub struct PrettyConfig {
     /// Enable explicit number type suffixes like `1u16`
     pub number_suffixes: bool,
     /// Additional metadata to serialize
-    pub meta: Meta,
+    pub meta: Fields,
 }
 
 impl PrettyConfig {
@@ -362,7 +362,7 @@ impl Default for PrettyConfig {
             compact_structs: false,
             compact_maps: false,
             number_suffixes: false,
-            meta: Meta::default(),
+            meta: Fields::default(),
         }
     }
 }
@@ -380,6 +380,7 @@ pub struct Serializer<W: fmt::Write> {
     recursion_limit: Option<usize>,
     // Tracks the number of opened implicit `Some`s, set to 0 on backtracking
     implicit_some_depth: usize,
+    field_memory: Vec<&'static str>,
 }
 
 impl<W: fmt::Write> Serializer<W> {
@@ -432,6 +433,7 @@ impl<W: fmt::Write> Serializer<W> {
             newtype_variant: false,
             recursion_limit: options.recursion_limit,
             implicit_some_depth: 0,
+            field_memory: Vec::new(),
         })
     }
 
@@ -622,10 +624,6 @@ impl<W: fmt::Write> Serializer<W> {
         }
         self.output.write_str(name)?;
         Ok(())
-    }
-
-    fn fmt_meta(&self, meta: &str) -> String {
-        meta.lines().map(|line| format!("/// {line}\n")).collect()
     }
 
     #[allow(clippy::unused_self)]
@@ -1321,6 +1319,8 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
     where
         T: ?Sized + Serialize,
     {
+        self.ser.field_memory.push(key);
+
         if let State::First = self.state {
             self.state = State::Rest;
         } else {
@@ -1338,11 +1338,40 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         if !self.ser.compact_structs() {
             self.ser.indent()?;
 
-            if let Some((ref config, ref _pretty)) = self.ser.pretty {
-                if let Some(meta) = config.meta.get(key) {
-                    let s = self.ser.fmt_meta(meta);
-                    self.ser.output.write_str(&s)?;
-                    self.ser.indent()?;
+            if let Some((ref config, _)) = self.ser.pretty {
+                let mut iter = self.ser.field_memory.iter();
+
+                let name = iter.next().expect(
+                    "is always at least one, because we push one at the beginning of this function",
+                );
+                let mut field = config.meta.field(name);
+
+                while let Some(name) = iter.next() {
+                    let Some(some_field) = field else { break };
+
+                    let Some(fields) = some_field.inner() else {
+                        field = None;
+                        break;
+                    };
+
+                    field = fields.field(name);
+                }
+
+                if let Some(field) = field {
+                    for line in field.get_meta().lines() {
+                        let s = format!("/// {line}\n");
+                        self.ser.output.write_str(&s)?;
+
+                        // FIXME: Can't call `self.ser.indent` because we immutably borrow ser via field,
+                        // but we don't need the entire ser mutable, only ser.output so this works
+                        if let Some((ref config, ref pretty)) = self.ser.pretty {
+                            if pretty.indent <= config.depth_limit {
+                                for _ in 0..pretty.indent {
+                                    self.ser.output.write_str(&config.indentor)?;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1355,6 +1384,8 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         }
 
         guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
+
+        self.ser.field_memory.pop();
 
         Ok(())
     }
@@ -1376,6 +1407,7 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         if !self.newtype_variant {
             self.ser.output.write_char(')')?;
         }
+
         Ok(())
     }
 }
