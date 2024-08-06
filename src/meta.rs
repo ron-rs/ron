@@ -38,6 +38,14 @@ impl Field {
         self
     }
 
+    /// Ergonomic shortcut for building some inner fields
+    pub fn build_fields(&mut self, builder: impl FnOnce(&mut Fields)) -> &mut Self {
+        let mut fields = Fields::default();
+        builder(&mut fields);
+        self.fields = Some(fields);
+        self
+    }
+
     /// Get the metadata of this field
     pub fn get_meta(&self) -> &str {
         self.meta.as_str()
