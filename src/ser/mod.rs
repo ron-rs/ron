@@ -1344,33 +1344,29 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
                 let name = iter.next().expect(
                     "is always at least one, because we push one at the beginning of this function",
                 );
-                let mut field = config.meta.field(name);
+                let mut field = config.meta.get_field(name);
 
                 while let Some(name) = iter.next() {
                     let Some(some_field) = field else { break };
 
-                    let Some(fields) = some_field.inner() else {
+                    let Some(fields) = some_field.fields() else {
                         field = None;
                         break;
                     };
 
-                    field = fields.field(name);
+                    field = fields.get_field(name);
                 }
 
                 if let Some(field) = field {
-                    for line in field.get_meta().lines() {
-                        let s = format!("/// {line}\n");
-                        self.ser.output.write_str(&s)?;
+                    let lines: Vec<_> = field
+                        .get_meta()
+                        .lines()
+                        .map(|line| format!("/// {line}\n"))
+                        .collect();
 
-                        // FIXME: Can't call `self.ser.indent` because we immutably borrow ser via field,
-                        // but we don't need the entire ser mutable, only ser.output so this works
-                        if let Some((ref config, ref pretty)) = self.ser.pretty {
-                            if pretty.indent <= config.depth_limit {
-                                for _ in 0..pretty.indent {
-                                    self.ser.output.write_str(&config.indentor)?;
-                                }
-                            }
-                        }
+                    for line in lines {
+                        self.ser.output.write_str(&line)?;
+                        self.ser.indent()?;
                     }
                 }
             }
