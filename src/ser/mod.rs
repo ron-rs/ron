@@ -1344,18 +1344,14 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
                 let name = iter.next().expect(
                     "is always at least one, because we push one at the beginning of this function",
                 );
-                let mut field = config.meta.get_field(name);
 
-                while let Some(name) = iter.next() {
-                    let Some(some_field) = field else { break };
-
-                    let Some(fields) = some_field.fields() else {
-                        field = None;
-                        break;
-                    };
-
-                    field = fields.get_field(name);
-                }
+                let field = iter
+                    .try_fold(config.meta.get_field(name), |field, name| {
+                        field
+                            .and_then(|field| field.fields())
+                            .map(|fields| fields.get_field(name))
+                    })
+                    .flatten();
 
                 if let Some(field) = field {
                     let lines: Vec<_> = field
