@@ -1341,18 +1341,16 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
             if let Some((ref config, _)) = self.ser.pretty {
                 let mut iter = self.ser.field_memory.iter();
 
-                let init = iter.next().and_then(|name| config.meta.get_field(name));
+                let init = iter.next().and_then(|name| config.meta.get(name));
                 let field = iter
                     .try_fold(init, |field, name| {
-                        field
-                            .and_then(Field::fields)
-                            .map(|fields| fields.get_field(name))
+                        field.and_then(Field::fields).map(|fields| fields.get(name))
                     })
                     .flatten();
 
                 if let Some(field) = field {
                     let lines: Vec<_> = field
-                        .get_meta()
+                        .meta()
                         .lines()
                         .map(|line| format!("/// {line}\n"))
                         .collect();
