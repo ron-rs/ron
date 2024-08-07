@@ -36,6 +36,8 @@ impl Field {
     /// Set the metadata of this field.
     ///
     /// ```
+    /// # use ron::meta::Field;
+    ///
     /// let mut field = Field::empty();
     ///
     /// assert_eq!(field.meta(), "");
@@ -52,6 +54,8 @@ impl Field {
     /// Return whether the Field has metadata.
     ///
     /// ```
+    /// # use ron::meta::Field;
+    ///
     /// let mut field = Field::empty();
     ///
     /// assert!(!field.has_meta());
@@ -78,6 +82,8 @@ impl Field {
     /// Return whether this field has inner fields.
     ///
     /// ```
+    /// # use ron::meta::{Field, Fields};
+    ///
     /// let mut field = Field::empty();
     ///
     /// assert!(!field.has_fields());
@@ -94,6 +100,8 @@ impl Field {
     /// Set the inner fields of this field.
     ///
     /// ```
+    /// # use ron::meta::{Field, Fields};
+    ///
     /// let mut field = Field::empty();
     ///
     /// assert!(!field.has_fields());
@@ -114,11 +122,15 @@ impl Field {
     /// Ergonomic shortcut for building some inner fields.
     ///
     /// ```
-    /// let field = Field::empty().build_fields(|fields| {
+    /// # use ron::meta::Field;
+    ///
+    /// let mut field = Field::empty();
+    ///
+    /// field.build_fields(|fields| {
     ///     fields.field("inner field");
     /// });
     ///
-    /// assert!(field.fields().and_then(|fields| fields.contains("inner field")));
+    /// assert!(field.fields().is_some_and(|fields| fields.contains("inner field")));
     /// ```
     pub fn build_fields(&mut self, builder: impl FnOnce(&mut Fields)) -> &mut Self {
         let mut fields = Fields::default();
@@ -144,6 +156,8 @@ impl Fields {
     /// Return whether this field map contains no fields.
     ///
     /// ```
+    /// # use ron::meta::{Fields, Field};
+    ///
     /// let mut fields = Fields::default();
     ///
     /// assert!(fields.is_empty());
@@ -159,7 +173,9 @@ impl Fields {
     /// Return whether this field map contains a field with the given name.
     ///
     /// ```
-    /// let fields: Fields = [("a thing", Field::empty())].collect();
+    /// # use ron::meta::{Fields, Field};
+    ///
+    /// let fields: Fields = [("a thing", Field::empty())].into_iter().collect();
     ///
     /// assert!(fields.contains("a thing"));
     /// assert!(!fields.contains("not a thing"));
@@ -171,9 +187,11 @@ impl Fields {
     /// Get a reference to the field with the provided `name`, if it exists.
     ///
     /// ```
-    /// let fields: Fields = [("a thing", Field::empty())].collect();
+    /// # use ron::meta::{Fields, Field};
     ///
-    /// assert!(fields.get("a thing").is_some())
+    /// let fields: Fields = [("a thing", Field::empty())].into_iter().collect();
+    ///
+    /// assert!(fields.get("a thing").is_some());
     /// assert!(fields.get("not a thing").is_none());
     /// ```
     pub fn get(&self, name: impl AsRef<str>) -> Option<&Field> {
@@ -183,9 +201,11 @@ impl Fields {
     /// Get a mutable reference to the field with the provided `name`, if it exists.
     ///
     /// ```
-    /// let mut fields: Fields = [("a thing", Field::empty())].collect();
+    /// # use ron::meta::{Fields, Field};
     ///
-    /// assert!(fields.get_mut("a thing").is_some())
+    /// let mut fields: Fields = [("a thing", Field::empty())].into_iter().collect();
+    ///
+    /// assert!(fields.get_mut("a thing").is_some());
     /// assert!(fields.get_mut("not a thing").is_none());
     /// ```
     pub fn get_mut(&mut self, name: impl AsRef<str>) -> Option<&mut Field> {
@@ -195,10 +215,12 @@ impl Fields {
     /// Insert a field with the given name into the map.
     ///
     /// ```
+    /// # use ron::meta::{Fields, Field};
+    ///
     /// let mut fields = Fields::default();
     ///
-    /// assert!(fields.insert("field").is_none());
-    /// assert!(fields.insert("field").is_some());
+    /// assert!(fields.insert("field", Field::empty()).is_none());
+    /// assert!(fields.insert("field", Field::empty()).is_some());
     /// ```
     pub fn insert(&mut self, name: impl Into<String>, field: Field) -> Option<Field> {
         self.fields.insert(name.into(), field)
@@ -208,6 +230,8 @@ impl Fields {
     /// inserting an empty [`Field`] if it didn't exist.
     ///
     /// ```
+    /// # use ron::meta::Fields;
+    ///
     /// let mut fields = Fields::default();
     ///
     /// assert!(!fields.contains("thing"));
