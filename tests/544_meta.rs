@@ -45,19 +45,19 @@ fn serialize_field() {
     config
         .meta
         .field("age")
-        .with_meta("0@age (person) must be within range 0..256");
+        .with_meta("0@age (person)\nmust be within range 0..256");
     config
         .meta
         .field("knows")
-        .with_meta("0@knows (person) must be list of valid person indices");
+        .with_meta("0@knows (person)\nmust be list of valid person indices");
     config.meta.field("pet").build_fields(|fields| {
         // layer 1
         fields
             .field("age")
-            .with_meta("1@age (pet) must be valid range 0..256");
+            .with_meta("1@age (pet)\nmust be valid range 0..256");
         fields
             .field("kind")
-            .with_meta("1@kind (pet) must be `Isopod`");
+            .with_meta("1@kind (pet)\nmust be `Isopod`");
     });
 
     // provide meta for a field that doesn't exist;
@@ -71,25 +71,31 @@ fn serialize_field() {
         r#"[
     (
         name: "Alice",
-        /// 0@age (person) must be within range 0..256
+        /// 0@age (person)
+        /// must be within range 0..256
         age: 29,
-        /// 0@knows (person) must be list of valid person indices
+        /// 0@knows (person)
+        /// must be list of valid person indices
         knows: [
             1,
         ],
         pet: Some((
             name: "Herbert",
-            /// 1@age (pet) must be valid range 0..256
+            /// 1@age (pet)
+            /// must be valid range 0..256
             age: 7,
-            /// 1@kind (pet) must be `Isopod`
+            /// 1@kind (pet)
+            /// must be `Isopod`
             kind: Isopod,
         )),
     ),
     (
         name: "Bob",
-        /// 0@age (person) must be within range 0..256
+        /// 0@age (person)
+        /// must be within range 0..256
         age: 29,
-        /// 0@knows (person) must be list of valid person indices
+        /// 0@knows (person)
+        /// must be list of valid person indices
         knows: [
             0,
         ],
