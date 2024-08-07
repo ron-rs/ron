@@ -11,6 +11,7 @@ pub struct Field {
 
 impl Field {
     /// Create a new empty field metadata
+    #[must_use]
     pub const fn empty() -> Self {
         Self {
             meta: String::new(),
@@ -47,16 +48,19 @@ impl Field {
     }
 
     /// Get the metadata of this field
+    #[must_use]
     pub fn get_meta(&self) -> &str {
         self.meta.as_str()
     }
 
     /// Return whether this field has inner fields
+    #[must_use]
     pub fn has_fields(&self) -> bool {
         self.fields.is_some()
     }
 
     /// Get a reference to the inner fields of this field, if it has any
+    #[must_use]
     pub fn fields(&self) -> Option<&Fields> {
         self.fields.as_ref()
     }
@@ -75,6 +79,7 @@ pub struct Fields {
 
 impl Fields {
     /// Return a new, empty metadata field map
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -99,7 +104,7 @@ impl Fields {
 impl<K: Into<String>> FromIterator<(K, Field)> for Fields {
     fn from_iter<T: IntoIterator<Item = (K, Field)>>(iter: T) -> Self {
         Self {
-            fields: HashMap::from_iter(iter.into_iter().map(|(k, v)| (k.into(), v))),
+            fields: iter.into_iter().map(|(k, v)| (k.into(), v)).collect(),
         }
     }
 }

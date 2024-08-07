@@ -7,7 +7,7 @@ use unicode_ident::is_xid_continue;
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
-    meta::Fields,
+    meta::{Field, Fields},
     options::Options,
     parse::{is_ident_first_char, is_ident_raw_char, is_whitespace_char, LargeSInt, LargeUInt},
 };
@@ -1341,14 +1341,11 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
             if let Some((ref config, _)) = self.ser.pretty {
                 let mut iter = self.ser.field_memory.iter();
 
-                let name = iter.next().expect(
-                    "is always at least one, because we push one at the beginning of this function",
-                );
-
+                let init = iter.next().and_then(|name| config.meta.get_field(name));
                 let field = iter
-                    .try_fold(config.meta.get_field(name), |field, name| {
+                    .try_fold(init, |field, name| {
                         field
-                            .and_then(|field| field.fields())
+                            .and_then(Field::fields)
                             .map(|fields| fields.get_field(name))
                     })
                     .flatten();
