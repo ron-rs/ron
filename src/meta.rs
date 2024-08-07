@@ -64,6 +64,7 @@ impl Field {
     ///
     /// assert!(field.has_meta());
     /// ```
+    #[must_use]
     pub fn has_meta(&self) -> bool {
         !self.meta.is_empty()
     }
@@ -166,6 +167,7 @@ impl Fields {
     ///
     /// assert!(!fields.is_empty());
     /// ```
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.fields.is_empty()
     }
