@@ -20,55 +20,81 @@ fn serialize_field() {
         pet: Option<Pet>,
     }
 
-    let value = vec![
+    let value = (
         Person {
-            name: "Alice",
-            age: 29,
-            knows: vec![1],
-            pet: Some(Pet {
-                name: "Herbert",
-                age: 7,
-                kind: PetKind::Isopod,
-            }),
-        },
-        Person {
-            name: "Bob",
-            age: 29,
-            knows: vec![0],
+            name: "Walter",
+            age: 43,
+            knows: vec![0, 1],
             pet: None,
         },
-    ];
+        vec![
+            Person {
+                name: "Alice",
+                age: 29,
+                knows: vec![1],
+                pet: Some(Pet {
+                    name: "Herbert",
+                    age: 7,
+                    kind: PetKind::Isopod,
+                }),
+            },
+            Person {
+                name: "Bob",
+                age: 29,
+                knows: vec![0],
+                pet: None,
+            },
+        ],
+    );
 
     let mut config = ron::ser::PrettyConfig::default();
 
     // layer 0
     config
         .meta
+        .fields_mut()
         .field("age")
         .with_meta("0@age (person)\nmust be within range 0..256");
     config
         .meta
+        .fields_mut()
         .field("knows")
         .with_meta("0@knows (person)\nmust be list of valid person indices");
-    config.meta.field("pet").build_fields(|fields| {
-        // layer 1
-        fields
-            .field("age")
-            .with_meta("1@age (pet)\nmust be valid range 0..256");
-        fields
-            .field("kind")
-            .with_meta("1@kind (pet)\nmust be `Isopod`");
-    });
+    config
+        .meta
+        .fields_mut()
+        .field("pet")
+        .build_fields(|fields| {
+            // layer 1
+            fields
+                .field("age")
+                .with_meta("1@age (pet)\nmust be valid range 0..256");
+            fields
+                .field("kind")
+                .with_meta("1@kind (pet)\nmust be `Isopod`");
+        });
 
     // provide meta for a field that doesn't exist;
     // this should not end up anywhere in the final string
-    config.meta.field("0").with_meta("unreachable");
+    config.meta.fields_mut().field("0").with_meta("unreachable");
 
     let s = ron::ser::to_string_pretty(&value, config).unwrap();
 
     assert_eq!(
         s,
-        r#"[
+        r#"((
+    name: "Walter",
+    /// 0@age (person)
+    /// must be within range 0..256
+    age: 43,
+    /// 0@knows (person)
+    /// must be list of valid person indices
+    knows: [
+        0,
+        1,
+    ],
+    pet: None,
+), [
     (
         name: "Alice",
         /// 0@age (person)
@@ -101,6 +127,6 @@ fn serialize_field() {
         ],
         pet: None,
     ),
-]"#
+])"#
     );
 }

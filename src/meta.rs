@@ -2,6 +2,24 @@ use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct Meta {
+    fields: Fields,
+}
+
+impl Meta {
+    /// Get a reference to the named field position metadata.
+    #[must_use]
+    pub fn fields(&self) -> &Fields {
+        &self.fields
+    }
+
+    /// Get a mutable reference to the named field position metadata.
+    pub fn fields_mut(&mut self) -> &mut Fields {
+        &mut self.fields
+    }
+}
+
 /// The metadata and inner [Fields] of a field.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Field {
@@ -131,7 +149,7 @@ impl Field {
     ///     fields.field("inner field");
     /// });
     ///
-    /// assert!(field.fields().is_some_and(|fields| fields.contains("inner field")));
+    /// assert_eq!(field.fields().map(|fields| fields.contains("inner field")), Some(true));
     /// ```
     pub fn build_fields(&mut self, builder: impl FnOnce(&mut Fields)) -> &mut Self {
         let mut fields = Fields::default();

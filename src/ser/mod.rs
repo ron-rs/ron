@@ -7,7 +7,7 @@ use unicode_ident::is_xid_continue;
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
-    meta::{Field, Fields},
+    meta::{Field, Meta},
     options::Options,
     parse::{is_ident_first_char, is_ident_raw_char, is_whitespace_char, LargeSInt, LargeUInt},
 };
@@ -111,7 +111,7 @@ pub struct PrettyConfig {
     /// Enable explicit number type suffixes like `1u16`
     pub number_suffixes: bool,
     /// Additional metadata to serialize
-    pub meta: Fields,
+    pub meta: Meta,
 }
 
 impl PrettyConfig {
@@ -362,7 +362,7 @@ impl Default for PrettyConfig {
             compact_structs: false,
             compact_maps: false,
             number_suffixes: false,
-            meta: Fields::default(),
+            meta: Meta::default(),
         }
     }
 }
@@ -1341,7 +1341,7 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
             if let Some((ref config, _)) = self.ser.pretty {
                 let mut iter = self.ser.field_memory.iter();
 
-                let init = iter.next().and_then(|name| config.meta.get(name));
+                let init = iter.next().and_then(|name| config.meta.fields().get(name));
                 let field = iter
                     .try_fold(init, |field, name| {
                         field.and_then(Field::fields).map(|fields| fields.get(name))
