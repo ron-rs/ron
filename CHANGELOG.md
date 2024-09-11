@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breaking: Enforce that ron always writes valid UTF-8 ([#488](https://github.com/ron-rs/ron/pull/488))
 - Add convenient `Value::from` impls ([#498](https://github.com/ron-rs/ron/pull/498))
 - Add new extension `explicit_struct_names` which requires that struct names are included during deserialization ([#522](https://github.com/ron-rs/ron/pull/522))
+- Breaking: Change `PrettyConfig` so that `new_line`, `indentor` and `separator` are all `Cow<'static, str>` instead of `String` ([#546](https://github.com/ron-rs/ron/pull/546))
 
 ### Format Changes
 
