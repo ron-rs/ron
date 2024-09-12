@@ -4,7 +4,7 @@ use ron::ser::{to_string_pretty, PrettyConfig};
 fn small_array() {
     let arr = &[(), (), ()][..];
     assert_eq!(
-        to_string_pretty(&arr, PrettyConfig::new().new_line("\n".to_string())).unwrap(),
+        to_string_pretty(&arr, PrettyConfig::new().new_line("\n")).unwrap(),
         "[
     (),
     (),
@@ -14,9 +14,7 @@ fn small_array() {
     assert_eq!(
         to_string_pretty(
             &arr,
-            PrettyConfig::new()
-                .new_line("\n".to_string())
-                .compact_arrays(true)
+            PrettyConfig::new().new_line("\n").compact_arrays(true)
         )
         .unwrap(),
         "[(), (), ()]"
@@ -25,9 +23,9 @@ fn small_array() {
         to_string_pretty(
             &arr,
             PrettyConfig::new()
-                .new_line("\n".to_string())
+                .new_line("\n")
                 .compact_arrays(true)
-                .separator("".to_string())
+                .separator("")
         )
         .unwrap(),
         "[(),(),()]"
@@ -36,7 +34,7 @@ fn small_array() {
         to_string_pretty(
             &vec![(1, 2), (3, 4)],
             PrettyConfig::new()
-                .new_line("\n".to_string())
+                .new_line("\n")
                 .separate_tuple_members(true)
                 .compact_arrays(true)
         )

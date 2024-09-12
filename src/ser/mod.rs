@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 use serde::{ser, ser::Serialize};
 use serde_derive::{Deserialize, Serialize};
@@ -72,7 +72,7 @@ struct Pretty {
 /// let my_config = PrettyConfig::new()
 ///     .depth_limit(4)
 ///     // definitely superior (okay, just joking)
-///     .indentor("\t".to_owned());
+///     .indentor("\t");
 /// ```
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,11 +82,11 @@ pub struct PrettyConfig {
     /// Limit the pretty-ness up to the given depth.
     pub depth_limit: usize,
     /// New line string
-    pub new_line: String,
+    pub new_line: Cow<'static, str>,
     /// Indentation string
-    pub indentor: String,
+    pub indentor: Cow<'static, str>,
     /// Separator string
-    pub separator: String,
+    pub separator: Cow<'static, str>,
     // Whether to emit struct names
     pub struct_names: bool,
     /// Separate tuple members with indentation
@@ -138,8 +138,8 @@ impl PrettyConfig {
     ///
     /// Default: `\r\n` on Windows, `\n` otherwise
     #[must_use]
-    pub fn new_line(mut self, new_line: String) -> Self {
-        self.new_line = new_line;
+    pub fn new_line(mut self, new_line: impl Into<Cow<'static, str>>) -> Self {
+        self.new_line = new_line.into();
 
         self
     }
@@ -148,8 +148,8 @@ impl PrettyConfig {
     ///
     /// Default: 4 spaces
     #[must_use]
-    pub fn indentor(mut self, indentor: String) -> Self {
-        self.indentor = indentor;
+    pub fn indentor(mut self, indentor: impl Into<Cow<'static, str>>) -> Self {
+        self.indentor = indentor.into();
 
         self
     }
@@ -158,8 +158,8 @@ impl PrettyConfig {
     ///
     /// Default: 1 space
     #[must_use]
-    pub fn separator(mut self, separator: String) -> Self {
-        self.separator = separator;
+    pub fn separator(mut self, separator: impl Into<Cow<'static, str>>) -> Self {
+        self.separator = separator.into();
 
         self
     }
@@ -347,12 +347,12 @@ impl Default for PrettyConfig {
         PrettyConfig {
             depth_limit: usize::MAX,
             new_line: if cfg!(not(target_os = "windows")) {
-                String::from("\n")
+                Cow::Borrowed("\n")
             } else {
-                String::from("\r\n") // GRCOV_EXCL_LINE
+                Cow::Borrowed("\r\n") // GRCOV_EXCL_LINE
             },
-            indentor: String::from("    "),
-            separator: String::from(" "),
+            indentor: Cow::Borrowed("    "),
+            separator: Cow::Borrowed(" "),
             struct_names: false,
             separate_tuple_members: false,
             enumerate_arrays: false,

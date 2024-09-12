@@ -144,7 +144,7 @@ impl From<ArbitraryPrettyConfig> for PrettyConfig {
     fn from(arbitrary: ArbitraryPrettyConfig) -> Self {
         Self::default()
             .depth_limit((arbitrary.depth_limit % 16).into())
-            .indentor(String::from(" ")) // conserve some memory and time
+            .indentor(" ") // conserve some memory and time
             .struct_names(arbitrary.struct_names)
             .separate_tuple_members(arbitrary.separate_tuple_members)
             .enumerate_arrays(arbitrary.enumerate_arrays)
