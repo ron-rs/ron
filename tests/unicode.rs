@@ -39,31 +39,22 @@ fn test_file_invalid_unicode() {
 #[test]
 fn serialize_invalid_whitespace() {
     assert_eq!(
-        ron::ser::to_string_pretty(
-            &42,
-            ron::ser::PrettyConfig::default().new_line(String::from("a"))
-        )
-        .unwrap_err(),
+        ron::ser::to_string_pretty(&42, ron::ser::PrettyConfig::default().new_line("a"))
+            .unwrap_err(),
         Error::Message(String::from(
             "Invalid non-whitespace `PrettyConfig::new_line`"
         ))
     );
     assert_eq!(
-        ron::ser::to_string_pretty(
-            &42,
-            ron::ser::PrettyConfig::default().indentor(String::from("a"))
-        )
-        .unwrap_err(),
+        ron::ser::to_string_pretty(&42, ron::ser::PrettyConfig::default().indentor("a"))
+            .unwrap_err(),
         Error::Message(String::from(
             "Invalid non-whitespace `PrettyConfig::indentor`"
         ))
     );
     assert_eq!(
-        ron::ser::to_string_pretty(
-            &42,
-            ron::ser::PrettyConfig::default().separator(String::from("a"))
-        )
-        .unwrap_err(),
+        ron::ser::to_string_pretty(&42, ron::ser::PrettyConfig::default().separator("a"))
+            .unwrap_err(),
         Error::Message(String::from(
             "Invalid non-whitespace `PrettyConfig::separator`"
         ))
