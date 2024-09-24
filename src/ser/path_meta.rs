@@ -1,111 +1,106 @@
+//! Path-based metadata to serialize with a value.
+//!
+//! Path-based in this context means that the metadata is linked
+//! to the data in a relative and hierarchical fashion by tracking
+//! the current absolute path of the field being serialized.
+//!
+//! # Example
+//!
+//! ```
+//! # use ron::{ser::{PrettyConfig, path_meta::Field}};
+//!
+//! #[derive(serde::Serialize)]
+//! struct Creature {
+//!     seconds_since_existing: usize,
+//!     linked: Option<Box<Self>>,
+//! }
+//!
+//! let mut config = PrettyConfig::default();
+//!
+//! config
+//!     .path_meta
+//!     // The path meta defaults to no root structure,
+//!     // so we either provide a prebuilt one or initialize
+//!     // an empty one to build.
+//!     .get_or_insert_with(Field::empty)
+//!     .build_fields(|fields| {
+//!         fields
+//!             // Get or insert the named field
+//!             .field("seconds_since_existing")
+//!             .with_doc("Outer seconds_since_existing");
+//!         fields
+//!             .field("linked")
+//!             // Doc metadata is serialized preceded by three forward slashes and a space for each line
+//!             .with_doc("Optional.\nProvide another creature to be wrapped.")
+//!             // Even though it's another Creature, the fields have different paths, so they are addressed separately.
+//!             .build_fields(|fields| {
+//!                 fields
+//!                     .field("seconds_since_existing")
+//!                     .with_doc("Inner seconds_since_existing");
+//!             });
+//!     });
+//!
+//! let value = Creature {
+//!     seconds_since_existing: 0,
+//!     linked: Some(Box::new(Creature {
+//!         seconds_since_existing: 0,
+//!         linked: None,
+//!     })),
+//! };
+//!
+//! let s = ron::ser::to_string_pretty(&value, config).unwrap();
+//!
+//! assert_eq!(s, r#"(
+//!     /// Outer seconds_since_existing
+//!     seconds_since_existing: 0,
+//!     /// Optional.
+//!     /// Provide another creature to be wrapped.
+//!     linked: Some((
+//!         /// Inner seconds_since_existing
+//!         seconds_since_existing: 0,
+//!         linked: None,
+//!     )),
+//! )"#);
+//! ```
+//!
+//! # Identical paths
+//!
+//! Especially in enums and tuples it's possible for fields
+//! to share a path, thus being unable to be addressed separately.
+//!
+//! ```no_run
+//! enum Kind {
+//!     A {
+//!         field: (),
+//!     },  // ^
+//!         // cannot be addressed separately because they have the same path
+//!     B { // v
+//!         field: (),
+//!     },
+//! }
+//! ```
+//!
+//! ```no_run
+//! struct A {
+//!     field: (),
+//! }
+//!
+//! struct B {
+//!     field: (),
+//! }
+//!
+//! type Value = (
+//!     A,
+//!  // ^
+//!  // These are different types, but they share two fields with the same path: `buf` and `len`
+//!  // v
+//!     B,
+//! );
+//! ```
+
 use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
-
-/// Path-based metadata to serialize with a value.
-///
-/// Path-based in this context means that the metadata is linked
-/// to the data in a relative and hierarchical fashion by tracking
-/// the current absolute path of the field being serialized.
-///
-/// # Example
-///
-/// ```
-/// # use ron::{ser::PrettyConfig, meta::Field};
-///
-/// #[derive(serde::Serialize)]
-/// struct Creature {
-///     seconds_since_existing: usize,
-///     linked: Option<Box<Self>>,
-/// }
-///
-/// let mut config = PrettyConfig::default();
-///
-/// config
-///     .meta
-///     .field
-///     // The path meta defaults to no root structure,
-///     // so we either provide a prebuilt one or initialize
-///     // an empty one to build.
-///     .get_or_insert_with(Field::empty)
-///     .build_fields(|fields| {
-///         fields
-///             // Get or insert the named field
-///             .field("seconds_since_existing")
-///             .with_doc("Outer seconds_since_existing");
-///         fields
-///             .field("linked")
-///             // Doc metadata is serialized preceded by three forward slashes and a space for each line
-///             .with_doc("Optional.\nProvide another creature to be wrapped.")
-///             // Even though it's another Creature, the fields have different paths, so they are addressed separately.
-///             .build_fields(|fields| {
-///                 fields
-///                     .field("seconds_since_existing")
-///                     .with_doc("Inner seconds_since_existing");
-///             });
-///     });
-///
-/// let value = Creature {
-///     seconds_since_existing: 0,
-///     linked: Some(Box::new(Creature {
-///         seconds_since_existing: 0,
-///         linked: None,
-///     })),
-/// };
-///
-/// let s = ron::ser::to_string_pretty(&value, config).unwrap();
-///
-/// assert_eq!(s, r#"(
-///     /// Outer seconds_since_existing
-///     seconds_since_existing: 0,
-///     /// Optional.
-///     /// Provide another creature to be wrapped.
-///     linked: Some((
-///         /// Inner seconds_since_existing
-///         seconds_since_existing: 0,
-///         linked: None,
-///     )),
-/// )"#);
-/// ```
-///
-/// # Identical paths
-///
-/// Especially in enums and tuples it's possible for fields
-/// to share a path, thus being unable to be addressed separately.
-///
-/// ```no_run
-/// enum Kind {
-///     A {
-///         field: (),
-///     },  // ^
-///         // cannot be addressed separately because they have the same path
-///     B { // v
-///         field: (),
-///     },
-/// }
-/// ```
-///
-/// ```no_run
-/// struct A {
-///     field: (),
-/// }
-///
-/// struct B {
-///     field: (),
-/// }
-///
-/// type Value = (
-///     A,
-///  // ^
-///  // These are different types, but they share two fields with the same path: `buf` and `len`
-///  // v
-///     B,
-/// );
-/// ```
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct PathMeta {
-    pub field: Option<Field>,
-}
 
 /// The metadata and inner [`Fields`] of a field.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -149,7 +144,7 @@ impl Field {
     /// Set the documentation metadata of this field.
     ///
     /// ```
-    /// # use ron::meta::Field;
+    /// # use ron::ser::path_meta::Field;
     ///
     /// let mut field = Field::empty();
     ///
@@ -178,7 +173,7 @@ impl Field {
     /// Return whether this field has inner fields.
     ///
     /// ```
-    /// # use ron::meta::{Field, Fields};
+    /// # use ron::ser::path_meta::{Field, Fields};
     ///
     /// let mut field = Field::empty();
     ///
@@ -196,7 +191,7 @@ impl Field {
     /// Set the inner fields of this field.
     ///
     /// ```
-    /// # use ron::meta::{Field, Fields};
+    /// # use ron::ser::path_meta::{Field, Fields};
     ///
     /// let mut field = Field::empty();
     ///
@@ -218,7 +213,7 @@ impl Field {
     /// Ergonomic shortcut for building some inner fields.
     ///
     /// ```
-    /// # use ron::meta::Field;
+    /// # use ron::ser::path_meta::Field;
     ///
     /// let mut field = Field::empty();
     ///
@@ -252,7 +247,7 @@ impl Fields {
     /// Return whether this field map contains no fields.
     ///
     /// ```
-    /// # use ron::meta::{Fields, Field};
+    /// # use ron::ser::path_meta::{Fields, Field};
     ///
     /// let mut fields = Fields::default();
     ///
@@ -270,7 +265,7 @@ impl Fields {
     /// Return whether this field map contains a field with the given name.
     ///
     /// ```
-    /// # use ron::meta::{Fields, Field};
+    /// # use ron::ser::path_meta::{Fields, Field};
     ///
     /// let fields: Fields = [("a thing", Field::empty())].into_iter().collect();
     ///
@@ -284,7 +279,7 @@ impl Fields {
     /// Get a reference to the field with the provided `name`, if it exists.
     ///
     /// ```
-    /// # use ron::meta::{Fields, Field};
+    /// # use ron::ser::path_meta::{Fields, Field};
     ///
     /// let fields: Fields = [("a thing", Field::empty())].into_iter().collect();
     ///
@@ -298,7 +293,7 @@ impl Fields {
     /// Get a mutable reference to the field with the provided `name`, if it exists.
     ///
     /// ```
-    /// # use ron::meta::{Fields, Field};
+    /// # use ron::ser::path_meta::{Fields, Field};
     ///
     /// let mut fields: Fields = [("a thing", Field::empty())].into_iter().collect();
     ///
@@ -312,7 +307,7 @@ impl Fields {
     /// Insert a field with the given name into the map.
     ///
     /// ```
-    /// # use ron::meta::{Fields, Field};
+    /// # use ron::ser::path_meta::{Fields, Field};
     ///
     /// let mut fields = Fields::default();
     ///
@@ -326,7 +321,7 @@ impl Fields {
     /// Remove a field with the given name from the map.
     ///
     /// ```
-    /// # use ron::meta::{Fields, Field};
+    /// # use ron::ser::path_meta::{Fields, Field};
     ///
     /// let mut fields: Fields = [("a", Field::empty())].into_iter().collect();
     ///
@@ -341,7 +336,7 @@ impl Fields {
     /// inserting an empty [`Field`] if it didn't exist.
     ///
     /// ```
-    /// # use ron::meta::Fields;
+    /// # use ron::ser::path_meta::Fields;
     ///
     /// let mut fields = Fields::default();
     ///

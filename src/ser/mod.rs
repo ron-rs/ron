@@ -7,10 +7,11 @@ use unicode_ident::is_xid_continue;
 use crate::{
     error::{Error, Result},
     extensions::Extensions,
-    meta::PathMeta,
     options::Options,
     parse::{is_ident_first_char, is_ident_raw_char, is_whitespace_char, LargeSInt, LargeUInt},
 };
+
+pub mod path_meta;
 
 mod raw;
 #[cfg(test)]
@@ -111,7 +112,7 @@ pub struct PrettyConfig {
     /// Enable explicit number type suffixes like `1u16`
     pub number_suffixes: bool,
     /// Additional metadata to serialize
-    pub meta: PathMeta,
+    pub path_meta: Option<path_meta::Field>,
 }
 
 impl PrettyConfig {
@@ -362,7 +363,7 @@ impl Default for PrettyConfig {
             compact_structs: false,
             compact_maps: false,
             number_suffixes: false,
-            meta: PathMeta::default(),
+            path_meta: None,
         }
     }
 }
@@ -380,6 +381,15 @@ pub struct Serializer<W: fmt::Write> {
     recursion_limit: Option<usize>,
     // Tracks the number of opened implicit `Some`s, set to 0 on backtracking
     implicit_some_depth: usize,
+}
+
+fn indent<W: fmt::Write>(mut output: W, config: &PrettyConfig, pretty: &Pretty) -> fmt::Result {
+    if pretty.indent <= config.depth_limit {
+        for _ in 0..pretty.indent {
+            output.write_str(&config.indentor)?;
+        }
+    }
+    Ok(())
 }
 
 impl<W: fmt::Write> Serializer<W> {
@@ -493,16 +503,16 @@ impl<W: fmt::Write> Serializer<W> {
         Ok(())
     }
 
-    fn indent(&mut self) -> fmt::Result {
-        if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent <= config.depth_limit {
-                for _ in 0..pretty.indent {
-                    self.output.write_str(&config.indentor)?;
-                }
-            }
-        }
-        Ok(())
-    }
+    // fn indent(&mut self) -> fmt::Result {
+    //     if let Some((ref config, ref pretty)) = self.pretty {
+    //         if pretty.indent <= config.depth_limit {
+    //             for _ in 0..pretty.indent {
+    //                 self.output.write_str(&config.indentor)?;
+    //             }
+    //         }
+    //     }
+    //     Ok(())
+    // }
 
     fn end_indent(&mut self) -> fmt::Result {
         if let Some((ref config, ref mut pretty)) = self.pretty {
@@ -1126,7 +1136,9 @@ impl<'a, W: fmt::Write> ser::SerializeSeq for Compound<'a, W> {
         }
 
         if !self.ser.compact_arrays() {
-            self.ser.indent()?;
+            if let Some((ref config, ref pretty)) = self.ser.pretty {
+                indent(&mut self.ser.output, config, pretty)?;
+            }
         }
 
         if let Some((ref mut config, ref mut pretty)) = self.ser.pretty {
@@ -1183,7 +1195,9 @@ impl<'a, W: fmt::Write> ser::SerializeTuple for Compound<'a, W> {
         }
 
         if self.ser.separate_tuple_members() {
-            self.ser.indent()?;
+            if let Some((ref config, ref pretty)) = self.ser.pretty {
+                indent(&mut self.ser.output, config, pretty)?;
+            }
         }
 
         guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
@@ -1268,7 +1282,9 @@ impl<'a, W: fmt::Write> ser::SerializeMap for Compound<'a, W> {
         }
 
         if !self.ser.compact_maps() {
-            self.ser.indent()?;
+            if let Some((ref config, ref pretty)) = self.ser.pretty {
+                indent(&mut self.ser.output, config, pretty)?;
+            }
         }
 
         guard_recursion! { self.ser => key.serialize(&mut *self.ser) }
@@ -1318,9 +1334,9 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         T: ?Sized + Serialize,
     {
         let mut restore_field = self.ser.pretty.as_mut().and_then(|(config, _)| {
-            config.meta.field.take().map(|mut field| {
+            config.path_meta.take().map(|mut field| {
                 if let Some(fields) = field.fields_mut() {
-                    config.meta.field = fields.remove(key);
+                    config.path_meta = fields.remove(key);
                 }
                 field
             })
@@ -1341,27 +1357,15 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         }
 
         if !self.ser.compact_structs() {
-            self.ser.indent()?;
+            if let Some((ref config, ref pretty)) = self.ser.pretty {
+                indent(&mut self.ser.output, config, pretty)?;
 
-            if let Some((ref config, _)) = self.ser.pretty {
-                if let Some(ref field) = config.meta.field {
-                    // TODO: `self.ser.indent()` borrows the entire serializer mutably,
-                    // consider constraining the signature in the future to avoid this heap allocation.
-                    let doc_lines: Vec<_> = field
-                        .doc()
-                        .lines()
-                        .map(|line| {
-                            let mut buf = String::with_capacity(line.len() + 5);
-                            buf.push_str("/// ");
-                            buf.push_str(line);
-                            buf.push('\n');
-                            buf
-                        })
-                        .collect();
-
-                    for doc_line in doc_lines {
-                        self.ser.output.write_str(&doc_line)?;
-                        self.ser.indent()?;
+                if let Some(ref field) = config.path_meta {
+                    for doc_line in field.doc().lines() {
+                        self.ser.output.write_str("/// ")?;
+                        self.ser.output.write_str(doc_line)?;
+                        self.ser.output.write_char('\n')?;
+                        indent(&mut self.ser.output, config, pretty)?;
                     }
                 }
             }
@@ -1377,9 +1381,9 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
 
         if let Some((ref mut config, _)) = self.ser.pretty {
-            std::mem::swap(&mut config.meta.field, &mut restore_field);
+            std::mem::swap(&mut config.path_meta, &mut restore_field);
 
-            if let Some(ref mut field) = config.meta.field {
+            if let Some(ref mut field) = config.path_meta {
                 if let Some(fields) = field.fields_mut() {
                     if let Some(restore_field) = restore_field {
                         fields.insert(key, restore_field);

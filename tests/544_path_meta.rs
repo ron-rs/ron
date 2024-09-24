@@ -1,4 +1,4 @@
-use ron::{meta::Field, ser::PrettyConfig};
+use ron::ser::{path_meta::Field, PrettyConfig};
 
 #[test]
 fn serialize_field() {
@@ -52,8 +52,7 @@ fn serialize_field() {
     let mut config = PrettyConfig::default();
 
     config
-        .meta
-        .field
+        .path_meta
         .get_or_insert_with(Field::empty)
         .build_fields(|fields| {
             fields
