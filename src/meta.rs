@@ -2,28 +2,115 @@ use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
 
+/// Path-based metadata to serialize with a value.
+///
+/// Path-based in this context means that the metadata is linked
+/// to the data in a relative and hierarchical fashion by tracking
+/// the current absolute path of the field being serialized.
+///
+/// # Example
+///
+/// ```
+/// # use ron::{ser::PrettyConfig, meta::Field};
+///
+/// #[derive(serde::Serialize)]
+/// struct Creature {
+///     seconds_since_existing: usize,
+///     linked: Option<Box<Self>>,
+/// }
+///
+/// let mut config = PrettyConfig::default();
+///
+/// config
+///     .meta
+///     .field
+///     // The path meta defaults to no root structure,
+///     // so we either provide a prebuilt one or initialize
+///     // an empty one to build.
+///     .get_or_insert_with(Field::empty)
+///     .build_fields(|fields| {
+///         fields
+///             // Get or insert the named field
+///             .field("seconds_since_existing")
+///             .with_doc("Outer seconds_since_existing");
+///         fields
+///             .field("linked")
+///             // Doc metadata is serialized preceded by three forward slashes and a space for each line
+///             .with_doc("Optional.\nProvide another creature to be wrapped.")
+///             // Even though it's another Creature, the fields have different paths, so they are addressed separately.
+///             .build_fields(|fields| {
+///                 fields
+///                     .field("seconds_since_existing")
+///                     .with_doc("Inner seconds_since_existing");
+///             });
+///     });
+///
+/// let value = Creature {
+///     seconds_since_existing: 0,
+///     linked: Some(Box::new(Creature {
+///         seconds_since_existing: 0,
+///         linked: None,
+///     })),
+/// };
+///
+/// let s = ron::ser::to_string_pretty(&value, config).unwrap();
+///
+/// assert_eq!(s, r#"(
+///     /// Outer seconds_since_existing
+///     seconds_since_existing: 0,
+///     /// Optional.
+///     /// Provide another creature to be wrapped.
+///     linked: Some((
+///         /// Inner seconds_since_existing
+///         seconds_since_existing: 0,
+///         linked: None,
+///     )),
+/// )"#);
+/// ```
+///
+/// # Identical paths
+///
+/// Especially in enums and tuples it's possible for fields
+/// to share a path, thus being unable to be addressed separately.
+///
+/// ```no_run
+/// enum Kind {
+///     A {
+///         field: (),
+///     },  // ^
+///         // cannot be addressed separately because they have the same path
+///     B { // v
+///         field: (),
+///     },
+/// }
+/// ```
+///
+/// ```no_run
+/// struct A {
+///     field: (),
+/// }
+///
+/// struct B {
+///     field: (),
+/// }
+///
+/// type Value = (
+///     A,
+///  // ^
+///  // These are different types, but they share two fields with the same path: `buf` and `len`
+///  // v
+///     B,
+/// );
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct Meta {
-    fields: Fields,
+pub struct PathMeta {
+    pub field: Option<Field>,
 }
 
-impl Meta {
-    /// Get a reference to the named field position metadata.
-    #[must_use]
-    pub fn fields(&self) -> &Fields {
-        &self.fields
-    }
-
-    /// Get a mutable reference to the named field position metadata.
-    pub fn fields_mut(&mut self) -> &mut Fields {
-        &mut self.fields
-    }
-}
-
-/// The metadata and inner [Fields] of a field.
+/// The metadata and inner [`Fields`] of a field.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Field {
-    meta: String,
+    doc: String,
     fields: Option<Fields>,
 }
 
@@ -32,62 +119,52 @@ impl Field {
     #[must_use]
     pub const fn empty() -> Self {
         Self {
-            meta: String::new(),
+            doc: String::new(),
             fields: None,
         }
     }
 
-    /// Create a new field metadata.
-    pub fn new(meta: impl Into<String>, fields: Option<Fields>) -> Self {
+    /// Create a new field metadata from parts.
+    pub fn new(doc: impl Into<String>, fields: Option<Fields>) -> Self {
         Self {
-            meta: meta.into(),
+            doc: doc.into(),
             fields,
         }
     }
 
-    /// Get the metadata of this field.
+    /// Get a shared reference to the documentation metadata of this field.
+    #[inline]
     #[must_use]
-    pub fn meta(&self) -> &str {
-        &self.meta
+    pub fn doc(&self) -> &str {
+        self.doc.as_str()
     }
 
-    /// Set the metadata of this field.
+    /// Get a mutable reference to the documentation metadata of this field.
+    #[inline]
+    #[must_use]
+    pub fn doc_mut(&mut self) -> &mut String {
+        &mut self.doc
+    }
+
+    /// Set the documentation metadata of this field.
     ///
     /// ```
     /// # use ron::meta::Field;
     ///
     /// let mut field = Field::empty();
     ///
-    /// assert_eq!(field.meta(), "");
+    /// assert_eq!(field.doc(), "");
     ///
-    /// field.with_meta("some meta");
+    /// field.with_doc("some meta");
     ///
-    /// assert_eq!(field.meta(), "some meta");
+    /// assert_eq!(field.doc(), "some meta");
     /// ```
-    pub fn with_meta(&mut self, meta: impl Into<String>) -> &mut Self {
-        self.meta = meta.into();
+    pub fn with_doc(&mut self, doc: impl Into<String>) -> &mut Self {
+        self.doc = doc.into();
         self
     }
 
-    /// Return whether the Field has metadata.
-    ///
-    /// ```
-    /// # use ron::meta::Field;
-    ///
-    /// let mut field = Field::empty();
-    ///
-    /// assert!(!field.has_meta());
-    ///
-    /// field.with_meta("some");
-    ///
-    /// assert!(field.has_meta());
-    /// ```
-    #[must_use]
-    pub fn has_meta(&self) -> bool {
-        !self.meta.is_empty()
-    }
-
-    /// Get a reference to the inner fields of this field, if it has any.
+    /// Get a shared reference to the inner fields of this field, if it has any.
     #[must_use]
     pub fn fields(&self) -> Option<&Fields> {
         self.fields.as_ref()
@@ -159,7 +236,7 @@ impl Field {
     }
 }
 
-/// Mapping of names to [Field]s.
+/// Mapping of names to [`Field`]s.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Fields {
     fields: HashMap<String, Field>,
@@ -244,6 +321,20 @@ impl Fields {
     /// ```
     pub fn insert(&mut self, name: impl Into<String>, field: Field) -> Option<Field> {
         self.fields.insert(name.into(), field)
+    }
+
+    /// Remove a field with the given name from the map.
+    ///
+    /// ```
+    /// # use ron::meta::{Fields, Field};
+    ///
+    /// let mut fields: Fields = [("a", Field::empty())].into_iter().collect();
+    ///
+    /// assert_eq!(fields.remove("a"), Some(Field::empty()));
+    /// assert_eq!(fields.remove("a"), None);
+    /// ```
+    pub fn remove(&mut self, name: impl AsRef<str>) -> Option<Field> {
+        self.fields.remove(name.as_ref())
     }
 
     /// Get a mutable reference to the field with the provided `name`,

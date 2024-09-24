@@ -1,3 +1,5 @@
+use ron::{meta::Field, ser::PrettyConfig};
+
 #[test]
 fn serialize_field() {
     #[derive(serde::Serialize)]
@@ -47,36 +49,32 @@ fn serialize_field() {
         ],
     );
 
-    let mut config = ron::ser::PrettyConfig::default();
+    let mut config = PrettyConfig::default();
 
-    // layer 0
     config
         .meta
-        .fields_mut()
-        .field("age")
-        .with_meta("0@age (person)\nmust be within range 0..256");
-    config
-        .meta
-        .fields_mut()
-        .field("knows")
-        .with_meta("0@knows (person)\nmust be list of valid person indices");
-    config
-        .meta
-        .fields_mut()
-        .field("pet")
+        .field
+        .get_or_insert_with(Field::empty)
         .build_fields(|fields| {
-            // layer 1
             fields
                 .field("age")
-                .with_meta("1@age (pet)\nmust be valid range 0..256");
+                .with_doc("0@age (person)\nmust be within range 0..256");
             fields
-                .field("kind")
-                .with_meta("1@kind (pet)\nmust be `Isopod`");
-        });
+                .field("knows")
+                .with_doc("0@knows (person)\nmust be list of valid person indices");
+            fields.field("pet").build_fields(|fields| {
+                fields
+                    .field("age")
+                    .with_doc("1@age (pet)\nmust be valid range 0..256");
+                fields
+                    .field("kind")
+                    .with_doc("1@kind (pet)\nmust be `Isopod`");
+            });
 
-    // provide meta for a field that doesn't exist;
-    // this should not end up anywhere in the final string
-    config.meta.fields_mut().field("0").with_meta("unreachable");
+            // provide meta for a field that doesn't exist;
+            // this should not end up anywhere in the final string
+            fields.field("0").with_doc("unreachable");
+        });
 
     let s = ron::ser::to_string_pretty(&value, config).unwrap();
 
