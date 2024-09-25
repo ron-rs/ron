@@ -11,6 +11,8 @@ use crate::{
     parse::{is_ident_first_char, is_ident_raw_char, is_whitespace_char, LargeSInt, LargeUInt},
 };
 
+pub mod path_meta;
+
 mod raw;
 #[cfg(test)]
 mod tests;
@@ -109,6 +111,8 @@ pub struct PrettyConfig {
     pub compact_maps: bool,
     /// Enable explicit number type suffixes like `1u16`
     pub number_suffixes: bool,
+    /// Additional path-based field metadata to serialize
+    pub path_meta: Option<path_meta::Field>,
 }
 
 impl PrettyConfig {
@@ -359,6 +363,7 @@ impl Default for PrettyConfig {
             compact_structs: false,
             compact_maps: false,
             number_suffixes: false,
+            path_meta: None,
         }
     }
 }
@@ -376,6 +381,15 @@ pub struct Serializer<W: fmt::Write> {
     recursion_limit: Option<usize>,
     // Tracks the number of opened implicit `Some`s, set to 0 on backtracking
     implicit_some_depth: usize,
+}
+
+fn indent<W: fmt::Write>(output: &mut W, config: &PrettyConfig, pretty: &Pretty) -> fmt::Result {
+    if pretty.indent <= config.depth_limit {
+        for _ in 0..pretty.indent {
+            output.write_str(&config.indentor)?;
+        }
+    }
+    Ok(())
 }
 
 impl<W: fmt::Write> Serializer<W> {
@@ -491,11 +505,7 @@ impl<W: fmt::Write> Serializer<W> {
 
     fn indent(&mut self) -> fmt::Result {
         if let Some((ref config, ref pretty)) = self.pretty {
-            if pretty.indent <= config.depth_limit {
-                for _ in 0..pretty.indent {
-                    self.output.write_str(&config.indentor)?;
-                }
-            }
+            indent(&mut self.output, config, pretty)?;
         }
         Ok(())
     }
@@ -1313,6 +1323,15 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
     where
         T: ?Sized + Serialize,
     {
+        let mut restore_field = self.ser.pretty.as_mut().and_then(|(config, _)| {
+            config.path_meta.take().map(|mut field| {
+                if let Some(fields) = field.fields_mut() {
+                    config.path_meta = fields.remove(key);
+                }
+                field
+            })
+        });
+
         if let State::First = self.state {
             self.state = State::Rest;
         } else {
@@ -1328,7 +1347,18 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         }
 
         if !self.ser.compact_structs() {
-            self.ser.indent()?;
+            if let Some((ref config, ref pretty)) = self.ser.pretty {
+                indent(&mut self.ser.output, config, pretty)?;
+
+                if let Some(ref field) = config.path_meta {
+                    for doc_line in field.doc().lines() {
+                        self.ser.output.write_str("/// ")?;
+                        self.ser.output.write_str(doc_line)?;
+                        self.ser.output.write_char('\n')?;
+                        indent(&mut self.ser.output, config, pretty)?;
+                    }
+                }
+            }
         }
 
         self.ser.write_identifier(key)?;
@@ -1339,6 +1369,18 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         }
 
         guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
+
+        if let Some((ref mut config, _)) = self.ser.pretty {
+            std::mem::swap(&mut config.path_meta, &mut restore_field);
+
+            if let Some(ref mut field) = config.path_meta {
+                if let Some(fields) = field.fields_mut() {
+                    if let Some(restore_field) = restore_field {
+                        fields.insert(key, restore_field);
+                    }
+                }
+            }
+        };
 
         Ok(())
     }
@@ -1360,6 +1402,7 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         if !self.newtype_variant {
             self.ser.output.write_char(')')?;
         }
+
         Ok(())
     }
 }
