@@ -111,7 +111,7 @@ pub struct PrettyConfig {
     pub compact_maps: bool,
     /// Enable explicit number type suffixes like `1u16`
     pub number_suffixes: bool,
-    /// Additional metadata to serialize
+    /// Additional path-based field metadata to serialize
     pub path_meta: Option<path_meta::Field>,
 }
 
