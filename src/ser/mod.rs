@@ -383,7 +383,7 @@ pub struct Serializer<W: fmt::Write> {
     implicit_some_depth: usize,
 }
 
-fn indent<W: fmt::Write>(mut output: W, config: &PrettyConfig, pretty: &Pretty) -> fmt::Result {
+fn indent<W: fmt::Write>(output: &mut W, config: &PrettyConfig, pretty: &Pretty) -> fmt::Result {
     if pretty.indent <= config.depth_limit {
         for _ in 0..pretty.indent {
             output.write_str(&config.indentor)?;
@@ -499,6 +499,13 @@ impl<W: fmt::Write> Serializer<W> {
                     self.output.write_str(&config.new_line)?;
                 }
             }
+        }
+        Ok(())
+    }
+
+    fn indent(&mut self) -> fmt::Result {
+        if let Some((ref config, ref pretty)) = self.pretty {
+            indent(&mut self.output, config, pretty)?;
         }
         Ok(())
     }
@@ -1125,9 +1132,7 @@ impl<'a, W: fmt::Write> ser::SerializeSeq for Compound<'a, W> {
         }
 
         if !self.ser.compact_arrays() {
-            if let Some((ref config, ref pretty)) = self.ser.pretty {
-                indent(&mut self.ser.output, config, pretty)?;
-            }
+            self.ser.indent()?;
         }
 
         if let Some((ref mut config, ref mut pretty)) = self.ser.pretty {
@@ -1184,9 +1189,7 @@ impl<'a, W: fmt::Write> ser::SerializeTuple for Compound<'a, W> {
         }
 
         if self.ser.separate_tuple_members() {
-            if let Some((ref config, ref pretty)) = self.ser.pretty {
-                indent(&mut self.ser.output, config, pretty)?;
-            }
+            self.ser.indent()?;
         }
 
         guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
@@ -1271,9 +1274,7 @@ impl<'a, W: fmt::Write> ser::SerializeMap for Compound<'a, W> {
         }
 
         if !self.ser.compact_maps() {
-            if let Some((ref config, ref pretty)) = self.ser.pretty {
-                indent(&mut self.ser.output, config, pretty)?;
-            }
+            self.ser.indent()?;
         }
 
         guard_recursion! { self.ser => key.serialize(&mut *self.ser) }
