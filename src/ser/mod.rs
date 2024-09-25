@@ -503,17 +503,6 @@ impl<W: fmt::Write> Serializer<W> {
         Ok(())
     }
 
-    // fn indent(&mut self) -> fmt::Result {
-    //     if let Some((ref config, ref pretty)) = self.pretty {
-    //         if pretty.indent <= config.depth_limit {
-    //             for _ in 0..pretty.indent {
-    //                 self.output.write_str(&config.indentor)?;
-    //             }
-    //         }
-    //     }
-    //     Ok(())
-    // }
-
     fn end_indent(&mut self) -> fmt::Result {
         if let Some((ref config, ref mut pretty)) = self.pretty {
             if pretty.indent <= config.depth_limit {

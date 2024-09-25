@@ -7,7 +7,7 @@
 //! # Example
 //!
 //! ```
-//! # use ron::{ser::{PrettyConfig, path_meta::Field}};
+//! # use ron::ser::{PrettyConfig, path_meta::Field};
 //!
 //! #[derive(serde::Serialize)]
 //! struct Creature {
@@ -92,7 +92,7 @@
 //! type Value = (
 //!     A,
 //!  // ^
-//!  // These are different types, but they share two fields with the same path: `buf` and `len`
+//!  // These are different types, but they share the path `field`
 //!  // v
 //!     B,
 //! );
