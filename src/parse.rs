@@ -548,13 +548,22 @@ impl<'a> Parser<'a> {
         &mut self,
         newtype: NewtypeMode,
         tuple: TupleMode,
+        has_name: bool,
     ) -> Result<StructType> {
         fn check_struct_type_inner(
             parser: &mut Parser,
             newtype: NewtypeMode,
             tuple: TupleMode,
+            has_name: bool,
         ) -> Result<StructType> {
-            if matches!(newtype, NewtypeMode::NoParensMeanUnit) && !parser.consume_char('(') {
+            let open_brace = parser.check_char('{');
+
+            if matches!(newtype, NewtypeMode::NoParensMeanUnit)
+                && !parser.consume_char('(')
+                && !(parser.exts.contains(Extensions::BRACED_STRUCTS)
+                    && has_name
+                    && parser.consume_char('{'))
+            {
                 return Ok(StructType::Unit);
             }
 
@@ -567,20 +576,27 @@ impl<'a> Parser<'a> {
                 return Ok(StructType::EmptyTuple);
             }
 
+            // Check for `Ident {}` which is a braced struct
+            if matches!(newtype, NewtypeMode::NoParensMeanUnit)
+                && parser.exts.contains(Extensions::BRACED_STRUCTS)
+                && has_name
+                && open_brace
+                && parser.check_char('}')
+            {
+                return Ok(StructType::Named);
+            }
+
             if parser.skip_identifier().is_some() {
                 parser.skip_ws()?;
 
                 match parser.peek_char() {
                     // Definitely a struct with named fields
-                    Some(':') => {
-                        return if parser.exts.contains(Extensions::BRACED_STRUCTS) {
-                            Err(Error::ExpectedStructLike)
-                        } else {
-                            Ok(StructType::Named)
-                        };
-                    }
-                    // Definitely a braced struct with named fields
-                    Some('{') if parser.exts.contains(Extensions::BRACED_STRUCTS) => {
+                    Some(':') => return Ok(StructType::Named),
+                    // Definitely a braced struct inside a newtype
+                    Some('{')
+                        if matches!(newtype, NewtypeMode::InsideNewtype)
+                            && parser.exts.contains(Extensions::BRACED_STRUCTS) =>
+                    {
                         return Ok(StructType::Named)
                     }
                     // Definitely a tuple-like struct with fields
@@ -654,7 +670,7 @@ impl<'a> Parser<'a> {
         // Create a temporary working copy
         let backup_cursor = self.cursor;
 
-        let result = check_struct_type_inner(self, newtype, tuple);
+        let result = check_struct_type_inner(self, newtype, tuple, has_name);
 
         if result.is_ok() {
             // Revert the parser to before the struct type check

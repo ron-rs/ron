@@ -176,14 +176,6 @@ impl<'de> Deserializer<'de> {
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
 
-        if !is_serde_content
-            && ident.is_some()
-            && self.extensions().contains(Extensions::BRACED_STRUCTS)
-        {
-            // giving no name results in worse errors but is necessary here
-            return self.handle_struct_after_name("", visitor);
-        }
-
         match (
             self.parser.check_struct_type(
                 NewtypeMode::NoParensMeanUnit,
@@ -192,6 +184,7 @@ impl<'de> Deserializer<'de> {
                 } else {
                     TupleMode::ImpreciseTupleOrNewtype // Tuple and NewtypeOrTuple match equally
                 },
+                ident.is_some(),
             )?,
             ident,
         ) {
@@ -328,10 +321,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             }
 
             #[allow(clippy::wildcard_in_or_patterns)]
-            match self
-                .parser
-                .check_struct_type(NewtypeMode::InsideNewtype, TupleMode::DifferentiateNewtype)?
-            {
+            match self.parser.check_struct_type(
+                NewtypeMode::InsideNewtype,
+                TupleMode::DifferentiateNewtype,
+                false,
+            )? {
                 StructType::Named => {
                     // newtype variant wraps a named struct
                     // giving no name results in worse errors but is necessary here
