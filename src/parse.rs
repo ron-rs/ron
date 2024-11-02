@@ -573,11 +573,11 @@ impl<'a> Parser<'a> {
                 match parser.peek_char() {
                     // Definitely a struct with named fields
                     Some(':') => {
-                        if parser.exts.contains(Extensions::BRACED_STRUCTS) {
-                            return Err(Error::ExpectedStructLike);
+                        return if parser.exts.contains(Extensions::BRACED_STRUCTS) {
+                            Err(Error::ExpectedStructLike)
                         } else {
-                            return Ok(StructType::Named);
-                        }
+                            Ok(StructType::Named)
+                        };
                     }
                     // Definitely a braced struct with named fields
                     Some('{') if parser.exts.contains(Extensions::BRACED_STRUCTS) => {

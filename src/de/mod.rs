@@ -259,10 +259,10 @@ impl<'de> Deserializer<'de> {
                         .map_err(|err| {
                             struct_error_name(
                                 err,
-                                if !name_for_pretty_errors_only.is_empty() {
-                                    Some(name_for_pretty_errors_only)
-                                } else {
+                                if name_for_pretty_errors_only.is_empty() {
                                     None
+                                } else {
+                                    Some(name_for_pretty_errors_only)
                                 },
                             )
                         })?
