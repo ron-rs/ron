@@ -11,6 +11,7 @@ bitflags::bitflags! {
         ///
         /// During deserialization, this extension requires that structs' names are stated explicitly.
         const EXPLICIT_STRUCT_NAMES = 0x8;
+        const BRACED_STRUCTS = 0x10;
     }
 }
 // GRCOV_EXCL_STOP

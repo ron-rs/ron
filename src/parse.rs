@@ -572,7 +572,17 @@ impl<'a> Parser<'a> {
 
                 match parser.peek_char() {
                     // Definitely a struct with named fields
-                    Some(':') => return Ok(StructType::Named),
+                    Some(':') => {
+                        if parser.exts.contains(Extensions::BRACED_STRUCTS) {
+                            return Err(Error::ExpectedStructLike);
+                        } else {
+                            return Ok(StructType::Named);
+                        }
+                    }
+                    // Definitely a braced struct with named fields
+                    Some('{') if parser.exts.contains(Extensions::BRACED_STRUCTS) => {
+                        return Ok(StructType::Named)
+                    }
                     // Definitely a tuple-like struct with fields
                     Some(',') => {
                         parser.skip_next_char();
@@ -668,7 +678,9 @@ impl<'a> Parser<'a> {
 
     pub fn consume_struct_name(&mut self, ident: &'static str) -> Result<bool> {
         if self.check_ident("") {
-            if self.exts.contains(Extensions::EXPLICIT_STRUCT_NAMES) {
+            if self.exts.contains(Extensions::EXPLICIT_STRUCT_NAMES)
+                || self.exts.contains(Extensions::BRACED_STRUCTS)
+            {
                 return Err(Error::ExpectedStructName(ident.to_string()));
             }
 

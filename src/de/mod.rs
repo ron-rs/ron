@@ -176,6 +176,21 @@ impl<'de> Deserializer<'de> {
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
 
+        if let Some(ident) = ident {
+            if is_serde_content {
+                // serde's Content type uses a singleton map encoding for enums
+                return visitor.visit_map(SerdeEnumContent {
+                    de: self,
+                    ident: Some(ident),
+                });
+            }
+
+            if self.extensions().contains(Extensions::BRACED_STRUCTS) {
+                // giving no name results in worse errors but is necessary here
+                return self.handle_struct_after_name("", visitor);
+            }
+        }
+
         match (
             self.parser.check_struct_type(
                 NewtypeMode::NoParensMeanUnit,
@@ -192,13 +207,6 @@ impl<'de> Deserializer<'de> {
                 visitor.visit_str(ident)
             }
             (StructType::Unit, _) => visitor.visit_unit(),
-            (_, Some(ident)) if is_serde_content => {
-                // serde's Content type uses a singleton map encoding for enums
-                visitor.visit_map(SerdeEnumContent {
-                    de: self,
-                    ident: Some(ident),
-                })
-            }
             (StructType::Named, _) => {
                 // giving no name results in worse errors but is necessary here
                 self.handle_struct_after_name("", visitor)
@@ -241,7 +249,38 @@ impl<'de> Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.newtype_variant || self.parser.consume_char('(') {
+        if self.extensions().contains(Extensions::BRACED_STRUCTS) {
+            self.newtype_variant = false;
+
+            if self.parser.consume_char('{') {
+                let value = guard_recursion! { self =>
+                    visitor
+                        .visit_map(CommaSeparated::new(Terminator::BracedStruct, self))
+                        .map_err(|err| {
+                            struct_error_name(
+                                err,
+                                if !name_for_pretty_errors_only.is_empty() {
+                                    Some(name_for_pretty_errors_only)
+                                } else {
+                                    None
+                                },
+                            )
+                        })?
+                };
+
+                self.parser.skip_ws()?;
+
+                if self.parser.consume_char('}') {
+                    Ok(value)
+                } else {
+                    Err(Error::ExpectedStructLikeEnd)
+                }
+            } else if name_for_pretty_errors_only.is_empty() {
+                Err(Error::ExpectedStructLike)
+            } else {
+                Err(Error::ExpectedNamedStructLike(name_for_pretty_errors_only))
+            }
+        } else if self.newtype_variant || self.parser.consume_char('(') {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
@@ -719,6 +758,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        if self.extensions().contains(Extensions::BRACED_STRUCTS) {
+            self.newtype_variant = false;
+        }
+
         if !self.newtype_variant {
             self.parser.consume_struct_name(name)?;
         }
@@ -778,13 +821,14 @@ enum Terminator {
     MapAsStruct,
     Tuple,
     Struct,
+    BracedStruct,
     Seq,
 }
 
 impl Terminator {
     fn as_char(&self) -> char {
         match self {
-            Terminator::Map | Terminator::MapAsStruct => '}',
+            Terminator::Map | Terminator::MapAsStruct | Terminator::BracedStruct => '}',
             Terminator::Tuple | Terminator::Struct => ')',
             Terminator::Seq => ']',
         }
@@ -856,7 +900,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
                 std::any::type_name::<K::Value>() == SERDE_TAG_KEY_CANARY;
 
             match self.terminator {
-                Terminator::Struct => guard_recursion! { self.de =>
+                Terminator::Struct | Terminator::BracedStruct => guard_recursion! { self.de =>
                     seed.deserialize(&mut id::Deserializer::new(&mut *self.de, false)).map(Some)
                 },
                 Terminator::MapAsStruct => guard_recursion! { self.de =>
