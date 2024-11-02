@@ -176,19 +176,12 @@ impl<'de> Deserializer<'de> {
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
 
-        if let Some(ident) = ident {
-            if is_serde_content {
-                // serde's Content type uses a singleton map encoding for enums
-                return visitor.visit_map(SerdeEnumContent {
-                    de: self,
-                    ident: Some(ident),
-                });
-            }
-
-            if self.extensions().contains(Extensions::BRACED_STRUCTS) {
-                // giving no name results in worse errors but is necessary here
-                return self.handle_struct_after_name("", visitor);
-            }
+        if !is_serde_content
+            && ident.is_some()
+            && self.extensions().contains(Extensions::BRACED_STRUCTS)
+        {
+            // giving no name results in worse errors but is necessary here
+            return self.handle_struct_after_name("", visitor);
         }
 
         match (
@@ -207,6 +200,13 @@ impl<'de> Deserializer<'de> {
                 visitor.visit_str(ident)
             }
             (StructType::Unit, _) => visitor.visit_unit(),
+            (_, Some(ident)) if is_serde_content => {
+                // serde's Content type uses a singleton map encoding for enums
+                visitor.visit_map(SerdeEnumContent {
+                    de: self,
+                    ident: Some(ident),
+                })
+            }
             (StructType::Named, _) => {
                 // giving no name results in worse errors but is necessary here
                 self.handle_struct_after_name("", visitor)
