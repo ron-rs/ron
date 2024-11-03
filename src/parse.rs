@@ -560,9 +560,7 @@ impl<'a> Parser<'a> {
 
             if matches!(newtype, NewtypeMode::NoParensMeanUnit)
                 && !parser.consume_char('(')
-                && !(parser.exts.contains(Extensions::BRACED_STRUCTS)
-                    && has_name
-                    && parser.consume_char('{'))
+                && !(has_name && parser.consume_char('{'))
             {
                 return Ok(StructType::Unit);
             }
@@ -578,12 +576,11 @@ impl<'a> Parser<'a> {
 
             // Check for `Ident {}` which is a braced struct
             if matches!(newtype, NewtypeMode::NoParensMeanUnit)
-                && parser.exts.contains(Extensions::BRACED_STRUCTS)
                 && has_name
                 && open_brace
                 && parser.check_char('}')
             {
-                return Ok(StructType::Named);
+                return Ok(StructType::BracedNamed);
             }
 
             if parser.skip_identifier().is_some() {
@@ -591,13 +588,16 @@ impl<'a> Parser<'a> {
 
                 match parser.peek_char() {
                     // Definitely a struct with named fields
-                    Some(':') => return Ok(StructType::Named),
+                    Some(':') => {
+                        return if has_name && open_brace {
+                            Ok(StructType::BracedNamed)
+                        } else {
+                            Ok(StructType::Named)
+                        }
+                    }
                     // Definitely a braced struct inside a newtype
-                    Some('{')
-                        if matches!(newtype, NewtypeMode::InsideNewtype)
-                            && parser.exts.contains(Extensions::BRACED_STRUCTS) =>
-                    {
-                        return Ok(StructType::Named)
+                    Some('{') if matches!(newtype, NewtypeMode::InsideNewtype) => {
+                        return Ok(StructType::BracedNamed)
                     }
                     // Definitely a tuple-like struct with fields
                     Some(',') => {
@@ -694,9 +694,7 @@ impl<'a> Parser<'a> {
 
     pub fn consume_struct_name(&mut self, ident: &'static str) -> Result<bool> {
         if self.check_ident("") {
-            if self.exts.contains(Extensions::EXPLICIT_STRUCT_NAMES)
-                || self.exts.contains(Extensions::BRACED_STRUCTS)
-            {
+            if self.exts.contains(Extensions::EXPLICIT_STRUCT_NAMES) {
                 return Err(Error::ExpectedStructName(ident.to_string()));
             }
 
@@ -906,6 +904,28 @@ impl<'a> Parser<'a> {
         }
 
         None
+    }
+
+    pub fn check_braced_identifier(&mut self) -> Result<Option<&'a str>> {
+        // Create a temporary working copy
+        let backup_cursor = self.cursor;
+
+        let ident = if let Some(ident) = self.skip_identifier() {
+            self.skip_ws()?;
+
+            if self.peek_char() == Some('{') {
+                Some(ident)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Revert the parser to before the peek
+        self.set_cursor(backup_cursor);
+
+        Ok(ident)
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
@@ -1617,6 +1637,7 @@ pub enum StructType {
     NewtypeTuple,
     NonNewtypeTuple,
     Named,
+    BracedNamed,
     Unit,
 }
 

@@ -113,6 +113,9 @@ pub struct PrettyConfig {
     pub number_suffixes: bool,
     /// Additional path-based field metadata to serialize
     pub path_meta: Option<path_meta::Field>,
+    /// Use braced struct syntax like `Person { age: 42 }` instead of the
+    ///  parenthesised syntax `Person(age: 42)` or just `(age: 42)`
+    pub braced_structs: bool,
 }
 
 impl PrettyConfig {
@@ -341,6 +344,36 @@ impl PrettyConfig {
 
         self
     }
+
+    /// Configures whether structs or struct variants with named fields should
+    /// be printed using braced syntax (`true`) or parenthesised syntax
+    /// (`false`).
+    ///
+    /// When `false`, the struct `Person { age: 42 }` will serialize to
+    /// ```ignore
+    /// Person(age: 42)
+    /// # ;
+    /// ```
+    /// if printing struct names is turned on, or
+    /// ```ignore
+    /// (age: 42)
+    /// # ;
+    /// ```
+    /// if struct names are turned off.
+    ///
+    /// When `true`, the struct `Person { age: 42 }` will serialize to
+    /// ```ignore
+    /// Person {age: 42}
+    /// # ;
+    /// ```
+    ///
+    /// Default: `false`
+    #[must_use]
+    pub fn braced_structs(mut self, braced_structs: bool) -> Self {
+        self.braced_structs = braced_structs;
+
+        self
+    }
 }
 
 impl Default for PrettyConfig {
@@ -364,6 +397,7 @@ impl Default for PrettyConfig {
             compact_maps: false,
             number_suffixes: false,
             path_meta: None,
+            braced_structs: false,
         }
     }
 }
@@ -473,6 +507,12 @@ impl<W: fmt::Write> Serializer<W> {
         self.pretty
             .as_ref()
             .map_or(false, |(ref config, _)| config.number_suffixes)
+    }
+
+    fn braced_structs(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |(ref config, _)| config.braced_structs)
     }
 
     fn extensions(&self) -> Extensions {
@@ -1039,9 +1079,9 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
-        let closing = if self.extensions().contains(Extensions::BRACED_STRUCTS) {
+        let closing = if self.braced_structs() {
             self.write_identifier(name)?;
-            self.output.write_char('{')?;
+            self.output.write_str(" {")?;
             Some('}')
         } else if old_newtype_variant {
             self.validate_identifier(name)?;
@@ -1077,8 +1117,8 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         self.validate_identifier(name)?;
         self.write_identifier(variant)?;
 
-        let closing = if self.extensions().contains(Extensions::BRACED_STRUCTS) {
-            self.output.write_char('{')?;
+        let closing = if self.braced_structs() {
+            self.output.write_str(" {")?;
             '}'
         } else {
             self.output.write_char('(')?;
