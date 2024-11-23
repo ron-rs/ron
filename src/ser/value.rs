@@ -1,4 +1,4 @@
-use serde::ser::{Serialize, Serializer};
+use serde::ser::{Serialize, SerializeStruct, SerializeTuple, SerializeTupleStruct, Serializer};
 
 use crate::value::Value;
 
@@ -16,8 +16,61 @@ impl Serialize for Value {
             Value::Option(None) => serializer.serialize_none(),
             Value::String(ref s) => serializer.serialize_str(s),
             Value::Bytes(ref b) => serializer.serialize_bytes(b),
-            Value::Seq(ref s) => Serialize::serialize(s, serializer),
+            Value::List(ref s) => Serialize::serialize(s, serializer),
             Value::Unit => serializer.serialize_unit(),
+            Value::Struct(name, map) => {
+                // serializer.serialize_struct(name, len)
+                // serializer.serialize_struct_variant(name, variant_index, variant, len)
+
+                // serializer.serialize_newtype_struct(name, value)
+                // serializer.serialize_newtype_variant(name, variant_index, variant, value)
+
+                // serializer.serialize_unit_struct(name)
+                // serializer.serialize_unit_variant(name, variant_index, variant)
+
+                // serializer.serialize_map(len)
+
+                // serializer.serialize_tuple(len)
+                // serializer.serialize_tuple_struct(name, len)
+                // serializer.serialize_tuple_variant(name, variant_index, variant, len)
+                
+                // https://github.com/serde-rs/json/blob/master/src/value/ser.rs
+
+                match name {
+                    Some(name) => {
+                        let mut state = serializer.serialize_struct("", map.len())?;
+
+                        for (k, v) in map {
+                            state.serialize_field(&k, &v)?;
+                        }
+
+                        state.end()
+                    }
+                    None => {
+                        todo!()
+                    }
+                }
+            }
+            Value::Tuple(name, vec) => match name {
+                Some(name) => {
+                    let mut state = serializer.serialize_tuple_struct("", vec.len())?;
+
+                    for v in vec {
+                        state.serialize_field(&v)?;
+                    }
+
+                    state.end()
+                }
+                None => {
+                    let mut state = serializer.serialize_tuple(vec.len())?;
+
+                    for v in vec {
+                        state.serialize_element(&v)?;
+                    }
+
+                    state.end()
+                }
+            },
         }
     }
 }
