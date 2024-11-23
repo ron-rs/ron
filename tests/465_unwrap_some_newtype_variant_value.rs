@@ -20,7 +20,7 @@ fn deserialise_value_with_unwrap_some_newtype_variant() {
     );
     assert_eq!(
         ron::from_str("#![enable(unwrap_variant_newtypes)] Some(42, true)"),
-        Ok(ron::Value::Option(Some(Box::new(ron::Value::Seq(vec![
+        Ok(ron::Value::Option(Some(Box::new(ron::Value::List(vec![
             ron::Value::Number(ron::value::Number::U8(42)),
             ron::Value::Bool(true)
         ]))))),

@@ -22,12 +22,14 @@ pub use raw::RawValue;
 pub enum Value {
     Bool(bool),
     Char(char),
-    Map(Map),
+    Map(Map<Value>),
+    Struct(Option<String>, Map<String>),
     Number(Number),
     Option(Option<Box<Value>>),
     String(String),
     Bytes(Vec<u8>),
-    Seq(Vec<Value>),
+    List(Vec<Value>),
+    Tuple(Option<String>, Vec<Value>),
     Unit,
 }
 
@@ -49,8 +51,8 @@ impl<K: Into<Value>, V: Into<Value>> FromIterator<(K, V)> for Value {
     }
 }
 
-impl From<Map> for Value {
-    fn from(value: Map) -> Self {
+impl From<Map<Value>> for Value {
+    fn from(value: Map<Value>) -> Self {
         Self::Map(value)
     }
 }
@@ -94,7 +96,7 @@ impl<const N: usize> From<&'static [u8; N]> for Value {
 
 impl<T: Into<Value>> FromIterator<T> for Value {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Self::Seq(iter.into_iter().map(Into::into).collect())
+        Self::List(iter.into_iter().map(Into::into).collect())
     }
 }
 
@@ -174,7 +176,7 @@ impl<'de> Deserializer<'de> for Value {
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
             Value::Bytes(b) => visitor.visit_byte_buf(b),
-            Value::Seq(mut seq) => {
+            Value::List(mut seq) => {
                 let old_len = seq.len();
 
                 seq.reverse();
@@ -256,9 +258,12 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, fmt::Debug};
+    use std::{
+        collections::{BTreeMap, HashMap},
+        fmt::Debug,
+    };
 
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
     use super::*;
 
@@ -414,7 +419,7 @@ mod tests {
 
         assert_eq!(
             Value::from([-1_i8, 2, -3].as_slice()),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -422,7 +427,7 @@ mod tests {
         );
         assert_eq!(
             Value::from(vec![-1_i8, 2, -3]),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -430,7 +435,7 @@ mod tests {
         );
         assert_eq!(
             Value::from_iter([-1_i8, 2, -3]),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -498,5 +503,71 @@ mod tests {
             Value::deserialize(NewtypeDeserializer).unwrap(),
             Value::from('🦀')
         );
+    }
+
+    #[test]
+    fn test() {
+        #[derive(Serialize)]
+        enum B {
+            A,
+            B,
+        }
+
+        #[derive(Serialize)]
+        struct A {
+            a: B,
+            b: HashMap<String, String>,
+        }
+
+        let v = A {
+            a: B::A,
+            b: [("a".into(), "a".into())].into_iter().collect(),
+        };
+
+        let ron_str = crate::to_string(&v).unwrap();
+
+        println!("{}", ron_str);
+
+        let value = crate::from_str::<Value>(&ron_str).unwrap();
+
+        println!("{:?}", value);
+
+        let ron_str2 = crate::to_string(&value).unwrap();
+
+        println!("{}", ron_str2);
+
+        assert_eq!(ron_str, ron_str2);
+    }
+
+    #[test]
+    fn test2() {
+        #[derive(Serialize)]
+        enum B {
+            A(Option<String>, i32),
+            B,
+        }
+
+        #[derive(Serialize)]
+        struct A {
+            a: B,
+        }
+
+        let v = A {
+            a: B::A(Some("a".into()), 0),
+        };
+
+        let ron_str = crate::to_string(&v).unwrap();
+
+        println!("{}", ron_str);
+
+        let value = crate::from_str::<Value>(&ron_str).unwrap();
+
+        println!("{:?}", value);
+
+        let ron_str2 = crate::to_string(&value).unwrap();
+
+        println!("{}", ron_str2);
+
+        assert_eq!(ron_str, ron_str2);
     }
 }

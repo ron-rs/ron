@@ -4,10 +4,10 @@ fn value_deserialises_r_name() {
     //  searcher reads into the char and then finds a weird comment starter there
     assert_eq!(
         ron::from_str("A('/')"),
-        Ok(ron::Value::Seq(vec![ron::Value::Char('/')]))
+        Ok(ron::Value::List(vec![ron::Value::Char('/')]))
     );
     assert_eq!(
         ron::from_str("A(\"/\")"),
-        Ok(ron::Value::Seq(vec![ron::Value::String(String::from("/"))]))
+        Ok(ron::Value::List(vec![ron::Value::String(String::from("/"))]))
     );
 }
