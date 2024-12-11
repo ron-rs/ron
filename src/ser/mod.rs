@@ -111,6 +111,8 @@ pub struct PrettyConfig {
     pub compact_maps: bool,
     /// Enable explicit number type suffixes like `1u16`
     pub number_suffixes: bool,
+    /// Whether to serialize hex strings (0x...) without quotes
+    pub hex_as_raw: bool,
     /// Additional path-based field metadata to serialize
     pub path_meta: Option<path_meta::Field>,
 }
@@ -341,6 +343,27 @@ impl PrettyConfig {
 
         self
     }
+
+    /// Configures whether hex strings should be serialized without quotes.
+    ///
+    /// When `true`, the hex string `0x1234` will serialize to
+    /// ```ignore
+    /// 0x1234
+    /// # ;
+    /// ```
+    /// When `false`, the hex string `0x1234` will serialize to
+    /// ```ignore
+    /// "0x1234"
+    /// # ;
+    /// ```
+    ///
+    /// Default: `true`
+    #[must_use]
+    pub fn hex_as_raw(mut self, hex_as_raw: bool) -> Self {
+        self.hex_as_raw = hex_as_raw;
+
+        self
+    }
 }
 
 impl Default for PrettyConfig {
@@ -363,6 +386,7 @@ impl Default for PrettyConfig {
             compact_structs: false,
             compact_maps: false,
             number_suffixes: false,
+            hex_as_raw: true,
             path_meta: None,
         }
     }
@@ -381,6 +405,15 @@ pub struct Serializer<W: fmt::Write> {
     recursion_limit: Option<usize>,
     // Tracks the number of opened implicit `Some`s, set to 0 on backtracking
     implicit_some_depth: usize,
+}
+
+/// Returns true if the string is a valid hexadecimal number starting with 0x/0X
+#[inline]
+fn is_valid_hex(s: &str) -> bool {
+    if !s.starts_with("0x") && !s.starts_with("0X") {
+        return false;
+    }
+    s[2..].chars().all(|c| c.is_ascii_hexdigit())
 }
 
 fn indent<W: fmt::Write>(output: &mut W, config: &PrettyConfig, pretty: &Pretty) -> fmt::Result {
@@ -487,6 +520,12 @@ impl<W: fmt::Write> Serializer<W> {
         self.pretty
             .as_ref()
             .map_or(true, |(ref config, _)| config.escape_strings)
+    }
+
+    fn hex_as_raw(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(true, |(ref config, _)| config.hex_as_raw)
     }
 
     fn start_indent(&mut self) -> Result<()> {
@@ -777,7 +816,11 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_str(self, v: &str) -> Result<()> {
         if self.escape_strings() {
-            self.serialize_escaped_str(v)?;
+            if self.hex_as_raw() && is_valid_hex(v) {
+                self.output.write_str(v)?;
+            } else {
+                self.serialize_escaped_str(v)?;
+            }
         } else {
             self.serialize_unescaped_or_raw_str(v)?;
         }
