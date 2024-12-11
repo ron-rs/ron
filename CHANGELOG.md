@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### API Changes
+- Add `hex_as_raw` option to `PrettyConfig` to allow serializing hex strings without quotes ([#554](https://github.com/ron-rs/ron/pull/554))
+
 ## [0.9.0] - 2023-09-??
 
 ### API Changes
