@@ -357,7 +357,7 @@ impl PrettyConfig {
     /// # ;
     /// ```
     ///
-    /// Default: `true`
+    /// Default: `false`
     #[must_use]
     pub fn hex_as_raw(mut self, hex_as_raw: bool) -> Self {
         self.hex_as_raw = hex_as_raw;
@@ -386,7 +386,7 @@ impl Default for PrettyConfig {
             compact_structs: false,
             compact_maps: false,
             number_suffixes: false,
-            hex_as_raw: true,
+            hex_as_raw: false,
             path_meta: None,
         }
     }
@@ -525,7 +525,7 @@ impl<W: fmt::Write> Serializer<W> {
     fn hex_as_raw(&self) -> bool {
         self.pretty
             .as_ref()
-            .map_or(true, |(ref config, _)| config.hex_as_raw)
+            .map_or(false, |(ref config, _)| config.hex_as_raw)
     }
 
     fn start_indent(&mut self) -> Result<()> {
