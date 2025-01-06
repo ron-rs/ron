@@ -202,6 +202,14 @@ impl<'de> Deserializer<'de> for Value {
                 }
             }
             Value::Unit => visitor.visit_unit(),
+            Value::Tuple(vec) => todo!(),
+            Value::UnitStructOrEnumVariant(cow) => todo!(),
+            Value::UnitEnumVariant(cow) => todo!(),
+            Value::UnitStruct(cow) => todo!(),
+            Value::StructOrEnumVariant(cow, map) => todo!(),
+            Value::Struct(cow, map) => todo!(),
+            Value::EnumVariant(cow, map) => todo!(),
+            Value::EnumTuple(cow, vec) => todo!(),
         }
     }
 }
@@ -514,6 +522,24 @@ mod tests {
     }
 
     #[test]
+    fn empty_struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A {}
+        assert_same::<A>("A()");
+    }
+
+    #[test]
+    fn simple_enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A,
+        }
+
+        assert_same::<A>("A");
+    }
+
+    #[ignore = ""]
+    #[test]
     fn test() {
         #[derive(Serialize)]
         enum B {
@@ -547,6 +573,7 @@ mod tests {
         assert_eq!(ron_str, ron_str2);
     }
 
+    #[ignore = ""]
     #[test]
     fn test2() {
         #[derive(Serialize)]

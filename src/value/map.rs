@@ -17,20 +17,20 @@ use super::Value;
 /// to preserve the order of the parsed map.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct Map<Key: Ord>(pub(crate) MapInner<Key>);
+pub struct Map<Key: Ord + Hash>(pub(crate) MapInner<Key>);
 
 #[cfg(not(feature = "indexmap"))]
 type MapInner<Key> = alloc::collections::BTreeMap<Key, Value>;
 #[cfg(feature = "indexmap")]
 type MapInner<Key> = indexmap::IndexMap<Key, Value, std::collections::hash_map::RandomState>;
 
-impl<Key: Ord> Default for Map<Key> {
+impl<Key: Ord + Hash> Default for Map<Key> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<Key: Ord> Map<Key> {
+impl<Key: Ord + Hash> Map<Key> {
     /// Creates a new, empty [`Map`].
     #[must_use]
     pub fn new() -> Self {
@@ -122,7 +122,7 @@ impl<Key: Ord> Map<Key> {
     }
 }
 
-impl<Key: Ord> Index<&Key> for Map<Key> {
+impl<Key: Ord + Hash> Index<&Key> for Map<Key> {
     type Output = Value;
 
     #[allow(clippy::expect_used)]
@@ -131,14 +131,14 @@ impl<Key: Ord> Index<&Key> for Map<Key> {
     }
 }
 
-impl<Key: Ord> IndexMut<&Key> for Map<Key> {
+impl<Key: Ord + Hash> IndexMut<&Key> for Map<Key> {
     #[allow(clippy::expect_used)]
     fn index_mut(&mut self, index: &Key) -> &mut Self::Output {
         self.get_mut(index).expect("no entry found for key")
     }
 }
 
-impl<Key: Ord> IntoIterator for Map<Key> {
+impl<Key: Ord + Hash> IntoIterator for Map<Key> {
     type Item = (Key, Value);
 
     type IntoIter = <MapInner<Key> as IntoIterator>::IntoIter;
@@ -148,7 +148,7 @@ impl<Key: Ord> IntoIterator for Map<Key> {
     }
 }
 
-impl<Key: Ord, K: Into<Key>, V: Into<Value>> FromIterator<(K, V)> for Map<Key> {
+impl<Key: Ord + Hash, K: Into<Key>, V: Into<Value>> FromIterator<(K, V)> for Map<Key> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         Map(iter
             .into_iter()
@@ -158,22 +158,22 @@ impl<Key: Ord, K: Into<Key>, V: Into<Value>> FromIterator<(K, V)> for Map<Key> {
 }
 
 /// Note: equality is only given if both values and order of values match
-impl<Key: Ord> PartialEq for Map<Key> {
+impl<Key: Ord + Hash> PartialEq for Map<Key> {
     fn eq(&self, other: &Map<Key>) -> bool {
         self.cmp(other).is_eq()
     }
 }
 
 /// Note: equality is only given if both values and order of values match
-impl<Key: Ord> Eq for Map<Key> {}
+impl<Key: Ord + Hash> Eq for Map<Key> {}
 
-impl<Key: Ord> PartialOrd for Map<Key> {
+impl<Key: Ord + Hash> PartialOrd for Map<Key> {
     fn partial_cmp(&self, other: &Map<Key>) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<Key: Ord> Ord for Map<Key> {
+impl<Key: Ord + Hash> Ord for Map<Key> {
     fn cmp(&self, other: &Map<Key>) -> Ordering {
         self.iter().cmp(other.iter())
     }
