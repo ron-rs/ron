@@ -1,6 +1,7 @@
 use ron::{
     de::from_str,
     error::{Error, Position, SpannedError},
+    ser::{to_string_pretty, PrettyConfig},
 };
 
 #[test]
@@ -110,4 +111,36 @@ fn test_dec() {
             position: Position { line: 1, col: 4 },
         })
     );
+}
+
+#[test]
+fn test_hex_serialization() {
+    let config = PrettyConfig::new()
+        .hex_as_raw(true);
+    
+    // Test valid hex without quotes
+    let val = "0x1234";
+    let serialized = to_string_pretty(&val, config.clone()).unwrap();
+    assert_eq!(serialized, "0x1234");
+    
+    // Test uppercase hex
+    let val = "0X1A5B";
+    let serialized = to_string_pretty(&val, config.clone()).unwrap();
+    assert_eq!(serialized, "0X1A5B");
+    
+    // Test that normal strings are still escaped
+    let val = "normal string";
+    let serialized = to_string_pretty(&val, config.clone()).unwrap();
+    assert_eq!(serialized, "\"normal string\"");
+    
+    // Test that invalid hex is treated as a normal string
+    let val = "0xGGG";
+    let serialized = to_string_pretty(&val, config.clone()).unwrap();
+    assert_eq!(serialized, "\"0xGGG\"");
+    
+    // Test with hex_as_raw disabled
+    let config = PrettyConfig::new().hex_as_raw(false);
+    let val = "0x1234";
+    let serialized = to_string_pretty(&val, config).unwrap();
+    assert_eq!(serialized, "\"0x1234\"");
 }
