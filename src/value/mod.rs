@@ -21,17 +21,18 @@ pub use raw::RawValue;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Value {
+    Unit,
     Bool(bool),
     Char(char),
-    Map(Map<Value>),
-    Struct(Option<String>, Map<String>),
     Number(Number),
-    Option(Option<Box<Value>>),
     String(String),
     Bytes(Vec<u8>),
+    Option(Option<Box<Value>>),
     List(Vec<Value>),
+    Map(Map<Value>),
     Tuple(Option<String>, Vec<Value>),
-    Unit,
+    NamedUnit(Cow<'static, str>),
+    Struct(Option<Cow<'static, str>>, Map<Cow<'static, str>>),
 }
 
 impl From<bool> for Value {
