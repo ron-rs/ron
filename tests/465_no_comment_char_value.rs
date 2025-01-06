@@ -8,6 +8,8 @@ fn value_deserialises_r_name() {
     );
     assert_eq!(
         ron::from_str("A(\"/\")"),
-        Ok(ron::Value::List(vec![ron::Value::String(String::from("/"))]))
+        Ok(ron::Value::List(vec![ron::Value::String(String::from(
+            "/"
+        ))]))
     );
 }
