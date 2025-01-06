@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 use serde::{
     de::{Error, MapAccess, SeqAccess, Visitor},
@@ -220,7 +220,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     where
         A: MapAccess<'de>,
     {
-        let mut res: Map = Map::new();
+        let mut res: Map<Value> = Map::new();
 
         #[cfg(feature = "indexmap")]
         if let Some(cap) = map.size_hint() {
