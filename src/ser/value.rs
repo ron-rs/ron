@@ -33,7 +33,7 @@ impl Serialize for Value {
                 // serializer.serialize_tuple(len)
                 // serializer.serialize_tuple_struct(name, len)
                 // serializer.serialize_tuple_variant(name, variant_index, variant, len)
-                
+
                 // https://github.com/serde-rs/json/blob/master/src/value/ser.rs
 
                 match name {
