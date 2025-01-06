@@ -29,9 +29,17 @@ pub enum Value {
     Option(Option<Box<Value>>),
     List(Vec<Value>),
     Map(Map<Value>),
-    Tuple(Option<String>, Vec<Value>),
-    NamedUnit(Cow<'static, str>),
+    Tuple(Vec<Value>),
+
+    UnitStructOrEnumVariant(Cow<'static, str>),
+    UnitEnumVariant(Cow<'static, str>),
+    UnitStruct(Cow<'static, str>),
+
+    StructOrEnumVariant(Option<Cow<'static, str>>, Map<Cow<'static, str>>),
     Struct(Option<Cow<'static, str>>, Map<Cow<'static, str>>),
+    EnumVariant(Cow<'static, str>, Map<Cow<'static, str>>),
+
+    EnumTuple(Cow<'static, str>, Vec<Value>),
 }
 
 impl From<bool> for Value {
