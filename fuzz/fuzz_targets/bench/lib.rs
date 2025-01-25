@@ -184,7 +184,7 @@ struct BorrowedTypedSerdeData<'a> {
     value: &'a SerdeDataValue<'a>,
 }
 
-impl<'a> Serialize for TypedSerdeData<'a> {
+impl Serialize for TypedSerdeData<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         BorrowedTypedSerdeData {
             ty: &self.ty,
@@ -194,7 +194,7 @@ impl<'a> Serialize for TypedSerdeData<'a> {
     }
 }
 
-impl<'a, 'de> DeserializeSeed<'de> for &TypedSerdeData<'a> {
+impl<'de> DeserializeSeed<'de> for &TypedSerdeData<'_> {
     type Value = ();
 
     fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
@@ -214,7 +214,7 @@ unsafe fn to_static_str_slice(s: &[&str]) -> &'static [&'static str] {
     std::mem::transmute(s)
 }
 
-impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
+impl Serialize for BorrowedTypedSerdeData<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match (self.ty, self.value) {
             (SerdeDataType::Unit, SerdeDataValue::Unit) => ().serialize(serializer),
@@ -335,7 +335,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                         map: &'a mut M,
                     }
 
-                    impl<'a, M: SerializeMap> SerializeMap for FlatMapKeyConflictDetector<'a, M> {
+                    impl<M: SerializeMap> SerializeMap for FlatMapKeyConflictDetector<'_, M> {
                         type Ok = ();
                         type Error = M::Error;
 
@@ -577,7 +577,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a> Serialize for UntaggedTuple<'a> {
+                        impl Serialize for UntaggedTuple<'_> {
                             fn serialize<S: Serializer>(
                                 &self,
                                 serializer: S,
@@ -655,7 +655,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a> Serialize for UntaggedStruct<'a> {
+                        impl Serialize for UntaggedStruct<'_> {
                             fn serialize<S: Serializer>(
                                 &self,
                                 serializer: S,
@@ -686,7 +686,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                 map: &'a mut M,
                             }
 
-                            impl<'a, M: SerializeMap> SerializeMap for FlatMapKeyConflictDetector<'a, M> {
+                            impl<M: SerializeMap> SerializeMap for FlatMapKeyConflictDetector<'_, M> {
                                 type Ok = ();
                                 type Error = M::Error;
 
@@ -740,7 +740,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
                                 values: &'a [SerdeDataValue<'a>],
                             }
 
-                            impl<'a> Serialize for FlattenedStructVariant<'a> {
+                            impl Serialize for FlattenedStructVariant<'_> {
                                 fn serialize<S: Serializer>(
                                     &self,
                                     serializer: S,
@@ -968,7 +968,7 @@ impl<'a> Serialize for BorrowedTypedSerdeData<'a> {
     }
 }
 
-impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
+impl<'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'_> {
     type Value = ();
 
     fn deserialize<D: Deserializer<'de>>(self, deserializer: D) -> Result<Self::Value, D::Error> {
@@ -1038,7 +1038,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     value: &'a str,
                 }
 
-                impl<'a, 'de> Visitor<'de> for StringVisitor<'a> {
+                impl Visitor<'_> for StringVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1064,7 +1064,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     value: &'a [u8],
                 }
 
-                impl<'a, 'de> Visitor<'de> for BytesVisitor<'a> {
+                impl Visitor<'_> for BytesVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1095,7 +1095,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     value: Option<&'a SerdeDataValue<'a>>,
                 }
 
-                impl<'a, 'de> Visitor<'de> for OptionVisitor<'a> {
+                impl<'de> Visitor<'de> for OptionVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1182,7 +1182,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     elems: &'a [SerdeDataValue<'a>],
                 }
 
-                impl<'a, 'de> Visitor<'de> for ArrayVisitor<'a> {
+                impl<'de> Visitor<'de> for ArrayVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1218,7 +1218,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     values: &'a [SerdeDataValue<'a>],
                 }
 
-                impl<'a, 'de> Visitor<'de> for TupleVisitor<'a> {
+                impl<'de> Visitor<'de> for TupleVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1256,7 +1256,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     elems: &'a [SerdeDataValue<'a>],
                 }
 
-                impl<'a, 'de> Visitor<'de> for VecVisitor<'a> {
+                impl<'de> Visitor<'de> for VecVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1292,7 +1292,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     elems: &'a [(SerdeDataValue<'a>, SerdeDataValue<'a>)],
                 }
 
-                impl<'a, 'de> Visitor<'de> for MapVisitor<'a> {
+                impl<'de> Visitor<'de> for MapVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1332,7 +1332,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     name: &'a str,
                 }
 
-                impl<'a, 'de> Visitor<'de> for UnitStructVisitor<'a> {
+                impl Visitor<'_> for UnitStructVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1356,7 +1356,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     value: &'a SerdeDataValue<'a>,
                 }
 
-                impl<'a, 'de> Visitor<'de> for NewtypeVisitor<'a> {
+                impl<'de> Visitor<'de> for NewtypeVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1432,7 +1432,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     values: &'a [SerdeDataValue<'a>],
                 }
 
-                impl<'a, 'de> Visitor<'de> for TupleStructVisitor<'a> {
+                impl<'de> Visitor<'de> for TupleStructVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1493,7 +1493,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     index: u64,
                 }
 
-                impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
+                impl Visitor<'_> for FieldIdentifierVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1535,7 +1535,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
                 }
 
-                impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
+                impl<'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'_> {
                     type Value = ();
 
                     fn deserialize<D: Deserializer<'de>>(
@@ -1550,7 +1550,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     field: Option<&'a str>,
                 }
 
-                impl<'a, 'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                impl<'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                     type Value = Option<serde::__private::de::Content<'de>>;
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1680,7 +1680,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
                 }
 
-                impl<'a, 'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                impl<'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                     type Value = Option<serde::__private::de::Content<'de>>;
 
                     fn deserialize<D: Deserializer<'de>>(
@@ -1698,7 +1698,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     values: &'a [SerdeDataValue<'a>],
                 }
 
-                impl<'a, 'de> Visitor<'de> for StructVisitor<'a> {
+                impl<'de> Visitor<'de> for StructVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1776,7 +1776,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     values: &'a [SerdeDataValue<'a>],
                 }
 
-                impl<'a, 'de> Visitor<'de> for FlattenStructVisitor<'a> {
+                impl<'de> Visitor<'de> for FlattenStructVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1890,7 +1890,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     index: u32,
                 }
 
-                impl<'a, 'de> Visitor<'de> for VariantIdentifierVisitor<'a> {
+                impl Visitor<'_> for VariantIdentifierVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1932,7 +1932,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
                 }
 
-                impl<'a, 'de> DeserializeSeed<'de> for VariantIdentifierVisitor<'a> {
+                impl<'de> DeserializeSeed<'de> for VariantIdentifierVisitor<'_> {
                     type Value = ();
 
                     fn deserialize<D: Deserializer<'de>>(
@@ -1951,7 +1951,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     value: &'a SerdeDataVariantValue<'a>,
                 }
 
-                impl<'a, 'de> Visitor<'de> for EnumVisitor<'a> {
+                impl<'de> Visitor<'de> for EnumVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -1993,7 +1993,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     values: &'a [SerdeDataValue<'a>],
                                 }
 
-                                impl<'a, 'de> Visitor<'de> for TupleVariantVisitor<'a> {
+                                impl<'de> Visitor<'de> for TupleVariantVisitor<'_> {
                                     type Value = ();
 
                                     fn expecting(
@@ -2061,7 +2061,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     index: u64,
                                 }
 
-                                impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
+                                impl Visitor<'_> for FieldIdentifierVisitor<'_> {
                                     type Value = ();
 
                                     fn expecting(
@@ -2118,7 +2118,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     }
                                 }
 
-                                impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
+                                impl<'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'_> {
                                     type Value = ();
 
                                     fn deserialize<D: Deserializer<'de>>(
@@ -2138,7 +2138,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                     values: &'a [SerdeDataValue<'a>],
                                 }
 
-                                impl<'a, 'de> Visitor<'de> for StructVariantVisitor<'a> {
+                                impl<'de> Visitor<'de> for StructVariantVisitor<'_> {
                                     type Value = ();
 
                                     fn expecting(
@@ -2234,7 +2234,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         field: Option<&'a str>,
                                     }
 
-                                    impl<'a, 'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                                    impl<'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                                         type Value = Option<serde::__private::de::Content<'de>>;
 
                                         fn expecting(
@@ -2434,7 +2434,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         }
                                     }
 
-                                    impl<'a, 'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                                    impl<'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                                         type Value = Option<serde::__private::de::Content<'de>>;
 
                                         fn deserialize<D: Deserializer<'de>>(
@@ -2455,7 +2455,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         values: &'a [SerdeDataValue<'a>],
                                     }
 
-                                    impl<'a, 'de> Visitor<'de> for FlattenStructVariantVisitor<'a> {
+                                    impl<'de> Visitor<'de> for FlattenStructVariantVisitor<'_> {
                                         type Value = ();
 
                                         fn expecting(
@@ -2537,7 +2537,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                         }
                                     }
 
-                                    impl<'a, 'de> DeserializeSeed<'de> for FlattenStructVariantVisitor<'a> {
+                                    impl<'de> DeserializeSeed<'de> for FlattenStructVariantVisitor<'_> {
                                         type Value = ();
 
                                         fn deserialize<D: Deserializer<'de>>(
@@ -2644,7 +2644,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a, 'de> Visitor<'de> for TupleVariantVisitor<'a> {
+                        impl<'de> Visitor<'de> for TupleVariantVisitor<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -2708,7 +2708,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             index: u64,
                         }
 
-                        impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
+                        impl Visitor<'_> for FieldIdentifierVisitor<'_> {
                             type Value = Option<()>;
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -2749,7 +2749,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
+                        impl<'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'_> {
                             type Value = Option<()>;
 
                             fn deserialize<D: Deserializer<'de>>(
@@ -2768,7 +2768,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a, 'de> Visitor<'de> for StructVariantVisitor<'a> {
+                        impl<'de> Visitor<'de> for StructVariantVisitor<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -2834,7 +2834,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 field: Option<&'a str>,
                             }
 
-                            impl<'a, 'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                            impl<'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                                 type Value = Option<serde::__private::de::Content<'de>>;
 
                                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3010,7 +3010,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 }
                             }
 
-                            impl<'a, 'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                            impl<'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                                 type Value = Option<serde::__private::de::Content<'de>>;
 
                                 fn deserialize<D: Deserializer<'de>>(
@@ -3030,7 +3030,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 values: &'a [SerdeDataValue<'a>],
                             }
 
-                            impl<'a, 'de> Visitor<'de> for FlattenStructVariantVisitor<'a> {
+                            impl<'de> Visitor<'de> for FlattenStructVariantVisitor<'_> {
                                 type Value = ();
 
                                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3149,7 +3149,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     index: u64,
                 }
 
-                impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
+                impl Visitor<'_> for FieldIdentifierVisitor<'_> {
                     type Value = ();
 
                     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3191,7 +3191,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     }
                 }
 
-                impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
+                impl<'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'_> {
                     type Value = ();
 
                     fn deserialize<D: Deserializer<'de>>(
@@ -3253,7 +3253,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     ) -> Result<Self, D::Error> {
                         struct DelayedVariantIdentifierVisitor;
 
-                        impl<'de> Visitor<'de> for DelayedVariantIdentifierVisitor {
+                        impl Visitor<'_> for DelayedVariantIdentifierVisitor {
                             type Value = DelayedVariantIdentifier;
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3296,7 +3296,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             content: &'a str,
                         }
 
-                        impl<'a, 'de> Visitor<'de> for AdjacentlyTaggedUnitVariantVisitor<'a> {
+                        impl<'de> Visitor<'de> for AdjacentlyTaggedUnitVariantVisitor<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3368,7 +3368,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             content: &'a str,
                         }
 
-                        impl<'a, 'de> Visitor<'de> for AdjacentlyTaggedOtherVariantVisitor<'a> {
+                        impl<'de> Visitor<'de> for AdjacentlyTaggedOtherVariantVisitor<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3439,7 +3439,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             value: &'a SerdeDataValue<'a>,
                         }
 
-                        impl<'a, 'de> Visitor<'de> for AdjacentlyTaggedNewtypeVariantVisitor<'a> {
+                        impl<'de> Visitor<'de> for AdjacentlyTaggedNewtypeVariantVisitor<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3534,7 +3534,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a, 'de> Visitor<'de> for TupleVariantSeed<'a> {
+                        impl<'de> Visitor<'de> for TupleVariantSeed<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3573,7 +3573,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        impl<'a, 'de> DeserializeSeed<'de> for TupleVariantSeed<'a> {
+                        impl<'de> DeserializeSeed<'de> for TupleVariantSeed<'_> {
                             type Value = ();
 
                             fn deserialize<D: Deserializer<'de>>(
@@ -3594,7 +3594,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a, 'de> Visitor<'de> for AdjacentlyTaggedTupleVariantVisitor<'a> {
+                        impl<'de> Visitor<'de> for AdjacentlyTaggedTupleVariantVisitor<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3700,7 +3700,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a, 'de> Visitor<'de> for StructVariantSeed<'a> {
+                        impl<'de> Visitor<'de> for StructVariantSeed<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3748,7 +3748,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        impl<'a, 'de> DeserializeSeed<'de> for StructVariantSeed<'a> {
+                        impl<'de> DeserializeSeed<'de> for StructVariantSeed<'_> {
                             type Value = ();
 
                             fn deserialize<D: Deserializer<'de>>(
@@ -3767,7 +3767,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             field: Option<&'a str>,
                         }
 
-                        impl<'a, 'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                        impl<'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                             type Value = Option<serde::__private::de::Content<'de>>;
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -3939,7 +3939,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        impl<'a, 'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                        impl<'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                             type Value = Option<serde::__private::de::Content<'de>>;
 
                             fn deserialize<D: Deserializer<'de>>(
@@ -3959,7 +3959,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a, 'de> Visitor<'de> for FlattenStructVariantSeed<'a> {
+                        impl<'de> Visitor<'de> for FlattenStructVariantSeed<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4037,7 +4037,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        impl<'a, 'de> DeserializeSeed<'de> for FlattenStructVariantSeed<'a> {
+                        impl<'de> DeserializeSeed<'de> for FlattenStructVariantSeed<'_> {
                             type Value = ();
 
                             fn deserialize<D: Deserializer<'de>>(
@@ -4060,7 +4060,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a, 'de> Visitor<'de> for AdjacentlyTaggedStructVariantVisitor<'a> {
+                        impl<'de> Visitor<'de> for AdjacentlyTaggedStructVariantVisitor<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4284,7 +4284,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                     ) -> Result<Self, D::Error> {
                         struct DelayedVariantIdentifierVisitor;
 
-                        impl<'de> Visitor<'de> for DelayedVariantIdentifierVisitor {
+                        impl Visitor<'_> for DelayedVariantIdentifierVisitor {
                             type Value = DelayedVariantIdentifier;
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4372,7 +4372,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             index: u64,
                         }
 
-                        impl<'a, 'de> Visitor<'de> for FieldIdentifierVisitor<'a> {
+                        impl Visitor<'_> for FieldIdentifierVisitor<'_> {
                             type Value = Option<()>;
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4413,7 +4413,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             }
                         }
 
-                        impl<'a, 'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'a> {
+                        impl<'de> DeserializeSeed<'de> for FieldIdentifierVisitor<'_> {
                             type Value = Option<()>;
 
                             fn deserialize<D: Deserializer<'de>>(
@@ -4432,7 +4432,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                             values: &'a [SerdeDataValue<'a>],
                         }
 
-                        impl<'a, 'de> Visitor<'de> for StructVariantVisitor<'a> {
+                        impl<'de> Visitor<'de> for StructVariantVisitor<'_> {
                             type Value = ();
 
                             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4526,7 +4526,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 field: Option<&'a str>,
                             }
 
-                            impl<'a, 'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                            impl<'de> Visitor<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                                 type Value = Option<serde::__private::de::Content<'de>>;
 
                                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -4702,7 +4702,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 }
                             }
 
-                            impl<'a, 'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'a> {
+                            impl<'de> DeserializeSeed<'de> for MaybeFlattenFieldIdentifierVisitor<'_> {
                                 type Value = Option<serde::__private::de::Content<'de>>;
 
                                 fn deserialize<D: Deserializer<'de>>(
@@ -4722,7 +4722,7 @@ impl<'a, 'de> DeserializeSeed<'de> for BorrowedTypedSerdeData<'a> {
                                 values: &'a [SerdeDataValue<'a>],
                             }
 
-                            impl<'a, 'de> Visitor<'de> for FlattenStructVariantVisitor<'a> {
+                            impl<'de> Visitor<'de> for FlattenStructVariantVisitor<'_> {
                                 type Value = ();
 
                                 fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

@@ -112,10 +112,10 @@ fn main() -> anyhow::Result<()> {
         println!("{ron}");
         println!("{:=^80}", "");
 
-        criterion.bench_function(&format!("{:?}", entry), |b| {
+        criterion.bench_function(&format!("{entry:?}"), |b| {
             b.iter(|| {
                 black_box(typed_data::roundtrip_arbitrary_typed_ron_or_panic(&data));
-            })
+            });
         });
     }
 
