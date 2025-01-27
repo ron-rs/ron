@@ -6,9 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- Fix issue [#556](https://github.com/ron-rs/ron/issues/556) and update minium dependency versions ([#557](https://github.com/ron-rs/ron/pull/557))
-
-## [0.9.0] - 2023-09-??
+## [0.9.0] - ??
 
 ### API Changes
 
@@ -54,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a benchmark for PRs that runs over the latest fuzzer corpus ([#465](https://github.com/ron-rs/ron/pull/465))
 - Fuzz serde enum representation and flatten attributes and collect current limitations in ron and serde ([#502](https://github.com/ron-rs/ron/pull/502))
 - Update `base64` dependency to version 0.22 ([#529](https://github.com/ron-rs/ron/pull/529))
+- Fix issue [#556](https://github.com/ron-rs/ron/issues/556) and update minium dependency versions ([#557](https://github.com/ron-rs/ron/pull/557))
 
 ## [0.8.1] - 2023-08-17
 
