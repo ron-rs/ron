@@ -12,19 +12,55 @@ on:
     - cron: '0 0 * * 0'
 
 jobs:
+  lock:
+    name: Cargo.lock
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the Repository
+        uses: actions/checkout@v3
+      - name: Install the Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          override: true
+      - name: Generate the minimum version lockfile
+        run: |
+          cargo update -Z minimal-versions
+          cargo update -Z direct-minimal-versions
+          mv Cargo.lock Cargo.lock.min
+      - name: Generate the current version lockfile
+        run: cargo update
+      - name: Upload the Cargo lockfiles
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cargo.lock
+          path: |
+            Cargo.lock
+            Cargo.lock.min
+
   tests:
     name: Tests
     runs-on: ubuntu-latest
+    needs: lock
 
     strategy:
       matrix:
         rust: [1.64.0, stable, nightly]
+        lock: ["Cargo.lock", "Cargo.lock.min"]
 
     steps:
       - uses: actions/checkout@v3
+      - name: Download the Cargo lockfiles
+        uses: actions/download-artifact@v4
+        with:
+          name: Cargo.lock
+      - name: Rename ${{ matrix.lock }} to Cargo.lock
+        run: mv ${{ matrix.lock }} Cargo.lock
+        if: ${{ matrix.lock != 'Cargo.lock' }}
       - uses: ./.github/actions/setup
         with:
-          key: test-${{ matrix.rust }}
+          key: test-${{ matrix.rust }}-${{ matrix.lock }}
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}

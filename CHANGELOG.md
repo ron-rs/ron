@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Fix issue [#556](https://github.com/ron-rs/ron/issues/556) and update minium dependency versions ([#557](https://github.com/ron-rs/ron/pull/557))
+
 ## [0.9.0] - 2023-09-??
 
 ### API Changes
