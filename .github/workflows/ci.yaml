@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install the Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -50,7 +50,7 @@ jobs:
         lock: ["Cargo.lock", "Cargo.lock.min"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download the Cargo lockfiles
         uses: actions/download-artifact@v4
         with:
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           key: clippy-msrv
@@ -105,7 +105,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           key: clippy-fuzz
@@ -121,7 +121,7 @@ jobs:
     name: "Format: stable"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           key: rustfmt-stable
@@ -138,7 +138,7 @@ jobs:
     name: "Coverage: stable"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
         with:
           key: coverage
@@ -189,7 +189,7 @@ jobs:
       #     files: coverage.lcov
       #     fail_ci_if_error: true
       - name: Deploy the code coverage report
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./html
