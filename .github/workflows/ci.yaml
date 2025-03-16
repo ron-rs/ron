@@ -66,8 +66,9 @@ jobs:
           toolchain: ${{ matrix.rust }}
           profile: minimal
           override: true
-      # Downgrade the indexmap and once_cell dependencies for MSRV 1.64
+      # Downgrade some dependencies for MSRV 1.64
       - run: |
+          cargo update -p serde_bytes --precise 0.11.16
           cargo update -p indexmap --precise 2.5.0
           cargo update -p once_cell --precise 1.20.3
         if: ${{ matrix.rust == '1.64.0' }}
@@ -91,8 +92,9 @@ jobs:
           profile: minimal
           components: clippy
           override: true
-      # Downgrade the indexmap and once_cell dependencies for MSRV 1.64
+      # Downgrade some dependencies for MSRV 1.64
       - run: |
+          cargo update -p serde_bytes --precise 0.11.16
           cargo update -p indexmap --precise 2.5.0
           cargo update -p once_cell --precise 1.20.3
       - run: cargo clippy -- -D warnings
