@@ -68,8 +68,10 @@ jobs:
           override: true
       - run: cargo test
       - run: cargo test --features integer128
-      # Downgrade the indexmap dependency for MSRV 1.64
-      - run: cargo update -p indexmap --precise 2.5.0
+      # Downgrade the indexmap and once_cell dependencies for MSRV 1.64
+      - run: |
+          cargo update -p indexmap --precise 2.5.0
+          cargo update -p once_cell --precise 1.20.3
         if: ${{ matrix.rust == '1.64.0' }}
       - run: cargo test --features indexmap
       - run: cargo test --all-features
@@ -91,8 +93,10 @@ jobs:
           override: true
       - run: cargo clippy -- -D warnings
       - run: cargo clippy --features integer128 -- -D warnings
-      # Downgrade the indexmap dependency for MSRV 1.64
-      - run: cargo update -p indexmap --precise 2.5.0
+      # Downgrade the indexmap and once_cell dependencies for MSRV 1.64
+      - run: |
+          cargo update -p indexmap --precise 2.5.0
+          cargo update -p once_cell --precise 1.20.3
       - run: cargo clippy --features indexmap -- -D warnings
       - run: cargo clippy --all-features -- -D warnings
 
