@@ -217,7 +217,7 @@ Furthermore, serde imposes the following restrictions for data to roundtrip:
 - internally tagged newtype variants, which are `#[serde(flatten)]`ed together with other fields, must not contain:
   - a unit or unit struct or an untagged unit variant
 
-While RON offers a best-effort implementation for `#[serde(flatten)]`, it may be unsupported in further cases and combinations not listed above. These limitations stem primarily from Serde rather than RON. Enumerating all such cases based on Serde's behavior is nontrivial, so the lists above are not exhaustive.
+While RON offers a best-effort implementation for `#[serde(flatten)]`, it may be unsupported in further cases and combinations not listed above. These limitations stem primarily from serde rather than RON. Enumerating all such cases based on serde's behavior is nontrivial, so the lists above are not exhaustive.
 
 Please file a [new issue](https://github.com/ron-rs/ron/issues/new) if you come across a use case which is not listed among the above restrictions but still breaks.
 
