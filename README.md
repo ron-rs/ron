@@ -217,6 +217,8 @@ Furthermore, serde imposes the following restrictions for data to roundtrip:
 - internally tagged newtype variants, which are `#[serde(flatten)]`ed together with other fields, must not contain:
   - a unit or unit struct or an untagged unit variant
 
+While RON offers a best-effort implementation for `#[serde(flatten)]`, it may be unsupported in further cases and combinations not listed above. These limitations stem primarily from serde rather than RON. Enumerating all such cases based on serde's behavior is nontrivial, so the lists above are not exhaustive.
+
 Please file a [new issue](https://github.com/ron-rs/ron/issues/new) if you come across a use case which is not listed among the above restrictions but still breaks.
 
 While RON guarantees roundtrips like Rust -> RON -> Rust for Rust types using non-`deserialize_any`-based implementations, RON does not yet make any guarantees about roundtrips through `ron::Value`. For instance, even when RON -> Rust works, RON -> `ron::Value` -> Rust, or RON -> `ron::Value` -> RON -> Rust may not work. We plan on improving `ron::Value` in an upcoming version of RON, though this work is partially blocked on [serde#1183](https://github.com/serde-rs/serde/issues/1183).
