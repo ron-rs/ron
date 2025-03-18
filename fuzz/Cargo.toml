@@ -9,14 +9,14 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-arbitrary = { version = "1.0", features = ["derive"] }
-libfuzzer-sys = "0.4"
-ron = { path = "..", features = ["integer128"] }
-serde = { version = "1.0", features = ["derive"] }
-erased-serde = { version = "0.3" }
-anyhow = { version = "1.0" }
-criterion = { version = "0.5" }
-serde_path_to_error = { version = "0.1" }
+arbitrary = { version = "1.0", default-features = false, features = ["derive"] }
+libfuzzer-sys = { version = "0.4", default-features = false, features = ["link_libfuzzer"] }
+ron = { path = "..", default-features = false, features = ["integer128"] }
+serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
+erased-serde = { version = "0.4", default-features = false, features = ["std"] }
+anyhow = { version = "1.0", default-features = false, features = ["std"] }
+criterion = { version = "0.5", default-features = false }
+serde_path_to_error = { version = "0.1", default-features = false }
 
 # Prevent this from interfering with workspaces
 [workspace]
