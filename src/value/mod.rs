@@ -20,15 +20,26 @@ pub use raw::RawValue;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Value {
+    Unit,
     Bool(bool),
     Char(char),
-    Map(Map),
     Number(Number),
-    Option(Option<Box<Value>>),
     String(String),
     Bytes(Vec<u8>),
-    Seq(Vec<Value>),
-    Unit,
+    Option(Option<Box<Value>>),
+    List(Vec<Value>),
+    Map(Map<Value>),
+    Tuple(Vec<Value>),
+
+    UnitStructOrEnumVariant(Cow<'static, str>),
+    UnitEnumVariant(Cow<'static, str>),
+    UnitStruct(Cow<'static, str>),
+
+    StructOrEnumVariant(Option<Cow<'static, str>>, Map<Cow<'static, str>>),
+    Struct(Option<Cow<'static, str>>, Map<Cow<'static, str>>),
+    EnumVariant(Cow<'static, str>, Map<Cow<'static, str>>),
+
+    EnumTuple(Cow<'static, str>, Vec<Value>),
 }
 
 impl From<bool> for Value {
@@ -49,8 +60,8 @@ impl<K: Into<Value>, V: Into<Value>> FromIterator<(K, V)> for Value {
     }
 }
 
-impl From<Map> for Value {
-    fn from(value: Map) -> Self {
+impl From<Map<Value>> for Value {
+    fn from(value: Map<Value>) -> Self {
         Self::Map(value)
     }
 }
@@ -94,7 +105,7 @@ impl<const N: usize> From<&'static [u8; N]> for Value {
 
 impl<T: Into<Value>> FromIterator<T> for Value {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Self::Seq(iter.into_iter().map(Into::into).collect())
+        Self::List(iter.into_iter().map(Into::into).collect())
     }
 }
 
@@ -174,7 +185,7 @@ impl<'de> Deserializer<'de> for Value {
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
             Value::Bytes(b) => visitor.visit_byte_buf(b),
-            Value::Seq(mut seq) => {
+            Value::List(mut seq) => {
                 let old_len = seq.len();
 
                 seq.reverse();
@@ -190,6 +201,14 @@ impl<'de> Deserializer<'de> for Value {
                 }
             }
             Value::Unit => visitor.visit_unit(),
+            Value::Tuple(vec) => todo!(),
+            Value::UnitStructOrEnumVariant(cow) => todo!(),
+            Value::UnitEnumVariant(cow) => todo!(),
+            Value::UnitStruct(cow) => todo!(),
+            Value::StructOrEnumVariant(cow, map) => todo!(),
+            Value::Struct(cow, map) => todo!(),
+            Value::EnumVariant(cow, map) => todo!(),
+            Value::EnumTuple(cow, vec) => todo!(),
         }
     }
 }
@@ -256,9 +275,12 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, fmt::Debug};
+    use std::{
+        collections::{BTreeMap, HashMap},
+        fmt::Debug,
+    };
 
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
     use super::*;
 
@@ -414,7 +436,7 @@ mod tests {
 
         assert_eq!(
             Value::from([-1_i8, 2, -3].as_slice()),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -422,7 +444,7 @@ mod tests {
         );
         assert_eq!(
             Value::from(vec![-1_i8, 2, -3]),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -430,7 +452,7 @@ mod tests {
         );
         assert_eq!(
             Value::from_iter([-1_i8, 2, -3]),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -498,5 +520,90 @@ mod tests {
             Value::deserialize(NewtypeDeserializer).unwrap(),
             Value::from('🦀')
         );
+    }
+
+    #[test]
+    fn empty_struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A {}
+        assert_same::<A>("A()");
+    }
+
+    #[test]
+    fn simple_enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A,
+        }
+
+        assert_same::<A>("A");
+    }
+
+    #[ignore = ""]
+    #[test]
+    fn test() {
+        #[derive(Serialize)]
+        enum B {
+            A,
+            B,
+        }
+
+        #[derive(Serialize)]
+        struct A {
+            a: B,
+            b: HashMap<String, String>,
+        }
+
+        let v = A {
+            a: B::A,
+            b: [("a".into(), "a".into())].into_iter().collect(),
+        };
+
+        let ron_str = crate::to_string(&v).unwrap();
+
+        println!("{}", ron_str);
+
+        let value = crate::from_str::<Value>(&ron_str).unwrap();
+
+        println!("{:?}", value);
+
+        let ron_str2 = crate::to_string(&value).unwrap();
+
+        println!("{}", ron_str2);
+
+        assert_eq!(ron_str, ron_str2);
+    }
+
+    #[ignore = ""]
+    #[test]
+    fn test2() {
+        #[derive(Serialize)]
+        enum B {
+            A(Option<String>, i32),
+            B,
+        }
+
+        #[derive(Serialize)]
+        struct A {
+            a: B,
+        }
+
+        let v = A {
+            a: B::A(Some("a".into()), 0),
+        };
+
+        let ron_str = crate::to_string(&v).unwrap();
+
+        println!("{}", ron_str);
+
+        let value = crate::from_str::<Value>(&ron_str).unwrap();
+
+        println!("{:?}", value);
+
+        let ron_str2 = crate::to_string(&value).unwrap();
+
+        println!("{}", ron_str2);
+
+        assert_eq!(ron_str, ron_str2);
     }
 }

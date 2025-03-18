@@ -16,7 +16,7 @@ fn test_array() {
     let value: Value = ron::from_str(&ser).unwrap();
     assert_eq!(
         value,
-        Value::Seq(vec![
+        Value::List(vec![
             Value::Number(Number::U8(1)),
             Value::Number(Number::U8(2)),
             Value::Number(Number::U8(3)),
@@ -42,7 +42,7 @@ fn test_array() {
     let value: Value = ron::from_str(&ser).unwrap();
     assert_eq!(
         value,
-        Value::Seq(vec![
+        Value::List(vec![
             Value::Number(Number::U8(1)),
             Value::Number(Number::U8(2)),
             Value::Number(Number::U8(3)),
