@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## [0.9.0] - ??
+## [0.9.0] - 2025-03-18
 
 ### API Changes
 
@@ -50,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add CIFuzz GitHub action ([#429](https://github.com/ron-rs/ron/pull/429))
 - Update the arbitrary fuzzer to check arbitrary serde data types, values, and `ron::ser::PrettyConfig`s ([#465](https://github.com/ron-rs/ron/pull/465))
 - Add a benchmark for PRs that runs over the latest fuzzer corpus ([#465](https://github.com/ron-rs/ron/pull/465))
-- Fuzz serde enum representation and flatten attributes and collect current limitations in ron and serde ([#502](https://github.com/ron-rs/ron/pull/502))
+- Fuzz serde enum representations and collect current limitations in ron and serde ([#502](https://github.com/ron-rs/ron/pull/502))
 - Update `base64` dependency to version 0.22 ([#529](https://github.com/ron-rs/ron/pull/529))
 - Fix issue [#556](https://github.com/ron-rs/ron/issues/556) and update minium dependency versions ([#557](https://github.com/ron-rs/ron/pull/557))
 
