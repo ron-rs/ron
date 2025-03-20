@@ -17,7 +17,7 @@ use serde::{de::Visitor, Serialize, Serializer};
 /// <summary>Exhaustively matching on <code>Number</code> in tests</summary>
 ///
 /// If you want to ensure that you exhaustively handle every variant, you can
-/// match on the hidden <code>Number::__NonExhaustive</code> variant.
+/// match on the hidden `Number::__NonExhaustive` variant.
 ///
 /// <div class="warning">
 /// Matching on this variant means that your code may break when RON is
@@ -25,12 +25,11 @@ use serde::{de::Visitor, Serialize, Serializer};
 /// <code>Number</code> enum than your code expects.
 /// </div>
 ///
-/// It is your responsibility to only <b>ever</b> match on
-/// <code>Number::__NonExhaustive</code> inside tests, e.g. by using
-/// <code>#[cfg(test)]</code> on the particular match arm, to ensure that
-/// only your tests break (e.g. in CI) when your code is not exhaustively
-/// matching on every variant, e.g. after a version upgrade or feature
-/// unification.
+/// It is your responsibility to only *ever* match on `Number::__NonExhaustive`
+/// inside tests, e.g. by using `#[cfg(test)]` on the particular match arm, to
+/// ensure that only your tests break (e.g. in CI) when your code is not
+/// exhaustively matching on every variant, e.g. after a version upgrade or
+/// feature unification.
 /// </details>
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
 #[cfg_attr(doc, non_exhaustive)]
@@ -51,11 +50,13 @@ pub enum Number {
     F64(F64),
     #[cfg(not(doc))]
     #[allow(private_interfaces)]
-    __NonExhaustive(Never),
+    __NonExhaustive(private::Never),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
-enum Never {}
+mod private {
+    #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+    pub enum Never {}
+}
 
 impl Serialize for Number {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
