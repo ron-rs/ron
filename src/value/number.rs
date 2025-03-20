@@ -251,6 +251,7 @@ impl Number {
             Number::U128(v) => v as f64,
             Number::F32(v) => f64::from(v.get()),
             Number::F64(v) => v.get(),
+            Self::__NonExhaustive(never) => match never {},
         }
     }
 }
