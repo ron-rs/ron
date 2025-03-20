@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### API Changes
 
 - Add `ron::Options::to_io_writer` and `ron::Options::to_io_writer_pretty` to allow writing into an `io::Writer` ([#561](https://github.com/ron-rs/ron/pull/561))
+- Breaking: `ron::value::Number` is now non-exhaustive, to avoid breaking `match`es when feature unification enables more of its variants than expected ([#564](https://github.com/ron-rs/ron/pull/564))
 
 ## [0.9.0] - 2025-03-18
 
