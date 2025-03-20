@@ -100,7 +100,7 @@ jobs:
       - run: cargo clippy -- -D warnings -A unknown-lints
       - run: cargo clippy --features integer128 -- -D warnings -A unknown-lints
       - run: cargo clippy --features indexmap -- -D warnings -A unknown-lints
-      - run: cargo clippy --all-features -- -D warnings -A -D unknown-lints
+      - run: cargo clippy --all-features -- -D warnings -A unknown-lints
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"
