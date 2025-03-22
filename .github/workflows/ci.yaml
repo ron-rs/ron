@@ -97,10 +97,10 @@ jobs:
           cargo update -p serde_bytes --precise 0.11.16
           cargo update -p indexmap --precise 2.5.0
           cargo update -p once_cell --precise 1.20.3
-      - run: cargo clippy -- -D warnings
-      - run: cargo clippy --features integer128 -- -D warnings
-      - run: cargo clippy --features indexmap -- -D warnings
-      - run: cargo clippy --all-features -- -D warnings
+      - run: cargo clippy -- -D warnings -A unknown-lints
+      - run: cargo clippy --features integer128 -- -D warnings -A unknown-lints
+      - run: cargo clippy --features indexmap -- -D warnings -A unknown-lints
+      - run: cargo clippy --all-features -- -D warnings -A unknown-lints
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"
