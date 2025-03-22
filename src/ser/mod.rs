@@ -113,6 +113,9 @@ pub struct PrettyConfig {
     pub number_suffixes: bool,
     /// Additional path-based field metadata to serialize
     pub path_meta: Option<path_meta::Field>,
+    /// Use braced struct syntax like `Person { age: 42 }` instead of the
+    ///  parenthesised syntax `Person(age: 42)` or just `(age: 42)`
+    pub braced_structs: bool,
 }
 
 impl PrettyConfig {
@@ -341,6 +344,36 @@ impl PrettyConfig {
 
         self
     }
+
+    /// Configures whether structs or struct variants with named fields should
+    /// be printed using braced syntax (`true`) or parenthesised syntax
+    /// (`false`).
+    ///
+    /// When `false`, the struct `Person { age: 42 }` will serialize to
+    /// ```ignore
+    /// Person(age: 42)
+    /// # ;
+    /// ```
+    /// if printing struct names is turned on, or
+    /// ```ignore
+    /// (age: 42)
+    /// # ;
+    /// ```
+    /// if struct names are turned off.
+    ///
+    /// When `true`, the struct `Person { age: 42 }` will serialize to
+    /// ```ignore
+    /// Person {age: 42}
+    /// # ;
+    /// ```
+    ///
+    /// Default: `false`
+    #[must_use]
+    pub fn braced_structs(mut self, braced_structs: bool) -> Self {
+        self.braced_structs = braced_structs;
+
+        self
+    }
 }
 
 impl Default for PrettyConfig {
@@ -364,6 +397,7 @@ impl Default for PrettyConfig {
             compact_maps: false,
             number_suffixes: false,
             path_meta: None,
+            braced_structs: false,
         }
     }
 }
@@ -473,6 +507,12 @@ impl<W: fmt::Write> Serializer<W> {
         self.pretty
             .as_ref()
             .map_or(false, |(ref config, _)| config.number_suffixes)
+    }
+
+    fn braced_structs(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |(ref config, _)| config.braced_structs)
     }
 
     fn extensions(&self) -> Extensions {
@@ -956,7 +996,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Ok(Compound::new(self, false))
+        Ok(Compound::new(self, Some(']')))
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -964,9 +1004,12 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
-        if !old_newtype_variant {
+        let closing = if old_newtype_variant {
+            None
+        } else {
             self.output.write_char('(')?;
-        }
+            Some(')')
+        };
 
         if self.separate_tuple_members() {
             self.is_empty = Some(len == 0);
@@ -974,7 +1017,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Ok(Compound::new(self, old_newtype_variant))
+        Ok(Compound::new(self, closing))
     }
 
     fn serialize_tuple_struct(
@@ -1011,7 +1054,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Ok(Compound::new(self, false))
+        Ok(Compound::new(self, Some(')')))
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -1028,7 +1071,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.start_indent()?;
         }
 
-        Ok(Compound::new(self, false))
+        Ok(Compound::new(self, Some('}')))
     }
 
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
@@ -1036,8 +1079,13 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
-        if old_newtype_variant {
+        let closing = if self.braced_structs() {
+            self.write_identifier(name)?;
+            self.output.write_str(" {")?;
+            Some('}')
+        } else if old_newtype_variant {
             self.validate_identifier(name)?;
+            None
         } else {
             if self.struct_names() {
                 self.write_identifier(name)?;
@@ -1045,14 +1093,15 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
                 self.validate_identifier(name)?;
             }
             self.output.write_char('(')?;
-        }
+            Some(')')
+        };
 
         if !self.compact_structs() {
             self.is_empty = Some(len == 0);
             self.start_indent()?;
         }
 
-        Ok(Compound::new(self, old_newtype_variant))
+        Ok(Compound::new(self, closing))
     }
 
     fn serialize_struct_variant(
@@ -1067,14 +1116,21 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
 
         self.validate_identifier(name)?;
         self.write_identifier(variant)?;
-        self.output.write_char('(')?;
+
+        let closing = if self.braced_structs() {
+            self.output.write_str(" {")?;
+            '}'
+        } else {
+            self.output.write_char('(')?;
+            ')'
+        };
 
         if !self.compact_structs() {
             self.is_empty = Some(len == 0);
             self.start_indent()?;
         }
 
-        Ok(Compound::new(self, false))
+        Ok(Compound::new(self, Some(closing)))
     }
 }
 
@@ -1087,16 +1143,16 @@ enum State {
 pub struct Compound<'a, W: fmt::Write> {
     ser: &'a mut Serializer<W>,
     state: State,
-    newtype_variant: bool,
+    closing: Option<char>,
     sequence_index: usize,
 }
 
 impl<'a, W: fmt::Write> Compound<'a, W> {
-    fn new(ser: &'a mut Serializer<W>, newtype_variant: bool) -> Self {
+    fn new(ser: &'a mut Serializer<W>, closing: Option<char>) -> Self {
         Compound {
             ser,
             state: State::First,
-            newtype_variant,
+            closing,
             sequence_index: 0,
         }
     }
@@ -1161,8 +1217,10 @@ impl<'a, W: fmt::Write> ser::SerializeSeq for Compound<'a, W> {
             self.ser.end_indent()?;
         }
 
-        // seq always disables `self.newtype_variant`
-        self.ser.output.write_char(']')?;
+        if let Some(closing) = self.closing {
+            self.ser.output.write_char(closing)?;
+        }
+
         Ok(())
     }
 }
@@ -1210,8 +1268,8 @@ impl<'a, W: fmt::Write> ser::SerializeTuple for Compound<'a, W> {
             self.ser.end_indent()?;
         }
 
-        if !self.newtype_variant {
-            self.ser.output.write_char(')')?;
+        if let Some(closing) = self.closing {
+            self.ser.output.write_char(closing)?;
         }
 
         Ok(())
@@ -1309,8 +1367,10 @@ impl<'a, W: fmt::Write> ser::SerializeMap for Compound<'a, W> {
             self.ser.end_indent()?;
         }
 
-        // map always disables `self.newtype_variant`
-        self.ser.output.write_char('}')?;
+        if let Some(closing) = self.closing {
+            self.ser.output.write_char(closing)?;
+        }
+
         Ok(())
     }
 }
@@ -1399,8 +1459,8 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
             self.ser.end_indent()?;
         }
 
-        if !self.newtype_variant {
-            self.ser.output.write_char(')')?;
+        if let Some(closing) = self.closing {
+            self.ser.output.write_char(closing)?;
         }
 
         Ok(())
