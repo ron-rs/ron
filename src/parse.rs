@@ -1039,7 +1039,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // FIXME @juntyr: remove in v0.11, since only byte_string_no_base64 will
+        // FIXME @juntyr: remove in v0.12, since only byte_string_no_base64 will
         //                be used
         if self.consume_char('"') {
             let base64_str = self.escaped_string()?;

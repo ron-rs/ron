@@ -28,7 +28,7 @@ indexmap = ["std", "dep:indexmap"]
 internal-span-substring-test = ["unicode-segmentation"]
 
 [dependencies]
-# FIXME @juntyr remove base64 in v0.11 once old byte strings are fully deprecated
+# FIXME @juntyr remove base64 in v0.12 once old byte strings are fully deprecated
 base64 = { version = "0.22", default-features = false, features = ["std"] }
 bitflags = { version = "2.1", default-features = false, features = ["serde"] }
 indexmap = { version = "2.0", default-features = false, features = ["serde"], optional = true }
