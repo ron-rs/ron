@@ -28,8 +28,8 @@ indexmap = ["std", "dep:indexmap"]
 internal-span-substring-test = ["unicode-segmentation"]
 
 [dependencies]
-# FIXME @juntyr remove base64 once old byte strings are fully deprecated
-base64 = { version = "0.22", default-features = false, features = ["alloc"] }
+# FIXME @juntyr remove base64 in v0.11 once old byte strings are fully deprecated
+base64 = { version = "0.22", default-features = false, features = ["std"] }
 bitflags = { version = "2.1", default-features = false, features = ["serde"] }
 indexmap = { version = "2.0", default-features = false, features = ["serde"], optional = true }
 # serde supports i128/u128 from 1.0.60 onwards
