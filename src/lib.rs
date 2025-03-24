@@ -15,6 +15,8 @@
 #![doc = include_str!("../README.md")]
 #![doc(html_root_url = "https://docs.rs/ron/0.9.0")]
 
+#![feature(precise_capturing_in_traits)]
+
 pub mod de;
 pub mod ser;
 

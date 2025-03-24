@@ -30,6 +30,7 @@ const SERDE_TAG_KEY_CANARY: &str = "serde::__private::de::content::TagOrContent"
 ///
 /// If you just want to simply deserialize a value,
 /// you can use the [`from_str`] convenience function.
+#[derive(Copy, Clone)]
 pub struct Deserializer<'de> {
     pub(crate) parser: Parser<'de>,
     newtype_variant: bool,
@@ -773,6 +774,269 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
+impl<'de> serde::de::Buffer<'de> for OwnedDeserializer<'de> {
+    type Error = Error;
+
+    type OwnedDeserializer = Self;
+
+    type RefDeserializer<'b> = Self where 'de: 'b;
+
+    fn owned_deserializer(self) -> Self::OwnedDeserializer {
+        self
+    }
+
+    fn ref_deserializer<'b>(&'b self) -> Self::RefDeserializer<'b>
+    where
+        'de: 'b,
+    {
+        *self
+    }
+}
+
+#[derive(Copy, Clone)]
+struct OwnedDeserializer<'de> {
+    de: Deserializer<'de>
+}
+
+impl<'de> serde::de::Deserializer<'de> for OwnedDeserializer<'de> {
+    type Error = Error;
+
+    fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_any(visitor)
+    }
+
+    fn deserialize_bool<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_bool(visitor)
+    }
+
+    fn deserialize_i8<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_i8(visitor)
+    }
+
+    fn deserialize_i16<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_i16(visitor)
+    }
+
+    fn deserialize_i32<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_i32(visitor)
+    }
+
+    fn deserialize_i64<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_i64(visitor)
+    }
+
+    #[cfg(feature = "integer128")]
+    fn deserialize_i128<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_i128(Visitor)
+    }
+
+    fn deserialize_u8<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_u8(visitor)
+    }
+
+    fn deserialize_u16<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_u16(visitor)
+    }
+
+    fn deserialize_u32<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_u32(visitor)
+    }
+
+    fn deserialize_u64<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_u64(visitor)
+    }
+
+    #[cfg(feature = "integer128")]
+    fn deserialize_u128<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_u128(visitor)
+    }
+
+    fn deserialize_f32<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_f32(visitor)
+    }
+
+    fn deserialize_f64<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_f64(visitor)
+    }
+
+    fn deserialize_char<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_char(visitor)
+    }
+
+    fn deserialize_str<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_str(visitor)
+    }
+
+    fn deserialize_string<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_string(visitor)
+    }
+
+    fn deserialize_bytes<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_bytes(visitor)
+    }
+
+    fn deserialize_byte_buf<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_byte_buf(visitor)
+    }
+
+    fn deserialize_option<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_option(visitor)
+    }
+
+    // In Serde, unit means an anonymous value containing no data.
+    fn deserialize_unit<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_unit(visitor)
+    }
+
+    fn deserialize_unit_struct<V>(mut self, name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_unit_struct(name, visitor)
+    }
+
+    fn deserialize_newtype_struct<V>(mut self, name: &'static str, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_unit_struct(name, visitor)
+    }
+
+    fn deserialize_seq<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_seq(visitor)
+    }
+
+    fn deserialize_tuple<V>(mut self, len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_tuple(len, visitor)
+    }
+
+    fn deserialize_tuple_struct<V>(
+        mut self,
+        name: &'static str,
+        len: usize,
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_tuple_struct(name, len, visitor)
+    }
+
+    fn deserialize_map<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_map(visitor)
+    }
+
+    fn deserialize_struct<V>(
+        mut self,
+        name: &'static str,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_struct(name, fields, visitor)
+    }
+
+    fn deserialize_enum<V>(
+        mut self,
+        name: &'static str,
+        variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_enum(name, variants, visitor)
+    }
+
+    fn deserialize_identifier<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_identifier(visitor)
+    }
+
+    fn deserialize_ignored_any<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.de.deserialize_ignored_any(visitor)
+    }
+}
+
 enum Terminator {
     Map,
     MapAsStruct,
@@ -896,6 +1160,14 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         } else {
             Err(Error::ExpectedMapColon)
         }
+    }
+
+    fn next_value_buffer(
+        &mut self,
+    ) -> Result<impl serde::de::Buffer<'de, Error = Self::Error> + use<'de, 'a>, Self::Error> {
+        Ok(OwnedDeserializer {
+            de: Deserializer { parser: self.de.parser.clone(), newtype_variant: self.de.newtype_variant, serde_content_newtype: self.de.serde_content_newtype, last_identifier: self.de.last_identifier, recursion_limit: self.de.recursion_limit }
+        })
     }
 }
 

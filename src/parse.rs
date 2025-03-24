@@ -54,6 +54,7 @@ pub(crate) type LargeSInt = i128;
 #[cfg(not(feature = "integer128"))]
 pub(crate) type LargeSInt = i64;
 
+#[derive(Copy, Clone)]
 pub struct Parser<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
