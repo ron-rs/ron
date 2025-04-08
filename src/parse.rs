@@ -1024,35 +1024,23 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // FIXME @juntyr: remove in v0.12, since only byte_string_no_base64 will
+        //                be used
         if self.consume_char('"') {
             let base64_str = self.escaped_string()?;
             let base64_result = ParsedByteStr::try_from_base64(&base64_str);
 
-            if cfg!(not(test)) {
-                // FIXME @juntyr: remove in v0.10
-                #[allow(deprecated)]
-                base64_result.map_err(Error::Base64Error)
-            } else {
-                match base64_result {
-                    // FIXME @juntyr: enable in v0.10
-                    Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
-                    Err(_) => Err(Error::ExpectedByteString),
-                }
+            match base64_result {
+                Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
+                Err(_) => Err(Error::ExpectedByteString),
             }
         } else if self.consume_char('r') {
             let base64_str = self.raw_string()?;
             let base64_result = ParsedByteStr::try_from_base64(&base64_str);
 
-            if cfg!(not(test)) {
-                // FIXME @juntyr: remove in v0.10
-                #[allow(deprecated)]
-                base64_result.map_err(Error::Base64Error)
-            } else {
-                match base64_result {
-                    // FIXME @juntyr: enable in v0.10
-                    Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
-                    Err(_) => Err(Error::ExpectedByteString),
-                }
+            match base64_result {
+                Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
+                Err(_) => Err(Error::ExpectedByteString),
             }
         } else {
             self.byte_string_no_base64()
@@ -1771,7 +1759,7 @@ mod tests {
     }
 
     #[test]
-    fn v0_10_base64_deprecation_error() {
+    fn base64_deprecation_error() {
         let err = crate::from_str::<bytes::Bytes>("\"SGVsbG8gcm9uIQ==\"").unwrap_err();
 
         assert_eq!(
