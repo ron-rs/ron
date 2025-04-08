@@ -75,6 +75,7 @@ impl Serialize for Number {
             Self::U128(v) => serializer.serialize_u128(*v),
             Self::F32(v) => serializer.serialize_f32(v.get()),
             Self::F64(v) => serializer.serialize_f64(v.get()),
+            #[cfg(not(doc))]
             Self::__NonExhaustive(never) => match *never {},
         }
     }
@@ -100,6 +101,7 @@ impl Number {
             Self::U128(v) => visitor.visit_u128(*v),
             Self::F32(v) => visitor.visit_f32(v.get()),
             Self::F64(v) => visitor.visit_f64(v.get()),
+            #[cfg(not(doc))]
             Self::__NonExhaustive(never) => match *never {},
         }
     }
@@ -252,6 +254,7 @@ impl Number {
             Number::U128(v) => v as f64,
             Number::F32(v) => f64::from(v.get()),
             Number::F64(v) => v.get(),
+            #[cfg(not(doc))]
             Self::__NonExhaustive(never) => match never {},
         }
     }
