@@ -240,20 +240,20 @@ impl Number {
     pub fn into_f64(self) -> f64 {
         #[allow(clippy::cast_precision_loss)]
         match self {
-            Number::I8(v) => f64::from(v),
-            Number::I16(v) => f64::from(v),
-            Number::I32(v) => f64::from(v),
-            Number::I64(v) => v as f64,
+            Self::I8(v) => f64::from(v),
+            Self::I16(v) => f64::from(v),
+            Self::I32(v) => f64::from(v),
+            Self::I64(v) => v as f64,
             #[cfg(feature = "integer128")]
-            Number::I128(v) => v as f64,
-            Number::U8(v) => f64::from(v),
-            Number::U16(v) => f64::from(v),
-            Number::U32(v) => f64::from(v),
-            Number::U64(v) => v as f64,
+            Self::I128(v) => v as f64,
+            Self::U8(v) => f64::from(v),
+            Self::U16(v) => f64::from(v),
+            Self::U32(v) => f64::from(v),
+            Self::U64(v) => v as f64,
             #[cfg(feature = "integer128")]
-            Number::U128(v) => v as f64,
-            Number::F32(v) => f64::from(v.get()),
-            Number::F64(v) => v.get(),
+            Self::U128(v) => v as f64,
+            Self::F32(v) => f64::from(v.get()),
+            Self::F64(v) => v.get(),
             #[cfg(not(doc))]
             Self::__NonExhaustive(never) => match never {},
         }
