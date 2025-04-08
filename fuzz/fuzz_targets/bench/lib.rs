@@ -63,7 +63,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 // Everything else is actually a bug we want to find
                 _ => panic!("{:#?} -> {} -! {:#?}", typed_value, ron, err),
             }
-        };
+        }
 
         if let Err((err, path)) =
             (|| -> Result<(), (ron::error::SpannedError, Option<serde_path_to_error::Path>)> {
@@ -94,7 +94,7 @@ pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeD
                 // Everything else is actually a bug we want to find
                 _ => panic!("{:#?} -> {} -! {:#?} @ {:#?}", typed_value, ron, err, path),
             }
-        };
+        }
 
         Some(typed_value)
     } else {
@@ -5214,7 +5214,7 @@ impl<'a> SerdeDataType<'a> {
                     SerdeEnumRepresentation::AdjacentlyTagged { tag, content } => {
                         name_length += tag.len() + content.len();
                     }
-                };
+                }
 
                 let value = match ty {
                     SerdeDataVariantType::Unit => SerdeDataVariantValue::Unit,
