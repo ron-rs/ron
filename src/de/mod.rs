@@ -83,7 +83,8 @@ impl<'de> Deserializer<'de> {
 
         Err(SpannedError {
             code: err.into(),
-            position: Position::from_src_end(valid_input),
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position::from_src_end(valid_input),
         })
     }
 

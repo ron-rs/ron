@@ -189,7 +189,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawValue {
                     Ok(_) => Ok(RawValue::from_borrowed_str(ron)),
                     Err(err) => Err(de::Error::custom(format!(
                         "invalid RON value at {}: {}",
-                        err.position, err.code
+                        err.position_start, err.code
                     ))),
                 }
             }
@@ -223,7 +223,7 @@ impl<'de> Deserialize<'de> for Box<RawValue> {
                     Ok(_) => Ok(RawValue::from_boxed_str(ron.to_owned().into_boxed_str())),
                     Err(err) => Err(de::Error::custom(format!(
                         "invalid RON value at {}: {}",
-                        err.position, err.code
+                        err.position_start, err.code
                     ))),
                 }
             }
@@ -233,7 +233,7 @@ impl<'de> Deserialize<'de> for Box<RawValue> {
                     Ok(_) => Ok(RawValue::from_boxed_str(ron.into_boxed_str())),
                     Err(err) => Err(de::Error::custom(format!(
                         "invalid RON value at {}: {}",
-                        err.position, err.code
+                        err.position_start, err.code
                     ))),
                 }
             }

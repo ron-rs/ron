@@ -19,7 +19,8 @@ fn test_missing_comma_error() {
         ron::from_str::<(i32, i32)>(tuple_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 3, col: 9 }
+            position_start: ron::error::Position { line: 3, col: 9 },
+            position_end: Position { line: 3, col: 9 }
         }
     );
 
@@ -33,7 +34,8 @@ fn test_missing_comma_error() {
         ron::from_str::<Vec<i32>>(list_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 4, col: 9 }
+            position_start: ron::error::Position { line: 4, col: 9 },
+            position_end: Position { line: 4, col: 9 }
         }
     );
 
@@ -46,7 +48,8 @@ fn test_missing_comma_error() {
         ron::from_str::<Test>(struct_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 3, col: 9 }
+            position_start: ron::error::Position { line: 3, col: 9 },
+            position_end: Position { line: 3, col: 9 }
         }
     );
 
@@ -59,7 +62,8 @@ fn test_missing_comma_error() {
         ron::from_str::<std::collections::HashMap<String, i32>>(map_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 3, col: 9 }
+            position_start: ron::error::Position { line: 3, col: 9 },
+            position_end: Position { line: 3, col: 9 }
         }
     );
 
@@ -72,7 +76,8 @@ fn test_missing_comma_error() {
         ron::from_str::<u8>(extensions_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 3, col: 9 }
+            position_start: ron::error::Position { line: 2, col: 50 },
+            position_end: Position { line: 3, col: 9 }
         }
     );
 }

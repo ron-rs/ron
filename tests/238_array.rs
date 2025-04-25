@@ -35,7 +35,8 @@ fn test_array() {
         de,
         SpannedError {
             code: Error::ExpectedStructLike,
-            position: Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }
     );
 

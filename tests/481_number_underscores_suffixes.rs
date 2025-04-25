@@ -10,14 +10,17 @@ fn de_integer_underscores() {
         ron::from_str::<u8>("_0b1"),
         Err(ron::error::SpannedError {
             code: ron::Error::UnderscoreAtBeginning,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         })
     );
     assert_eq!(
         ron::from_str::<u8>("_0b1_u8"),
         Err(ron::error::SpannedError {
             code: ron::Error::UnderscoreAtBeginning,
-            position: ron::error::Position { line: 1, col: 1 },
+            // ? Start before end ?
+            position_start: ron::error::Position { line: 1, col: 6 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         })
     );
     assert_eq!(
@@ -27,7 +30,8 @@ fn de_integer_underscores() {
                 digit: '2',
                 base: 2
             },
-            position: ron::error::Position { line: 1, col: 3 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 3 },
         })
     );
     assert_eq!(
@@ -37,7 +41,8 @@ fn de_integer_underscores() {
                 digit: '2',
                 base: 2
             },
-            position: ron::error::Position { line: 1, col: 4 },
+            position_start: ron::error::Position { line: 1, col: 4 },
+            position_end: ron::error::Position { line: 1, col: 4 },
         })
     );
 
@@ -46,7 +51,8 @@ fn de_integer_underscores() {
         ron::from_str::<u8>("_0o5"),
         Err(ron::error::SpannedError {
             code: ron::Error::UnderscoreAtBeginning,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         })
     );
     assert_eq!(
@@ -56,7 +62,8 @@ fn de_integer_underscores() {
                 digit: 'A',
                 base: 8
             },
-            position: ron::error::Position { line: 1, col: 3 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 3 },
         })
     );
 
@@ -65,14 +72,16 @@ fn de_integer_underscores() {
         ron::from_str::<u8>("_0xF"),
         Err(ron::error::SpannedError {
             code: ron::Error::UnderscoreAtBeginning,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         })
     );
     assert_eq!(
         ron::from_str::<u8>("0xZ"),
         Err(ron::error::SpannedError {
             code: ron::Error::ExpectedInteger,
-            position: ron::error::Position { line: 1, col: 3 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 3 },
         })
     );
 
@@ -81,7 +90,8 @@ fn de_integer_underscores() {
         ron::from_str::<u8>("_123"),
         Err(ron::error::SpannedError {
             code: ron::Error::UnderscoreAtBeginning,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         })
     );
     assert_eq!(
@@ -91,7 +101,8 @@ fn de_integer_underscores() {
                 digit: 'a',
                 base: 10
             },
-            position: ron::error::Position { line: 1, col: 3 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 3 },
         })
     );
 }
@@ -104,14 +115,16 @@ fn de_float_underscores() {
         ron::from_str::<f32>("_286"),
         Err(ron::error::SpannedError {
             code: ron::Error::UnderscoreAtBeginning,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         })
     );
     assert_eq!(
         ron::from_str::<f32>("2a86"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
 
@@ -120,7 +133,8 @@ fn de_float_underscores() {
         ron::from_str::<f32>("2_18__6_._"),
         Err(ron::error::SpannedError {
             code: ron::Error::FloatUnderscore,
-            position: ron::error::Position { line: 1, col: 10 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 10 },
         })
     );
     assert_eq!(
@@ -133,7 +147,8 @@ fn de_float_underscores() {
         ron::from_str::<f32>("._3__7_"),
         Err(ron::error::SpannedError {
             code: ron::Error::FloatUnderscore,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
 
@@ -145,7 +160,8 @@ fn de_float_underscores() {
         ron::from_str::<f64>("2_18__6_.3__7_e+____"),
         Err(ron::error::SpannedError {
             code: ron::Error::ExpectedFloat,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         })
     );
 }
@@ -226,28 +242,32 @@ fn negative_unsigned() {
         ron::from_str::<ron::Value>("-1u8"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         })
     );
     assert_eq!(
         ron::from_str::<ron::Value>("-1u16"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 6 },
         })
     );
     assert_eq!(
         ron::from_str::<ron::Value>("-1u32"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 6 },
         })
     );
     assert_eq!(
         ron::from_str::<ron::Value>("-1u64"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 6 },
         })
     );
     #[cfg(feature = "integer128")]
@@ -255,6 +275,7 @@ fn negative_unsigned() {
         ron::from_str::<ron::Value>("-1u128"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
+            position_start: ron::error::Position { line: 1, col: 1 },
             position: ron::error::Position { line: 1, col: 7 },
         })
     );
@@ -263,28 +284,32 @@ fn negative_unsigned() {
         ron::from_str::<u8>("-1u8"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         })
     );
     assert_eq!(
         ron::from_str::<u16>("-1u16"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 6 },
         })
     );
     assert_eq!(
         ron::from_str::<u32>("-1u32"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 6 },
         })
     );
     assert_eq!(
         ron::from_str::<u64>("-1u64"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 6 },
         })
     );
     #[cfg(feature = "integer128")]
@@ -292,6 +317,7 @@ fn negative_unsigned() {
         ron::from_str::<u128>("-1u128"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
+            position_start: ron::error::Position { line: 1, col: 1 },
             position: ron::error::Position { line: 1, col: 7 },
         })
     );
@@ -303,14 +329,16 @@ fn invalid_suffix() {
         ron::from_str::<ron::Value>("1u7"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
     assert_eq!(
         ron::from_str::<ron::Value>("1f17"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
     #[cfg(not(feature = "integer128"))]
@@ -318,7 +346,8 @@ fn invalid_suffix() {
         ron::from_str::<ron::Value>("1u128"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
     #[cfg(not(feature = "integer128"))]
@@ -326,7 +355,8 @@ fn invalid_suffix() {
         ron::from_str::<ron::Value>("1i128"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
 
@@ -334,14 +364,16 @@ fn invalid_suffix() {
         ron::from_str::<u8>("1u7"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
     assert_eq!(
         ron::from_str::<f32>("1f17"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
     #[cfg(not(feature = "integer128"))]
@@ -349,7 +381,8 @@ fn invalid_suffix() {
         ron::from_str::<u64>("1u128"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
     #[cfg(not(feature = "integer128"))]
@@ -357,7 +390,8 @@ fn invalid_suffix() {
         ron::from_str::<i64>("1i128"),
         Err(ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 2 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 2 },
         })
     );
 }
@@ -371,7 +405,8 @@ fn number_type_mismatch() {
                 expected: String::from("an 8-bit unsigned integer"),
                 found: String::from("1i32")
             },
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         })
     );
 
@@ -379,7 +414,8 @@ fn number_type_mismatch() {
         ron::from_str::<i64>("-1u8"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         })
     );
 
@@ -390,7 +426,8 @@ fn number_type_mismatch() {
                 expected: String::from("a 32-bit floating point number"),
                 found: String::from("1f64")
             },
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         })
     );
 
@@ -401,7 +438,8 @@ fn number_type_mismatch() {
                 expected: String::from("a 64-bit floating point number"),
                 found: String::from("1f32")
             },
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 2 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         })
     );
 
@@ -442,7 +480,7 @@ fn check_number_type_mismatch<T: core::fmt::Debug + serde::de::DeserializeOwned>
     println!("{:?} {}", err, suffix);
 
     assert_eq!(
-        err.position,
+        err.position_end,
         ron::error::Position {
             line: 1,
             col: 2 + suffix.len()
@@ -460,7 +498,8 @@ fn float_const_prefix() {
         ron::from_str::<f32>("NaNf32a").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::ExpectedFloat,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         }
     );
 
@@ -468,7 +507,8 @@ fn float_const_prefix() {
         ron::from_str::<f64>("-inff64a").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::ExpectedFloat,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         }
     );
 
@@ -476,7 +516,8 @@ fn float_const_prefix() {
         ron::from_str::<f32>("+NaNf17").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::ExpectedFloat,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         }
     );
 }
@@ -487,21 +528,26 @@ fn invalid_float() {
         ron::from_str::<f32>("1ee3").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::ExpectedFloat,
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         }
     );
     assert_eq!(
         ron::from_str::<f32>("1ee3f32").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::ExpectedFloat,
-            position: ron::error::Position { line: 1, col: 1 },
+            // ? Start before end ?
+            position_start: ron::error::Position { line: 1, col: 5 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         }
     );
     assert_eq!(
         ron::from_str::<f64>("1ee3f64").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::ExpectedFloat,
-            position: ron::error::Position { line: 1, col: 1 },
+            // ? Start before end ?
+            position_start: ron::error::Position { line: 1, col: 5 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         }
     );
 }
@@ -538,7 +584,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("true(false)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 5 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         }
     );
 
@@ -548,7 +595,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("false(true)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 6 },
+            position_end: ron::error::Position { line: 1, col: 6 },
         }
     );
 
@@ -565,7 +613,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("None(true)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 5 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         }
     );
 
@@ -575,7 +624,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("inf(false)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 4 },
+            position_start: ron::error::Position { line: 1, col: 4 },
+            position_end: ron::error::Position { line: 1, col: 4 },
         }
     );
 
@@ -591,7 +641,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("inff32(false)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 7 },
+            position_start: ron::error::Position { line: 1, col: 7 },
+            position_end: ron::error::Position { line: 1, col: 7 },
         }
     );
 
@@ -607,7 +658,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("inff64(false)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 7 },
+            position_start: ron::error::Position { line: 1, col: 7 },
+            position_end: ron::error::Position { line: 1, col: 7 },
         }
     );
 
@@ -617,7 +669,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("NaN(true)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 4 },
+            position_start: ron::error::Position { line: 1, col: 4 },
+            position_end: ron::error::Position { line: 1, col: 4 },
         }
     );
 
@@ -630,7 +683,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("NaNf32(true)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 7 },
+            position_start: ron::error::Position { line: 1, col: 7 },
+            position_end: ron::error::Position { line: 1, col: 7 },
         }
     );
 
@@ -643,7 +697,8 @@ fn fuzzer_found_issues() {
         ron::from_str::<ron::Value>("NaNf64(true)").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::TrailingCharacters,
-            position: ron::error::Position { line: 1, col: 7 },
+            position_start: ron::error::Position { line: 1, col: 7 },
+            position_end: ron::error::Position { line: 1, col: 7 },
         }
     );
 }

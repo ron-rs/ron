@@ -76,14 +76,16 @@ fn test_struct() {
         "NewType",
         Err(SpannedError {
             code: Error::ExpectedNamedStructLike("NewType"),
-            position: Position { line: 1, col: 8 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 8 },
         }),
     );
     check_from_str_bytes_reader::<UnnamedNewType>(
         "",
         Err(SpannedError {
             code: Error::ExpectedStructLike,
-            position: Position { line: 1, col: 1 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }),
     );
     check_from_str_bytes_reader("(33)", Ok(UnnamedNewType(33)));
@@ -91,7 +93,8 @@ fn test_struct() {
         "Newtype",
         Err(SpannedError {
             code: Error::ExpectedNamedStructLike(""),
-            position: Position { line: 1, col: 8 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 8 },
         }),
     );
 
@@ -101,14 +104,16 @@ fn test_struct() {
         "",
         Err(SpannedError {
             code: Error::ExpectedNamedStructLike("TupleStruct"),
-            position: Position { line: 1, col: 1 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }),
     );
     check_from_str_bytes_reader::<UnnamedTupleStruct>(
         "TupleStruct(2,5,)",
         Err(SpannedError {
             code: Error::ExpectedNamedStructLike(""),
-            position: Position { line: 1, col: 12 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 12 },
         }),
     );
     check_from_str_bytes_reader("(3,4)", Ok(UnnamedTupleStruct(3.0, 4.0)));
@@ -116,7 +121,8 @@ fn test_struct() {
         "",
         Err(SpannedError {
             code: Error::ExpectedStructLike,
-            position: Position { line: 1, col: 1 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }),
     );
 }
@@ -155,7 +161,8 @@ fn test_unclosed_limited_seq_struct() {
         "(",
         Err(SpannedError {
             code: Error::ExpectedStructLikeEnd,
-            position: Position { line: 1, col: 2 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 2 },
         }),
     )
 }
@@ -194,7 +201,8 @@ fn test_unclosed_limited_seq() {
         "[",
         Err(SpannedError {
             code: Error::ExpectedArrayEnd,
-            position: Position { line: 1, col: 2 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 2 },
         }),
     );
 
@@ -241,7 +249,8 @@ fn test_unclosed_limited_map() {
         "{",
         Err(SpannedError {
             code: Error::ExpectedMapEnd,
-            position: Position { line: 1, col: 2 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 2 },
         }),
     );
 
@@ -268,7 +277,8 @@ fn test_enum() {
         "B",
         Err(SpannedError {
             code: Error::ExpectedStructLike,
-            position: Position { line: 1, col: 2 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 2 },
         }),
     );
     check_from_str_bytes_reader("C(true,3.5,)", Ok(MyEnum::C(true, 3.5)));
@@ -348,10 +358,21 @@ y: 2.0 // 2!
     );
 }
 
-fn err<T>(kind: Error, line: usize, col: usize) -> SpannedResult<T> {
+fn err<T>(
+    kind: Error,
+    (line_start, col_start): (usize, usize),
+    (line_end, col_end): (usize, usize),
+) -> SpannedResult<T> {
     Err(SpannedError {
         code: kind,
-        position: Position { line, col },
+        position_start: Position {
+            line: line_start,
+            col: col_start,
+        },
+        position_end: Position {
+            line: line_end,
+            col: col_end,
+        },
     })
 }
 
@@ -360,16 +381,16 @@ fn test_err_wrong_value() {
     #[cfg(feature = "std")]
     use std::collections::HashMap;
 
-    check_from_str_bytes_reader::<f32>("'c'", err(Error::ExpectedFloat, 1, 1));
-    check_from_str_bytes_reader::<String>("'c'", err(Error::ExpectedString, 1, 1));
+    check_from_str_bytes_reader::<f32>("'c'", err(Error::ExpectedFloat, (1, 1), (1, 1)));
+    check_from_str_bytes_reader::<String>("'c'", err(Error::ExpectedString, (1, 1), (1, 1)));
     #[cfg(feature = "std")]
-    check_from_str_bytes_reader::<HashMap<u32, u32>>("'c'", err(Error::ExpectedMap, 1, 1));
-    check_from_str_bytes_reader::<[u8; 5]>("'c'", err(Error::ExpectedStructLike, 1, 1));
-    check_from_str_bytes_reader::<Vec<u32>>("'c'", err(Error::ExpectedArray, 1, 1));
-    check_from_str_bytes_reader::<MyEnum>("'c'", err(Error::ExpectedIdentifier, 1, 1));
+    check_from_str_bytes_reader::<HashMap<u32, u32>>("'c'", err(Error::ExpectedMap, (1, 1), (1, 1)),);
+    check_from_str_bytes_reader::<[u8; 5]>("'c'", err(Error::ExpectedStructLike, (1, 1), (1, 1)));
+    check_from_str_bytes_reader::<Vec<u32>>("'c'", err(Error::ExpectedArray, (1, 1), (1, 1)));
+    check_from_str_bytes_reader::<MyEnum>("'c'", err(Error::ExpectedIdentifier, (1, 1), (1, 1)));
     check_from_str_bytes_reader::<MyStruct>(
         "'c'",
-        err(Error::ExpectedNamedStructLike("MyStruct"), 1, 1),
+        err(Error::ExpectedNamedStructLike("MyStruct"), (1, 1), (1, 1)),
     );
     check_from_str_bytes_reader::<MyStruct>(
         "NotMyStruct(x: 4, y: 2)",
@@ -378,20 +399,23 @@ fn test_err_wrong_value() {
                 expected: "MyStruct",
                 found: String::from("NotMyStruct"),
             },
-            1,
-            12,
+            (1, 1),
+            (1, 12),
         ),
     );
-    check_from_str_bytes_reader::<(u8, bool)>("'c'", err(Error::ExpectedStructLike, 1, 1));
-    check_from_str_bytes_reader::<bool>("notabool", err(Error::ExpectedBoolean, 1, 1));
+    check_from_str_bytes_reader::<(u8, bool)>(
+        "'c'",
+        err(Error::ExpectedStructLike, (1, 1), (1, 1)),
+    );
+    check_from_str_bytes_reader::<bool>("notabool", err(Error::ExpectedBoolean, (1, 1), (1, 1)));
 
     check_from_str_bytes_reader::<MyStruct>(
         "MyStruct(\n    x: true)",
-        err(Error::ExpectedFloat, 2, 8),
+        err(Error::ExpectedFloat, (2, 7), (2, 8)),
     );
     check_from_str_bytes_reader::<MyStruct>(
         "MyStruct(\n    x: 3.5, \n    y:)",
-        err(Error::ExpectedFloat, 3, 7),
+        err(Error::ExpectedFloat, (3, 7), (3, 7)),
     );
 }
 
@@ -425,7 +449,8 @@ fn untagged() {
         "Value(()",
         Err(crate::error::SpannedError {
             code: crate::Error::Eof,
-            position: crate::error::Position { line: 1, col: 9 },
+            position_start: Position { line: 1, col: 8 },
+            position_end: crate::error::Position { line: 1, col: 9 },
         }),
     );
 }
@@ -450,21 +475,25 @@ fn forgot_apostrophes() {
         "(4, \"Hello)",
         Err(SpannedError {
             code: Error::ExpectedStringEnd,
-            position: Position { line: 1, col: 6 },
+            position_start: Position { line: 1, col: 5 },
+            position_end: Position { line: 1, col: 6 },
         }),
     );
 }
 
 #[test]
 fn expected_attribute() {
-    check_from_str_bytes_reader::<String>("#\"Hello\"", err(Error::ExpectedAttribute, 1, 2));
+    check_from_str_bytes_reader::<String>(
+        "#\"Hello\"",
+        err(Error::ExpectedAttribute, (1, 2), (1, 2)),
+    );
 }
 
 #[test]
 fn expected_attribute_end() {
     check_from_str_bytes_reader::<String>(
         "#![enable(unwrap_newtypes) \"Hello\"",
-        err(Error::ExpectedAttributeEnd, 1, 28),
+        err(Error::ExpectedAttributeEnd, (1, 27), (1, 28)),
     );
 }
 
@@ -472,7 +501,11 @@ fn expected_attribute_end() {
 fn invalid_attribute() {
     check_from_str_bytes_reader::<String>(
         "#![enable(invalid)] \"Hello\"",
-        err(Error::NoSuchExtension("invalid".to_string()), 1, 18),
+        err(
+            Error::NoSuchExtension("invalid".to_string()),
+            (1, 11),
+            (1, 18),
+        ),
     );
 }
 
@@ -679,14 +712,16 @@ fn boolean_struct_name() {
         "true_",
         Err(SpannedError {
             code: Error::ExpectedBoolean,
-            position: Position { line: 1, col: 1 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }),
     );
     check_from_str_bytes_reader::<bool>(
         "false_",
         Err(SpannedError {
             code: Error::ExpectedBoolean,
-            position: Position { line: 1, col: 1 },
+            position_start: Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }),
     );
 }

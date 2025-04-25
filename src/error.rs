@@ -21,7 +21,8 @@ use std::io;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpannedError {
     pub code: Error,
-    pub position: Position,
+    pub position_start: Position,
+    pub position_end: Position,
 }
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
@@ -121,7 +122,7 @@ pub enum Error {
 
 impl fmt::Display for SpannedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.position, self.code)
+        write!(f, "{}: {}", self.position_start, self.code)
     }
 }
 
@@ -699,14 +700,16 @@ mod tests {
         assert_eq!(
             Error::from(SpannedError {
                 code: Error::Eof,
-                position: Position { line: 1, col: 1 }
+                position_start: Position { line: 1, col: 1 },
+                position_end: Position { line: 1, col: 5 },
             }),
             Error::Eof
         );
         assert_eq!(
             Error::from(SpannedError {
                 code: Error::ExpectedRawValue,
-                position: Position { line: 1, col: 1 }
+                position_start: Position { line: 1, col: 1 },
+                position_end: Position { line: 1, col: 5 },
             }),
             Error::ExpectedRawValue
         );

@@ -31,7 +31,8 @@ fn test_error_positions() {
                 expected: String::from("impossible"),
                 found: String::from("a unit value"),
             },
-            position: Position { line: 1, col: 3 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 3 },
         })
     );
 
@@ -42,7 +43,8 @@ fn test_error_positions() {
                 expected: String::from("a nonzero u32"),
                 found: String::from("the unsigned integer `0`"),
             },
-            position: Position { line: 1, col: 28 },
+            position_start: ron::error::Position { line: 1, col: 27 },
+            position_end: Position { line: 1, col: 28 },
         })
     );
 
@@ -53,7 +55,8 @@ fn test_error_positions() {
                 expected: String::from("tuple variant Test::TupleVariant with 2 elements"),
                 found: 1,
             },
-            position: Position { line: 1, col: 16 },
+            position_start: ron::error::Position { line: 1, col: 16 },
+            position_end: Position { line: 1, col: 16 },
         })
     );
 
@@ -65,7 +68,8 @@ fn test_error_positions() {
                 found: String::from("NotAVariant"),
                 outer: Some(String::from("Test")),
             },
-            position: Position { line: 1, col: 12 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 12 },
         })
     );
 
@@ -77,7 +81,8 @@ fn test_error_positions() {
                 found: String::from("d"),
                 outer: Some(String::from("StructVariant")),
             },
-            position: Position { line: 1, col: 39 },
+            position_start: ron::error::Position { line: 1, col: 38 },
+            position_end: Position { line: 1, col: 39 },
         })
     );
 
@@ -88,7 +93,8 @@ fn test_error_positions() {
                 field: "b",
                 outer: Some(String::from("StructVariant")),
             },
-            position: Position { line: 1, col: 30 },
+            position_start: ron::error::Position { line: 1, col: 30 },
+            position_end: Position { line: 1, col: 30 },
         })
     );
 
@@ -99,7 +105,8 @@ fn test_error_positions() {
                 field: "a",
                 outer: Some(String::from("StructVariant")),
             },
-            position: Position { line: 1, col: 31 },
+            position_start: ron::error::Position { line: 1, col: 30 },
+            position_end: Position { line: 1, col: 31 },
         })
     );
 }

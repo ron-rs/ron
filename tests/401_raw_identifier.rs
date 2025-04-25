@@ -49,7 +49,8 @@ fn test_invalid_identifiers() {
                 expected: "Hello World",
                 found: String::from("Hello"),
             },
-            position: Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 6 },
         }
     );
 
@@ -58,7 +59,8 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::ExpectedUnit,
-            position: Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }
     );
 
@@ -73,7 +75,8 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::ExpectedNamedStructLike("Hello+World"),
-            position: Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         },
     );
 
@@ -82,7 +85,8 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::ExpectedNamedStructLike("Hello+World"),
-            position: Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         },
     );
 
@@ -91,7 +95,8 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::SuggestRawIdentifier(String::from("Hello+World")),
-            position: Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }
     );
 
@@ -105,7 +110,8 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::SuggestRawIdentifier(String::from("ab.cd-ef")),
-            position: Position { line: 2, col: 9 },
+            position_start: ron::error::Position { line: 1, col: 15 },
+            position_end: Position { line: 2, col: 9 },
         }
     );
 
@@ -119,7 +125,8 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::SuggestRawIdentifier(String::from("rab.cd-ef")),
-            position: Position { line: 2, col: 9 },
+            position_start: ron::error::Position { line: 1, col: 15 },
+            position_end: Position { line: 2, col: 9 },
         }
     );
 
@@ -137,7 +144,8 @@ fn test_invalid_identifiers() {
                 found: String::from("ab.cd+ef"),
                 outer: Some(String::from("Hello+World")),
             },
-            position: Position { line: 2, col: 19 },
+            position_start: ron::error::Position { line: 2, col: 11 },
+            position_end: Position { line: 2, col: 19 },
         }
     );
 
@@ -146,7 +154,8 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::SuggestRawIdentifier(String::from("Hello-World")),
-            position: Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 },
         }
     );
 
@@ -159,14 +168,15 @@ fn test_invalid_identifiers() {
                 found: String::from("Hello+World"),
                 outer: Some(String::from("RawEnum")),
             },
-            position: Position { line: 1, col: 14 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: Position { line: 1, col: 14 },
         }
     );
 
     let de = ron::from_str::<EmptyStruct>("r#+").unwrap_err();
     assert_eq!(
         format!("{}", de),
-        r#"1:4: Expected only opening `(`, no name, for un-nameable struct"#,
+        r#"1:3: Expected only opening `(`, no name, for un-nameable struct"#,
     );
 }
 

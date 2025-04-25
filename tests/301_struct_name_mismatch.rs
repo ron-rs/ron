@@ -30,14 +30,16 @@ fn test_unit_struct_name_mismatch() {
                 expected: "MyUnitStruct",
                 found: String::from("MyUnit")
             },
-            position: Position { line: 1, col: 7 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 7 }
         }),
     );
     assert_eq!(
         ron::from_str::<MyUnitStruct>("42"),
         Err(SpannedError {
             code: Error::ExpectedNamedStructLike("MyUnitStruct"),
-            position: Position { line: 1, col: 1 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 }
         }),
     );
 }
@@ -59,14 +61,16 @@ fn test_tuple_struct_name_mismatch() {
                 expected: "MyTupleStruct",
                 found: String::from("MyTypleStruct")
             },
-            position: Position { line: 1, col: 14 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 14 }
         }),
     );
     assert_eq!(
         ron::from_str::<MyTupleStruct>("42"),
         Err(SpannedError {
             code: Error::ExpectedNamedStructLike("MyTupleStruct"),
-            position: Position { line: 1, col: 1 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 }
         }),
     );
 }
@@ -88,14 +92,16 @@ fn test_newtype_struct_name_mismatch() {
                 expected: "MyNewtypeStruct",
                 found: String::from("MyNewtypeStrucl")
             },
-            position: Position { line: 1, col: 16 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 16 }
         }),
     );
     assert_eq!(
         ron::from_str::<MyNewtypeStruct>("42"),
         Err(SpannedError {
             code: Error::ExpectedNamedStructLike("MyNewtypeStruct"),
-            position: Position { line: 1, col: 1 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 }
         }),
     );
 }
@@ -117,14 +123,16 @@ fn test_struct_name_mismatch() {
                 expected: "MyStruct",
                 found: String::from("MuStryct")
             },
-            position: Position { line: 1, col: 9 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 9 }
         }),
     );
     assert_eq!(
         ron::from_str::<MyStruct>("42"),
         Err(SpannedError {
             code: Error::ExpectedNamedStructLike("MyStruct"),
-            position: Position { line: 1, col: 1 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 1 }
         }),
     );
 }

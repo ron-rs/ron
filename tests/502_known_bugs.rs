@@ -39,7 +39,8 @@ fn struct_names_inside_internally_tagged() {
                 field: "hi",
                 outer: None
             },
-            position: Position { line: 7, col: 2 }
+            position_start: ron::error::Position { line: 7, col: 1 },
+            position_end: Position { line: 7, col: 2 }
         })),
     );
 }
@@ -95,7 +96,8 @@ fn struct_names_inside_adjacently_tagged() {
                 field: "ho",
                 outer: Some(String::from("AdjacentlyTagged"))
             },
-            position: Position { line: 1, col: 58 }
+            position_start: ron::error::Position { line: 1, col: 58 },
+            position_end: Position { line: 1, col: 58 }
         }),
     );
 }
@@ -135,7 +137,8 @@ fn struct_names_inside_untagged() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 6, col: 2 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 2 }
         })),
     );
 }
@@ -182,7 +185,8 @@ fn struct_names_inside_flatten_struct() {
                 field: "hi",
                 outer: None
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         })),
     );
 }
@@ -231,7 +235,8 @@ fn struct_names_inside_flatten_struct_variant() {
                 field: "hi",
                 outer: Some(String::from("C"))
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         })),
     );
 }
@@ -459,7 +464,8 @@ fn implicit_some_inside_flatten_struct_variant() {
                 expected: String::from("an empty array"),
                 found: String::from("a unit value")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
     assert_eq!(
@@ -503,7 +509,8 @@ fn newtype_inside_internally_tagged() {
                 expected: String::from("i32"),
                 found: String::from("a sequence")
             },
-            position: Position { line: 5, col: 2 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 2 }
         }))
     );
 }
@@ -537,7 +544,8 @@ fn newtype_inside_adjacently_tagged() {
                 expected: String::from("i32"),
                 found: String::from("a sequence")
             },
-            position: Position { line: 1, col: 36 }
+            position_start: ron::error::Position { line: 1, col: 36 },
+            position_end: Position { line: 1, col: 36 }
         })
     );
 }
@@ -559,7 +567,8 @@ fn newtype_inside_untagged() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 4, col: 2 }
+            position_start: ron::error::Position { line: 4, col: 1 },
+            position_end: Position { line: 4, col: 2 }
         }))
     );
 }
@@ -594,7 +603,8 @@ fn newtype_inside_flatten_struct() {
                 expected: String::from("i32"),
                 found: String::from("a sequence")
             },
-            position: Position { line: 4, col: 1 }
+            position_start: ron::error::Position { line: 4, col: 1 },
+            position_end: Position { line: 4, col: 1 }
         }))
     );
 }
@@ -631,7 +641,8 @@ fn newtype_inside_flatten_struct_variant() {
                 expected: String::from("i32"),
                 found: String::from("a sequence")
             },
-            position: Position { line: 4, col: 1 }
+            position_start: ron::error::Position { line: 4, col: 1 },
+            position_end: Position { line: 4, col: 1 }
         }))
     );
 }
@@ -672,7 +683,8 @@ fn one_tuple_inside_unwrapped_newtype_variant_inside_internally_tagged() {
                 expected: String::from("a tuple of size 1"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 6, col: 2 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 2 }
         }))
     );
 }
@@ -728,7 +740,8 @@ fn one_tuple_inside_unwrapped_newtype_variant_inside_adjacently_tagged() {
                 expected: String::from("an array of length 1"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 1, col: 79 }
+            position_start: ron::error::Position { line: 1, col: 79 },
+            position_end: Position { line: 1, col: 79 }
         })
     );
 }
@@ -766,7 +779,8 @@ fn one_tuple_inside_unwrapped_newtype_variant_inside_untagged() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 5, col: 2 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 2 }
         }))
     );
 }
@@ -817,7 +831,8 @@ fn one_tuple_inside_unwrapped_newtype_variant_inside_flatten_struct() {
                 expected: String::from("an array of length 1"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -870,7 +885,8 @@ fn one_tuple_inside_unwrapped_newtype_variant_inside_flatten_struct_variant() {
                 expected: String::from("a tuple of size 1"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -909,7 +925,8 @@ fn one_tuple_variant_inside_internally_tagged() {
                 expected: String::from("tuple variant"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 7, col: 2 }
+            position_start: ron::error::Position { line: 7, col: 1 },
+            position_end: Position { line: 7, col: 2 }
         }))
     );
 }
@@ -961,7 +978,8 @@ fn one_tuple_variant_inside_adjacently_tagged() {
                 expected: String::from("tuple variant"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 1, col: 50 }
+            position_start: ron::error::Position { line: 1, col: 50 },
+            position_end: Position { line: 1, col: 50 }
         })
     );
 }
@@ -999,7 +1017,8 @@ fn one_tuple_variant_inside_untagged() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 6, col: 2 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 2 }
         }))
     );
 }
@@ -1046,7 +1065,8 @@ fn one_tuple_variant_inside_flatten_struct() {
                 expected: String::from("tuple variant"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -1095,7 +1115,8 @@ fn one_tuple_variant_inside_flatten_struct_variant() {
                 expected: String::from("tuple variant"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -1129,7 +1150,8 @@ fn raw_value_inside_internally_tagged() {
                 expected: String::from("any valid RON-value-string"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 7, col: 2 }
+            position_start: ron::error::Position { line: 7, col: 1 },
+            position_end: Position { line: 7, col: 2 }
         }))
     );
 }
@@ -1178,7 +1200,8 @@ fn raw_value_inside_adjacently_tagged() {
                 expected: String::from("any valid RON-value-string"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 1, col: 39 }
+            position_start: ron::error::Position { line: 1, col: 39 },
+            position_end: Position { line: 1, col: 39 }
         })
     );
 }
@@ -1211,7 +1234,8 @@ fn raw_value_inside_untagged() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 6, col: 2 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 2 }
         }))
     );
 }
@@ -1255,7 +1279,8 @@ fn raw_value_inside_flatten_struct() {
                 expected: String::from("any valid RON-value-string"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -1301,7 +1326,8 @@ fn raw_value_inside_flatten_struct_variant() {
                 expected: String::from("any valid RON-value-string"),
                 found: String::from("the unsigned integer `42`")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -1332,7 +1358,8 @@ fn unit_like_zero_length_inside_internally_tagged() {
                 expected: String::from("an empty array"),
                 found: String::from("a unit value")
             },
-            position: Position { line: 7, col: 2 }
+            position_start: ron::error::Position { line: 7, col: 1 },
+            position_end: Position { line: 7, col: 2 }
         }))
     );
 }
@@ -1377,7 +1404,8 @@ fn unit_like_zero_length_inside_adjacently_tagged() {
                 expected: String::from("tuple struct TupleStruct"),
                 found: String::from("a unit value")
             },
-            position: Position { line: 1, col: 40 }
+            position_start: ron::error::Position { line: 1, col: 40 },
+            position_end: Position { line: 1, col: 40 }
         })
     );
 }
@@ -1410,7 +1438,8 @@ fn unit_like_zero_length_inside_untagged() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 6, col: 2 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 2 }
         }))
     );
 }
@@ -1454,7 +1483,8 @@ fn unit_like_zero_length_inside_flatten_struct() {
                 expected: String::from("tuple variant"),
                 found: String::from("a unit value")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -1502,7 +1532,8 @@ fn unit_like_zero_length_inside_flatten_struct_variant() {
                 expected: String::from("struct variant"),
                 found: String::from("a unit value")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -1545,7 +1576,8 @@ fn i128_inside_internally_tagged() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as u128", i128::MAX)
             },
-            position: Position { line: 5, col: 52 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 5, col: 52 }
         }))
     );
 }
@@ -1607,7 +1639,8 @@ fn u128_inside_adjacently_tagged() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as u128", u128::MAX)
             },
-            position: Position { line: 1, col: 67 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 67 }
         }),
     );
 }
@@ -1650,7 +1683,8 @@ fn i128_inside_untagged() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as i128", i128::MIN)
             },
-            position: Position { line: 4, col: 53 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 4, col: 53 }
         }))
     );
 }
@@ -1703,7 +1737,8 @@ fn u128_inside_flatten_struct() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as u128", u128::MAX)
             },
-            position: Position { line: 4, col: 52 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 4, col: 52 }
         }))
     );
 }
@@ -1758,7 +1793,8 @@ fn i128_inside_flatten_struct_variant() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as i128", i128::MIN)
             },
-            position: Position { line: 4, col: 53 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 4, col: 53 }
         }))
     );
 }
@@ -1785,7 +1821,8 @@ fn duplicate_key_inside_flatten_struct() {
                 field: "ho",
                 outer: None
             },
-            position: Position { line: 3, col: 9 }
+            position_start: ron::error::Position { line: 3, col: 6 },
+            position_end: Position { line: 3, col: 9 }
         }))
     );
 }
@@ -1828,7 +1865,8 @@ fn duplicate_key_inside_flatten_struct_variant() {
                 field: "ho",
                 outer: Some(String::from("A"))
             },
-            position: Position { line: 3, col: 9 }
+            position_start: ron::error::Position { line: 3, col: 6 },
+            position_end: Position { line: 3, col: 9 }
         }))
     );
 }
@@ -1852,7 +1890,8 @@ fn non_string_key_inside_flatten_struct() {
         ),
         Err(Err(SpannedError {
             code: Error::ExpectedString,
-            position: Position { line: 3, col: 5 }
+            position_start: ron::error::Position { line: 3, col: 5 },
+            position_end: Position { line: 3, col: 5 }
         }))
     );
 }
@@ -1878,7 +1917,8 @@ fn non_string_key_inside_flatten_struct_variant() {
         ),
         Err(Err(SpannedError {
             code: Error::ExpectedString,
-            position: Position { line: 3, col: 5 }
+            position_start: ron::error::Position { line: 3, col: 5 },
+            position_end: Position { line: 3, col: 5 }
         }))
     );
 }
@@ -2008,7 +2048,8 @@ fn flatten_struct_beside_map_inside_flatten_struct() {
                 expected: String::from("i32"),
                 found: String::from("a map")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -2056,7 +2097,8 @@ fn flatten_struct_beside_map_inside_flatten_struct_variant() {
                 expected: String::from("i32"),
                 found: String::from("a map")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -2163,7 +2205,8 @@ fn externally_tagged_newtype_variant_beside_map_inside_flatten_struct_variant() 
                 expected: String::from("i32"),
                 found: String::from("a unit value")
             },
-            position: Position { line: 4, col: 1 }
+            position_start: ron::error::Position { line: 4, col: 1 },
+            position_end: Position { line: 4, col: 1 }
         }))
     );
 }
@@ -2198,7 +2241,8 @@ fn externally_tagged_struct_variant_beside_map_inside_flatten_struct() {
                 expected: String::from("i32"),
                 found: String::from("a map")
             },
-            position: Position { line: 6, col: 1 }
+            position_start: ron::error::Position { line: 6, col: 1 },
+            position_end: Position { line: 6, col: 1 }
         }))
     );
 }
@@ -2235,7 +2279,8 @@ fn externally_tagged_tuple_variant_beside_map_inside_flatten_struct_variant() {
                 expected: String::from("i32"),
                 found: String::from("a sequence")
             },
-            position: Position { line: 7, col: 1 }
+            position_start: ron::error::Position { line: 7, col: 1 },
+            position_end: Position { line: 7, col: 1 }
         }))
     );
 }
@@ -2271,7 +2316,8 @@ fn internally_tagged_unit_variant_beside_map_inside_flatten_struct() {
                 expected: String::from("i32"),
                 found: String::from("the string \"Unit\"")
             },
-            position: Position { line: 4, col: 1 }
+            position_start: ron::error::Position { line: 4, col: 1 },
+            position_end: Position { line: 4, col: 1 }
         }))
     );
 }
@@ -2309,7 +2355,8 @@ fn internally_tagged_newtype_variant_beside_map_inside_flatten_struct_variant() 
                 expected: String::from("i32"),
                 found: String::from("the string \"Newtype\"")
             },
-            position: Position { line: 4, col: 1 }
+            position_start: ron::error::Position { line: 4, col: 1 },
+            position_end: Position { line: 4, col: 1 }
         }))
     );
 }
@@ -2345,7 +2392,8 @@ fn internally_tagged_struct_variant_beside_map_inside_flatten_struct() {
                 expected: String::from("i32"),
                 found: String::from("the string \"Struct\"")
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -2381,7 +2429,8 @@ fn adjacently_tagged_unit_variant_beside_map_inside_flatten_struct() {
                 expected: String::from("i32"),
                 found: String::from("the string \"Unit\"")
             },
-            position: Position { line: 4, col: 1 }
+            position_start: ron::error::Position { line: 4, col: 1 },
+            position_end: Position { line: 4, col: 1 }
         }))
     );
 }
@@ -2419,7 +2468,8 @@ fn adjacently_tagged_newtype_variant_beside_map_inside_flatten_struct_variant() 
                 expected: String::from("i32"),
                 found: String::from("the string \"Newtype\"")
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -2455,7 +2505,8 @@ fn adjacently_tagged_struct_variant_beside_map_inside_flatten_struct() {
                 expected: String::from("i32"),
                 found: String::from("the string \"Struct\"")
             },
-            position: Position { line: 7, col: 1 }
+            position_start: ron::error::Position { line: 7, col: 1 },
+            position_end: Position { line: 7, col: 1 }
         }))
     );
 }
@@ -2493,7 +2544,8 @@ fn adjacently_tagged_tuple_variant_beside_map_inside_flatten_struct_variant() {
                 expected: String::from("i32"),
                 found: String::from("the string \"Tuple\"")
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -2529,7 +2581,8 @@ fn tagged_struct_beside_map_inside_flatten_struct() {
                 expected: String::from("i32"),
                 found: String::from("the string \"Flattened\"")
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -2567,7 +2620,8 @@ fn tagged_struct_beside_map_inside_flatten_struct_variant() {
                 expected: String::from("i32"),
                 found: String::from("the string \"Flattened\"")
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -2586,7 +2640,8 @@ fn zero_length_untagged_tuple_variant() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 1, col: 3 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 3 }
         }))
     );
 }
@@ -2605,7 +2660,8 @@ fn zero_length_untagged_struct_variant() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 1, col: 3 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 3 }
         }))
     );
 }
@@ -2655,7 +2711,8 @@ fn unit_inside_untagged_newtype_variant_inside_internally_tagged_newtype_variant
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 3, col: 2 }
+            position_start: ron::error::Position { line: 3, col: 1 },
+            position_end: Position { line: 3, col: 2 }
         }))
     );
 }
@@ -2687,7 +2744,8 @@ fn unit_inside_untagged_newtype_variant_inside_flatten_struct() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 3, col: 1 }
+            position_start: ron::error::Position { line: 3, col: 1 },
+            position_end: Position { line: 3, col: 1 }
         }))
     );
 }
@@ -2718,7 +2776,8 @@ fn unit_struct_inside_untagged_newtype_variant_inside_internally_tagged_newtype_
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 3, col: 2 }
+            position_start: ron::error::Position { line: 3, col: 1 },
+            position_end: Position { line: 3, col: 2 }
         }))
     );
 }
@@ -2752,7 +2811,8 @@ fn untagged_unit_variant_inside_internally_tagged_newtype_variant() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 3, col: 1 }
+            position_start: ron::error::Position { line: 3, col: 1 },
+            position_end: Position { line: 3, col: 1 }
         }))
     );
 }
@@ -2793,7 +2853,8 @@ fn untagged_unit_variant_inside_flatten_struct_variant() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 3, col: 2 }
+            position_start: ron::error::Position { line: 3, col: 1 },
+            position_end: Position { line: 3, col: 2 }
         }))
     );
 }
@@ -2834,7 +2895,8 @@ fn unit_inside_internally_tagged_newtype_variant_inside_multi_flatten_struct() {
                 expected: String::from("unit"),
                 found: String::from("a map")
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -2880,7 +2942,8 @@ fn untagged_unit_variant_inside_internally_tagged_newtype_variant_inside_multi_f
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum Untagged"
             )),
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -2920,7 +2983,8 @@ fn flattened_externally_tagged_newtype_variant_beside_flattened_intenally_tagged
                 expected: String::from("map with a single key"),
                 found: String::from("a map"),
             },
-            position: Position { line: 5, col: 1 }
+            position_start: ron::error::Position { line: 5, col: 1 },
+            position_end: Position { line: 5, col: 1 }
         }))
     );
 }
@@ -2960,7 +3024,8 @@ fn flattened_externally_tagged_struct_variant_beside_flattened_intenally_tagged_
                 expected: String::from("map with a single key"),
                 found: String::from("a map"),
             },
-            position: Position { line: 7, col: 1 }
+            position_start: ron::error::Position { line: 7, col: 1 },
+            position_end: Position { line: 7, col: 1 }
         }))
     );
 }

@@ -158,7 +158,8 @@ fn unit() {
         "".parse::<Value>(),
         Err(SpannedError {
             code: Error::Eof,
-            position: Position { col: 1, line: 1 }
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { col: 1, line: 1 }
         })
     );
 
