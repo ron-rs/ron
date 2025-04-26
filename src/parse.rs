@@ -1,6 +1,7 @@
 #![allow(clippy::identity_op)]
 
-use std::{
+use alloc::{string::{String, ToString}, vec::Vec, format};
+use core::{
     char::from_u32 as char_from_u32,
     str::{self, from_utf8, FromStr, Utf8Error},
 };
@@ -77,7 +78,7 @@ impl PartialEq for ParserCursor {
 }
 
 impl PartialOrd for ParserCursor {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         self.cursor.partial_cmp(&other.cursor)
     }
 }
@@ -134,7 +135,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn skip_next_char(&mut self) {
-        std::mem::drop(self.next_char());
+        core::mem::drop(self.next_char());
     }
 
     pub fn peek_char(&self) -> Option<char> {
@@ -1010,7 +1011,7 @@ impl<'a> Parser<'a> {
                 ParsedByteStr::Slice(b) => b,
             }
             .iter()
-            .flat_map(|c| std::ascii::escape_default(*c))
+            .flat_map(|c| core::ascii::escape_default(*c))
             .map(char::from)
             .collect::<String>();
             let base64_str = match &base64_str {
@@ -1141,7 +1142,7 @@ impl<'a> Parser<'a> {
                         1 => s.push(c as u8),
                         len => {
                             let start = s.len();
-                            s.extend(std::iter::repeat(0).take(len));
+                            s.extend(core::iter::repeat(0).take(len));
                             c.encode_utf8(&mut s[start..]);
                         }
                     },

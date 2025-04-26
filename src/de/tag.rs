@@ -22,7 +22,7 @@ impl<'a, 'b: 'a, 'c> de::Deserializer<'b> for &'c mut Deserializer<'a, 'b> {
         self.de.deserialize_str(visitor)
     }
 
-    fn deserialize_string<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    fn deserialize_string<V>(self, visitor: V) -> core::result::Result<V::Value, Self::Error>
     where
         V: Visitor<'b>,
     {

@@ -1,15 +1,23 @@
 //! Roundtrip serde Options module.
 
-use std::{fmt, io};
+use alloc::string::String;
+use core::fmt;
 
 use serde::{de, ser};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::{
     de::Deserializer,
-    error::{Position, Result, SpannedError, SpannedResult},
+    error::{Result, SpannedResult},
     extensions::Extensions,
     ser::{PrettyConfig, Serializer},
+};
+
+#[cfg(feature = "std")]
+use {
+    alloc::vec::Vec,
+    std::io,
+    crate::error::{Position, SpannedError},
 };
 
 /// Roundtrip serde options.
@@ -92,12 +100,13 @@ impl Options {
 impl Options {
     /// A convenience function for building a deserializer
     /// and deserializing a value of type `T` from a reader.
+    #[cfg(feature = "std")]
     pub fn from_reader<R, T>(&self, rdr: R) -> SpannedResult<T>
     where
         R: io::Read,
         T: de::DeserializeOwned,
     {
-        self.from_reader_seed(rdr, std::marker::PhantomData)
+        self.from_reader_seed(rdr, core::marker::PhantomData)
     }
 
     /// A convenience function for building a deserializer
@@ -106,7 +115,7 @@ impl Options {
     where
         T: de::Deserialize<'a>,
     {
-        self.from_str_seed(s, std::marker::PhantomData)
+        self.from_str_seed(s, core::marker::PhantomData)
     }
 
     /// A convenience function for building a deserializer
@@ -115,7 +124,7 @@ impl Options {
     where
         T: de::Deserialize<'a>,
     {
-        self.from_bytes_seed(s, std::marker::PhantomData)
+        self.from_bytes_seed(s, core::marker::PhantomData)
     }
 
     /// A convenience function for building a deserializer
@@ -123,6 +132,7 @@ impl Options {
     /// and a seed.
     // FIXME: panic is not actually possible, remove once utf8_chunks is stabilized
     #[allow(clippy::missing_panics_doc)]
+    #[cfg(feature = "std")]
     pub fn from_reader_seed<R, S, T>(&self, mut rdr: R, seed: S) -> SpannedResult<T>
     where
         R: io::Read,
@@ -139,9 +149,9 @@ impl Options {
         // Try to compute a good error position for the I/O error
         // FIXME: use [`utf8_chunks`](https://github.com/rust-lang/rust/issues/99543) once stabilised
         #[allow(clippy::expect_used)]
-        let valid_input = match std::str::from_utf8(&bytes) {
+        let valid_input = match core::str::from_utf8(&bytes) {
             Ok(valid_input) => valid_input,
-            Err(err) => std::str::from_utf8(&bytes[..err.valid_up_to()])
+            Err(err) => core::str::from_utf8(&bytes[..err.valid_up_to()])
                 .expect("source is valid up to error"),
         };
 
@@ -216,6 +226,7 @@ impl Options {
     /// This function does not generate any newlines or nice formatting;
     /// if you want that, you can use
     /// [`to_io_writer_pretty`][Self::to_io_writer_pretty] instead.
+    #[cfg(feature = "std")]
     pub fn to_io_writer<W, T>(&self, writer: W, value: &T) -> Result<()>
     where
         W: io::Write,
@@ -231,6 +242,7 @@ impl Options {
     }
 
     /// Serializes `value` into `writer` in a pretty way.
+    #[cfg(feature = "std")]
     pub fn to_io_writer_pretty<W, T>(
         &self,
         writer: W,
@@ -278,11 +290,13 @@ impl Options {
 }
 
 // Adapter from io::Write to fmt::Write that keeps the error
+#[cfg(feature = "std")]
 struct Adapter<W: io::Write> {
     writer: W,
     error: io::Result<()>,
 }
 
+#[cfg(feature = "std")]
 impl<T: io::Write> fmt::Write for Adapter<T> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         match self.writer.write_all(s.as_bytes()) {

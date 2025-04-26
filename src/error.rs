@@ -1,6 +1,6 @@
-use std::{
-    error::Error as StdError,
-    fmt, io,
+use alloc::string::{String, ToString};
+use core::{
+    fmt,
     str::{self, Utf8Error},
 };
 
@@ -8,6 +8,15 @@ use serde::{de, ser};
 use unicode_ident::is_xid_continue;
 
 use crate::parse::{is_ident_first_char, is_ident_raw_char};
+
+#[cfg(feature = "std")]
+use std::io;
+
+#[cfg(feature = "core_error")]
+use core::error::Error as StdError;
+
+#[cfg(all(not(feature = "core_error"), feature = "std"))]
+use std::error::Error as StdError;
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
@@ -18,8 +27,8 @@ pub struct SpannedError {
     pub position: Position,
 }
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-pub type SpannedResult<T> = std::result::Result<T, SpannedError>;
+pub type Result<T, E = Error> = core::result::Result<T, E>;
+pub type SpannedResult<T> = core::result::Result<T, SpannedError>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -346,7 +355,7 @@ impl de::Error for Error {
                     de::Unexpected::Str(s) => write!(f, "the string {:?}", s),
                     de::Unexpected::Bytes(b) => write!(f, "the byte string b\"{}\"", {
                         b.iter()
-                            .flat_map(|c| std::ascii::escape_default(*c))
+                            .flat_map(|c| core::ascii::escape_default(*c))
                             .map(char::from)
                             .collect::<String>()
                     }),
@@ -408,7 +417,10 @@ impl de::Error for Error {
     }
 }
 
+#[cfg(any(feature = "core_error", feature = "std"))]
 impl StdError for SpannedError {}
+
+#[cfg(any(feature = "core_error", feature = "std"))]
 impl StdError for Error {}
 
 impl From<Utf8Error> for Error {
@@ -423,6 +435,7 @@ impl From<fmt::Error> for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::Io(e.to_string())

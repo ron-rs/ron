@@ -1,4 +1,5 @@
-use std::fmt;
+use alloc::{string::String, vec::Vec, borrow::ToOwned, boxed::Box};
+use core::fmt;
 
 use serde::{
     de::{Error, MapAccess, SeqAccess, Visitor},
@@ -10,7 +11,7 @@ use crate::{
     value::{Map, Number, Value},
 };
 
-impl std::str::FromStr for Value {
+impl core::str::FromStr for Value {
     type Err = crate::error::SpannedError;
 
     /// Creates a value from a string reference.

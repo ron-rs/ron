@@ -1,4 +1,4 @@
-use std::{
+use core::{
     cmp::{Eq, Ordering},
     hash::{Hash, Hasher},
 };

@@ -1,6 +1,7 @@
 //! Value module.
 
-use std::{borrow::Cow, cmp::Eq, hash::Hash};
+use alloc::{boxed::Box, string::String, vec::Vec, format, borrow::Cow};
+use core::{cmp::Eq, hash::Hash};
 
 use serde::{
     de::{DeserializeOwned, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor},

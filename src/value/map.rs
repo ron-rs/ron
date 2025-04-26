@@ -1,4 +1,4 @@
-use std::{
+use core::{
     cmp::{Eq, Ordering},
     hash::{Hash, Hasher},
     iter::FromIterator,
@@ -11,7 +11,7 @@ use super::Value;
 
 /// A [`Value`] to [`Value`] map.
 ///
-/// This structure either uses a [`BTreeMap`](std::collections::BTreeMap) or the
+/// This structure either uses a [`BTreeMap`](alloc::collections::BTreeMap) or the
 /// [`IndexMap`](indexmap::IndexMap) internally.
 /// The latter can be used by enabling the `indexmap` feature. This can be used
 /// to preserve the order of the parsed map.
@@ -20,9 +20,9 @@ use super::Value;
 pub struct Map(pub(crate) MapInner);
 
 #[cfg(not(feature = "indexmap"))]
-type MapInner = std::collections::BTreeMap<Value, Value>;
+type MapInner = alloc::collections::BTreeMap<Value, Value>;
 #[cfg(feature = "indexmap")]
-type MapInner = indexmap::IndexMap<Value, Value>;
+type MapInner = indexmap::IndexMap<Value, Value, std::collections::hash_map::RandomState>;
 
 impl Map {
     /// Creates a new, empty [`Map`].
