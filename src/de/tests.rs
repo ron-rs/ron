@@ -1,3 +1,11 @@
+use alloc::{
+    borrow::ToOwned,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+
 use serde_bytes;
 use serde_derive::Deserialize;
 

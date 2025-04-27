@@ -1,6 +1,6 @@
 //! Value module.
 
-use alloc::{boxed::Box, string::String, vec::Vec, format, borrow::Cow};
+use alloc::{borrow::Cow, boxed::Box, format, string::String, vec::Vec};
 use core::{cmp::Eq, hash::Hash};
 
 use serde::{
@@ -257,7 +257,8 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, fmt::Debug};
+    use alloc::{collections::BTreeMap, vec};
+    use core::fmt::Debug;
 
     use serde::Deserialize;
 

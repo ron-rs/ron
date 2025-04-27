@@ -1,5 +1,9 @@
 /// Deserialization module.
-use alloc::{string::{String, ToString}, vec::Vec, borrow::ToOwned};
+use alloc::{
+    borrow::ToOwned,
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::str;
 
 use serde::{
@@ -681,7 +685,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         self.newtype_variant = false;
 
-        let serde_flatten_canary = VisitorExpecting(&visitor).to_string().starts_with("struct ");
+        let serde_flatten_canary = VisitorExpecting(&visitor)
+            .to_string()
+            .starts_with("struct ");
 
         let terminator = if serde_flatten_canary {
             Terminator::MapAsStruct

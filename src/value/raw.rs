@@ -2,7 +2,7 @@
 // https://github.com/serde-rs/json/blob/master/src/raw.rs
 // Licensed under either of Apache License, Version 2.0 or MIT license at your option.
 
-use alloc::{boxed::Box, borrow::ToOwned, string::String, format};
+use alloc::{borrow::ToOwned, boxed::Box, format, string::String};
 use core::{fmt, ops::Range};
 
 use serde::{de, ser, Deserialize, Serialize};

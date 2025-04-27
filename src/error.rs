@@ -497,6 +497,8 @@ impl<'a> fmt::Display for Identifier<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, string::String};
+
     use serde::{de::Error as DeError, de::Unexpected, ser::Error as SerError};
 
     use super::{Error, Position, SpannedError};

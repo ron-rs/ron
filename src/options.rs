@@ -15,9 +15,9 @@ use crate::{
 
 #[cfg(feature = "std")]
 use {
+    crate::error::{Position, SpannedError},
     alloc::vec::Vec,
     std::io,
-    crate::error::{Position, SpannedError},
 };
 
 /// Roundtrip serde options.

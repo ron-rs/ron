@@ -1,4 +1,4 @@
-use alloc::{string::String, borrow::Cow};
+use alloc::{borrow::Cow, string::String};
 use core::fmt;
 
 use serde::{ser, ser::Serialize};

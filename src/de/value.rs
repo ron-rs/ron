@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec, borrow::ToOwned, boxed::Box};
+use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
 use core::fmt;
 
 use serde::{
@@ -238,7 +238,8 @@ impl<'de> Visitor<'de> for ValueVisitor {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use alloc::vec;
+    use core::str::FromStr;
 
     use super::*;
 

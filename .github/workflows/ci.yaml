@@ -46,7 +46,7 @@ jobs:
 
     strategy:
       matrix:
-        rust: [1.64.0, stable, nightly]
+        rust: [1.64.0, 1.77.0, stable, nightly]
         lock: ["Cargo.lock", "Cargo.lock.min"]
 
     steps:
@@ -76,11 +76,17 @@ jobs:
       - run: cargo test --features integer128
       - run: cargo test --features indexmap
       - run: cargo test --all-features
+        if: ${{ matrix.rust != '1.64.0' }}
 
   clippy:
-    name: "Clippy: MSRV"
+    name: "Clippy"
     runs-on: ubuntu-latest
     continue-on-error: true
+
+    strategy:
+      matrix:
+        rust: [1.64.0, 1.77.0, stable]
+    
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
@@ -88,7 +94,7 @@ jobs:
           key: clippy-msrv
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.64.0
+          toolchain: ${{ matrix.rust }}
           profile: minimal
           components: clippy
           override: true
@@ -97,10 +103,12 @@ jobs:
           cargo update -p serde_bytes --precise 0.11.16
           cargo update -p indexmap --precise 2.5.0
           cargo update -p once_cell --precise 1.20.3
+        if: ${{ matrix.rust == '1.64.0' }}
       - run: cargo clippy -- -D warnings -A unknown-lints
       - run: cargo clippy --features integer128 -- -D warnings -A unknown-lints
       - run: cargo clippy --features indexmap -- -D warnings -A unknown-lints
       - run: cargo clippy --all-features -- -D warnings -A unknown-lints
+        if: ${{ matrix.rust != '1.64.0' }}
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"

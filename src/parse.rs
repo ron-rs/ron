@@ -1,6 +1,10 @@
 #![allow(clippy::identity_op)]
 
-use alloc::{string::{String, ToString}, vec::Vec, format};
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::{
     char::from_u32 as char_from_u32,
     str::{self, from_utf8, FromStr, Utf8Error},

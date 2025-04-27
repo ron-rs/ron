@@ -181,6 +181,8 @@ impl Hash for Map {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{vec, vec::Vec};
+
     use super::{Map, Value};
 
     #[test]
