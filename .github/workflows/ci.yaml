@@ -104,6 +104,8 @@ jobs:
             ${{ matrix.std && '--features std' || '' }}\
             ${{ matrix.indexmap && '--features indexmap' || '' }}\
             ${{ matrix.core_error && '--features core_error' || '' }}
+        # Testing requires the `Error` trait
+        if: ${{ matrix.std || matrix.core_error }}
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"
