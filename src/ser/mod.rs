@@ -737,6 +737,8 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
 
         write!(self.output, "{}", v)?;
 
+        // Equivalent to v.fract() == 0.0
+        // See: https://docs.rs/num-traits/0.2.19/src/num_traits/float.rs.html#459-465
         if v % 1. == 0.0 {
             write!(self.output, ".0")?;
         }
@@ -755,6 +757,8 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
 
         write!(self.output, "{}", v)?;
 
+        // Equivalent to v.fract() == 0.0
+        // See: https://docs.rs/num-traits/0.2.19/src/num_traits/float.rs.html#459-465
         if v % 1. == 0.0 {
             write!(self.output, ".0")?;
         }
