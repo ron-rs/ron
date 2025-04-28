@@ -25,7 +25,7 @@ integer128 = []
 std = ["serde/std"]
 indexmap = ["std", "dep:indexmap"]
 
-# Increases MSRV to 1.77 and can be a no-op if/when this crate has a higher MSRV.
+# Increases MSRV to 1.81 and can be a no-op if/when this crate has a higher MSRV.
 core_error = []
 
 [dependencies]
