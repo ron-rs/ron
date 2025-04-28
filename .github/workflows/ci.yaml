@@ -39,15 +39,23 @@ jobs:
             Cargo.lock
             Cargo.lock.min
 
-  tests:
-    name: Tests
+  check:
+    name: Check
     runs-on: ubuntu-latest
     needs: lock
 
     strategy:
       matrix:
-        rust: [1.64.0, 1.77.0, stable, nightly]
+        rust: [1.64.0, 1.81.0, stable, nightly]
         lock: ["Cargo.lock", "Cargo.lock.min"]
+        integer128: [true, false]
+        std: [true, false]
+        indexmap: [true, false]
+        core_error: [true, false]
+        exclude:
+          # Feature core_error increases MSRV to 1.81.0
+          - rust: 1.64.0
+            core_error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -66,49 +74,36 @@ jobs:
           toolchain: ${{ matrix.rust }}
           profile: minimal
           override: true
-      # Downgrade some dependencies for MSRV 1.64
-      - run: |
+      - name: Downgrade dependencies to MSRV 1.64
+        run: |
           cargo update -p serde_bytes --precise 0.11.16
           cargo update -p indexmap --precise 2.5.0
           cargo update -p once_cell --precise 1.20.3
+        if: ${{ matrix.rust == '1.64.0' || matrix.rust == '1.81.0' }}
+      - name: Check
+        run: |
+          cargo check --no-default-features \
+            ${{ matrix.integer128 && '--features integer128' }}\
+            ${{ matrix.std && '--features std' }}\
+            ${{ matrix.indexmap && '--features indexmap' }}\
+            ${{ matrix.core_error && '--features core_error' }}
+      - name: Clippy
+        run: |
+          cargo check --no-default-features \
+            ${{ matrix.integer128 && '--features integer128' }}\
+            ${{ matrix.std && '--features std' }}\
+            ${{ matrix.indexmap && '--features indexmap' }}\
+            ${{ matrix.core_error && '--features core_error' }}\
+            -- -D warnings -A unknown-lints
+        # Clippy will report lints that cannot be acted on without increasing MSRV on later versions of Rust
         if: ${{ matrix.rust == '1.64.0' }}
-      - run: cargo test
-      - run: cargo test --features integer128
-      - run: cargo test --features indexmap
-      - run: cargo test --all-features
-        if: ${{ matrix.rust != '1.64.0' }}
-
-  clippy:
-    name: "Clippy"
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    strategy:
-      matrix:
-        rust: [1.64.0, 1.77.0, stable]
-    
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup
-        with:
-          key: clippy-msrv
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.rust }}
-          profile: minimal
-          components: clippy
-          override: true
-      # Downgrade some dependencies for MSRV 1.64
-      - run: |
-          cargo update -p serde_bytes --precise 0.11.16
-          cargo update -p indexmap --precise 2.5.0
-          cargo update -p once_cell --precise 1.20.3
-        if: ${{ matrix.rust == '1.64.0' }}
-      - run: cargo clippy -- -D warnings -A unknown-lints
-      - run: cargo clippy --features integer128 -- -D warnings -A unknown-lints
-      - run: cargo clippy --features indexmap -- -D warnings -A unknown-lints
-      - run: cargo clippy --all-features -- -D warnings -A unknown-lints
-        if: ${{ matrix.rust != '1.64.0' }}
+      - name: Test
+        run: |
+          cargo test --no-default-features \
+            ${{ matrix.integer128 && '--features integer128' }}\
+            ${{ matrix.std && '--features std' }}\
+            ${{ matrix.indexmap && '--features indexmap' }}\
+            ${{ matrix.core_error && '--features core_error' }}
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"
