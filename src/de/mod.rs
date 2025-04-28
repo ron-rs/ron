@@ -685,6 +685,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         self.newtype_variant = false;
 
+        // TODO: Avoid allocating to perform this check.
         let serde_flatten_canary = VisitorExpecting(&visitor)
             .to_string()
             .starts_with("struct ");
