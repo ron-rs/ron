@@ -11,7 +11,7 @@ cargo-fuzz = true
 [dependencies]
 arbitrary = { version = "1.0", default-features = false, features = ["derive"] }
 libfuzzer-sys = { version = "0.4", default-features = false, features = ["link_libfuzzer"] }
-ron = { path = "..", default-features = false, features = ["integer128"] }
+ron = { path = "..", default-features = false, features = ["integer128", "std"] }
 serde = { version = "1.0", default-features = false, features = ["std", "derive"] }
 erased-serde = { version = "0.4", default-features = false, features = ["std"] }
 anyhow = { version = "1.0", default-features = false, features = ["std"] }
