@@ -505,7 +505,7 @@ mod tests {
 
     #[test]
     fn error_messages() {
-        check_error_message(&Error::from(std::fmt::Error), "Formatting RON failed");
+        check_error_message(&Error::from(core::fmt::Error), "Formatting RON failed");
         check_error_message(
             &Error::from(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -591,7 +591,7 @@ mod tests {
         check_error_message(&Error::UnexpectedChar('🦀'), "Unexpected char \'🦀\'");
         #[allow(invalid_from_utf8)]
         check_error_message(
-            &Error::Utf8Error(std::str::from_utf8(b"error: \xff\xff\xff\xff").unwrap_err()),
+            &Error::Utf8Error(core::str::from_utf8(b"error: \xff\xff\xff\xff").unwrap_err()),
             "invalid utf-8 sequence of 1 bytes from index 7",
         );
         check_error_message(
@@ -694,7 +694,7 @@ mod tests {
         );
     }
 
-    fn check_error_message<T: std::fmt::Display>(err: &T, msg: &str) {
+    fn check_error_message<T: core::fmt::Display>(err: &T, msg: &str) {
         assert_eq!(format!("{}", err), msg);
     }
 

@@ -258,11 +258,11 @@ mod tests {
 
     fn assert_same_hash(a: &Map, b: &Map) {
         use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use core::hash::{Hash, Hasher};
 
         assert_eq!(a, b);
         assert!(a.cmp(b).is_eq());
-        assert_eq!(a.partial_cmp(b), Some(std::cmp::Ordering::Equal));
+        assert_eq!(a.partial_cmp(b), Some(core::cmp::Ordering::Equal));
 
         let mut hasher = DefaultHasher::new();
         a.hash(&mut hasher);

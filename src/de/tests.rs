@@ -134,7 +134,7 @@ fn test_unclosed_limited_seq_struct() {
                 type Value = LimitedStruct;
 
                 // GRCOV_EXCL_START
-                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                     fmt.write_str("struct LimitedStruct")
                 }
                 // GRCOV_EXCL_STOP
@@ -173,7 +173,7 @@ fn test_unclosed_limited_seq() {
                 type Value = LimitedSeq;
 
                 // GRCOV_EXCL_START
-                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                     fmt.write_str("an empty sequence")
                 }
                 // GRCOV_EXCL_STOP
@@ -220,7 +220,7 @@ fn test_unclosed_limited_map() {
                 type Value = LimitedMap;
 
                 // GRCOV_EXCL_START
-                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                     fmt.write_str("an empty map")
                 }
                 // GRCOV_EXCL_STOP
@@ -545,7 +545,7 @@ fn test_numbers() {
 }
 
 fn check_de_any_number<
-    T: Copy + PartialEq + std::fmt::Debug + Into<Number> + serde::de::DeserializeOwned,
+    T: Copy + PartialEq + core::fmt::Debug + Into<Number> + serde::de::DeserializeOwned,
 >(
     s: &str,
     cmp: T,
@@ -634,7 +634,7 @@ fn test_leading_whitespace() {
     check_from_str_bytes_reader("  EmptyStruct1", Ok(EmptyStruct1));
 }
 
-fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + std::fmt::Debug>(
+fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
     ron: &str,
     check: SpannedResult<T>,
 ) {

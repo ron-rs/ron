@@ -191,7 +191,7 @@ fn check_number_roundtrip<
         + serde::Serialize
         + serde::de::DeserializeOwned
         + PartialEq
-        + std::fmt::Debug,
+        + core::fmt::Debug,
 >(
     n: T,
     suffix: &str,
@@ -429,7 +429,7 @@ fn number_type_mismatch() {
     test_mismatch! { i128, u128 }
 }
 
-fn check_number_type_mismatch<T: std::fmt::Debug + serde::de::DeserializeOwned>(suffix: &str) {
+fn check_number_type_mismatch<T: core::fmt::Debug + serde::de::DeserializeOwned>(suffix: &str) {
     let ron = format!("0{suffix}");
 
     if suffix.starts_with(std::any::type_name::<T>()) {

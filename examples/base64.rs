@@ -31,7 +31,7 @@ impl ByteStr {
         impl<'de> Visitor<'de> for ByteStrVisitor {
             type Value = Vec<u8>;
 
-            fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                 fmt.write_str("a Rusty byte string")
             }
 
@@ -79,7 +79,7 @@ impl ByteStrOrBase64 {
         impl<'de> Visitor<'de> for ByteStrOrBase64Visitor {
             type Value = Vec<u8>;
 
-            fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                 fmt.write_str("a Rusty byte string or a base64-encoded string")
             }
 

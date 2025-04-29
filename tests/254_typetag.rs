@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use core::fmt::Write;
 
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +16,7 @@ fn typetag_usage() {
     }
 
     #[typetag::serde(tag = "type")]
-    trait MyTrait: std::fmt::Debug {
+    trait MyTrait: core::fmt::Debug {
         fn do_stuff(&self, buffer: &mut String);
     }
 
@@ -107,7 +107,7 @@ fn typetag_with_enum() {
     }
 
     #[typetag::serde(tag = "type")]
-    trait MyTrait: std::fmt::Debug {
+    trait MyTrait: core::fmt::Debug {
         fn do_stuff(&self, buffer: &mut String);
     }
 

@@ -306,7 +306,7 @@ fn serialize_backslash_byte_string() {
 }
 
 fn check_roundtrip<
-    T: PartialEq + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned,
+    T: PartialEq + core::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned,
 >(
     val: T,
     cmp: &str,

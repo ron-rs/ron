@@ -101,7 +101,7 @@ fn test_vec() {
 
 #[test]
 fn test_map() {
-    use std::collections::BTreeMap;
+    use alloc::collections::BTreeMap;
 
     let mut map = BTreeMap::new();
     map.insert((true, false), 4);
@@ -223,9 +223,9 @@ fn test_any_number_precision() {
     test_min_max! { i128, u128 }
 }
 
-fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display + serde::Serialize>(n: T) {
+fn check_ser_any_number<T: Copy + Into<Number> + core::fmt::Display + serde::Serialize>(n: T) {
     let mut fmt = format!("{}", n);
-    if !fmt.contains('.') && std::any::type_name::<T>().contains('f') {
+    if !fmt.contains('.') && core::any::type_name::<T>().contains('f') {
         fmt.push_str(".0");
     }
 

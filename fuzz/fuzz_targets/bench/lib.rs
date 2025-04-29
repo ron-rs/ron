@@ -1,5 +1,5 @@
 use std::convert::TryFrom;
-use std::fmt;
+use core::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use arbitrary::{Arbitrary, Unstructured};

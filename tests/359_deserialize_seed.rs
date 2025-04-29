@@ -17,7 +17,7 @@ fn test_deserialize_seed() {
             impl<'de> serde::de::Visitor<'de> for Visitor {
                 type Value = i64;
 
-                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
                     write!(formatter, "an integer")
                 }
 
