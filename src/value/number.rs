@@ -55,7 +55,7 @@ pub enum Number {
 
 mod private {
     #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
-    pub enum Never {}
+    pub struct Never;
 }
 
 impl Serialize for Number {
@@ -76,7 +76,7 @@ impl Serialize for Number {
             Self::F32(v) => serializer.serialize_f32(v.get()),
             Self::F64(v) => serializer.serialize_f64(v.get()),
             #[cfg(not(doc))]
-            Self::__NonExhaustive(never) => match *never {},
+            Self::__NonExhaustive(_) => unreachable!("Number::__NonExhaustive"),
         }
     }
 }
@@ -102,7 +102,7 @@ impl Number {
             Self::F32(v) => visitor.visit_f32(v.get()),
             Self::F64(v) => visitor.visit_f64(v.get()),
             #[cfg(not(doc))]
-            Self::__NonExhaustive(never) => match *never {},
+            Self::__NonExhaustive(_) => unreachable!("Number::__NonExhaustive"),
         }
     }
 }
@@ -255,7 +255,7 @@ impl Number {
             Self::F32(v) => f64::from(v.get()),
             Self::F64(v) => v.get(),
             #[cfg(not(doc))]
-            Self::__NonExhaustive(never) => match never {},
+            Self::__NonExhaustive(_) => unreachable!("Number::__NonExhaustive"),
         }
     }
 }
