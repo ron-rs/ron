@@ -296,7 +296,7 @@ fn check_to_string_writer<T: ?Sized + serde::Serialize>(val: &T, check: &str, ch
         let mut ron_writer = std::ffi::OsString::new();
         super::to_writer(&mut ron_writer, val).unwrap();
         assert_eq!(ron_writer, check);
-    
+
         let mut ron_writer_pretty = std::ffi::OsString::new();
         super::to_writer_pretty(
             &mut ron_writer_pretty,

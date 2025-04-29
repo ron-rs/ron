@@ -4,7 +4,10 @@ use core::{
     str::{self, Utf8Error},
 };
 
-use serde::{de, ser::{self, StdError}};
+use serde::{
+    de,
+    ser::{self, StdError},
+};
 use unicode_ident::is_xid_continue;
 
 use crate::parse::{is_ident_first_char, is_ident_raw_char};

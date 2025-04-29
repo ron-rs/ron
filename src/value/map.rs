@@ -259,8 +259,8 @@ mod tests {
 
     #[cfg(feature = "std")]
     fn assert_same_hash(a: &Map, b: &Map) {
-        use std::collections::hash_map::DefaultHasher;
         use core::hash::{Hash, Hasher};
+        use std::collections::hash_map::DefaultHasher;
 
         assert_eq!(a, b);
         assert!(a.cmp(b).is_eq());
