@@ -83,7 +83,7 @@ jobs:
             ${{ matrix.indexmap && '--features indexmap' || '' }}
       - name: Clippy
         run: |
-          cargo check --no-default-features \
+          cargo clippy --no-default-features \
             ${{ matrix.integer128 && '--features integer128' || '' }}\
             ${{ matrix.std && '--features std' || '' }}\
             ${{ matrix.indexmap && '--features indexmap' || '' }}\
