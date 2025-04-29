@@ -52,3 +52,27 @@ bytes = { version = "1.3", default-features = false, features = ["serde"] }
 [package.metadata.docs.rs]
 features = ["integer128", "indexmap"]
 rustdoc-args = ["--generate-link-to-definition"]
+
+[[example]]
+name = "base64"
+required-features = []
+
+[[example]]
+name = "decode_file"
+required-features = ["std"]
+
+[[example]]
+name = "decode"
+required-features = []
+
+[[example]]
+name = "encode_file"
+required-features = ["std"]
+
+[[example]]
+name = "encode"
+required-features = []
+
+[[example]]
+name = "transcode"
+required-features = []
