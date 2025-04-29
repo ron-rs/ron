@@ -284,6 +284,7 @@ fn test_array() {
     check_from_str_bytes_reader("[2,3,4,]", Ok([2, 3, 4i32].to_vec()));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_map() {
     use std::collections::HashMap;
@@ -356,10 +357,12 @@ fn err<T>(kind: Error, line: usize, col: usize) -> SpannedResult<T> {
 
 #[test]
 fn test_err_wrong_value() {
+    #[cfg(feature = "std")]
     use std::collections::HashMap;
 
     check_from_str_bytes_reader::<f32>("'c'", err(Error::ExpectedFloat, 1, 1));
     check_from_str_bytes_reader::<String>("'c'", err(Error::ExpectedString, 1, 1));
+    #[cfg(feature = "std")]
     check_from_str_bytes_reader::<HashMap<u32, u32>>("'c'", err(Error::ExpectedMap, 1, 1));
     check_from_str_bytes_reader::<[u8; 5]>("'c'", err(Error::ExpectedStructLike, 1, 1));
     check_from_str_bytes_reader::<Vec<u32>>("'c'", err(Error::ExpectedArray, 1, 1));
@@ -644,8 +647,11 @@ fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + core
     let res_bytes = super::from_bytes::<T>(ron.as_bytes());
     assert_eq!(res_bytes, check);
 
-    let res_reader = super::from_reader::<&[u8], T>(ron.as_bytes());
-    assert_eq!(res_reader, check);
+    #[cfg(feature = "std")]
+    {
+        let res_reader = super::from_reader::<&[u8], T>(ron.as_bytes());
+        assert_eq!(res_reader, check);
+    }
 }
 
 #[test]

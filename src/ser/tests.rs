@@ -291,18 +291,21 @@ fn check_to_string_writer<T: ?Sized + serde::Serialize>(val: &T, check: &str, ch
     .unwrap();
     assert_eq!(ron_str_pretty, check_pretty);
 
-    let mut ron_writer = std::ffi::OsString::new();
-    super::to_writer(&mut ron_writer, val).unwrap();
-    assert_eq!(ron_writer, check);
-
-    let mut ron_writer_pretty = std::ffi::OsString::new();
-    super::to_writer_pretty(
-        &mut ron_writer_pretty,
-        val,
-        super::PrettyConfig::default()
-            .struct_names(true)
-            .compact_structs(true),
-    )
-    .unwrap();
-    assert_eq!(ron_writer_pretty, check_pretty);
+    #[cfg(feature = "std")]
+    {
+        let mut ron_writer = std::ffi::OsString::new();
+        super::to_writer(&mut ron_writer, val).unwrap();
+        assert_eq!(ron_writer, check);
+    
+        let mut ron_writer_pretty = std::ffi::OsString::new();
+        super::to_writer_pretty(
+            &mut ron_writer_pretty,
+            val,
+            super::PrettyConfig::default()
+                .struct_names(true)
+                .compact_structs(true),
+        )
+        .unwrap();
+        assert_eq!(ron_writer_pretty, check_pretty);
+    }
 }

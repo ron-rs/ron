@@ -243,6 +243,7 @@ mod tests {
         assert_eq!(map.remove(&Value::from("a")), None);
     }
 
+    #[cfg(feature = "std")]
     #[test]
     fn map_hash() {
         assert_same_hash(&Map::new(), &Map::new());
@@ -256,6 +257,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "std")]
     fn assert_same_hash(a: &Map, b: &Map) {
         use std::collections::hash_map::DefaultHasher;
         use core::hash::{Hash, Hasher};

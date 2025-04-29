@@ -498,6 +498,7 @@ mod tests {
     #[test]
     fn error_messages() {
         check_error_message(&Error::from(core::fmt::Error), "Formatting RON failed");
+        #[cfg(feature = "std")]
         check_error_message(
             &Error::from(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
