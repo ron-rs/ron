@@ -40,22 +40,17 @@ jobs:
             Cargo.lock.min
 
   check:
-    name: Check (${{ matrix.rust }}${{ matrix.lock == '"Cargo.lock.min"' && ' (Cargo.lock.min)' || ''}}${{ !(matrix.integer128 || matrix.std || matrix.indexmap || matrix.core_error) && ' no features' || ''}}${{ matrix.integer128 && ' integer128' || '' }}${{ matrix.std && ' std' || '' }}${{ matrix.indexmap && ' indexmap' || '' }}${{ matrix.core_error && ' core_error' || '' }})
+    name: Check (${{ matrix.rust }}${{ matrix.lock == '"Cargo.lock.min"' && ' (Cargo.lock.min)' || ''}}${{ !(matrix.integer128 || matrix.std || matrix.indexmap) && ' no features' || ''}}${{ matrix.integer128 && ' integer128' || '' }}${{ matrix.std && ' std' || '' }}${{ matrix.indexmap && ' indexmap' || '' }})
     runs-on: ubuntu-latest
     needs: lock
 
     strategy:
       matrix:
-        rust: [1.64.0, 1.81.0, stable, nightly]
+        rust: [1.64.0, stable, nightly]
         lock: ["Cargo.lock", "Cargo.lock.min"]
         integer128: [true, false]
         std: [true, false]
         indexmap: [true, false]
-        core_error: [true, false]
-        exclude:
-          # Feature core_error increases MSRV to 1.81.0
-          - rust: 1.64.0
-            core_error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -85,15 +80,13 @@ jobs:
           cargo check --no-default-features \
             ${{ matrix.integer128 && '--features integer128' || '' }}\
             ${{ matrix.std && '--features std' || '' }}\
-            ${{ matrix.indexmap && '--features indexmap' || '' }}\
-            ${{ matrix.core_error && '--features core_error' || '' }}
+            ${{ matrix.indexmap && '--features indexmap' || '' }}
       - name: Clippy
         run: |
           cargo check --no-default-features \
             ${{ matrix.integer128 && '--features integer128' || '' }}\
             ${{ matrix.std && '--features std' || '' }}\
             ${{ matrix.indexmap && '--features indexmap' || '' }}\
-            ${{ matrix.core_error && '--features core_error' || '' }}\
             -- -D warnings -A unknown-lints
         # Clippy will report lints that cannot be acted on without increasing MSRV on later versions of Rust
         if: ${{ matrix.rust == '1.64.0' }}
@@ -102,10 +95,7 @@ jobs:
           cargo test --no-default-features \
             ${{ matrix.integer128 && '--features integer128' || '' }}\
             ${{ matrix.std && '--features std' || '' }}\
-            ${{ matrix.indexmap && '--features indexmap' || '' }}\
-            ${{ matrix.core_error && '--features core_error' || '' }}
-        # Testing requires the `Error` trait
-        if: ${{ matrix.std || matrix.core_error }}
+            ${{ matrix.indexmap && '--features indexmap' || '' }}
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"

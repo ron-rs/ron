@@ -25,9 +25,6 @@ integer128 = []
 std = ["serde/std"]
 indexmap = ["std", "dep:indexmap"]
 
-# Increases MSRV to 1.81 and can be a no-op if/when this crate has a higher MSRV.
-core_error = []
-
 [dependencies]
 # FIXME @juntyr remove base64 once old byte strings are fully deprecated
 base64 = { version = "0.22", default-features = false, features = ["alloc"] }

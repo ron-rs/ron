@@ -4,19 +4,13 @@ use core::{
     str::{self, Utf8Error},
 };
 
-use serde::{de, ser};
+use serde::{de, ser::{self, StdError}};
 use unicode_ident::is_xid_continue;
 
 use crate::parse::{is_ident_first_char, is_ident_raw_char};
 
 #[cfg(feature = "std")]
 use std::io;
-
-#[cfg(feature = "core_error")]
-use core::error::Error as StdError;
-
-#[cfg(all(not(feature = "core_error"), feature = "std"))]
-use std::error::Error as StdError;
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
@@ -417,10 +411,8 @@ impl de::Error for Error {
     }
 }
 
-#[cfg(any(feature = "core_error", feature = "std"))]
 impl StdError for SpannedError {}
 
-#[cfg(any(feature = "core_error", feature = "std"))]
 impl StdError for Error {}
 
 impl From<Utf8Error> for Error {
