@@ -68,6 +68,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           profile: minimal
+          components: clippy
           override: true
       - name: Downgrade dependencies to MSRV 1.64
         run: |
