@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### API Changes
 
-- Breaking: `SpannedError` now stores `position_start` and `position_end` in order to facilitate language servers highlighting errors
+- Breaking: `SpannedError` now stores the full error span from `position_start` to `position_end`, e.g. to facilitate language servers highlighting errors
 
 - Breaking: Added `no_std` support via a new `std` feature (enabled by default). With default features disabled, you must enable the `std` feature to access `de::from_reader`, and the `std::io` operations on `Options`, such as `from_reader`, `from_reader_seed`, `to_io_writer`, and `to_io_writer_pretty` ([#567](https://github.com/ron-rs/ron/pull/567))
 
