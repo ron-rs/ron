@@ -40,7 +40,7 @@ jobs:
             Cargo.lock.min
 
   check:
-    name: Check (${{ matrix.rust }}${{ matrix.lock == '"Cargo.lock.min"' && ' (Cargo.lock.min)' || ''}}${{ !(matrix.integer128 || matrix.std || matrix.indexmap) && ' no features' || ''}}${{ matrix.integer128 && ' integer128' || '' }}${{ matrix.std && ' std' || '' }}${{ matrix.indexmap && ' indexmap' || '' }})
+    name: Check (${{ matrix.rust }}${{ matrix.lock == '"Cargo.lock.min"' && ' (Cargo.lock.min)' || ''}})
     runs-on: ubuntu-latest
     needs: lock
 
@@ -48,9 +48,6 @@ jobs:
       matrix:
         rust: [1.64.0, stable, nightly]
         lock: ["Cargo.lock", "Cargo.lock.min"]
-        integer128: [true, false]
-        std: [true, false]
-        indexmap: [true, false]
 
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +67,7 @@ jobs:
           profile: minimal
           components: clippy
           override: true
+      - uses: taiki-e/install-action@cargo-hack
       - name: Downgrade dependencies to MSRV 1.64
         run: |
           cargo update -p serde_bytes --precise 0.11.16
@@ -78,25 +76,15 @@ jobs:
         if: ${{ matrix.rust == '1.64.0' || matrix.rust == '1.81.0' }}
       - name: Check
         run: |
-          cargo check --no-default-features \
-            ${{ matrix.integer128 && '--features integer128' || '' }}\
-            ${{ matrix.std && '--features std' || '' }}\
-            ${{ matrix.indexmap && '--features indexmap' || '' }}
+          cargo hack check --feature-powerset --no-dev-deps
       - name: Clippy
         run: |
-          cargo clippy --no-default-features \
-            ${{ matrix.integer128 && '--features integer128' || '' }}\
-            ${{ matrix.std && '--features std' || '' }}\
-            ${{ matrix.indexmap && '--features indexmap' || '' }}\
-            -- -D warnings -A unknown-lints
+          cargo hack clippy --feature-powerset --no-dev-deps -- -D warnings -A unknown-lints
         # Clippy will report lints that cannot be acted on without increasing MSRV on later versions of Rust
         if: ${{ matrix.rust == '1.64.0' }}
       - name: Test
         run: |
-          cargo test --no-default-features \
-            ${{ matrix.integer128 && '--features integer128' || '' }}\
-            ${{ matrix.std && '--features std' || '' }}\
-            ${{ matrix.indexmap && '--features indexmap' || '' }}
+          cargo hack test --feature-powerset
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"
