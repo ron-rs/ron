@@ -64,6 +64,7 @@ fn single_default_extension() {
     assert_eq!(ser, "#![enable(unwrap_newtypes)]\n(42, 4.2)");
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn reader_io_error() {
     struct Reader<'a> {

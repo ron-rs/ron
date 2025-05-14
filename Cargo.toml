@@ -20,18 +20,20 @@ documentation = "https://docs.rs/ron/"
 rust-version = "1.64.0"
 
 [features]
-default = []
+default = ["std"]
 integer128 = []
+std = ["serde/std"]
+indexmap = ["std", "dep:indexmap"]
 
 [dependencies]
 # FIXME @juntyr remove base64 once old byte strings are fully deprecated
-base64 = { version = "0.22", default-features = false, features = ["std"] }
+base64 = { version = "0.22", default-features = false, features = ["alloc"] }
 bitflags = { version = "2.1", default-features = false, features = ["serde"] }
-indexmap = { version = "2.0", default-features = false, features = ["std", "serde"], optional = true }
+indexmap = { version = "2.0", default-features = false, features = ["serde"], optional = true }
 # serde supports i128/u128 from 1.0.60 onwards
 # serde's IntoDeserializer impls suport new constructor from 1.0.139 onwards
 # serde's adjacently tagged enums support integer tags from 1.0.181 onwards
-serde = { version = "1.0.181", default-features = false, features = ["std"] }
+serde = { version = "1.0.181", default-features = false, features = ["alloc"] }
 serde_derive = { version = "1.0.181", default-features = false }
 unicode-ident = { version = "1.0", default-features = false }
 
@@ -47,3 +49,27 @@ bytes = { version = "1.3", default-features = false, features = ["serde"] }
 [package.metadata.docs.rs]
 features = ["integer128", "indexmap"]
 rustdoc-args = ["--generate-link-to-definition"]
+
+[[example]]
+name = "base64"
+required-features = []
+
+[[example]]
+name = "decode_file"
+required-features = ["std"]
+
+[[example]]
+name = "decode"
+required-features = []
+
+[[example]]
+name = "encode_file"
+required-features = ["std"]
+
+[[example]]
+name = "encode"
+required-features = []
+
+[[example]]
+name = "transcode"
+required-features = []

@@ -1,4 +1,4 @@
-use std::{
+use core::{
     cmp::{Eq, Ordering},
     hash::{Hash, Hasher},
 };
@@ -294,22 +294,26 @@ number_from_impl! { Number::F64(F64(f64)) }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
     use super::*;
-
-    fn hash<T: Hash>(v: &T) -> u64 {
-        let mut state = DefaultHasher::new();
-        v.hash(&mut state);
-        state.finish()
-    }
 
     #[test]
     fn test_nan() {
         assert_eq!(F32(f32::NAN), F32(f32::NAN));
         assert_eq!(F32(-f32::NAN), F32(-f32::NAN));
         assert_ne!(F32(f32::NAN), F32(-f32::NAN));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn test_nan_hash() {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        fn hash<T: Hash>(v: &T) -> u64 {
+            let mut state = DefaultHasher::new();
+            v.hash(&mut state);
+            state.finish()
+        }
 
         assert_eq!(hash(&F32(f32::NAN)), hash(&F32(f32::NAN)));
         assert_eq!(hash(&F32(-f32::NAN)), hash(&F32(-f32::NAN)));

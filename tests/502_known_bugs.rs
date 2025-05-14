@@ -3060,7 +3060,7 @@ fn flattened_field_inside_flattened_struct_alongside_map() {
     );
 }
 
-fn check_roundtrip<T: PartialEq + std::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
+fn check_roundtrip<T: PartialEq + core::fmt::Debug + Serialize + serde::de::DeserializeOwned>(
     val: &T,
     config: PrettyConfig,
 ) -> Result<(), Result<Error, SpannedError>> {

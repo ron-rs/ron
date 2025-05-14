@@ -1,3 +1,11 @@
+use alloc::{
+    borrow::ToOwned,
+    format,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
+
 use serde_bytes;
 use serde_derive::Deserialize;
 
@@ -126,7 +134,7 @@ fn test_unclosed_limited_seq_struct() {
                 type Value = LimitedStruct;
 
                 // GRCOV_EXCL_START
-                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                     fmt.write_str("struct LimitedStruct")
                 }
                 // GRCOV_EXCL_STOP
@@ -165,7 +173,7 @@ fn test_unclosed_limited_seq() {
                 type Value = LimitedSeq;
 
                 // GRCOV_EXCL_START
-                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                     fmt.write_str("an empty sequence")
                 }
                 // GRCOV_EXCL_STOP
@@ -212,7 +220,7 @@ fn test_unclosed_limited_map() {
                 type Value = LimitedMap;
 
                 // GRCOV_EXCL_START
-                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                     fmt.write_str("an empty map")
                 }
                 // GRCOV_EXCL_STOP
@@ -276,6 +284,7 @@ fn test_array() {
     check_from_str_bytes_reader("[2,3,4,]", Ok([2, 3, 4i32].to_vec()));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn test_map() {
     use std::collections::HashMap;
@@ -348,10 +357,12 @@ fn err<T>(kind: Error, line: usize, col: usize) -> SpannedResult<T> {
 
 #[test]
 fn test_err_wrong_value() {
+    #[cfg(feature = "std")]
     use std::collections::HashMap;
 
     check_from_str_bytes_reader::<f32>("'c'", err(Error::ExpectedFloat, 1, 1));
     check_from_str_bytes_reader::<String>("'c'", err(Error::ExpectedString, 1, 1));
+    #[cfg(feature = "std")]
     check_from_str_bytes_reader::<HashMap<u32, u32>>("'c'", err(Error::ExpectedMap, 1, 1));
     check_from_str_bytes_reader::<[u8; 5]>("'c'", err(Error::ExpectedStructLike, 1, 1));
     check_from_str_bytes_reader::<Vec<u32>>("'c'", err(Error::ExpectedArray, 1, 1));
@@ -537,7 +548,7 @@ fn test_numbers() {
 }
 
 fn check_de_any_number<
-    T: Copy + PartialEq + std::fmt::Debug + Into<Number> + serde::de::DeserializeOwned,
+    T: Copy + PartialEq + core::fmt::Debug + Into<Number> + serde::de::DeserializeOwned,
 >(
     s: &str,
     cmp: T,
@@ -626,7 +637,7 @@ fn test_leading_whitespace() {
     check_from_str_bytes_reader("  EmptyStruct1", Ok(EmptyStruct1));
 }
 
-fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + std::fmt::Debug>(
+fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
     ron: &str,
     check: SpannedResult<T>,
 ) {
@@ -636,8 +647,11 @@ fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + std:
     let res_bytes = super::from_bytes::<T>(ron.as_bytes());
     assert_eq!(res_bytes, check);
 
-    let res_reader = super::from_reader::<&[u8], T>(ron.as_bytes());
-    assert_eq!(res_reader, check);
+    #[cfg(feature = "std")]
+    {
+        let res_reader = super::from_reader::<&[u8], T>(ron.as_bytes());
+        assert_eq!(res_reader, check);
+    }
 }
 
 #[test]

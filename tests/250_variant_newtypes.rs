@@ -419,7 +419,7 @@ fn test_serialise_tuple_newtypes() {
 }
 
 fn assert_eq_serialize_roundtrip<
-    S: Serialize + serde::de::DeserializeOwned + PartialEq + std::fmt::Debug,
+    S: Serialize + serde::de::DeserializeOwned + PartialEq + core::fmt::Debug,
 >(
     value: S,
     extensions: Extensions,

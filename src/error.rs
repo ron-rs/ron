@@ -1,13 +1,19 @@
-use std::{
-    error::Error as StdError,
-    fmt, io,
+use alloc::string::{String, ToString};
+use core::{
+    fmt,
     str::{self, Utf8Error},
 };
 
-use serde::{de, ser};
+use serde::{
+    de,
+    ser::{self, StdError},
+};
 use unicode_ident::is_xid_continue;
 
 use crate::parse::{is_ident_first_char, is_ident_raw_char};
+
+#[cfg(feature = "std")]
+use std::io;
 
 /// This type represents all possible errors that can occur when
 /// serializing or deserializing RON data.
@@ -18,8 +24,8 @@ pub struct SpannedError {
     pub position: Position,
 }
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-pub type SpannedResult<T> = std::result::Result<T, SpannedError>;
+pub type Result<T, E = Error> = core::result::Result<T, E>;
+pub type SpannedResult<T> = core::result::Result<T, SpannedError>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
@@ -346,7 +352,7 @@ impl de::Error for Error {
                     de::Unexpected::Str(s) => write!(f, "the string {:?}", s),
                     de::Unexpected::Bytes(b) => write!(f, "the byte string b\"{}\"", {
                         b.iter()
-                            .flat_map(|c| std::ascii::escape_default(*c))
+                            .flat_map(|c| core::ascii::escape_default(*c))
                             .map(char::from)
                             .collect::<String>()
                     }),
@@ -409,6 +415,7 @@ impl de::Error for Error {
 }
 
 impl StdError for SpannedError {}
+
 impl StdError for Error {}
 
 impl From<Utf8Error> for Error {
@@ -423,6 +430,7 @@ impl From<fmt::Error> for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
         Error::Io(e.to_string())
@@ -484,13 +492,16 @@ impl<'a> fmt::Display for Identifier<'a> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{format, string::String};
+
     use serde::{de::Error as DeError, de::Unexpected, ser::Error as SerError};
 
     use super::{Error, Position, SpannedError};
 
     #[test]
     fn error_messages() {
-        check_error_message(&Error::from(std::fmt::Error), "Formatting RON failed");
+        check_error_message(&Error::from(core::fmt::Error), "Formatting RON failed");
+        #[cfg(feature = "std")]
         check_error_message(
             &Error::from(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
@@ -576,7 +587,7 @@ mod tests {
         check_error_message(&Error::UnexpectedChar('🦀'), "Unexpected char \'🦀\'");
         #[allow(invalid_from_utf8)]
         check_error_message(
-            &Error::Utf8Error(std::str::from_utf8(b"error: \xff\xff\xff\xff").unwrap_err()),
+            &Error::Utf8Error(core::str::from_utf8(b"error: \xff\xff\xff\xff").unwrap_err()),
             "invalid utf-8 sequence of 1 bytes from index 7",
         );
         check_error_message(
@@ -679,7 +690,7 @@ mod tests {
         );
     }
 
-    fn check_error_message<T: std::fmt::Display>(err: &T, msg: &str) {
+    fn check_error_message<T: core::fmt::Display>(err: &T, msg: &str) {
         assert_eq!(format!("{}", err), msg);
     }
 

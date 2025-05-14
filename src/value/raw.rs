@@ -2,7 +2,8 @@
 // https://github.com/serde-rs/json/blob/master/src/raw.rs
 // Licensed under either of Apache License, Version 2.0 or MIT license at your option.
 
-use std::{fmt, ops::Range};
+use alloc::{borrow::ToOwned, boxed::Box, format, string::String};
+use core::{fmt, ops::Range};
 
 use serde::{de, ser, Deserialize, Serialize};
 
@@ -30,12 +31,12 @@ impl RawValue {
 
     fn from_boxed_str(ron: Box<str>) -> Box<Self> {
         // Safety: RawValue is a transparent newtype around str
-        unsafe { std::mem::transmute::<Box<str>, Box<RawValue>>(ron) }
+        unsafe { core::mem::transmute::<Box<str>, Box<RawValue>>(ron) }
     }
 
     fn into_boxed_str(raw_value: Box<Self>) -> Box<str> {
         // Safety: RawValue is a transparent newtype around str
-        unsafe { std::mem::transmute::<Box<RawValue>, Box<str>>(raw_value) }
+        unsafe { core::mem::transmute::<Box<RawValue>, Box<str>>(raw_value) }
     }
 
     #[allow(clippy::expect_used)]

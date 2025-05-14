@@ -1,4 +1,5 @@
-use std::fmt;
+use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
+use core::fmt;
 
 use serde::{
     de::{Error, MapAccess, SeqAccess, Visitor},
@@ -10,7 +11,7 @@ use crate::{
     value::{Map, Number, Value},
 };
 
-impl std::str::FromStr for Value {
+impl core::str::FromStr for Value {
     type Err = crate::error::SpannedError;
 
     /// Creates a value from a string reference.
@@ -237,7 +238,8 @@ impl<'de> Visitor<'de> for ValueVisitor {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use alloc::vec;
+    use core::str::FromStr;
 
     use super::*;
 
@@ -302,9 +304,9 @@ mod tests {
         assert_eq!(
             eval("(inf, -inf, NaN)"),
             Value::Seq(vec![
-                Value::Number(Number::new(std::f32::INFINITY)),
-                Value::Number(Number::new(std::f32::NEG_INFINITY)),
-                Value::Number(Number::new(std::f32::NAN)),
+                Value::Number(Number::new(core::f32::INFINITY)),
+                Value::Number(Number::new(core::f32::NEG_INFINITY)),
+                Value::Number(Number::new(core::f32::NAN)),
             ]),
         );
     }

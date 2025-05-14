@@ -32,7 +32,7 @@ impl<'de> Visitor<'de> for SerializeDynVisitor {
     type Value = Box<dyn Any>;
 
     // GRCOV_EXCL_START
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(formatter, "a serialize dyn struct")
     }
     // GRCOV_EXCL_STOP

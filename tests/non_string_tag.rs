@@ -10,7 +10,7 @@ macro_rules! test_non_tag {
                 type Value = Tag;
 
                 // GRCOV_EXCL_START
-                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                     fmt.write_str("an error")
                 }
                 // GRCOV_EXCL_STOP
@@ -91,7 +91,7 @@ macro_rules! test_tag {
                 type Value = Tag;
 
                 // GRCOV_EXCL_START
-                fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+                fn expecting(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                     fmt.write_str("a tag")
                 }
                 // GRCOV_EXCL_STOP

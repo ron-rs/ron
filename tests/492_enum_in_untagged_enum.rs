@@ -21,7 +21,7 @@ fn enum_in_untagged_enum() {
     );
 }
 
-fn check_roundtrip<T: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + PartialEq>(
+fn check_roundtrip<T: Serialize + serde::de::DeserializeOwned + core::fmt::Debug + PartialEq>(
     val: &T,
     check: &str,
 ) {

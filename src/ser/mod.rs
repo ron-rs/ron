@@ -1,4 +1,5 @@
-use std::{borrow::Cow, fmt};
+use alloc::{borrow::Cow, string::String};
+use core::fmt;
 
 use serde::{ser, ser::Serialize};
 use serde_derive::{Deserialize, Serialize};
@@ -562,7 +563,7 @@ impl<W: fmt::Write> Serializer<W> {
 
     fn serialize_escaped_byte_str(&mut self, value: &[u8]) -> fmt::Result {
         self.output.write_str("b\"")?;
-        for c in value.iter().flat_map(|c| std::ascii::escape_default(*c)) {
+        for c in value.iter().flat_map(|c| core::ascii::escape_default(*c)) {
             self.output.write_char(char::from(c))?;
         }
         self.output.write_char('"')?;
@@ -736,7 +737,9 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
 
         write!(self.output, "{}", v)?;
 
-        if v.fract() == 0.0 {
+        // Equivalent to v.fract() == 0.0
+        // See: https://docs.rs/num-traits/0.2.19/src/num_traits/float.rs.html#459-465
+        if v % 1. == 0.0 {
             write!(self.output, ".0")?;
         }
 
@@ -754,7 +757,9 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
 
         write!(self.output, "{}", v)?;
 
-        if v.fract() == 0.0 {
+        // Equivalent to v.fract() == 0.0
+        // See: https://docs.rs/num-traits/0.2.19/src/num_traits/float.rs.html#459-465
+        if v % 1. == 0.0 {
             write!(self.output, ".0")?;
         }
 
@@ -788,7 +793,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
         // We need to fall back to escaping if the byte string would be invalid UTF-8
         if !self.escape_strings() {
-            if let Ok(v) = std::str::from_utf8(v) {
+            if let Ok(v) = core::str::from_utf8(v) {
                 return self
                     .serialize_unescaped_or_raw_byte_str(v)
                     .map_err(Error::from);
@@ -1371,7 +1376,7 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         guard_recursion! { self.ser => value.serialize(&mut *self.ser)? };
 
         if let Some((ref mut config, _)) = self.ser.pretty {
-            std::mem::swap(&mut config.path_meta, &mut restore_field);
+            core::mem::swap(&mut config.path_meta, &mut restore_field);
 
             if let Some(ref mut field) = config.path_meta {
                 if let Some(fields) = field.fields_mut() {

@@ -1,8 +1,10 @@
 /// Deserialization module.
-use std::{
-    io::{self, Write},
-    str,
+use alloc::{
+    borrow::ToOwned,
+    string::{String, ToString},
+    vec::Vec,
 };
+use core::str;
 
 use serde::{
     de::{self, DeserializeSeed, Deserializer as _, Visitor},
@@ -16,6 +18,9 @@ use crate::{
     options::Options,
     parse::{NewtypeMode, ParsedByteStr, ParsedStr, Parser, StructType, TupleMode},
 };
+
+#[cfg(feature = "std")]
+use std::io;
 
 mod id;
 mod tag;
@@ -100,6 +105,7 @@ impl<'de> Deserializer<'de> {
 
 /// A convenience function for building a deserializer
 /// and deserializing a value of type `T` from a reader.
+#[cfg(feature = "std")]
 pub fn from_reader<R, T>(rdr: R) -> SpannedResult<T>
 where
     R: io::Read,
@@ -170,8 +176,8 @@ impl<'de> Deserializer<'de> {
     {
         // HACK: switch to JSON enum semantics for JSON content
         // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
-        let is_serde_content = std::any::type_name::<V::Value>() == SERDE_CONTENT_CANARY
-            || std::any::type_name::<V::Value>() == SERDE_TAG_KEY_CANARY;
+        let is_serde_content = core::any::type_name::<V::Value>() == SERDE_CONTENT_CANARY
+            || core::any::type_name::<V::Value>() == SERDE_TAG_KEY_CANARY;
 
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
@@ -323,13 +329,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         } else if self.parser.consume_str("()") {
             return visitor.visit_unit();
         } else if self.parser.consume_ident("inf") || self.parser.consume_ident("inff32") {
-            return visitor.visit_f32(std::f32::INFINITY);
+            return visitor.visit_f32(core::f32::INFINITY);
         } else if self.parser.consume_ident("inff64") {
-            return visitor.visit_f64(std::f64::INFINITY);
+            return visitor.visit_f64(core::f64::INFINITY);
         } else if self.parser.consume_ident("NaN") || self.parser.consume_ident("NaNf32") {
-            return visitor.visit_f32(std::f32::NAN);
+            return visitor.visit_f32(core::f32::NAN);
         } else if self.parser.consume_ident("NaNf64") {
-            return visitor.visit_f64(std::f64::NAN);
+            return visitor.visit_f64(core::f64::NAN);
         }
 
         // `skip_identifier` does not change state if it fails
@@ -670,25 +676,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        // Detect `#[serde(flatten)]` as a struct deserialised as a map
-        const SERDE_FLATTEN_CANARY: &[u8] = b"struct ";
-
         struct VisitorExpecting<V>(V);
-        impl<'de, V: Visitor<'de>> std::fmt::Display for VisitorExpecting<&'_ V> {
-            fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        impl<'de, V: Visitor<'de>> core::fmt::Display for VisitorExpecting<&'_ V> {
+            fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.0.expecting(fmt)
             }
         }
 
         self.newtype_variant = false;
 
-        let mut canary_buffer = [0u8; SERDE_FLATTEN_CANARY.len()];
-        std::mem::drop(write!(
-            canary_buffer.as_mut(),
-            "{}",
-            VisitorExpecting(&visitor)
-        ));
-        let terminator = if canary_buffer == SERDE_FLATTEN_CANARY {
+        // TODO: Avoid allocating to perform this check.
+        let serde_flatten_canary = VisitorExpecting(&visitor)
+            .to_string()
+            .starts_with("struct ");
+
+        let terminator = if serde_flatten_canary {
             Terminator::MapAsStruct
         } else {
             Terminator::Map
@@ -853,7 +855,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
     {
         if self.has_element()? {
             self.inside_internally_tagged_enum =
-                std::any::type_name::<K::Value>() == SERDE_TAG_KEY_CANARY;
+                core::any::type_name::<K::Value>() == SERDE_TAG_KEY_CANARY;
 
             match self.terminator {
                 Terminator::Struct => guard_recursion! { self.de =>
@@ -879,7 +881,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
             self.de.parser.skip_ws()?;
 
             let res = if self.inside_internally_tagged_enum
-                && std::any::type_name::<V::Value>() != SERDE_CONTENT_CANARY
+                && core::any::type_name::<V::Value>() != SERDE_CONTENT_CANARY
             {
                 guard_recursion! { self.de =>
                     seed.deserialize(&mut tag::Deserializer::new(&mut *self.de))?

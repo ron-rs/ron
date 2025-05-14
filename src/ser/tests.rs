@@ -1,3 +1,5 @@
+use alloc::{format, vec};
+
 use serde_derive::Serialize;
 
 use crate::Number;
@@ -99,7 +101,7 @@ fn test_vec() {
 
 #[test]
 fn test_map() {
-    use std::collections::BTreeMap;
+    use alloc::collections::BTreeMap;
 
     let mut map = BTreeMap::new();
     map.insert((true, false), 4);
@@ -221,9 +223,9 @@ fn test_any_number_precision() {
     test_min_max! { i128, u128 }
 }
 
-fn check_ser_any_number<T: Copy + Into<Number> + std::fmt::Display + serde::Serialize>(n: T) {
+fn check_ser_any_number<T: Copy + Into<Number> + core::fmt::Display + serde::Serialize>(n: T) {
     let mut fmt = format!("{}", n);
-    if !fmt.contains('.') && std::any::type_name::<T>().contains('f') {
+    if !fmt.contains('.') && core::any::type_name::<T>().contains('f') {
         fmt.push_str(".0");
     }
 
@@ -289,18 +291,21 @@ fn check_to_string_writer<T: ?Sized + serde::Serialize>(val: &T, check: &str, ch
     .unwrap();
     assert_eq!(ron_str_pretty, check_pretty);
 
-    let mut ron_writer = std::ffi::OsString::new();
-    super::to_writer(&mut ron_writer, val).unwrap();
-    assert_eq!(ron_writer, check);
+    #[cfg(feature = "std")]
+    {
+        let mut ron_writer = std::ffi::OsString::new();
+        super::to_writer(&mut ron_writer, val).unwrap();
+        assert_eq!(ron_writer, check);
 
-    let mut ron_writer_pretty = std::ffi::OsString::new();
-    super::to_writer_pretty(
-        &mut ron_writer_pretty,
-        val,
-        super::PrettyConfig::default()
-            .struct_names(true)
-            .compact_structs(true),
-    )
-    .unwrap();
-    assert_eq!(ron_writer_pretty, check_pretty);
+        let mut ron_writer_pretty = std::ffi::OsString::new();
+        super::to_writer_pretty(
+            &mut ron_writer_pretty,
+            val,
+            super::PrettyConfig::default()
+                .struct_names(true)
+                .compact_structs(true),
+        )
+        .unwrap();
+        assert_eq!(ron_writer_pretty, check_pretty);
+    }
 }
