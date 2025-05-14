@@ -53,7 +53,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">use std::{</pre>
+                <pre class="has-background-white py-0 px-2">use core::{</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -261,7 +261,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">&#x2F;&#x2F;&#x2F; This structure either uses a [`BTreeMap`](std::collections::BTreeMap) or the</pre>
+                <pre class="has-background-white py-0 px-2">&#x2F;&#x2F;&#x2F; This structure either uses a [`BTreeMap`](alloc::collections::BTreeMap) or the</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -405,7 +405,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">type MapInner = std::collections::BTreeMap&lt;Value, Value&gt;;</pre>
+                <pre class="has-background-white py-0 px-2">type MapInner = alloc::collections::BTreeMap&lt;Value, Value&gt;;</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -437,7 +437,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">type MapInner = indexmap::IndexMap&lt;Value, Value&gt;;</pre>
+                <pre class="has-background-white py-0 px-2">type MapInner = indexmap::IndexMap&lt;Value, Value, std::collections::hash_map::RandomState&gt;;</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -2981,7 +2981,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">    use super::{Map, Value};</pre>
+                <pre class="has-background-white py-0 px-2">    use alloc::{vec, vec::Vec};</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3013,7 +3013,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">    #[test]</pre>
+                <pre class="has-background-white py-0 px-2">    use super::{Map, Value};</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3023,13 +3023,13 @@
                 <a href="#187">187</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    fn map_usage() {</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3039,13 +3039,13 @@
                 <a href="#188">188</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        let mut map = Map::new();</pre>
+                <pre class="has-background-white py-0 px-2">    #[test]</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3061,7 +3061,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.len(), 0);</pre>
+                <pre class="has-background-success-light py-0 px-2">    fn map_usage() {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3077,7 +3077,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert!(map.is_empty());</pre>
+                <pre class="has-background-success-light py-0 px-2">        let mut map = Map::new();</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3087,13 +3087,13 @@
                 <a href="#191">191</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.len(), 0);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3109,7 +3109,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        map.insert(&quot;a&quot;, 42);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert!(map.is_empty());</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3119,13 +3119,13 @@
                 <a href="#193">193</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.len(), 1);</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3141,7 +3141,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert!(!map.is_empty());</pre>
+                <pre class="has-background-success-light py-0 px-2">        map.insert(&quot;a&quot;, 42);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3151,13 +3151,13 @@
                 <a href="#195">195</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.len(), 1);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3173,7 +3173,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.keys().collect::&lt;Vec&lt;_&gt;&gt;(), vec![&amp;Value::from(&quot;a&quot;)]);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert!(!map.is_empty());</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3183,13 +3183,13 @@
                 <a href="#197">197</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.values().collect::&lt;Vec&lt;_&gt;&gt;(), vec![&amp;Value::from(42)]);</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3205,7 +3205,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.keys().collect::&lt;Vec&lt;_&gt;&gt;(), vec![&amp;Value::from(&quot;a&quot;)]);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3221,7 +3221,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            map.iter().collect::&lt;Vec&lt;_&gt;&gt;(),</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.values().collect::&lt;Vec&lt;_&gt;&gt;(), vec![&amp;Value::from(42)]);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3237,7 +3237,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            vec![(&amp;Value::from(&quot;a&quot;), &amp;Value::from(42))]</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3253,7 +3253,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        );</pre>
+                <pre class="has-background-success-light py-0 px-2">            map.iter().collect::&lt;Vec&lt;_&gt;&gt;(),</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3263,13 +3263,13 @@
                 <a href="#202">202</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-success-light py-0 px-2">            vec![(&amp;Value::from(&quot;a&quot;), &amp;Value::from(42))]</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3285,7 +3285,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;a&quot;)), Some(&amp;Value::from(42)));</pre>
+                <pre class="has-background-success-light py-0 px-2">        );</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3295,13 +3295,13 @@
                 <a href="#204">204</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;b&quot;)), None);</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3317,7 +3317,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get_mut(&amp;Value::from(&quot;a&quot;)), Some(&amp;mut Value::from(42)));</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;a&quot;)), Some(&amp;Value::from(42)));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3333,7 +3333,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get_mut(&amp;Value::from(&quot;b&quot;)), None);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;b&quot;)), None);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3343,13 +3343,13 @@
                 <a href="#207">207</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get_mut(&amp;Value::from(&quot;a&quot;)), Some(&amp;mut Value::from(42)));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3365,7 +3365,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        map[&amp;Value::from(&quot;a&quot;)] = Value::from(24);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get_mut(&amp;Value::from(&quot;b&quot;)), None);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3375,13 +3375,13 @@
                 <a href="#209">209</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(&amp;map[&amp;Value::from(&quot;a&quot;)], &amp;Value::from(24));</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3391,13 +3391,13 @@
                 <a href="#210">210</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-success-light py-0 px-2">        map[&amp;Value::from(&quot;a&quot;)] = Value::from(24);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3413,7 +3413,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        for (key, value) in map.iter_mut() {</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(&amp;map[&amp;Value::from(&quot;a&quot;)], &amp;Value::from(24));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3423,13 +3423,13 @@
                 <a href="#212">212</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            if key == &amp;Value::from(&quot;a&quot;) {</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3445,7 +3445,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">                *value = Value::from(42);</pre>
+                <pre class="has-background-success-light py-0 px-2">        for (key, value) in map.iter_mut() {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3461,7 +3461,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            }</pre>
+                <pre class="has-background-success-light py-0 px-2">            if key == &amp;Value::from(&quot;a&quot;) {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3471,13 +3471,13 @@
                 <a href="#215">215</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">        }</pre>
+                <pre class="has-background-success-light py-0 px-2">                *value = Value::from(42);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3493,7 +3493,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(&amp;map[&amp;Value::from(&quot;a&quot;)], &amp;Value::from(42));</pre>
+                <pre class="has-background-success-light py-0 px-2">            }</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3509,7 +3509,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-white py-0 px-2">        }</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3525,7 +3525,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        map.values_mut().for_each(|value| *value = Value::from(24));</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(&amp;map[&amp;Value::from(&quot;a&quot;)], &amp;Value::from(42));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3535,13 +3535,13 @@
                 <a href="#219">219</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(&amp;map[&amp;Value::from(&quot;a&quot;)], &amp;Value::from(24));</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3551,13 +3551,13 @@
                 <a href="#220">220</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-success-light py-0 px-2">        map.values_mut().for_each(|value| *value = Value::from(24));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3573,7 +3573,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        map.insert(&quot;b&quot;, 42);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(&amp;map[&amp;Value::from(&quot;a&quot;)], &amp;Value::from(24));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3583,13 +3583,13 @@
                 <a href="#222">222</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.len(), 2);</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3605,7 +3605,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert!(!map.is_empty());</pre>
+                <pre class="has-background-success-light py-0 px-2">        map.insert(&quot;b&quot;, 42);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3621,7 +3621,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;a&quot;)), Some(&amp;Value::from(24)));</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.len(), 2);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3637,7 +3637,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;b&quot;)), Some(&amp;Value::from(42)));</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert!(!map.is_empty());</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3645,6 +3645,38 @@
                 id="226"
                 role="cell">
                 <a href="#226">226</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;a&quot;)), Some(&amp;Value::from(24)));</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="227"
+                role="cell">
+                <a href="#227">227</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;b&quot;)), Some(&amp;Value::from(42)));</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="228"
+                role="cell">
+                <a href="#228">228</a>
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
@@ -3658,9 +3690,9 @@
         </div><div class="columns p-0 m-0" role="row">
             <div
                 class="column is-1 is-narrow p-0 has-text-centered"
-                id="227"
+                id="229"
                 role="cell">
-                <a href="#227">227</a>
+                <a href="#229">229</a>
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
@@ -3674,9 +3706,9 @@
         </div><div class="columns p-0 m-0" role="row">
             <div
                 class="column is-1 is-narrow p-0 has-text-centered"
-                id="228"
+                id="230"
                 role="cell">
-                <a href="#228">228</a>
+                <a href="#230">230</a>
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
@@ -3690,9 +3722,9 @@
         </div><div class="columns p-0 m-0" role="row">
             <div
                 class="column is-1 is-narrow p-0 has-text-centered"
-                id="229"
+                id="231"
                 role="cell">
-                <a href="#229">229</a>
+                <a href="#231">231</a>
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
@@ -3702,38 +3734,6 @@
             <div class="column has-background-success-light p-0"
                  role="cell">
                 <pre class="has-background-success-light py-0 px-2">                *value = Value::from(42);</pre>
-            </div>
-        </div><div class="columns p-0 m-0" role="row">
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered"
-                id="230"
-                role="cell">
-                <a href="#230">230</a>
-            </div>
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
-            </div>
-            <div class="column has-background-success-light p-0"
-                 role="cell">
-                <pre class="has-background-success-light py-0 px-2">                true</pre>
-            </div>
-        </div><div class="columns p-0 m-0" role="row">
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered"
-                id="231"
-                role="cell">
-                <a href="#231">231</a>
-            </div>
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
-            </div>
-            <div class="column has-background-white p-0"
-                 role="cell">
-                <pre class="has-background-white py-0 px-2">            } else {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3749,7 +3749,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">                false</pre>
+                <pre class="has-background-success-light py-0 px-2">                true</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3765,7 +3765,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">            }</pre>
+                <pre class="has-background-white py-0 px-2">            } else {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3776,12 +3776,12 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="8">
-                8
+                role="cell" aria-label="4">
+                4
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        });</pre>
+                <pre class="has-background-success-light py-0 px-2">                false</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3791,13 +3791,13 @@
                 <a href="#235">235</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.len(), 1);</pre>
+                <pre class="has-background-white py-0 px-2">            }</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3808,12 +3808,12 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                role="cell" aria-label="8">
+                8
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;a&quot;)), Some(&amp;Value::from(42)));</pre>
+                <pre class="has-background-success-light py-0 px-2">        });</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3829,7 +3829,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;b&quot;)), None);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.len(), 1);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3839,13 +3839,13 @@
                 <a href="#238">238</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;a&quot;)), Some(&amp;Value::from(42)));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3861,7 +3861,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.remove(&amp;Value::from(&quot;b&quot;)), None);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.get(&amp;Value::from(&quot;b&quot;)), None);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3871,13 +3871,13 @@
                 <a href="#240">240</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.remove(&amp;Value::from(&quot;a&quot;)), Some(Value::from(42)));</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3893,7 +3893,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.remove(&amp;Value::from(&quot;a&quot;)), None);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.remove(&amp;Value::from(&quot;b&quot;)), None);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3909,7 +3909,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    }</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.remove(&amp;Value::from(&quot;a&quot;)), Some(Value::from(42)));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3917,6 +3917,38 @@
                 id="243"
                 role="cell">
                 <a href="#243">243</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(map.remove(&amp;Value::from(&quot;a&quot;)), None);</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="244"
+                role="cell">
+                <a href="#244">244</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">    }</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="245"
+                role="cell">
+                <a href="#245">245</a>
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
@@ -3930,9 +3962,9 @@
         </div><div class="columns p-0 m-0" role="row">
             <div
                 class="column is-1 is-narrow p-0 has-text-centered"
-                id="244"
+                id="246"
                 role="cell">
-                <a href="#244">244</a>
+                <a href="#246">246</a>
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
@@ -3941,39 +3973,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">    #[test]</pre>
-            </div>
-        </div><div class="columns p-0 m-0" role="row">
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered"
-                id="245"
-                role="cell">
-                <a href="#245">245</a>
-            </div>
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
-            </div>
-            <div class="column has-background-success-light p-0"
-                 role="cell">
-                <pre class="has-background-success-light py-0 px-2">    fn map_hash() {</pre>
-            </div>
-        </div><div class="columns p-0 m-0" role="row">
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered"
-                id="246"
-                role="cell">
-                <a href="#246">246</a>
-            </div>
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
-            </div>
-            <div class="column has-background-success-light p-0"
-                 role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_same_hash(&amp;Map::new(), &amp;Map::new());</pre>
+                <pre class="has-background-white py-0 px-2">    #[cfg(feature = &quot;std&quot;)]</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -3983,13 +3983,13 @@
                 <a href="#247">247</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_same_hash(</pre>
+                <pre class="has-background-white py-0 px-2">    #[test]</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4005,7 +4005,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            &amp;[(&quot;a&quot;, 42)].into_iter().collect(),</pre>
+                <pre class="has-background-success-light py-0 px-2">    fn map_hash() {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4021,7 +4021,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            &amp;[(&quot;a&quot;, 42)].into_iter().collect(),</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_same_hash(&amp;Map::new(), &amp;Map::new());</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4037,7 +4037,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        );</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_same_hash(</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4053,7 +4053,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_same_hash(</pre>
+                <pre class="has-background-success-light py-0 px-2">            &amp;[(&quot;a&quot;, 42)].into_iter().collect(),</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4069,7 +4069,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            &amp;[(&quot;b&quot;, 24), (&quot;c&quot;, 42)].into_iter().collect(),</pre>
+                <pre class="has-background-success-light py-0 px-2">            &amp;[(&quot;a&quot;, 42)].into_iter().collect(),</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4085,7 +4085,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">            &amp;[(&quot;b&quot;, 24), (&quot;c&quot;, 42)].into_iter().collect(),</pre>
+                <pre class="has-background-success-light py-0 px-2">        );</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4101,7 +4101,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        );</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_same_hash(</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4117,7 +4117,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    }</pre>
+                <pre class="has-background-success-light py-0 px-2">            &amp;[(&quot;b&quot;, 24), (&quot;c&quot;, 42)].into_iter().collect(),</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4127,13 +4127,13 @@
                 <a href="#256">256</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-success-light py-0 px-2">            &amp;[(&quot;b&quot;, 24), (&quot;c&quot;, 42)].into_iter().collect(),</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4144,12 +4144,12 @@
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="12">
-                12
+                role="cell" aria-label="4">
+                4
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    fn assert_same_hash(a: &amp;Map, b: &amp;Map) {</pre>
+                <pre class="has-background-success-light py-0 px-2">        );</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4159,13 +4159,13 @@
                 <a href="#258">258</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">        use std::collections::hash_map::DefaultHasher;</pre>
+                <pre class="has-background-success-light py-0 px-2">    }</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4181,7 +4181,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">        use std::hash::{Hash, Hasher};</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4197,7 +4197,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-white py-0 px-2">    #[cfg(feature = &quot;std&quot;)]</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4213,7 +4213,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(a, b);</pre>
+                <pre class="has-background-success-light py-0 px-2">    fn assert_same_hash(a: &amp;Map, b: &amp;Map) {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4223,13 +4223,13 @@
                 <a href="#262">262</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="12">
-                12
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert!(a.cmp(b).is_eq());</pre>
+                <pre class="has-background-white py-0 px-2">        use core::hash::{Hash, Hasher};</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4239,13 +4239,13 @@
                 <a href="#263">263</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="12">
-                12
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(a.partial_cmp(b), Some(std::cmp::Ordering::Equal));</pre>
+                <pre class="has-background-white py-0 px-2">        use std::collections::hash_map::DefaultHasher;</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4277,7 +4277,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        let mut hasher = DefaultHasher::new();</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(a, b);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4293,7 +4293,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        a.hash(&amp;mut hasher);</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert!(a.cmp(b).is_eq());</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4309,7 +4309,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        let h1 = hasher.finish();</pre>
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(a.partial_cmp(b), Some(core::cmp::Ordering::Equal));</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4319,13 +4319,13 @@
                 <a href="#268">268</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="12">
-                12
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2"></pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4357,7 +4357,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        b.hash(&amp;mut hasher);</pre>
+                <pre class="has-background-success-light py-0 px-2">        a.hash(&amp;mut hasher);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4373,7 +4373,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        let h2 = hasher.finish();</pre>
+                <pre class="has-background-success-light py-0 px-2">        let h1 = hasher.finish();</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4405,7 +4405,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        assert_eq!(h1, h2);</pre>
+                <pre class="has-background-success-light py-0 px-2">        let mut hasher = DefaultHasher::new();</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4421,7 +4421,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    }</pre>
+                <pre class="has-background-success-light py-0 px-2">        b.hash(&amp;mut hasher);</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4429,6 +4429,70 @@
                 id="275"
                 role="cell">
                 <a href="#275">275</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="12">
+                12
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">        let h2 = hasher.finish();</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="276"
+                role="cell">
+                <a href="#276">276</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="12">
+                12
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2"></pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="277"
+                role="cell">
+                <a href="#277">277</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="12">
+                12
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">        assert_eq!(h1, h2);</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="278"
+                role="cell">
+                <a href="#278">278</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="12">
+                12
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">    }</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="279"
+                role="cell">
+                <a href="#279">279</a>
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
@@ -4442,9 +4506,9 @@
         </div><div class="columns p-0 m-0" role="row">
             <div
                 class="column is-1 is-narrow p-0 has-text-centered"
-                id="276"
+                id="280"
                 role="cell">
-                <a href="#276">276</a>
+                <a href="#280">280</a>
             </div>
             <div
                 class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
@@ -4454,70 +4518,6 @@
             <div class="column has-background-white p-0"
                  role="cell">
                 <pre class="has-background-white py-0 px-2">    #[test]</pre>
-            </div>
-        </div><div class="columns p-0 m-0" role="row">
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered"
-                id="277"
-                role="cell">
-                <a href="#277">277</a>
-            </div>
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
-            </div>
-            <div class="column has-background-white p-0"
-                 role="cell">
-                <pre class="has-background-white py-0 px-2">    #[should_panic(expected = &quot;no entry found for key&quot;)]</pre>
-            </div>
-        </div><div class="columns p-0 m-0" role="row">
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered"
-                id="278"
-                role="cell">
-                <a href="#278">278</a>
-            </div>
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
-            </div>
-            <div class="column has-background-success-light p-0"
-                 role="cell">
-                <pre class="has-background-success-light py-0 px-2">    fn map_index_panic() {</pre>
-            </div>
-        </div><div class="columns p-0 m-0" role="row">
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered"
-                id="279"
-                role="cell">
-                <a href="#279">279</a>
-            </div>
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
-            </div>
-            <div class="column has-background-success-light p-0"
-                 role="cell">
-                <pre class="has-background-success-light py-0 px-2">        let _ = &amp;Map::new()[&amp;Value::Unit];</pre>
-            </div>
-        </div><div class="columns p-0 m-0" role="row">
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered"
-                id="280"
-                role="cell">
-                <a href="#280">280</a>
-            </div>
-            <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
-            </div>
-            <div class="column has-background-success-light p-0"
-                 role="cell">
-                <pre class="has-background-success-light py-0 px-2">    }</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4533,7 +4533,7 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2"></pre>
+                <pre class="has-background-white py-0 px-2">    #[should_panic(expected = &quot;no entry found for key&quot;)]</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4543,13 +4543,13 @@
                 <a href="#282">282</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">    #[test]</pre>
+                <pre class="has-background-success-light py-0 px-2">    fn map_index_panic() {</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4559,13 +4559,13 @@
                 <a href="#283">283</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
-                role="cell" aria-label="no coverage">
-                
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
             </div>
-            <div class="column has-background-white p-0"
+            <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-white py-0 px-2">    #[should_panic(expected = &quot;no entry found for key&quot;)]</pre>
+                <pre class="has-background-success-light py-0 px-2">        let _ = &amp;Map::new()[&amp;Value::Unit];</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4581,7 +4581,7 @@
             </div>
             <div class="column has-background-success-light p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    fn map_index_mut_panic() {</pre>
+                <pre class="has-background-success-light py-0 px-2">    }</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4591,13 +4591,13 @@
                 <a href="#285">285</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">        let _ = &amp;mut Map::new()[&amp;Value::Unit];</pre>
+                <pre class="has-background-white py-0 px-2"></pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4607,13 +4607,13 @@
                 <a href="#286">286</a>
             </div>
             <div
-                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
-                role="cell" aria-label="4">
-                4
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
             </div>
-            <div class="column has-background-success-light p-0"
+            <div class="column has-background-white p-0"
                  role="cell">
-                <pre class="has-background-success-light py-0 px-2">    }</pre>
+                <pre class="has-background-white py-0 px-2">    #[test]</pre>
             </div>
         </div><div class="columns p-0 m-0" role="row">
             <div
@@ -4629,13 +4629,77 @@
             </div>
             <div class="column has-background-white p-0"
                  role="cell">
+                <pre class="has-background-white py-0 px-2">    #[should_panic(expected = &quot;no entry found for key&quot;)]</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="288"
+                role="cell">
+                <a href="#288">288</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">    fn map_index_mut_panic() {</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="289"
+                role="cell">
+                <a href="#289">289</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">        let _ = &amp;mut Map::new()[&amp;Value::Unit];</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="290"
+                role="cell">
+                <a href="#290">290</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-success-light has-background-success"
+                role="cell" aria-label="4">
+                4
+            </div>
+            <div class="column has-background-success-light p-0"
+                 role="cell">
+                <pre class="has-background-success-light py-0 px-2">    }</pre>
+            </div>
+        </div><div class="columns p-0 m-0" role="row">
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered"
+                id="291"
+                role="cell">
+                <a href="#291">291</a>
+            </div>
+            <div
+                class="column is-1 is-narrow p-0 has-text-centered has-text-white has-background-white"
+                role="cell" aria-label="no coverage">
+                
+            </div>
+            <div class="column has-background-white p-0"
+                 role="cell">
                 <pre class="has-background-white py-0 px-2">}</pre>
             </div>
         </div></div>
 </div>
         <footer class="footer">
             <div class="content has-text-centered">
-                <p class="heading">Date: 2025-05-11 01:17</p>
+                <p class="heading">Date: 2025-05-14 04:26</p>
             </div>
         </footer>
     </body>
