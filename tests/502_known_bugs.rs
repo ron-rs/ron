@@ -1576,7 +1576,7 @@ fn i128_inside_internally_tagged() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as u128", i128::MAX)
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 5, col: 13 },
             position_end: Position { line: 5, col: 52 }
         }))
     );
@@ -1639,7 +1639,7 @@ fn u128_inside_adjacently_tagged() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as u128", u128::MAX)
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 28 },
             position_end: Position { line: 1, col: 67 }
         }),
     );
@@ -1683,7 +1683,7 @@ fn i128_inside_untagged() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as i128", i128::MIN)
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 4, col: 14 },
             position_end: Position { line: 4, col: 53 }
         }))
     );
@@ -1737,7 +1737,7 @@ fn u128_inside_flatten_struct() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as u128", u128::MAX)
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 4, col: 13 },
             position_end: Position { line: 4, col: 52 }
         }))
     );
@@ -1793,7 +1793,7 @@ fn i128_inside_flatten_struct_variant() {
                 expected: String::from("any value"),
                 found: format!("integer `{}` as i128", i128::MIN)
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 4, col: 14 },
             position_end: Position { line: 4, col: 53 }
         }))
     );

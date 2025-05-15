@@ -276,7 +276,7 @@ fn negative_unsigned() {
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
             position_start: ron::error::Position { line: 1, col: 1 },
-            position: ron::error::Position { line: 1, col: 7 },
+            position_end: ron::error::Position { line: 1, col: 7 },
         })
     );
 
@@ -317,8 +317,8 @@ fn negative_unsigned() {
         ron::from_str::<u128>("-1u128"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position: ron::error::Position { line: 1, col: 7 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 7 },
         })
     );
 }
