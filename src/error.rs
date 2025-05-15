@@ -122,7 +122,11 @@ pub enum Error {
 
 impl fmt::Display for SpannedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.position_start, self.code)
+        if self.position_start == self.position_end {
+            write!(f, "{}: {}", self.position_start, self.code)
+        } else {
+            write!(f, "{}-{}: {}", self.position_start, self.position_end, self.code)
+        }
     }
 }
 
