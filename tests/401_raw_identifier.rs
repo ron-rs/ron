@@ -176,7 +176,7 @@ fn test_invalid_identifiers() {
     let de = ron::from_str::<EmptyStruct>("r#+").unwrap_err();
     assert_eq!(
         format!("{}", de),
-        r#"1:3: Expected only opening `(`, no name, for un-nameable struct"#,
+        r#"1:3-1:4: Expected only opening `(`, no name, for un-nameable struct"#,
     );
 }
 

@@ -142,8 +142,11 @@ jobs:
         run: |
           cargo clean
           cargo test --all-targets
+          cargo clean
           cargo test --features integer128 --all-targets
+          cargo clean
           cargo test --features indexmap --all-targets
+          cargo clean
           cargo test --all-features --all-targets
         env:
           CARGO_INCREMENTAL: 0

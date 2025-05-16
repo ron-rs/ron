@@ -384,7 +384,10 @@ fn test_err_wrong_value() {
     check_from_str_bytes_reader::<f32>("'c'", err(Error::ExpectedFloat, (1, 1), (1, 1)));
     check_from_str_bytes_reader::<String>("'c'", err(Error::ExpectedString, (1, 1), (1, 1)));
     #[cfg(feature = "std")]
-    check_from_str_bytes_reader::<HashMap<u32, u32>>("'c'", err(Error::ExpectedMap, (1, 1), (1, 1)),);
+    check_from_str_bytes_reader::<HashMap<u32, u32>>(
+        "'c'",
+        err(Error::ExpectedMap, (1, 1), (1, 1)),
+    );
     check_from_str_bytes_reader::<[u8; 5]>("'c'", err(Error::ExpectedStructLike, (1, 1), (1, 1)));
     check_from_str_bytes_reader::<Vec<u32>>("'c'", err(Error::ExpectedArray, (1, 1), (1, 1)));
     check_from_str_bytes_reader::<MyEnum>("'c'", err(Error::ExpectedIdentifier, (1, 1), (1, 1)));

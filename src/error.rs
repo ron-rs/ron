@@ -125,7 +125,11 @@ impl fmt::Display for SpannedError {
         if self.position_start == self.position_end {
             write!(f, "{}: {}", self.position_start, self.code)
         } else {
-            write!(f, "{}-{}: {}", self.position_start, self.position_end, self.code)
+            write!(
+                f,
+                "{}-{}: {}",
+                self.position_start, self.position_end, self.code
+            )
         }
     }
 }

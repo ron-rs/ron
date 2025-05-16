@@ -219,7 +219,7 @@ fn test_boxed_raw_value_deserialise_from_string() {
     assert_eq!(
         err,
         Error::Message(String::from(
-            "invalid RON value at 1:1: Unexpected end of RON"
+            "invalid RON value at 1:1-1:2: Unexpected end of RON"
         ))
     );
 }
