@@ -86,14 +86,16 @@ fn reader_io_error() {
         ron::de::from_reader::<Reader, ()>(Reader { buf: b"" }).unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::Io(String::from("oh no")),
-            position: ron::error::Position { line: 1, col: 1 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 1 },
         }
     );
     assert_eq!(
         ron::de::from_reader::<Reader, ()>(Reader { buf: b"hello" }).unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::Io(String::from("oh no")),
-            position: ron::error::Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 6 },
         }
     );
     assert_eq!(
@@ -103,7 +105,8 @@ fn reader_io_error() {
         .unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::Io(String::from("oh no")),
-            position: ron::error::Position { line: 2, col: 4 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 2, col: 4 },
         }
     );
 }

@@ -36,7 +36,8 @@ fn test_unclosed() {
         from_str::<String>("\"hi\" /*"),
         Err(RonErr {
             code: Error::UnclosedBlockComment,
-            position: Position { line: 1, col: 8 }
+            position_start: ron::error::Position { line: 1, col: 6 },
+            position_end: Position { line: 1, col: 8 }
         })
     );
     assert_eq!(
@@ -53,7 +54,8 @@ fn test_unclosed() {
         ),
         Err(RonErr {
             code: Error::UnclosedBlockComment,
-            position: Position { line: 9, col: 1 }
+            position_start: ron::error::Position { line: 7, col: 3 },
+            position_end: Position { line: 9, col: 1 }
         })
     );
 }
@@ -64,7 +66,8 @@ fn test_unexpected_byte() {
         from_str::<u8>("42 /q"),
         Err(RonErr {
             code: Error::UnexpectedChar('q'),
-            position: Position { line: 1, col: 6 },
+            position_start: ron::error::Position { line: 1, col: 4 },
+            position_end: Position { line: 1, col: 6 },
         })
     );
 }

@@ -17,7 +17,8 @@ fn test_escape_basic() {
         from_str::<char>("\'\\u{}\'").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::InvalidEscape("Expected 1-6 digits, got 0 digits in Unicode escape"),
-            position: ron::error::Position { line: 1, col: 5 },
+            position_start: ron::error::Position { line: 1, col: 4 },
+            position_end: ron::error::Position { line: 1, col: 5 },
         }
     );
 
@@ -25,7 +26,8 @@ fn test_escape_basic() {
         from_str::<char>("\'\\q\'").unwrap_err(),
         ron::error::SpannedError {
             code: ron::Error::InvalidEscape("Unknown escape character"),
-            position: ron::error::Position { line: 1, col: 4 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: ron::error::Position { line: 1, col: 4 },
         }
     )
 }

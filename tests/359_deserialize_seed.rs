@@ -51,7 +51,8 @@ fn test_deserialize_seed() {
                 expected: String::from("an integer"),
                 found: String::from("the string \"a\""),
             },
-            position: ron::error::Position { line: 1, col: 4 },
+            position_start: ron::error::Position { line: 1, col: 3 },
+            position_end: ron::error::Position { line: 1, col: 4 },
         })
     );
 }

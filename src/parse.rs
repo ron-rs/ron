@@ -64,6 +64,7 @@ pub struct Parser<'a> {
     pub exts: Extensions,
     src: &'a str,
     cursor: ParserCursor,
+    prev_cursor: ParserCursor,
 }
 
 #[derive(Copy, Clone)] // GRCOV_EXCL_LINE
@@ -98,6 +99,11 @@ impl<'a> Parser<'a> {
                 pre_ws_cursor: 0,
                 last_ws_len: 0,
             },
+            prev_cursor: ParserCursor {
+                cursor: 0,
+                pre_ws_cursor: 0,
+                last_ws_len: 0,
+            },
         };
 
         parser.skip_ws().map_err(|e| parser.span_error(e))?;
@@ -124,11 +130,13 @@ impl<'a> Parser<'a> {
     pub fn span_error(&self, code: Error) -> SpannedError {
         SpannedError {
             code,
-            position: Position::from_src_end(&self.src[..self.cursor.cursor]),
+            position_start: Position::from_src_end(&self.src[..self.prev_cursor.cursor]),
+            position_end: Position::from_src_end(&self.src[..self.cursor.cursor]),
         }
     }
 
     pub fn advance_bytes(&mut self, bytes: usize) {
+        self.prev_cursor = self.cursor;
         self.cursor.cursor += bytes;
     }
 
@@ -1786,7 +1794,8 @@ mod tests {
                     expected: String::from("the Rusty byte string b\"Hello ron!\""),
                     found: String::from("the ambiguous base64 string \"SGVsbG8gcm9uIQ==\"")
                 },
-                position: Position { line: 1, col: 19 },
+                position_start: Position { line: 1, col: 2 },
+                position_end: Position { line: 1, col: 19 },
             }
         );
 
@@ -1798,7 +1807,8 @@ mod tests {
             crate::from_str::<bytes::Bytes>("\"invalid=\"").unwrap_err(),
             SpannedError {
                 code: Error::ExpectedByteString,
-                position: Position { line: 1, col: 11 },
+                position_start: Position { line: 1, col: 2 },
+                position_end: Position { line: 1, col: 11 },
             }
         );
 
@@ -1806,7 +1816,8 @@ mod tests {
             crate::from_str::<bytes::Bytes>("r\"invalid=\"").unwrap_err(),
             SpannedError {
                 code: Error::ExpectedByteString,
-                position: Position { line: 1, col: 12 },
+                position_start: Position { line: 1, col: 3 },
+                position_end: Position { line: 1, col: 12 },
             }
         );
     }

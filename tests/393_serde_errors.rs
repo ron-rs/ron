@@ -43,7 +43,8 @@ fn test_unknown_enum_variant() {
                 found: String::from("NotAVariant"),
                 outer: Some(String::from("TestEnum")),
             },
-            position: Position { line: 1, col: 12 },
+            position_start: ron::error::Position { line: 1, col: 1 },
+            position_end: Position { line: 1, col: 12 },
         })
     );
 }
@@ -58,7 +59,8 @@ fn test_struct_enum_fields() {
                 found: String::from("d"),
                 outer: Some(String::from("StructVariant")),
             },
-            position: Position { line: 1, col: 41 },
+            position_start: ron::error::Position { line: 1, col: 40 },
+            position_end: Position { line: 1, col: 41 },
         })
     );
 
@@ -69,7 +71,8 @@ fn test_struct_enum_fields() {
                 field: "b",
                 outer: Some(String::from("StructVariant")),
             },
-            position: Position { line: 1, col: 30 },
+            position_start: ron::error::Position { line: 1, col: 30 },
+            position_end: Position { line: 1, col: 30 },
         })
     );
 
@@ -80,7 +83,8 @@ fn test_struct_enum_fields() {
                 field: "a",
                 outer: Some(String::from("StructVariant")),
             },
-            position: Position { line: 1, col: 33 },
+            position_start: ron::error::Position { line: 1, col: 32 },
+            position_end: Position { line: 1, col: 33 },
         })
     );
 }
@@ -95,7 +99,8 @@ fn test_newtype_enum_fields() {
                 found: String::from("d"),
                 outer: Some(String::from("NewtypeVariant")),
             },
-            position: Position { line: 1, col: 78 },
+            position_start: ron::error::Position { line: 1, col: 77 },
+            position_end: Position { line: 1, col: 78 },
         })
     );
 
@@ -108,7 +113,8 @@ fn test_newtype_enum_fields() {
                 field: "b",
                 outer: Some(String::from("NewtypeVariant")),
             },
-            position: Position { line: 1, col: 67 },
+            position_start: ron::error::Position { line: 1, col: 67 },
+            position_end: Position { line: 1, col: 67 },
         })
     );
 
@@ -121,7 +127,8 @@ fn test_newtype_enum_fields() {
                 field: "a",
                 outer: Some(String::from("NewtypeVariant")),
             },
-            position: Position { line: 1, col: 70 },
+            position_start: ron::error::Position { line: 1, col: 69 },
+            position_end: Position { line: 1, col: 70 },
         })
     );
 }
@@ -136,7 +143,8 @@ fn test_struct_fields() {
                 found: String::from("d"),
                 outer: Some(String::from("TestStruct")),
             },
-            position: Position { line: 1, col: 38 },
+            position_start: ron::error::Position { line: 1, col: 37 },
+            position_end: Position { line: 1, col: 38 },
         })
     );
 
@@ -147,7 +155,8 @@ fn test_struct_fields() {
                 field: "b",
                 outer: Some(String::from("TestStruct")),
             },
-            position: Position { line: 1, col: 27 },
+            position_start: ron::error::Position { line: 1, col: 27 },
+            position_end: Position { line: 1, col: 27 },
         })
     );
 
@@ -158,7 +167,8 @@ fn test_struct_fields() {
                 field: "a",
                 outer: Some(String::from("TestStruct")),
             },
-            position: Position { line: 1, col: 30 },
+            position_start: ron::error::Position { line: 1, col: 29 },
+            position_end: Position { line: 1, col: 30 },
         })
     );
 }
@@ -177,7 +187,8 @@ fn test_internally_tagged_enum() {
                 field: "a",
                 outer: None,
             },
-            position: Position { line: 1, col: 24 },
+            position_start: ron::error::Position { line: 1, col: 23 },
+            position_end: Position { line: 1, col: 24 },
         })
     );
 }
@@ -194,7 +205,8 @@ fn test_adjacently_tagged_enum() {
                 field: "a",
                 outer: Some(String::from("TestEnumAdjacent")),
             },
-            position: Position { line: 1, col: 37 },
+            position_start: ron::error::Position { line: 1, col: 37 },
+            position_end: Position { line: 1, col: 37 },
         })
     );
 }
@@ -209,7 +221,8 @@ fn test_untagged_enum() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum TestEnumUntagged"
             )),
-            position: Position { line: 1, col: 20 },
+            position_start: ron::error::Position { line: 1, col: 19 },
+            position_end: Position { line: 1, col: 20 },
         })
     );
 }

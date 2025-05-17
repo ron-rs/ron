@@ -187,10 +187,7 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawValue {
             fn visit_borrowed_str<E: de::Error>(self, ron: &'de str) -> Result<Self::Value, E> {
                 match Options::default().from_str::<de::IgnoredAny>(ron) {
                     Ok(_) => Ok(RawValue::from_borrowed_str(ron)),
-                    Err(err) => Err(de::Error::custom(format!(
-                        "invalid RON value at {}: {}",
-                        err.position, err.code
-                    ))),
+                    Err(err) => Err(de::Error::custom(format!("invalid RON value at {}", err))),
                 }
             }
 
@@ -221,20 +218,14 @@ impl<'de> Deserialize<'de> for Box<RawValue> {
             fn visit_str<E: de::Error>(self, ron: &str) -> Result<Self::Value, E> {
                 match Options::default().from_str::<de::IgnoredAny>(ron) {
                     Ok(_) => Ok(RawValue::from_boxed_str(ron.to_owned().into_boxed_str())),
-                    Err(err) => Err(de::Error::custom(format!(
-                        "invalid RON value at {}: {}",
-                        err.position, err.code
-                    ))),
+                    Err(err) => Err(de::Error::custom(format!("invalid RON value at {}", err))),
                 }
             }
 
             fn visit_string<E: de::Error>(self, ron: String) -> Result<Self::Value, E> {
                 match Options::default().from_str::<de::IgnoredAny>(&ron) {
                     Ok(_) => Ok(RawValue::from_boxed_str(ron.into_boxed_str())),
-                    Err(err) => Err(de::Error::custom(format!(
-                        "invalid RON value at {}: {}",
-                        err.position, err.code
-                    ))),
+                    Err(err) => Err(de::Error::custom(format!("invalid RON value at {}", err))),
                 }
             }
 
