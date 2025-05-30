@@ -1,4 +1,4 @@
-use ron::error::{Error, Position, SpannedError};
+use ron::error::{Error, Position, Span, SpannedError};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,8 +49,10 @@ fn test_invalid_identifiers() {
                 expected: "Hello World",
                 found: String::from("Hello"),
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 6 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 6 },
+            }
         }
     );
 
@@ -59,8 +61,10 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::ExpectedUnit,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 1 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
         }
     );
 
@@ -75,8 +79,10 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::ExpectedNamedStructLike("Hello+World"),
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 1 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
         },
     );
 
@@ -85,8 +91,10 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::ExpectedNamedStructLike("Hello+World"),
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 1 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
         },
     );
 
@@ -95,8 +103,10 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::SuggestRawIdentifier(String::from("Hello+World")),
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 1 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
         }
     );
 
@@ -110,8 +120,10 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::SuggestRawIdentifier(String::from("ab.cd-ef")),
-            position_start: ron::error::Position { line: 1, col: 15 },
-            position_end: Position { line: 2, col: 9 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 15 },
+                end: Position { line: 2, col: 9 },
+            }
         }
     );
 
@@ -125,8 +137,10 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::SuggestRawIdentifier(String::from("rab.cd-ef")),
-            position_start: ron::error::Position { line: 1, col: 15 },
-            position_end: Position { line: 2, col: 9 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 15 },
+                end: Position { line: 2, col: 9 },
+            }
         }
     );
 
@@ -144,8 +158,10 @@ fn test_invalid_identifiers() {
                 found: String::from("ab.cd+ef"),
                 outer: Some(String::from("Hello+World")),
             },
-            position_start: ron::error::Position { line: 2, col: 11 },
-            position_end: Position { line: 2, col: 19 },
+            span: Span {
+                start: ron::error::Position { line: 2, col: 11 },
+                end: Position { line: 2, col: 19 },
+            }
         }
     );
 
@@ -154,8 +170,10 @@ fn test_invalid_identifiers() {
         de,
         SpannedError {
             code: Error::SuggestRawIdentifier(String::from("Hello-World")),
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 1 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
         }
     );
 
@@ -168,8 +186,10 @@ fn test_invalid_identifiers() {
                 found: String::from("Hello+World"),
                 outer: Some(String::from("RawEnum")),
             },
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 14 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 14 },
+            }
         }
     );
 

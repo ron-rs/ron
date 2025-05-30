@@ -1,4 +1,4 @@
-use ron::error::{Error, Position, SpannedError};
+use ron::error::{Error, Position, Span, SpannedError};
 
 #[derive(Debug, serde::Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -43,8 +43,10 @@ fn test_unknown_enum_variant() {
                 found: String::from("NotAVariant"),
                 outer: Some(String::from("TestEnum")),
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 12 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 12 },
+            }
         })
     );
 }
@@ -59,8 +61,10 @@ fn test_struct_enum_fields() {
                 found: String::from("d"),
                 outer: Some(String::from("StructVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 40 },
-            position_end: Position { line: 1, col: 41 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 40 },
+                end: Position { line: 1, col: 41 },
+            }
         })
     );
 
@@ -71,8 +75,10 @@ fn test_struct_enum_fields() {
                 field: "b",
                 outer: Some(String::from("StructVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 30 },
-            position_end: Position { line: 1, col: 30 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 30 },
+                end: Position { line: 1, col: 30 },
+            }
         })
     );
 
@@ -83,8 +89,10 @@ fn test_struct_enum_fields() {
                 field: "a",
                 outer: Some(String::from("StructVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 32 },
-            position_end: Position { line: 1, col: 33 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 32 },
+                end: Position { line: 1, col: 33 },
+            }
         })
     );
 }
@@ -99,8 +107,9 @@ fn test_newtype_enum_fields() {
                 found: String::from("d"),
                 outer: Some(String::from("NewtypeVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 77 },
-            position_end: Position { line: 1, col: 78 },
+            span: Span { start: ron::error::Position { line: 1, col: 77 },
+            end: Position { line: 1, col: 78 },
+            }
         })
     );
 
@@ -113,8 +122,10 @@ fn test_newtype_enum_fields() {
                 field: "b",
                 outer: Some(String::from("NewtypeVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 67 },
-            position_end: Position { line: 1, col: 67 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 67 },
+                end: Position { line: 1, col: 67 },
+            }
         })
     );
 
@@ -127,8 +138,10 @@ fn test_newtype_enum_fields() {
                 field: "a",
                 outer: Some(String::from("NewtypeVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 69 },
-            position_end: Position { line: 1, col: 70 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 69 },
+                end: Position { line: 1, col: 70 },
+            }
         })
     );
 }
@@ -143,8 +156,10 @@ fn test_struct_fields() {
                 found: String::from("d"),
                 outer: Some(String::from("TestStruct")),
             },
-            position_start: ron::error::Position { line: 1, col: 37 },
-            position_end: Position { line: 1, col: 38 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 37 },
+                end: Position { line: 1, col: 38 },
+            }
         })
     );
 
@@ -155,8 +170,10 @@ fn test_struct_fields() {
                 field: "b",
                 outer: Some(String::from("TestStruct")),
             },
-            position_start: ron::error::Position { line: 1, col: 27 },
-            position_end: Position { line: 1, col: 27 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 27 },
+                end: Position { line: 1, col: 27 },
+            }
         })
     );
 
@@ -167,8 +184,10 @@ fn test_struct_fields() {
                 field: "a",
                 outer: Some(String::from("TestStruct")),
             },
-            position_start: ron::error::Position { line: 1, col: 29 },
-            position_end: Position { line: 1, col: 30 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 29 },
+                end: Position { line: 1, col: 30 },
+            }
         })
     );
 }
@@ -187,8 +206,10 @@ fn test_internally_tagged_enum() {
                 field: "a",
                 outer: None,
             },
-            position_start: ron::error::Position { line: 1, col: 23 },
-            position_end: Position { line: 1, col: 24 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 23 },
+                end: Position { line: 1, col: 24 },
+            }
         })
     );
 }
@@ -205,8 +226,10 @@ fn test_adjacently_tagged_enum() {
                 field: "a",
                 outer: Some(String::from("TestEnumAdjacent")),
             },
-            position_start: ron::error::Position { line: 1, col: 37 },
-            position_end: Position { line: 1, col: 37 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 37 },
+                end: Position { line: 1, col: 37 },
+            }
         })
     );
 }
@@ -221,8 +244,10 @@ fn test_untagged_enum() {
             code: Error::Message(String::from(
                 "data did not match any variant of untagged enum TestEnumUntagged"
             )),
-            position_start: ron::error::Position { line: 1, col: 19 },
-            position_end: Position { line: 1, col: 20 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 19 },
+                end: Position { line: 1, col: 20 },
+            }
         })
     );
 }

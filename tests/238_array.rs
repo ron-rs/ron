@@ -1,5 +1,5 @@
 use ron::{
-    error::{Error, Position, SpannedError},
+    error::{Error, Position, Span, SpannedError},
     value::{Number, Value},
 };
 
@@ -35,8 +35,10 @@ fn test_array() {
         de,
         SpannedError {
             code: Error::ExpectedStructLike,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 1 },
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
         }
     );
 

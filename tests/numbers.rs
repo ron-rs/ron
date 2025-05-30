@@ -1,6 +1,6 @@
 use ron::{
     de::from_str,
-    error::{Error, Position, SpannedError},
+    error::{Error, Position, Span, SpannedError},
 };
 
 #[test]
@@ -13,24 +13,30 @@ fn test_hex() {
         from_str::<u8>("0x"),
         Err(SpannedError {
             code: Error::ExpectedInteger,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 3 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 3 },
+            }
         })
     );
     assert_eq!(
         from_str::<u8>("0x_1"),
         Err(SpannedError {
             code: Error::UnderscoreAtBeginning,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 3 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 3 },
+            }
         })
     );
     assert_eq!(
         from_str::<u8>("0xFFF"),
         Err(SpannedError {
             code: Error::IntegerOutOfBounds,
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 6 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 6 },
+            }
         })
     );
 }
@@ -45,24 +51,30 @@ fn test_bin() {
         from_str::<u8>("0b"),
         Err(SpannedError {
             code: Error::ExpectedInteger,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 3 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 3 },
+            }
         })
     );
     assert_eq!(
         from_str::<u8>("0b_1"),
         Err(SpannedError {
             code: Error::UnderscoreAtBeginning,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 3 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 3 },
+            }
         })
     );
     assert_eq!(
         from_str::<u8>("0b111111111"),
         Err(SpannedError {
             code: Error::IntegerOutOfBounds,
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 12 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 12 },
+            }
         })
     );
 }
@@ -77,24 +89,30 @@ fn test_oct() {
         from_str::<u8>("0o"),
         Err(SpannedError {
             code: Error::ExpectedInteger,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 3 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 3 },
+            }
         })
     );
     assert_eq!(
         from_str::<u8>("0o_1"),
         Err(SpannedError {
             code: Error::UnderscoreAtBeginning,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 3 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 3 },
+            }
         })
     );
     assert_eq!(
         from_str::<u8>("0o77777"),
         Err(SpannedError {
             code: Error::IntegerOutOfBounds,
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 8 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 8 },
+            }
         })
     );
 }
@@ -109,16 +127,20 @@ fn test_dec() {
         from_str::<i8>("-_1"),
         Err(SpannedError {
             code: Error::UnderscoreAtBeginning,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 2 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 2 },
+            }
         })
     );
     assert_eq!(
         from_str::<u8>("256"),
         Err(SpannedError {
             code: Error::IntegerOutOfBounds,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 4 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 4 },
+            }
         })
     );
 }

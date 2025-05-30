@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use ron::error::{Error, Position, SpannedError};
+use ron::error::{Error, Position, Span, SpannedError};
 use serde::{
     de::{Deserialize, Error as DeError, Unexpected},
     Deserializer,
@@ -31,8 +31,10 @@ fn test_error_positions() {
                 expected: String::from("impossible"),
                 found: String::from("a unit value"),
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 3 },
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 3 },
+            }
         })
     );
 
@@ -43,8 +45,10 @@ fn test_error_positions() {
                 expected: String::from("a nonzero u32"),
                 found: String::from("the unsigned integer `0`"),
             },
-            position_start: ron::error::Position { line: 1, col: 27 },
-            position_end: Position { line: 1, col: 28 },
+            span: Span {
+                start: Position { line: 1, col: 27 },
+                end: Position { line: 1, col: 28 },
+            }
         })
     );
 
@@ -55,8 +59,10 @@ fn test_error_positions() {
                 expected: String::from("tuple variant Test::TupleVariant with 2 elements"),
                 found: 1,
             },
-            position_start: ron::error::Position { line: 1, col: 16 },
-            position_end: Position { line: 1, col: 16 },
+            span: Span {
+                start: Position { line: 1, col: 16 },
+                end: Position { line: 1, col: 16 },
+            }
         })
     );
 
@@ -68,8 +74,10 @@ fn test_error_positions() {
                 found: String::from("NotAVariant"),
                 outer: Some(String::from("Test")),
             },
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 12 },
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 12 },
+            }
         })
     );
 
@@ -81,8 +89,10 @@ fn test_error_positions() {
                 found: String::from("d"),
                 outer: Some(String::from("StructVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 38 },
-            position_end: Position { line: 1, col: 39 },
+            span: Span {
+                start: Position { line: 1, col: 38 },
+                end: Position { line: 1, col: 39 },
+            }
         })
     );
 
@@ -93,8 +103,10 @@ fn test_error_positions() {
                 field: "b",
                 outer: Some(String::from("StructVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 30 },
-            position_end: Position { line: 1, col: 30 },
+            span: Span {
+                start: Position { line: 1, col: 30 },
+                end: Position { line: 1, col: 30 },
+            }
         })
     );
 
@@ -105,8 +117,10 @@ fn test_error_positions() {
                 field: "a",
                 outer: Some(String::from("StructVariant")),
             },
-            position_start: ron::error::Position { line: 1, col: 30 },
-            position_end: Position { line: 1, col: 31 },
+            span: Span {
+                start: Position { line: 1, col: 30 },
+                end: Position { line: 1, col: 31 },
+            }
         })
     );
 }

@@ -1,6 +1,6 @@
 use ron::{
     de::from_bytes,
-    error::{Error, Position, SpannedError},
+    error::{Error, Position, Span, SpannedError},
     from_str, to_string,
     value::RawValue,
 };
@@ -47,8 +47,10 @@ fn test_raw_value_invalid() {
         err,
         SpannedError {
             code: Error::TrailingCharacters,
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 3 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 3 }
+            }
         }
     );
 
@@ -57,8 +59,10 @@ fn test_raw_value_invalid() {
         err,
         SpannedError {
             code: Error::UnexpectedChar('\0'),
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 1 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 }
+            }
         }
     )
 }
@@ -73,8 +77,10 @@ fn test_raw_value_from_ron() {
         err,
         SpannedError {
             code: Error::TrailingCharacters,
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 3 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 3 }
+            }
         }
     );
 
@@ -88,8 +94,10 @@ fn test_raw_value_from_ron() {
         err,
         SpannedError {
             code: Error::Eof,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 2 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 2 },
+            }
         }
     );
 }
@@ -112,8 +120,10 @@ fn test_raw_value_into_rust() {
         err,
         SpannedError {
             code: Error::ExpectedInteger,
-            position_start: ron::error::Position { line: 1, col: 9 },
-            position_end: Position { line: 1, col: 10 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 9 },
+                end: Position { line: 1, col: 10 },
+            }
         }
     );
 }
@@ -278,8 +288,10 @@ fn test_fuzzer_found_issue() {
         RawValue::from_ron(""),
         Err(SpannedError {
             code: Error::Eof,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 1 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
         })
     );
 
@@ -293,8 +305,10 @@ fn test_fuzzer_found_issue() {
             code: Error::Message(String::from(
                 "ron::value::RawValue cannot enable extensions"
             )),
-            position_start: ron::error::Position { line: 1, col: 27 },
-            position_end: Position { line: 1, col: 27 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 27 },
+                end: Position { line: 1, col: 27 },
+            }
         })
     );
 
@@ -304,8 +318,10 @@ fn test_fuzzer_found_issue() {
             code: Error::Message(String::from(
                 "ron::value::RawValue cannot enable extensions"
             )),
-            position_start: ron::error::Position { line: 1, col: 27 },
-            position_end: Position { line: 1, col: 27 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 27 },
+                end: Position { line: 1, col: 27 },
+            }
         })
     );
 
@@ -313,16 +329,20 @@ fn test_fuzzer_found_issue() {
         RawValue::from_ron("42 //"),
         Err(SpannedError {
             code: Error::UnclosedLineComment,
-            position_start: ron::error::Position { line: 1, col: 6 },
-            position_end: Position { line: 1, col: 6 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 6 },
+                end: Position { line: 1, col: 6 },
+            }
         })
     );
     assert_eq!(
         ron::from_str::<&RawValue>("42 //"),
         Err(SpannedError {
             code: Error::UnclosedLineComment,
-            position_start: ron::error::Position { line: 1, col: 6 },
-            position_end: Position { line: 1, col: 6 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 6 },
+                end: Position { line: 1, col: 6 },
+            }
         })
     );
     assert_eq!(
@@ -342,16 +362,20 @@ fn test_fuzzer_found_issue() {
         RawValue::from_ron("a//"),
         Err(SpannedError {
             code: Error::UnclosedLineComment,
-            position_start: ron::error::Position { line: 1, col: 4 },
-            position_end: Position { line: 1, col: 4 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 4 },
+                end: Position { line: 1, col: 4 },
+            }
         })
     );
     assert_eq!(
         ron::from_str::<&RawValue>("a//"),
         Err(SpannedError {
             code: Error::UnclosedLineComment,
-            position_start: ron::error::Position { line: 1, col: 4 },
-            position_end: Position { line: 1, col: 4 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 4 },
+                end: Position { line: 1, col: 4 },
+            }
         })
     );
     assert_eq!(

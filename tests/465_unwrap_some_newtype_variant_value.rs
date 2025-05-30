@@ -4,8 +4,10 @@ fn deserialise_value_with_unwrap_some_newtype_variant() {
         ron::from_str::<ron::Value>("Some(a: 42)"),
         Err(ron::error::SpannedError {
             code: ron::Error::ExpectedOptionEnd,
-            position_start: ron::error::Position { line: 1, col: 7 },
-            position_end: ron::error::Position { line: 1, col: 7 },
+            span: ron::error::Span {
+                start: ron::error::Position { line: 1, col: 7 },
+                end: ron::error::Position { line: 1, col: 7 },
+            }
         }),
     );
     assert_eq!(

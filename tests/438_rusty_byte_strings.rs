@@ -1,5 +1,5 @@
 use ron::{
-    error::{Position, SpannedError},
+    error::{Position, Span, SpannedError},
     Error,
 };
 use serde::Deserialize;
@@ -46,8 +46,10 @@ fn v_9_deprecated_base64_bytes_support() {
     assert_eq!(
         Err(SpannedError {
             code: Error::Base64Error(base64::DecodeError::InvalidByte(0, b'_')),
-            position_start: ron::error::Position { line: 1, col: 35 },
-            position_end: Position { line: 1, col: 40 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 35 },
+                end: Position { line: 1, col: 40 }
+            }
         }),
         ron::from_str::<BytesStruct>("BytesStruct( small:[1, 2], large:\"_+!!\" )"),
     );
@@ -56,8 +58,10 @@ fn v_9_deprecated_base64_bytes_support() {
     assert_eq!(
         Err(SpannedError {
             code: Error::Base64Error(base64::DecodeError::InvalidLastSymbol(1, b'x')),
-            position_start: ron::error::Position { line: 1, col: 35 },
-            position_end: Position { line: 1, col: 40 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 35 },
+                end: Position { line: 1, col: 40 }
+            }
         }),
         ron::from_str::<BytesStruct>("BytesStruct( small:[1, 2], large:\"/x==\" )"),
     );
@@ -66,8 +70,10 @@ fn v_9_deprecated_base64_bytes_support() {
     assert_eq!(
         Err(SpannedError {
             code: Error::Base64Error(base64::DecodeError::InvalidPadding),
-            position_start: ron::error::Position { line: 1, col: 35 },
-            position_end: Position { line: 1, col: 42 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 35 },
+                end: Position { line: 1, col: 42 }
+            }
         }),
         ron::from_str::<BytesStruct>("BytesStruct( small:[1, 2], large:\"AQIDBA\" )"),
     );
@@ -76,8 +82,10 @@ fn v_9_deprecated_base64_bytes_support() {
     assert_eq!(
         Err(SpannedError {
             code: Error::Base64Error(base64::DecodeError::InvalidByte(6, b'=')),
-            position_start: ron::error::Position { line: 1, col: 35 },
-            position_end: Position { line: 1, col: 45 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 35 },
+                end: Position { line: 1, col: 45 }
+            }
         }),
         ron::from_str::<BytesStruct>("BytesStruct( small:[1, 2], large:\"AQIDBA===\" )"),
     );
@@ -111,16 +119,20 @@ fn rusty_byte_string() {
         ron::from_str::<bytes::Bytes>("b\"\\xf\"").unwrap_err(),
         SpannedError {
             code: Error::InvalidEscape("Non-hex digit found"),
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 7 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 7 },
+            }
         },
     );
     assert_eq!(
         ron::from_str::<bytes::Bytes>("b\"\\xf🦀\"").unwrap_err(),
         SpannedError {
             code: Error::InvalidEscape("Non-hex digit found"),
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 7 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 7 },
+            }
         },
     );
     let err = ron::from_str::<bytes::Bytes>("br#q\"").unwrap_err();
@@ -128,8 +140,10 @@ fn rusty_byte_string() {
         err,
         SpannedError {
             code: Error::ExpectedByteString,
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 4 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 4 },
+            }
         },
     );
     assert_eq!(format!("{}", err.code), "Expected byte string",);
@@ -137,24 +151,30 @@ fn rusty_byte_string() {
         ron::from_str::<bytes::Bytes>("br#\"q").unwrap_err(),
         SpannedError {
             code: Error::ExpectedStringEnd,
-            position_start: ron::error::Position { line: 1, col: 4 },
-            position_end: Position { line: 1, col: 5 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 4 },
+                end: Position { line: 1, col: 5 },
+            }
         },
     );
     assert_eq!(
         ron::from_str::<String>("r#q\"").unwrap_err(),
         SpannedError {
             code: Error::ExpectedString,
-            position_start: ron::error::Position { line: 1, col: 2 },
-            position_end: Position { line: 1, col: 3 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 2 },
+                end: Position { line: 1, col: 3 },
+            }
         },
     );
     assert_eq!(
         ron::from_str::<String>("r#\"q").unwrap_err(),
         SpannedError {
             code: Error::ExpectedStringEnd,
-            position_start: ron::error::Position { line: 1, col: 3 },
-            position_end: Position { line: 1, col: 4 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 3 },
+                end: Position { line: 1, col: 4 },
+            }
         },
     );
 }
@@ -362,40 +382,50 @@ fn test_weird_escapes() {
         ron::from_str::<String>(r#""\xf0""#),
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
-            position_start: ron::error::Position { line: 1, col: 2 },
-            position_end: Position { line: 1, col: 6 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 2 },
+                end: Position { line: 1, col: 6 }
+            }
         })
     );
     assert_eq!(
         ron::from_str::<String>(r#""\xf0\x9f""#),
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
-            position_start: ron::error::Position { line: 1, col: 6 },
-            position_end: Position { line: 1, col: 10 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 6 },
+                end: Position { line: 1, col: 10 }
+            }
         })
     );
     assert_eq!(
         ron::from_str::<String>(r#""\xf0\x9f\x40""#),
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
-            position_start: ron::error::Position { line: 1, col: 10 },
-            position_end: Position { line: 1, col: 14 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 10 },
+                end: Position { line: 1, col: 14 }
+            }
         })
     );
     assert_eq!(
         ron::from_str::<String>(r#""\xf0\x9f\xa6""#),
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
-            position_start: ron::error::Position { line: 1, col: 10 },
-            position_end: Position { line: 1, col: 14 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 10 },
+                end: Position { line: 1, col: 14 }
+            }
         })
     );
     assert_eq!(
         ron::from_str::<String>(r#""\xff\xff\xff\xff""#),
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
-            position_start: ron::error::Position { line: 1, col: 14 },
-            position_end: Position { line: 1, col: 18 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 14 },
+                end: Position { line: 1, col: 18 }
+            }
         })
     );
 
@@ -404,8 +434,10 @@ fn test_weird_escapes() {
         ron::from_str::<char>(r"'\xf0\x9f\xa6\x80'"),
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 6 }
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 6 }
+            }
         })
     );
 }
@@ -446,8 +478,10 @@ fn byte_literal() {
         ron::from_str::<u8>(r#"b'\u{0}'"#),
         Err(SpannedError {
             code: Error::InvalidEscape("Unexpected Unicode escape in byte literal"),
-            position_start: ron::error::Position { line: 1, col: 7 },
-            position_end: Position { line: 1, col: 8 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 7 },
+                end: Position { line: 1, col: 8 },
+            }
         })
     );
 
@@ -456,8 +490,10 @@ fn byte_literal() {
         err,
         SpannedError {
             code: Error::ExpectedByteLiteral,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 4 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 4 },
+            }
         }
     );
     assert_eq!(format!("{}", err.code), "Expected byte literal");
@@ -466,8 +502,10 @@ fn byte_literal() {
         ron::from_str::<u8>(r#"b'qq'"#).unwrap_err(),
         SpannedError {
             code: Error::ExpectedByteLiteral,
-            position_start: ron::error::Position { line: 1, col: 1 },
-            position_end: Position { line: 1, col: 4 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 4 },
+            }
         }
     );
 
@@ -478,8 +516,10 @@ fn byte_literal() {
                 expected: String::from("an 8-bit signed integer"),
                 found: String::from(r#"b'9'"#)
             },
-            position_start: ron::error::Position { line: 1, col: 4 },
-            position_end: Position { line: 1, col: 5 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 4 },
+                end: Position { line: 1, col: 5 },
+            }
         })
     );
 }
@@ -497,8 +537,10 @@ fn invalid_identifier() {
             ron::from_str::<Test>(&format!("({}: 42)", id)).unwrap_err(),
             SpannedError {
                 code: Error::ExpectedIdentifier,
-                position_start: ron::error::Position { line: 1, col: 2 },
-                position_end: Position { line: 1, col: 2 },
+                span: Span {
+                    start: ron::error::Position { line: 1, col: 2 },
+                    end: Position { line: 1, col: 2 },
+                }
             }
         );
     }
