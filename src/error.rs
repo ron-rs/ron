@@ -372,7 +372,7 @@ impl fmt::Display for Position {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// Spans select a range of text between two positions.
-/// Spans are used in SpannedError to indicate the start and end positions
+/// Spans are used in [SpannedError] to indicate the start and end positions
 /// of the parser cursor before and after it encountered an error in parsing.
 pub struct Span {
     pub start: Position,
@@ -381,11 +381,11 @@ pub struct Span {
 
 #[cfg(test)]
 impl Span {
-    /// Given a Span and a string, form the resulting string selected exclusively (as in \[start..end\]) by the Span
-    /// or None if the span is out of bounds of the string at either end.
+    /// Given a [Span] and a string, form the resulting string selected exclusively (as in \[start..end\]) by the [Span]
+    /// or [None] if the span is out of bounds of the string at either end.
     pub fn substring_exclusive<'a>(&self, s: &'a str) -> Option<String> {
-        use unicode_segmentation::UnicodeSegmentation;
         use alloc::vec::Vec;
+        use unicode_segmentation::UnicodeSegmentation;
 
         if let (Some(start), Some(end)) = (self.start.grapheme_index(s), self.end.grapheme_index(s))
         {
@@ -395,11 +395,11 @@ impl Span {
         }
     }
 
-    /// Given a Span and a string, form the resulting string selected inclusively (as in \[start..=end\]) by the Span
-    /// or None if the span is out of bounds of the string at either end.
+    /// Given a [Span] and a string, form the resulting string selected inclusively (as in \[start..=end\]) by the [Span]
+    /// or [None] if the span is out of bounds of the string at either end.
     pub fn substring_inclusive<'a>(&self, s: &'a str) -> Option<String> {
-        use unicode_segmentation::UnicodeSegmentation;
         use alloc::vec::Vec;
+        use unicode_segmentation::UnicodeSegmentation;
 
         if let (Some(start), Some(end)) = (self.start.grapheme_index(s), self.end.grapheme_index(s))
         {

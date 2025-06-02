@@ -580,7 +580,7 @@ fn forgot_apostrophes() {
                 end: Position { line: 1, col: 6 },
             },
         }),
-        "\""
+        "\"",
     );
 }
 
@@ -601,7 +601,7 @@ fn expected_attribute_end() {
     check_error_span_inclusive::<String>(
         "#![enable(unwrap_newtypes) \"Hello\"",
         err(Error::ExpectedAttributeEnd, (1, 27), (1, 28)),
-        " \""
+        " \"",
     );
 }
 
@@ -623,7 +623,7 @@ fn invalid_attribute() {
             (1, 11),
             (1, 18),
         ),
-        "invalid"
+        "invalid",
     );
 }
 
@@ -788,7 +788,7 @@ fn test_leading_whitespace() {
     check_from_str_bytes_reader("  EmptyStruct1", Ok(EmptyStruct1));
 }
 
-pub fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
+fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
     ron: &str,
     check: SpannedResult<T>,
 ) {
@@ -805,13 +805,13 @@ pub fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + 
     }
 }
 
-/// Given a string `ron`, a SpannedResult, and a substring, verify that trying to parse `ron` results in an error
-/// equal to the SpannedResult with a Span that exclusively (as in \[start..end\]) selects that substring.
+/// Given a string `ron`, a [SpannedResult], and a substring, verify that trying to parse `ron` results in an error
+/// equal to the [SpannedResult] with a Span that exclusively (as in \[start..end\]) selects that substring.
 /// Note that there are two versions of this helper, inclusive and exclusive. This is because while the parser cursor
-/// arithmetic that computes span positions always produces exclusive spans (as in \[start..end\]), 
+/// arithmetic that computes span positions always produces exclusive spans (as in \[start..end\]),
 /// when doing validation against a target substring, the inclusive check including the final grapheme that triggered
 /// the error is often a more intuitive target to check against.
-/// Meanwhile, if the parser threw an EOF, for example, there is no final grapheme to check, and so 
+/// Meanwhile, if the parser threw an EOF, for example, there is no final grapheme to check, and so
 /// only the exclusive check would produce a meaningful result.
 fn check_error_span_exclusive<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
     ron: &str,
@@ -836,8 +836,8 @@ fn check_error_span_exclusive<T: serde::de::DeserializeOwned + PartialEq + core:
     );
 }
 
-/// Given a string `ron`, a SpannedResult, and a substring, verify that trying to parse `ron` results in an error
-/// equal to the SpannedResult with a Span that inclusively (as in \[start..=end\]) selects that substring.
+/// Given a string `ron`, a [SpannedResult], and a substring, verify that trying to parse `ron` results in an error
+/// equal to the [SpannedResult] with a Span that inclusively (as in \[start..=end\]) selects that substring.
 /// See [check_error_span_exclusive] for the rationale behind both versions of this helper.
 fn check_error_span_inclusive<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
     ron: &str,
