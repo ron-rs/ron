@@ -315,7 +315,7 @@ impl Position {
 #[cfg(test)]
 impl Position {
     /// Given a Position and a string, return the 0-indexed grapheme index into the
-    /// string at that position, or None if the Position is out of bounds of the string.
+    /// string at that position, or [None] if the Position is out of bounds of the string.
     pub fn grapheme_index(&self, s: &str) -> Option<usize> {
         use unicode_segmentation::UnicodeSegmentation;
         let mut line_no = 1;
@@ -381,7 +381,7 @@ pub struct Span {
 
 #[cfg(test)]
 impl Span {
-    /// Given a [Span] and a string, form the resulting string selected exclusively (as in \[start..end\]) by the [Span]
+    /// Given a Span and a string, form the resulting string selected exclusively (as in \[start..end\]) by the Span
     /// or [None] if the span is out of bounds of the string at either end.
     pub fn substring_exclusive<'a>(&self, s: &'a str) -> Option<String> {
         use alloc::vec::Vec;
@@ -395,7 +395,7 @@ impl Span {
         }
     }
 
-    /// Given a [Span] and a string, form the resulting string selected inclusively (as in \[start..=end\]) by the [Span]
+    /// Given a Span and a string, form the resulting string selected inclusively (as in \[start..=end\]) by the Span
     /// or [None] if the span is out of bounds of the string at either end.
     pub fn substring_inclusive<'a>(&self, s: &'a str) -> Option<String> {
         use alloc::vec::Vec;
