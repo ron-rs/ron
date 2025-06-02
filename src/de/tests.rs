@@ -82,6 +82,19 @@ fn test_struct() {
             },
         }),
     );
+
+    check_error_span_exclusive::<NewType>(
+        "NewType",
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike("NewType"),
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 8 },
+            },
+        }),
+        "NewType",
+    );
+
     check_from_str_bytes_reader::<UnnamedNewType>(
         "",
         Err(SpannedError {
@@ -93,6 +106,7 @@ fn test_struct() {
         }),
     );
     check_from_str_bytes_reader("(33)", Ok(UnnamedNewType(33)));
+
     check_from_str_bytes_reader::<UnnamedNewType>(
         "Newtype",
         Err(SpannedError {
@@ -102,6 +116,17 @@ fn test_struct() {
                 end: Position { line: 1, col: 8 },
             },
         }),
+    );
+    check_error_span_exclusive::<UnnamedNewType>(
+        "Newtype",
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike(""),
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 8 },
+            },
+        }),
+        "Newtype",
     );
 
     check_from_str_bytes_reader("TupleStruct(2,5,)", Ok(TupleStruct(2.0, 5.0)));
@@ -116,6 +141,7 @@ fn test_struct() {
             },
         }),
     );
+
     check_from_str_bytes_reader::<UnnamedTupleStruct>(
         "TupleStruct(2,5,)",
         Err(SpannedError {
@@ -126,6 +152,19 @@ fn test_struct() {
             },
         }),
     );
+
+    check_error_span_exclusive::<UnnamedTupleStruct>(
+        "TupleStruct(2,5,)",
+        Err(SpannedError {
+            code: Error::ExpectedNamedStructLike(""),
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 12 },
+            },
+        }),
+        "TupleStruct",
+    );
+
     check_from_str_bytes_reader("(3,4)", Ok(UnnamedTupleStruct(3.0, 4.0)));
     check_from_str_bytes_reader::<UnnamedTupleStruct>(
         "",
@@ -438,9 +477,20 @@ fn test_err_wrong_value() {
         "MyStruct(\n    x: true)",
         err(Error::ExpectedFloat, (2, 7), (2, 8)),
     );
+    check_error_span_inclusive::<MyStruct>(
+        "MyStruct(\n    x: true)",
+        err(Error::ExpectedFloat, (2, 7), (2, 8)),
+        " t",
+    );
+
     check_from_str_bytes_reader::<MyStruct>(
         "MyStruct(\n    x: 3.5, \n    y:)",
         err(Error::ExpectedFloat, (3, 7), (3, 7)),
+    );
+    check_error_span_inclusive::<MyStruct>(
+        "MyStruct(\n    x: 3.5, \n    y:)",
+        err(Error::ExpectedFloat, (3, 7), (3, 7)),
+        ")",
     );
 }
 
@@ -480,6 +530,18 @@ fn untagged() {
             },
         }),
     );
+
+    check_error_span_exclusive::<Untagged>(
+        "Value(()",
+        Err(crate::error::SpannedError {
+            code: crate::Error::Eof,
+            span: Span {
+                start: Position { line: 1, col: 8 },
+                end: crate::error::Position { line: 1, col: 9 },
+            },
+        }),
+        ")",
+    );
 }
 
 #[test]
@@ -508,6 +570,18 @@ fn forgot_apostrophes() {
             },
         }),
     );
+
+    check_error_span_exclusive::<(i32, String)>(
+        "(4, \"Hello)",
+        Err(SpannedError {
+            code: Error::ExpectedStringEnd,
+            span: Span {
+                start: Position { line: 1, col: 5 },
+                end: Position { line: 1, col: 6 },
+            },
+        }),
+        "\""
+    );
 }
 
 #[test]
@@ -524,6 +598,11 @@ fn expected_attribute_end() {
         "#![enable(unwrap_newtypes) \"Hello\"",
         err(Error::ExpectedAttributeEnd, (1, 27), (1, 28)),
     );
+    check_error_span_inclusive::<String>(
+        "#![enable(unwrap_newtypes) \"Hello\"",
+        err(Error::ExpectedAttributeEnd, (1, 27), (1, 28)),
+        " \""
+    );
 }
 
 #[test]
@@ -535,6 +614,16 @@ fn invalid_attribute() {
             (1, 11),
             (1, 18),
         ),
+    );
+
+    check_error_span_exclusive::<String>(
+        "#![enable(invalid)] \"Hello\"",
+        err(
+            Error::NoSuchExtension("invalid".to_string()),
+            (1, 11),
+            (1, 18),
+        ),
+        "invalid"
     );
 }
 
@@ -699,7 +788,7 @@ fn test_leading_whitespace() {
     check_from_str_bytes_reader("  EmptyStruct1", Ok(EmptyStruct1));
 }
 
-fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
+pub fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
     ron: &str,
     check: SpannedResult<T>,
 ) {
@@ -714,6 +803,63 @@ fn check_from_str_bytes_reader<T: serde::de::DeserializeOwned + PartialEq + core
         let res_reader = super::from_reader::<&[u8], T>(ron.as_bytes());
         assert_eq!(res_reader, check);
     }
+}
+
+/// Given a string `ron`, a SpannedResult, and a substring, verify that trying to parse `ron` results in an error
+/// equal to the SpannedResult with a Span that exclusively (as in \[start..end\]) selects that substring.
+/// Note that there are two versions of this helper, inclusive and exclusive. This is because while the parser cursor
+/// arithmetic that computes span positions always produces exclusive spans (as in \[start..end\]), 
+/// when doing validation against a target substring, the inclusive check including the final grapheme that triggered
+/// the error is often a more intuitive target to check against.
+/// Meanwhile, if the parser threw an EOF, for example, there is no final grapheme to check, and so 
+/// only the exclusive check would produce a meaningful result.
+fn check_error_span_exclusive<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
+    ron: &str,
+    check: SpannedResult<T>,
+    substr: &str,
+) {
+    let res_str = super::from_str::<T>(ron);
+    assert_eq!(res_str, check);
+
+    let res_bytes = super::from_bytes::<T>(ron.as_bytes());
+    assert_eq!(res_bytes, check);
+
+    #[cfg(feature = "std")]
+    {
+        let res_reader = super::from_reader::<&[u8], T>(ron.as_bytes());
+        assert_eq!(res_reader, check);
+    }
+
+    assert_eq!(
+        check.unwrap_err().span.substring_exclusive(ron).unwrap(),
+        substr
+    );
+}
+
+/// Given a string `ron`, a SpannedResult, and a substring, verify that trying to parse `ron` results in an error
+/// equal to the SpannedResult with a Span that inclusively (as in \[start..=end\]) selects that substring.
+/// See [check_error_span_exclusive] for the rationale behind both versions of this helper.
+fn check_error_span_inclusive<T: serde::de::DeserializeOwned + PartialEq + core::fmt::Debug>(
+    ron: &str,
+    check: SpannedResult<T>,
+    substr: &str,
+) {
+    let res_str = super::from_str::<T>(ron);
+    assert_eq!(res_str, check);
+
+    let res_bytes = super::from_bytes::<T>(ron.as_bytes());
+    assert_eq!(res_bytes, check);
+
+    #[cfg(feature = "std")]
+    {
+        let res_reader = super::from_reader::<&[u8], T>(ron.as_bytes());
+        assert_eq!(res_reader, check);
+    }
+
+    assert_eq!(
+        check.unwrap_err().span.substring_inclusive(ron).unwrap(),
+        substr
+    );
 }
 
 #[test]
