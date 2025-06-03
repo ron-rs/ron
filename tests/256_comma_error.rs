@@ -2,6 +2,9 @@
 
 use ron::error::{Error, Position, Span, SpannedError};
 
+#[cfg(feature = "span-substring-test")]
+use ron::util::span_substring::check_error_span_inclusive;
+
 #[derive(Debug, serde::Deserialize)]
 struct Test {
     a: i32,
@@ -89,6 +92,19 @@ fn test_missing_comma_error() {
                 end: Position { line: 3, col: 9 }
             }
         }
+    );
+
+    #[cfg(feature = "span-substring-test")]
+    check_error_span_inclusive::<u8>(
+        extensions_string,
+        Err(SpannedError {
+            code: Error::ExpectedComma,
+            span: Span {
+                start: Position { line: 2, col: 50 },
+                end: Position { line: 3, col: 9 }
+            }
+        }),
+        "\n        u",
     );
 }
 
