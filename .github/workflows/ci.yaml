@@ -90,7 +90,7 @@ jobs:
           cargo clean
       - name: Test
         run: |
-          cargo hack test --feature-powerset
+          cargo hack test --feature-powerset --clean-per-run
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"
