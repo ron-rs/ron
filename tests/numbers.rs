@@ -14,7 +14,7 @@ fn test_hex() {
         Err(SpannedError {
             code: Error::ExpectedInteger,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 3 },
             }
         })
@@ -24,7 +24,7 @@ fn test_hex() {
         Err(SpannedError {
             code: Error::UnderscoreAtBeginning,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 3 },
             }
         })
@@ -34,7 +34,7 @@ fn test_hex() {
         Err(SpannedError {
             code: Error::IntegerOutOfBounds,
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 6 },
             }
         })
@@ -52,7 +52,7 @@ fn test_bin() {
         Err(SpannedError {
             code: Error::ExpectedInteger,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 3 },
             }
         })
@@ -62,7 +62,7 @@ fn test_bin() {
         Err(SpannedError {
             code: Error::UnderscoreAtBeginning,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 3 },
             }
         })
@@ -72,7 +72,7 @@ fn test_bin() {
         Err(SpannedError {
             code: Error::IntegerOutOfBounds,
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 12 },
             }
         })
@@ -90,7 +90,7 @@ fn test_oct() {
         Err(SpannedError {
             code: Error::ExpectedInteger,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 3 },
             }
         })
@@ -100,7 +100,7 @@ fn test_oct() {
         Err(SpannedError {
             code: Error::UnderscoreAtBeginning,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 3 },
             }
         })
@@ -110,7 +110,7 @@ fn test_oct() {
         Err(SpannedError {
             code: Error::IntegerOutOfBounds,
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 8 },
             }
         })
@@ -128,7 +128,7 @@ fn test_dec() {
         Err(SpannedError {
             code: Error::UnderscoreAtBeginning,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 2 },
             }
         })
@@ -138,7 +138,7 @@ fn test_dec() {
         Err(SpannedError {
             code: Error::IntegerOutOfBounds,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 4 },
             }
         })

@@ -43,7 +43,7 @@ fn test_float_literal_parsing() {
         Err(SpannedError {
             code: Error::ExpectedFloat,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 1 },
             }
         })

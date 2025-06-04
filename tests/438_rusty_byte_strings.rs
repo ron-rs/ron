@@ -47,7 +47,7 @@ fn v_9_deprecated_base64_bytes_support() {
         Err(SpannedError {
             code: Error::Base64Error(base64::DecodeError::InvalidByte(0, b'_')),
             span: Span {
-                start: ron::error::Position { line: 1, col: 35 },
+                start: Position { line: 1, col: 35 },
                 end: Position { line: 1, col: 40 }
             }
         }),
@@ -59,7 +59,7 @@ fn v_9_deprecated_base64_bytes_support() {
         Err(SpannedError {
             code: Error::Base64Error(base64::DecodeError::InvalidLastSymbol(1, b'x')),
             span: Span {
-                start: ron::error::Position { line: 1, col: 35 },
+                start: Position { line: 1, col: 35 },
                 end: Position { line: 1, col: 40 }
             }
         }),
@@ -71,7 +71,7 @@ fn v_9_deprecated_base64_bytes_support() {
         Err(SpannedError {
             code: Error::Base64Error(base64::DecodeError::InvalidPadding),
             span: Span {
-                start: ron::error::Position { line: 1, col: 35 },
+                start: Position { line: 1, col: 35 },
                 end: Position { line: 1, col: 42 }
             }
         }),
@@ -83,7 +83,7 @@ fn v_9_deprecated_base64_bytes_support() {
         Err(SpannedError {
             code: Error::Base64Error(base64::DecodeError::InvalidByte(6, b'=')),
             span: Span {
-                start: ron::error::Position { line: 1, col: 35 },
+                start: Position { line: 1, col: 35 },
                 end: Position { line: 1, col: 45 }
             }
         }),
@@ -120,7 +120,7 @@ fn rusty_byte_string() {
         SpannedError {
             code: Error::InvalidEscape("Non-hex digit found"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 7 },
             }
         },
@@ -130,7 +130,7 @@ fn rusty_byte_string() {
         SpannedError {
             code: Error::InvalidEscape("Non-hex digit found"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 7 },
             }
         },
@@ -141,7 +141,7 @@ fn rusty_byte_string() {
         SpannedError {
             code: Error::ExpectedByteString,
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 4 },
             }
         },
@@ -152,7 +152,7 @@ fn rusty_byte_string() {
         SpannedError {
             code: Error::ExpectedStringEnd,
             span: Span {
-                start: ron::error::Position { line: 1, col: 4 },
+                start: Position { line: 1, col: 4 },
                 end: Position { line: 1, col: 5 },
             }
         },
@@ -162,7 +162,7 @@ fn rusty_byte_string() {
         SpannedError {
             code: Error::ExpectedString,
             span: Span {
-                start: ron::error::Position { line: 1, col: 2 },
+                start: Position { line: 1, col: 2 },
                 end: Position { line: 1, col: 3 },
             }
         },
@@ -172,7 +172,7 @@ fn rusty_byte_string() {
         SpannedError {
             code: Error::ExpectedStringEnd,
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 4 },
             }
         },
@@ -383,7 +383,7 @@ fn test_weird_escapes() {
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 2 },
+                start: Position { line: 1, col: 2 },
                 end: Position { line: 1, col: 6 }
             }
         })
@@ -393,7 +393,7 @@ fn test_weird_escapes() {
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 6 },
+                start: Position { line: 1, col: 6 },
                 end: Position { line: 1, col: 10 }
             }
         })
@@ -403,7 +403,7 @@ fn test_weird_escapes() {
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 10 },
+                start: Position { line: 1, col: 10 },
                 end: Position { line: 1, col: 14 }
             }
         })
@@ -413,7 +413,7 @@ fn test_weird_escapes() {
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 10 },
+                start: Position { line: 1, col: 10 },
                 end: Position { line: 1, col: 14 }
             }
         })
@@ -423,7 +423,7 @@ fn test_weird_escapes() {
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 14 },
+                start: Position { line: 1, col: 14 },
                 end: Position { line: 1, col: 18 }
             }
         })
@@ -435,7 +435,7 @@ fn test_weird_escapes() {
         Err(SpannedError {
             code: Error::InvalidEscape("Not a valid byte-escaped Unicode character"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 6 }
             }
         })
@@ -479,7 +479,7 @@ fn byte_literal() {
         Err(SpannedError {
             code: Error::InvalidEscape("Unexpected Unicode escape in byte literal"),
             span: Span {
-                start: ron::error::Position { line: 1, col: 7 },
+                start: Position { line: 1, col: 7 },
                 end: Position { line: 1, col: 8 },
             }
         })
@@ -491,7 +491,7 @@ fn byte_literal() {
         SpannedError {
             code: Error::ExpectedByteLiteral,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 4 },
             }
         }
@@ -503,7 +503,7 @@ fn byte_literal() {
         SpannedError {
             code: Error::ExpectedByteLiteral,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 4 },
             }
         }
@@ -517,7 +517,7 @@ fn byte_literal() {
                 found: String::from(r#"b'9'"#)
             },
             span: Span {
-                start: ron::error::Position { line: 1, col: 4 },
+                start: Position { line: 1, col: 4 },
                 end: Position { line: 1, col: 5 },
             }
         })
@@ -538,7 +538,7 @@ fn invalid_identifier() {
             SpannedError {
                 code: Error::ExpectedIdentifier,
                 span: Span {
-                    start: ron::error::Position { line: 1, col: 2 },
+                    start: Position { line: 1, col: 2 },
                     end: Position { line: 1, col: 2 },
                 }
             }

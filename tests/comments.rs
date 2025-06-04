@@ -37,7 +37,7 @@ fn test_unclosed() {
         Err(RonErr {
             code: Error::UnclosedBlockComment,
             span: Span {
-                start: ron::error::Position { line: 1, col: 6 },
+                start: Position { line: 1, col: 6 },
                 end: Position { line: 1, col: 8 }
             }
         })
@@ -57,7 +57,7 @@ fn test_unclosed() {
         Err(RonErr {
             code: Error::UnclosedBlockComment,
             span: Span {
-                start: ron::error::Position { line: 7, col: 3 },
+                start: Position { line: 7, col: 3 },
                 end: Position { line: 9, col: 1 }
             }
         })
@@ -71,7 +71,7 @@ fn test_unexpected_byte() {
         Err(RonErr {
             code: Error::UnexpectedChar('q'),
             span: Span {
-                start: ron::error::Position { line: 1, col: 4 },
+                start: Position { line: 1, col: 4 },
                 end: Position { line: 1, col: 6 },
             }
         })

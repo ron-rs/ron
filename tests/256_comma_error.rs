@@ -101,8 +101,8 @@ fn test_missing_comma_error() {
             code: Error::ExpectedComma,
             span: Span {
                 start: Position { line: 2, col: 50 },
-                end: Position { line: 3, col: 9 }
-            }
+                end: Position { line: 3, col: 9 },
+            },
         }),
         "\n        u",
     );

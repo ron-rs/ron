@@ -48,7 +48,7 @@ fn test_raw_value_invalid() {
         SpannedError {
             code: Error::TrailingCharacters,
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 3 }
             }
         }
@@ -60,7 +60,7 @@ fn test_raw_value_invalid() {
         SpannedError {
             code: Error::UnexpectedChar('\0'),
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 1 }
             }
         }
@@ -78,7 +78,7 @@ fn test_raw_value_from_ron() {
         SpannedError {
             code: Error::TrailingCharacters,
             span: Span {
-                start: ron::error::Position { line: 1, col: 3 },
+                start: Position { line: 1, col: 3 },
                 end: Position { line: 1, col: 3 }
             }
         }
@@ -95,7 +95,7 @@ fn test_raw_value_from_ron() {
         SpannedError {
             code: Error::Eof,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 2 },
             }
         }
@@ -121,7 +121,7 @@ fn test_raw_value_into_rust() {
         SpannedError {
             code: Error::ExpectedInteger,
             span: Span {
-                start: ron::error::Position { line: 1, col: 9 },
+                start: Position { line: 1, col: 9 },
                 end: Position { line: 1, col: 10 },
             }
         }
@@ -289,7 +289,7 @@ fn test_fuzzer_found_issue() {
         Err(SpannedError {
             code: Error::Eof,
             span: Span {
-                start: ron::error::Position { line: 1, col: 1 },
+                start: Position { line: 1, col: 1 },
                 end: Position { line: 1, col: 1 },
             }
         })
@@ -306,7 +306,7 @@ fn test_fuzzer_found_issue() {
                 "ron::value::RawValue cannot enable extensions"
             )),
             span: Span {
-                start: ron::error::Position { line: 1, col: 27 },
+                start: Position { line: 1, col: 27 },
                 end: Position { line: 1, col: 27 },
             }
         })
@@ -319,7 +319,7 @@ fn test_fuzzer_found_issue() {
                 "ron::value::RawValue cannot enable extensions"
             )),
             span: Span {
-                start: ron::error::Position { line: 1, col: 27 },
+                start: Position { line: 1, col: 27 },
                 end: Position { line: 1, col: 27 },
             }
         })
@@ -330,7 +330,7 @@ fn test_fuzzer_found_issue() {
         Err(SpannedError {
             code: Error::UnclosedLineComment,
             span: Span {
-                start: ron::error::Position { line: 1, col: 6 },
+                start: Position { line: 1, col: 6 },
                 end: Position { line: 1, col: 6 },
             }
         })
@@ -340,7 +340,7 @@ fn test_fuzzer_found_issue() {
         Err(SpannedError {
             code: Error::UnclosedLineComment,
             span: Span {
-                start: ron::error::Position { line: 1, col: 6 },
+                start: Position { line: 1, col: 6 },
                 end: Position { line: 1, col: 6 },
             }
         })
@@ -363,7 +363,7 @@ fn test_fuzzer_found_issue() {
         Err(SpannedError {
             code: Error::UnclosedLineComment,
             span: Span {
-                start: ron::error::Position { line: 1, col: 4 },
+                start: Position { line: 1, col: 4 },
                 end: Position { line: 1, col: 4 },
             }
         })
@@ -373,7 +373,7 @@ fn test_fuzzer_found_issue() {
         Err(SpannedError {
             code: Error::UnclosedLineComment,
             span: Span {
-                start: ron::error::Position { line: 1, col: 4 },
+                start: Position { line: 1, col: 4 },
                 end: Position { line: 1, col: 4 },
             }
         })
