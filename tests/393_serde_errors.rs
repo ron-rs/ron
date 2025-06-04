@@ -1,9 +1,9 @@
 use ron::error::{Position, Span, SpannedError};
 
-#[cfg(feature = "span-substring-test")]
+#[cfg(feature = "internal-span-substring-test")]
 use ron::util::span_substring::check_error_span_inclusive;
 
-#[cfg(feature = "span-substring-test")]
+#[cfg(feature = "internal-span-substring-test")]
 use ron::util::span_substring::check_error_span_exclusive;
 
 #[derive(Debug, serde::Deserialize, PartialEq)]
@@ -56,7 +56,7 @@ fn test_unknown_enum_variant() {
         })
     );
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_exclusive::<TestEnum>(
         "NotAVariant",
         Err(SpannedError {
@@ -91,7 +91,7 @@ fn test_struct_enum_fields() {
 
     assert_eq!(ron::from_str::<TestEnum>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TestEnum>(bogus_struct, expected_err, "d:");
 
     let bogus_struct = "StructVariant(a: true, c: -42)";
@@ -108,7 +108,7 @@ fn test_struct_enum_fields() {
 
     assert_eq!(ron::from_str::<TestEnum>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TestEnum>(bogus_struct, expected_err, ")");
 
     let bogus_struct = "StructVariant(a: true, b: 'b', a: false, c: -42)";
@@ -125,7 +125,7 @@ fn test_struct_enum_fields() {
 
     assert_eq!(ron::from_str::<TestEnum>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TestEnum>(bogus_struct, expected_err, "a:");
 }
 
@@ -146,7 +146,7 @@ fn test_newtype_enum_fields() {
 
     assert_eq!(ron::from_str::<TestEnum>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TestEnum>(bogus_struct, expected_err, "d:");
 
     let bogus_struct = "#![enable(unwrap_variant_newtypes)] NewtypeVariant(a: true, c: -42)";
@@ -163,7 +163,7 @@ fn test_newtype_enum_fields() {
 
     assert_eq!(ron::from_str::<TestEnum>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TestEnum>(bogus_struct, expected_err, ")");
 
     let bogus_struct =
@@ -181,7 +181,7 @@ fn test_newtype_enum_fields() {
 
     assert_eq!(ron::from_str::<TestEnum>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TestEnum>(bogus_struct, expected_err, "a:");
 }
 
@@ -202,7 +202,7 @@ fn test_struct_fields() {
 
     assert_eq!(ron::from_str::<TestStruct>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TestStruct>(bogus_struct, expected_err, "d:");
 
     assert_eq!(
@@ -233,7 +233,7 @@ fn test_struct_fields() {
 
     assert_eq!(ron::from_str::<TestStruct>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TestStruct>(bogus_struct, expected_err, "a:");
 }
 
@@ -261,7 +261,7 @@ fn test_internally_tagged_enum() {
         expected_err
     );
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_exclusive::<TestEnumInternal>(bogus_struct, expected_err, ")");
 }
 
@@ -305,6 +305,6 @@ fn test_untagged_enum() {
         expected_err
     );
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_exclusive::<TestEnumUntagged>(bogus_struct, expected_err, ")");
 }

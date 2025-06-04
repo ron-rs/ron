@@ -41,3 +41,4 @@ pub use ser::{to_string, Serializer};
 pub use value::{Map, Number, Value};
 
 mod parse;
+pub mod util;

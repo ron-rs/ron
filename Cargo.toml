@@ -24,7 +24,8 @@ default = ["std"]
 integer128 = []
 std = ["serde/std"]
 indexmap = ["std", "dep:indexmap"]
-span-substring-test = ["unicode-segmentation"]
+# Note: this feature is a gate for internal error span tests and should not be enabled by users.
+internal-span-substring-test = ["unicode-segmentation"]
 
 [dependencies]
 # FIXME @juntyr remove base64 once old byte strings are fully deprecated
@@ -47,7 +48,6 @@ serde_json = { version = "1.0.60", default-features = false, features = ["std"] 
 option_set = { version = "0.3", default-features = false }
 typetag = { version = "0.2", default-features = false }
 bytes = { version = "1.3", default-features = false, features = ["serde"] }
-unicode-segmentation = { version = "1.12.0", default-features = false }
 
 [package.metadata.docs.rs]
 features = ["integer128", "indexmap"]

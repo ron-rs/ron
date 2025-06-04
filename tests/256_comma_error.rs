@@ -2,7 +2,7 @@
 
 use ron::error::{Error, Position, Span, SpannedError};
 
-#[cfg(feature = "span-substring-test")]
+#[cfg(feature = "internal-span-substring-test")]
 use ron::util::span_substring::check_error_span_inclusive;
 
 #[derive(Debug, serde::Deserialize)]
@@ -94,7 +94,7 @@ fn test_missing_comma_error() {
         }
     );
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<u8>(
         extensions_string,
         Err(SpannedError {

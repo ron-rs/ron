@@ -6,10 +6,10 @@ use serde::{
     Deserializer,
 };
 
-#[cfg(feature = "span-substring-test")]
+#[cfg(feature = "internal-span-substring-test")]
 use ron::util::span_substring::check_error_span_inclusive;
 
-#[cfg(feature = "span-substring-test")]
+#[cfg(feature = "internal-span-substring-test")]
 use ron::util::span_substring::check_error_span_exclusive;
 
 #[derive(Debug, serde::Deserialize, PartialEq)]
@@ -44,7 +44,7 @@ fn test_error_positions() {
 
     assert_eq!(ron::from_str::<TypeError>(bogus_struct), expected_err,);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<TypeError>(bogus_struct, expected_err, "  (");
 
     let bogus_struct = "StructVariant(a: true, b: 0, c: -42)";
@@ -61,7 +61,7 @@ fn test_error_positions() {
 
     assert_eq!(ron::from_str::<Test>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<Test>(bogus_struct, expected_err, "0,");
 
     let bogus_struct = "TupleVariant(42)";
@@ -78,7 +78,7 @@ fn test_error_positions() {
 
     assert_eq!(ron::from_str::<Test>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<Test>(bogus_struct, expected_err, ")");
 
     let bogus_struct = "NotAVariant";
@@ -96,7 +96,7 @@ fn test_error_positions() {
 
     assert_eq!(ron::from_str::<Test>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_exclusive::<Test>(bogus_struct, expected_err, "NotAVariant");
 
     let bogus_struct = "StructVariant(a: true, b: 1, c: -42, d: \"gotcha\")";
@@ -114,7 +114,7 @@ fn test_error_positions() {
 
     assert_eq!(ron::from_str::<Test>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<Test>(bogus_struct, expected_err, "d:");
 
     let bogus_struct = "StructVariant(a: true, c: -42)";
@@ -131,7 +131,7 @@ fn test_error_positions() {
 
     assert_eq!(ron::from_str::<Test>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<Test>(bogus_struct, expected_err, ")");
 
     let bogus_struct = "StructVariant(a: true, b: 1, a: false, c: -42)";
@@ -148,6 +148,6 @@ fn test_error_positions() {
 
     assert_eq!(ron::from_str::<Test>(bogus_struct), expected_err);
 
-    #[cfg(feature = "span-substring-test")]
+    #[cfg(feature = "internal-span-substring-test")]
     check_error_span_inclusive::<Test>(bogus_struct, expected_err, "a:");
 }
