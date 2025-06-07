@@ -1,5 +1,5 @@
 use ron::{
-    de::{Position, SpannedError},
+    de::{Position, Span, SpannedError},
     Error,
 };
 
@@ -42,7 +42,10 @@ fn test_float_literal_parsing() {
         ron::from_str::<f64>("1.0e1.0"),
         Err(SpannedError {
             code: Error::ExpectedFloat,
-            position: Position { line: 1, col: 1 },
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
         })
     );
 }

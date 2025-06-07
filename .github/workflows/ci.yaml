@@ -77,14 +77,20 @@ jobs:
       - name: Check
         run: |
           cargo hack check --feature-powerset --no-dev-deps
+      - name: Clean
+        run: |
+          cargo clean
       - name: Clippy
         run: |
           cargo hack clippy --feature-powerset --no-dev-deps -- -D warnings -A unknown-lints
         # Clippy will report lints that cannot be acted on without increasing MSRV on later versions of Rust
         if: ${{ matrix.rust == '1.64.0' }}
+      - name: Clean
+        run: |
+          cargo clean
       - name: Test
         run: |
-          cargo hack test --feature-powerset
+          cargo hack test --feature-powerset --clean-per-run
 
   clippy-fuzz:
     name: "Clippy: Fuzzer"

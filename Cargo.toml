@@ -24,6 +24,8 @@ default = ["std"]
 integer128 = []
 std = ["serde/std"]
 indexmap = ["std", "dep:indexmap"]
+# Note: this feature is a gate for internal error span tests and should not be enabled by users.
+internal-span-substring-test = ["unicode-segmentation"]
 
 [dependencies]
 # FIXME @juntyr remove base64 once old byte strings are fully deprecated
@@ -36,6 +38,7 @@ indexmap = { version = "2.0", default-features = false, features = ["serde"], op
 serde = { version = "1.0.181", default-features = false, features = ["alloc"] }
 serde_derive = { version = "1.0.181", default-features = false }
 unicode-ident = { version = "1.0", default-features = false }
+unicode-segmentation = { version = "1.12.0", optional = true, default-features = false }
 
 [dev-dependencies]
 serde = { version = "1.0.181", default-features = false, features = ["std", "derive"] }

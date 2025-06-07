@@ -21,7 +21,7 @@ use std::io;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpannedError {
     pub code: Error,
-    pub position: Position,
+    pub span: Span,
 }
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
@@ -121,7 +121,7 @@ pub enum Error {
 
 impl fmt::Display for SpannedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.position, self.code)
+        write!(f, "{}: {}", self.span, self.code)
     }
 }
 
@@ -318,6 +318,25 @@ impl fmt::Display for Position {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Spans select a range of text between two positions.
+/// Spans are used in [`SpannedError`] to indicate the start and end positions
+/// of the parser cursor before and after it encountered an error in parsing.
+pub struct Span {
+    pub start: Position,
+    pub end: Position,
+}
+
+impl fmt::Display for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.start == self.end {
+            write!(f, "{}", self.start)
+        } else {
+            write!(f, "{}-{}", self.start, self.end)
+        }
+    }
+}
+
 impl ser::Error for Error {
     #[cold]
     fn custom<T: fmt::Display>(msg: T) -> Self {
@@ -496,7 +515,7 @@ mod tests {
 
     use serde::{de::Error as DeError, de::Unexpected, ser::Error as SerError};
 
-    use super::{Error, Position, SpannedError};
+    use super::{Error, Position, Span, SpannedError};
 
     #[test]
     fn error_messages() {
@@ -699,14 +718,20 @@ mod tests {
         assert_eq!(
             Error::from(SpannedError {
                 code: Error::Eof,
-                position: Position { line: 1, col: 1 }
+                span: Span {
+                    start: Position { line: 1, col: 1 },
+                    end: Position { line: 1, col: 5 },
+                }
             }),
             Error::Eof
         );
         assert_eq!(
             Error::from(SpannedError {
                 code: Error::ExpectedRawValue,
-                position: Position { line: 1, col: 1 }
+                span: Span {
+                    start: Position { line: 1, col: 1 },
+                    end: Position { line: 1, col: 5 },
+                }
             }),
             Error::ExpectedRawValue
         );

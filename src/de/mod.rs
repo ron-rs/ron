@@ -11,7 +11,7 @@ use serde::{
     Deserialize,
 };
 
-pub use crate::error::{Error, Position, SpannedError};
+pub use crate::error::{Error, Position, Span, SpannedError};
 use crate::{
     error::{Result, SpannedResult},
     extensions::Extensions,
@@ -83,7 +83,10 @@ impl<'de> Deserializer<'de> {
 
         Err(SpannedError {
             code: err.into(),
-            position: Position::from_src_end(valid_input),
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position::from_src_end(valid_input),
+            },
         })
     }
 

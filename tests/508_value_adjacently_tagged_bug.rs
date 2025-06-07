@@ -36,7 +36,10 @@ fn roundtrip_through_value() {
         err,
         ron::error::SpannedError {
             code: ron::Error::ExpectedIdentifier,
-            position: ron::error::Position { line: 1, col: 7 },
+            span: ron::error::Span {
+                start: ron::error::Position { line: 1, col: 7 },
+                end: ron::error::Position { line: 1, col: 7 },
+            }
         }
     );
 

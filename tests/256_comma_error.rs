@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-use ron::error::{Error, Position, SpannedError};
+use ron::error::{Error, Position, Span, SpannedError};
+
+#[cfg(feature = "internal-span-substring-test")]
+use ron::util::span_substring::check_error_span_inclusive;
 
 #[derive(Debug, serde::Deserialize)]
 struct Test {
@@ -19,7 +22,10 @@ fn test_missing_comma_error() {
         ron::from_str::<(i32, i32)>(tuple_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 3, col: 9 }
+            span: Span {
+                start: Position { line: 3, col: 9 },
+                end: Position { line: 3, col: 9 }
+            }
         }
     );
 
@@ -33,7 +39,10 @@ fn test_missing_comma_error() {
         ron::from_str::<Vec<i32>>(list_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 4, col: 9 }
+            span: Span {
+                start: Position { line: 4, col: 9 },
+                end: Position { line: 4, col: 9 }
+            }
         }
     );
 
@@ -46,7 +55,10 @@ fn test_missing_comma_error() {
         ron::from_str::<Test>(struct_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 3, col: 9 }
+            span: Span {
+                start: Position { line: 3, col: 9 },
+                end: Position { line: 3, col: 9 }
+            }
         }
     );
 
@@ -59,7 +71,10 @@ fn test_missing_comma_error() {
         ron::from_str::<std::collections::HashMap<String, i32>>(map_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 3, col: 9 }
+            span: Span {
+                start: Position { line: 3, col: 9 },
+                end: Position { line: 3, col: 9 }
+            }
         }
     );
 
@@ -72,8 +87,24 @@ fn test_missing_comma_error() {
         ron::from_str::<u8>(extensions_string).unwrap_err(),
         SpannedError {
             code: Error::ExpectedComma,
-            position: Position { line: 3, col: 9 }
+            span: Span {
+                start: Position { line: 2, col: 50 },
+                end: Position { line: 3, col: 9 }
+            }
         }
+    );
+
+    #[cfg(feature = "internal-span-substring-test")]
+    check_error_span_inclusive::<u8>(
+        extensions_string,
+        Err(SpannedError {
+            code: Error::ExpectedComma,
+            span: Span {
+                start: Position { line: 2, col: 50 },
+                end: Position { line: 3, col: 9 },
+            },
+        }),
+        "\n        u",
     );
 }
 

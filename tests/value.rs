@@ -149,7 +149,7 @@ fn seq() {
 
 #[test]
 fn unit() {
-    use ron::error::{Error, Position, SpannedError};
+    use ron::error::{Position, Span, SpannedError};
 
     assert_eq!("()".parse(), Ok(Value::Unit));
     assert_eq!("Foo".parse(), Ok(Value::Unit));
@@ -158,7 +158,10 @@ fn unit() {
         "".parse::<Value>(),
         Err(SpannedError {
             code: Error::Eof,
-            position: Position { col: 1, line: 1 }
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { col: 1, line: 1 }
+            }
         })
     );
 

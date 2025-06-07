@@ -288,13 +288,16 @@ mod tests {
 
     #[test]
     fn test_tuples_error() {
-        use crate::de::{Error, Position, SpannedError};
+        use crate::de::{Error, Position, Span, SpannedError};
 
         assert_eq!(
             Value::from_str("Foo:").unwrap_err(),
             SpannedError {
                 code: Error::TrailingCharacters,
-                position: Position { col: 4, line: 1 }
+                span: Span {
+                    start: Position { line: 1, col: 4 },
+                    end: Position { line: 1, col: 4 }
+                }
             },
         );
     }
@@ -420,7 +423,10 @@ mod tests {
             "(r#:42)".parse::<Value>().unwrap_err(),
             crate::error::SpannedError {
                 code: crate::Error::ExpectedString,
-                position: crate::error::Position { line: 1, col: 4 },
+                span: crate::error::Span {
+                    start: crate::error::Position { line: 1, col: 3 },
+                    end: crate::error::Position { line: 1, col: 4 },
+                }
             },
         );
 
@@ -431,7 +437,10 @@ mod tests {
             "( /*".parse::<Value>().unwrap_err(),
             crate::error::SpannedError {
                 code: crate::Error::UnclosedBlockComment,
-                position: crate::error::Position { line: 1, col: 5 },
+                span: crate::error::Span {
+                    start: crate::error::Position { line: 1, col: 3 },
+                    end: crate::error::Position { line: 1, col: 5 },
+                }
             },
         );
     }

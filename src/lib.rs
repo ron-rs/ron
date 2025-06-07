@@ -33,6 +33,7 @@ pub mod value;
 pub mod extensions;
 
 pub mod options;
+pub mod util;
 
 pub use de::{from_str, Deserializer};
 pub use error::{Error, Result};

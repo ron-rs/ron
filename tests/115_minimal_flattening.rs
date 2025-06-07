@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ron::error::Span;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, Debug)]
@@ -115,7 +116,10 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedString,
-            position: ron::error::Position { line: 2, col: 9 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 2 },
+                end: ron::error::Position { line: 2, col: 9 },
+            }
         })
     );
 
@@ -130,7 +134,10 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedMapColon,
-            position: ron::error::Position { line: 4, col: 10 },
+            span: Span {
+                start: ron::error::Position { line: 4, col: 10 },
+                end: ron::error::Position { line: 4, col: 10 },
+            }
         })
     );
 
@@ -145,7 +152,10 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedString,
-            position: ron::error::Position { line: 4, col: 9 },
+            span: Span {
+                start: ron::error::Position { line: 4, col: 9 },
+                end: ron::error::Position { line: 4, col: 9 },
+            }
         })
     );
 
@@ -160,7 +170,10 @@ Main({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 5, col: 10 },
+            span: Span {
+                start: ron::error::Position { line: 5, col: 9 },
+                end: ron::error::Position { line: 5, col: 10 },
+            }
         })
     );
 }
@@ -239,7 +252,10 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedString,
-            position: ron::error::Position { line: 2, col: 9 },
+            span: Span {
+                start: ron::error::Position { line: 1, col: 2 },
+                end: ron::error::Position { line: 2, col: 9 },
+            }
         })
     );
 
@@ -253,7 +269,10 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedMapColon,
-            position: ron::error::Position { line: 4, col: 10 },
+            span: Span {
+                start: ron::error::Position { line: 4, col: 10 },
+                end: ron::error::Position { line: 4, col: 10 },
+            }
         })
     );
 
@@ -267,7 +286,10 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedString,
-            position: ron::error::Position { line: 4, col: 9 },
+            span: Span {
+                start: ron::error::Position { line: 4, col: 9 },
+                end: ron::error::Position { line: 4, col: 9 },
+            }
         })
     );
 
@@ -281,7 +303,10 @@ MyType({
         ),
         Err(ron::error::SpannedError {
             code: ron::error::Error::ExpectedStringEnd,
-            position: ron::error::Position { line: 4, col: 10 },
+            span: Span {
+                start: ron::error::Position { line: 4, col: 9 },
+                end: ron::error::Position { line: 4, col: 10 },
+            }
         })
     );
 }

@@ -4,9 +4,11 @@ use ron::from_str;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct Newtype(i32);
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct Tuple(i32, i32);
 
 #[derive(Deserialize)]

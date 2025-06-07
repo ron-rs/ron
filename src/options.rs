@@ -15,7 +15,7 @@ use crate::{
 
 #[cfg(feature = "std")]
 use {
-    crate::error::{Position, SpannedError},
+    crate::error::{Position, Span, SpannedError},
     alloc::vec::Vec,
     std::io,
 };
@@ -157,7 +157,10 @@ impl Options {
 
         Err(SpannedError {
             code: io_err.into(),
-            position: Position::from_src_end(valid_input),
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position::from_src_end(valid_input),
+            },
         })
     }
 

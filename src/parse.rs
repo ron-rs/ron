@@ -13,7 +13,7 @@ use core::{
 use unicode_ident::{is_xid_continue, is_xid_start};
 
 use crate::{
-    error::{Error, Position, Result, SpannedError, SpannedResult},
+    error::{Error, Position, Result, Span, SpannedError, SpannedResult},
     extensions::Extensions,
     value::Number,
 };
@@ -64,6 +64,7 @@ pub struct Parser<'a> {
     pub exts: Extensions,
     src: &'a str,
     cursor: ParserCursor,
+    prev_cursor: ParserCursor,
 }
 
 #[derive(Copy, Clone)] // GRCOV_EXCL_LINE
@@ -98,6 +99,11 @@ impl<'a> Parser<'a> {
                 pre_ws_cursor: 0,
                 last_ws_len: 0,
             },
+            prev_cursor: ParserCursor {
+                cursor: 0,
+                pre_ws_cursor: 0,
+                last_ws_len: 0,
+            },
         };
 
         parser.skip_ws().map_err(|e| parser.span_error(e))?;
@@ -124,11 +130,15 @@ impl<'a> Parser<'a> {
     pub fn span_error(&self, code: Error) -> SpannedError {
         SpannedError {
             code,
-            position: Position::from_src_end(&self.src[..self.cursor.cursor]),
+            span: Span {
+                start: Position::from_src_end(&self.src[..self.prev_cursor.cursor]),
+                end: Position::from_src_end(&self.src[..self.cursor.cursor]),
+            },
         }
     }
 
     pub fn advance_bytes(&mut self, bytes: usize) {
+        self.prev_cursor = self.cursor;
         self.cursor.cursor += bytes;
     }
 
@@ -1786,7 +1796,10 @@ mod tests {
                     expected: String::from("the Rusty byte string b\"Hello ron!\""),
                     found: String::from("the ambiguous base64 string \"SGVsbG8gcm9uIQ==\"")
                 },
-                position: Position { line: 1, col: 19 },
+                span: Span {
+                    start: Position { line: 1, col: 2 },
+                    end: Position { line: 1, col: 19 },
+                }
             }
         );
 
@@ -1798,7 +1811,10 @@ mod tests {
             crate::from_str::<bytes::Bytes>("\"invalid=\"").unwrap_err(),
             SpannedError {
                 code: Error::ExpectedByteString,
-                position: Position { line: 1, col: 11 },
+                span: Span {
+                    start: Position { line: 1, col: 2 },
+                    end: Position { line: 1, col: 11 },
+                }
             }
         );
 
@@ -1806,7 +1822,10 @@ mod tests {
             crate::from_str::<bytes::Bytes>("r\"invalid=\"").unwrap_err(),
             SpannedError {
                 code: Error::ExpectedByteString,
-                position: Position { line: 1, col: 12 },
+                span: Span {
+                    start: Position { line: 1, col: 3 },
+                    end: Position { line: 1, col: 12 },
+                }
             }
         );
     }
