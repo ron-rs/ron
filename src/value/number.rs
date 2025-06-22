@@ -59,12 +59,12 @@ mod private {
 
     #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
     pub struct Never {
-        _never: &'static _Never,
+        never: &'static _Never,
     }
 
     impl Never {
-        pub fn never(&self) -> ! {
-            match *self._never {}
+        pub fn never(self) -> ! {
+            match *self.never {}
         }
     }
 
