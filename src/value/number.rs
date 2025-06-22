@@ -17,7 +17,8 @@ use serde::{de::Visitor, Serialize, Serializer};
 /// <summary>Exhaustively matching on <code>Number</code> in tests</summary>
 ///
 /// If you want to ensure that you exhaustively handle every variant, you can
-/// match on the hidden `Number::__NonExhaustive` variant.
+/// match on the hidden `Number::__NonExhaustive(x)` variant by using the
+/// `x.never() -> !` method.
 ///
 /// <div class="warning">
 /// Matching on this variant means that your code may break when RON is
