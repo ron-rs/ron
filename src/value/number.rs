@@ -54,8 +54,61 @@ pub enum Number {
 }
 
 mod private {
+    #[derive(Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
+    enum _Never {}
+
     #[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Hash, Ord)]
-    pub enum Never {}
+    pub struct Never {
+        _never: &'static _Never,
+    }
+
+    impl Never {
+        pub fn never(&self) -> ! {
+            match *self._never {}
+        }
+    }
+
+    #[cfg(not(feature = "integer128"))]
+    /// ```
+    /// # use ron::Number;
+    /// fn match_number(x: Number) {
+    ///     match x {
+    ///         Number::I8(v) => println!("i8: {}", v),
+    ///         Number::I16(v) => println!("i16: {}", v),
+    ///         Number::I32(v) => println!("i32: {}", v),
+    ///         Number::I64(v) => println!("i64: {}", v),
+    ///         Number::U8(v) => println!("u8: {}", v),
+    ///         Number::U16(v) => println!("u16: {}", v),
+    ///         Number::U32(v) => println!("u32: {}", v),
+    ///         Number::U64(v) => println!("u64: {}", v),
+    ///         Number::F32(v) => println!("f32: {}", v.0),
+    ///         Number::F64(v) => println!("f64: {}", v.0),
+    ///     }
+    /// }
+    /// ```
+    fn _assert_non_exhaustive_check_fails_not_integer128() {}
+
+    #[cfg(feature = "integer128")]
+    /// ```
+    /// # use ron::Number;
+    /// fn match_number(x: Number) {
+    ///     match x {
+    ///         Number::I8(v) => println!("i8: {}", v),
+    ///         Number::I16(v) => println!("i16: {}", v),
+    ///         Number::I32(v) => println!("i32: {}", v),
+    ///         Number::I64(v) => println!("i64: {}", v),
+    ///         Number::I128(v) => println!("i128: {}", v),
+    ///         Number::U8(v) => println!("u8: {}", v),
+    ///         Number::U16(v) => println!("u16: {}", v),
+    ///         Number::U32(v) => println!("u32: {}", v),
+    ///         Number::U64(v) => println!("u64: {}", v),
+    ///         Number::U128(v) => println!("u128: {}", v),
+    ///         Number::F32(v) => println!("f32: {}", v.0),
+    ///         Number::F64(v) => println!("f64: {}", v.0),
+    ///     }
+    /// }
+    /// ```
+    fn _assert_non_exhaustive_check_fails_integer128() {}
 }
 
 impl Serialize for Number {
@@ -76,7 +129,7 @@ impl Serialize for Number {
             Self::F32(v) => serializer.serialize_f32(v.get()),
             Self::F64(v) => serializer.serialize_f64(v.get()),
             #[cfg(not(doc))]
-            Self::__NonExhaustive(never) => match *never {},
+            Self::__NonExhaustive(never) => never.never(),
         }
     }
 }
@@ -102,7 +155,7 @@ impl Number {
             Self::F32(v) => visitor.visit_f32(v.get()),
             Self::F64(v) => visitor.visit_f64(v.get()),
             #[cfg(not(doc))]
-            Self::__NonExhaustive(never) => match *never {},
+            Self::__NonExhaustive(never) => never.never(),
         }
     }
 }
@@ -255,7 +308,7 @@ impl Number {
             Self::F32(v) => f64::from(v.get()),
             Self::F64(v) => v.get(),
             #[cfg(not(doc))]
-            Self::__NonExhaustive(never) => match never {},
+            Self::__NonExhaustive(never) => never.never(),
         }
     }
 }

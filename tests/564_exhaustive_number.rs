@@ -18,7 +18,7 @@ fn exhaustive_number_match() {
         Number::F32(v) => println!("{}", v.0),
         Number::F64(v) => println!("{}", v.0),
         #[cfg(not(doc))]
-        Number::__NonExhaustive(never) => match never {},
+        Number::__NonExhaustive(never) => never.never(),
     }
 }
 
