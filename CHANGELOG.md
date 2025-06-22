@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Add a new example `file_read_write_vec.rs` for reading and writing `Vec<T>` to/from files. ([#573](https://github.com/ron-rs/ron/pull/573))
+
 ### API Changes
 
 - Breaking: `SpannedError` now stores the full error span in span: Span { start: Position, end: Position }`, to facilitate, e.g., language servers highlighting of syntax errors.
