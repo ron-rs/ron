@@ -69,7 +69,7 @@ mod private {
     }
 
     #[cfg(not(feature = "integer128"))]
-    /// ```
+    /// ```compile_fail
     /// # use ron::Number;
     /// fn match_number(x: Number) {
     ///     match x {
@@ -89,7 +89,7 @@ mod private {
     fn _assert_non_exhaustive_check_fails_not_integer128() {}
 
     #[cfg(feature = "integer128")]
-    /// ```
+    /// ```compile_fail
     /// # use ron::Number;
     /// fn match_number(x: Number) {
     ///     match x {
