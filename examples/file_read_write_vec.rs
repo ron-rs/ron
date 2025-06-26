@@ -1,6 +1,10 @@
 /// Getting RON with type derives and reading/writing a Vec<T> to/from a file.
-
-use ron::{Error, error::SpannedResult};
+use ron::{
+    Error,
+    de::{Position, SpannedError},
+    error::SpannedResult,
+    ser::PrettyConfig,
+};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     fs::File,
@@ -62,14 +66,26 @@ fn write_ron_vec_to_str<T: Serialize>(records: &[T]) -> Result<String, Error> {
     let as_strings = {
         records
             .into_iter()
-            // .map(|record| ron::ser::to_string(&record))
-            .map(|record| ron::ser::to_string_pretty(&record, ron::ser::PrettyConfig::default()))
+            .map(|record| {
+                ron::ser::to_string_pretty(
+                    &record,
+                    PrettyConfig::new()
+                        .compact_arrays(true)
+                        .compact_maps(true)
+                        .compact_structs(true)
+                        .escape_strings(true),
+                )
+            })
             .collect::<Result<Vec<_>, _>>()?
     };
 
     as_strings.into_iter().for_each(|s| {
         mut_str.push_str(&s);
-        mut_str.push_str("\n=RON_MGC=\n");
+        mut_str.push_str(if cfg!(not(target_os = "windows")) {
+            "\n"
+        } else {
+            "\r\n"
+        })
     });
 
     Ok(mut_str)
@@ -82,22 +98,24 @@ fn write_ron_vec_to_file<T: Serialize>(path: &PathBuf, records: &[T]) -> Result<
         .map_err(|err| Error::Io(err.to_string()))
 }
 
+/// This reader assumes that every row has one entry, so it would not work if they are split across lines.
 fn read_ron_vec_from_str<T: DeserializeOwned>(s: &str) -> SpannedResult<Vec<T>> {
     s //_
-        .split("\n=RON_MGC=\n")
+        .lines()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(|s| ron::from_str::<T>(s))
         .collect::<Result<Vec<_>, _>>()
 }
 
-fn read_ron_vec_from_file<T: DeserializeOwned>(path: &PathBuf) -> SpannedResult<Vec<T>> {
+fn read_ron_vec_from_file<T: DeserializeOwned>(path: &PathBuf) -> Result<Vec<T>, Error> {
     let mut file = File::open(path)?;
+
     let mut content = String::new();
 
     file.read_to_string(&mut content)?;
 
-    read_ron_vec_from_str(&content)
+    read_ron_vec_from_str(&content).map_err(|e| e.code)
 }
 
 pub fn main() {
@@ -108,5 +126,8 @@ pub fn main() {
     write_ron_vec_to_file(&path, &users).unwrap();
 
     let read_users: Vec<User> = read_ron_vec_from_file(&path).unwrap();
+
+    std::fs::remove_file("example.ron").unwrap();
+
     println!("{:?}", read_users);
 }
