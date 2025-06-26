@@ -59,7 +59,7 @@ fn create_records() -> Vec<User> {
     ]
 }
 
-// A basic text file format with individual records separated by a magic separator
+/// Serializes a list of T into a string with one record per line
 fn write_ron_vec_to_str<T: Serialize>(records: &[T]) -> Result<String, Error> {
     let mut mut_str = String::new();
 
@@ -91,6 +91,7 @@ fn write_ron_vec_to_str<T: Serialize>(records: &[T]) -> Result<String, Error> {
     Ok(mut_str)
 }
 
+/// Serializes a list of T into a text file with one record per line
 fn write_ron_vec_to_file<T: Serialize>(path: &PathBuf, records: &[T]) -> Result<usize, Error> {
     let mut file = File::create(path)?;
 
@@ -102,8 +103,6 @@ fn write_ron_vec_to_file<T: Serialize>(path: &PathBuf, records: &[T]) -> Result<
 fn read_ron_vec_from_str<T: DeserializeOwned>(s: &str) -> SpannedResult<Vec<T>> {
     s //_
         .lines()
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
         .map(|s| ron::from_str::<T>(s))
         .collect::<Result<Vec<_>, _>>()
 }
@@ -121,13 +120,14 @@ fn read_ron_vec_from_file<T: DeserializeOwned>(path: &PathBuf) -> Result<Vec<T>,
 pub fn main() {
     let users = create_records();
 
-    let path = PathBuf::from_str("example.ron").unwrap();
+    let path = PathBuf::from_str("vec-example.ron").unwrap();
 
     write_ron_vec_to_file(&path, &users).unwrap();
 
     let read_users: Vec<User> = read_ron_vec_from_file(&path).unwrap();
 
-    std::fs::remove_file("example.ron").unwrap();
+    // Comment this out if you want to view the file:
+    std::fs::remove_file("vec-example.ron").unwrap();
 
     println!("{:?}", read_users);
 }
