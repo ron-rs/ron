@@ -1,11 +1,6 @@
 /// Getting RON with type derives and reading/writing a Vec<T> to/from a file.
-use ron::{
-    Error,
-    de::{Position, SpannedError},
-    error::SpannedResult,
-    ser::PrettyConfig,
-};
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use ron::{error::SpannedResult, ser::PrettyConfig, Error};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     fs::File,
     io::{Read, Write},
@@ -93,7 +88,7 @@ fn write_ron_vec_to_str<T: Serialize>(records: &[T]) -> Result<String, Error> {
 
 /// Serializes a list of T into a text file with one record per line
 fn write_ron_vec_to_file<T: Serialize>(path: &PathBuf, records: &[T]) -> Result<usize, Error> {
-    let mut file = File::create(path)?;
+    let mut file = File::create(path).map_err(|e| Error::Io(e.to_string()))?;
 
     file.write(write_ron_vec_to_str(records)?.as_bytes())
         .map_err(|err| Error::Io(err.to_string()))
@@ -108,11 +103,12 @@ fn read_ron_vec_from_str<T: DeserializeOwned>(s: &str) -> SpannedResult<Vec<T>> 
 }
 
 fn read_ron_vec_from_file<T: DeserializeOwned>(path: &PathBuf) -> Result<Vec<T>, Error> {
-    let mut file = File::open(path)?;
+    let mut file = File::open(path).map_err(|e| Error::Io(e.to_string()))?;
 
     let mut content = String::new();
 
-    file.read_to_string(&mut content)?;
+    file.read_to_string(&mut content)
+        .map_err(|e| Error::Io(e.to_string()))?;
 
     read_ron_vec_from_str(&content).map_err(|e| e.code)
 }
