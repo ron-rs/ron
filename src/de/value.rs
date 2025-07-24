@@ -306,7 +306,7 @@ mod tests {
     fn test_floats() {
         assert_eq!(
             eval("(inf, -inf, NaN)"),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::Number(Number::new(core::f32::INFINITY)),
                 Value::Number(Number::new(core::f32::NEG_INFINITY)),
                 Value::Number(Number::new(core::f32::NAN)),

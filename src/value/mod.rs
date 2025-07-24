@@ -541,6 +541,8 @@ mod tests {
     #[ignore = ""]
     #[test]
     fn test() {
+        use std::collections::HashMap;
+        use std::println;
         #[derive(Serialize)]
         enum B {
             A,
@@ -576,6 +578,9 @@ mod tests {
     #[ignore = ""]
     #[test]
     fn test2() {
+        use std::collections::HashMap;
+        use std::println;
+
         #[derive(Serialize)]
         enum B {
             A(Option<String>, i32),
