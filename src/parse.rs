@@ -63,7 +63,7 @@ pub struct Parser<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
     src: &'a str,
-    cursor: ParserCursor,
+    pub cursor: ParserCursor,
     prev_cursor: ParserCursor,
 }
 

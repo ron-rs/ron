@@ -240,13 +240,13 @@ impl<'de> Visitor<'de> for ValueVisitor {
         A: serde::de::EnumAccess<'de>,
     {
         // Get the variant name and the VariantAccess
-        let (variant, variant_access) = data.variant::<String>()?;
+        let (variant, variant_access) = data.variant::<Ident>()?;
 
         // Try to extract the value for the variant
         use serde::de::VariantAccess;
         let value = if let Ok(v) = variant_access.unit_variant() {
             return Ok(Value::NamedUnit {
-                name: variant.into(),
+                name: variant.0.into(),
             });
         } else {
             return Ok(Value::Unit);
@@ -264,6 +264,23 @@ impl<'de> Visitor<'de> for ValueVisitor {
         //     // fallback: treat as unit
         //     Value::Unit
         // };
+    }
+}
+
+struct Ident(String);
+
+impl<'de> Deserialize<'de> for Ident {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_identifier(ValueVisitor).and_then(|e| {
+            if let Value::String(ident) = e {
+                Ok(Ident(ident))
+            } else {
+                unreachable!()
+            }
+        })
     }
 }
 

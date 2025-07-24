@@ -209,6 +209,7 @@ impl<'de> Deserializer<'de> for Value {
                 }
             }
             Value::Unit => visitor.visit_unit(),
+            // Value::NamedUnit { name } => visitor.visit_enum(data),
             _ => todo!(),
         }
     }
