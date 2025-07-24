@@ -18,7 +18,7 @@ impl Serialize for Value {
             Value::Bytes(b) => serializer.serialize_bytes(b),
             Value::List(s) => Serialize::serialize(s, serializer),
             Value::Unit => serializer.serialize_unit(),
-            Value::Struct(name, map) => {
+            Value::NamedStruct(name, map) => {
                 // serializer.serialize_struct(name, len)
                 // serializer.serialize_struct_variant(name, variant_index, variant, len)
 
@@ -37,33 +37,21 @@ impl Serialize for Value {
                 // https://github.com/serde-rs/json/blob/master/src/value/ser.rs
 
                 match name {
-                    Some(name) => match name {
-                        std::borrow::Cow::Borrowed(a) => {
-                            let mut state = serializer.serialize_struct(a, map.len())?;
+                    std::borrow::Cow::Borrowed(a) => {
+                        let mut state = serializer.serialize_struct(a, map.len())?;
 
-                            for (k, v) in &map.0 {
-                                match k {
-                                    std::borrow::Cow::Borrowed(a) => {
-                                        state.serialize_field(a, &v)?;
-                                    }
-                                    std::borrow::Cow::Owned(_) => todo!(),
+                        for (k, v) in &map.0 {
+                            match k {
+                                std::borrow::Cow::Borrowed(a) => {
+                                    state.serialize_field(a, &v)?;
                                 }
+                                std::borrow::Cow::Owned(_) => todo!(),
                             }
-
-                            state.end()
                         }
-                        std::borrow::Cow::Owned(_) => todo!(),
-                    },
-                    None => {
-                        todo!()
-                        // let mut state = serializer.serialize_struct("", map.len())?;
 
-                        // for (k, v) in map {
-                        //     state.serialize_field(&k, &v)?;
-                        // }
-
-                        // state.end()
+                        state.end()
                     }
+                    std::borrow::Cow::Owned(_) => todo!(),
                 }
             }
             Value::Tuple(vec) => {
@@ -75,12 +63,7 @@ impl Serialize for Value {
 
                 state.end()
             }
-            Value::UnitStructOrEnumVariant(cow) => todo!(),
-            Value::UnitEnumVariant(cow) => todo!(),
-            Value::UnitStruct(cow) => todo!(),
-            Value::StructOrEnumVariant(cow, map) => todo!(),
-            Value::EnumVariant(cow, map) => todo!(),
-            Value::EnumTuple(cow, vec) => todo!(),
+            _ => todo!(),
         }
     }
 }

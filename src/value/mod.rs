@@ -21,6 +21,7 @@ pub use raw::RawValue;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Value {
+    /// Can represent a struct with no field, or the Unit typee
     Unit,
     Bool(bool),
     Char(char),
@@ -32,15 +33,21 @@ pub enum Value {
     Map(Map<Value>),
     Tuple(Vec<Value>),
 
-    UnitStructOrEnumVariant(Cow<'static, str>),
-    UnitEnumVariant(Cow<'static, str>),
-    UnitStruct(Cow<'static, str>),
-
-    StructOrEnumVariant(Option<Cow<'static, str>>, Map<Cow<'static, str>>),
-    Struct(Option<Cow<'static, str>>, Map<Cow<'static, str>>),
-    EnumVariant(Cow<'static, str>, Map<Cow<'static, str>>),
-
-    EnumTuple(Cow<'static, str>, Vec<Value>),
+    /// Can be either an empty enum or an empty unit variant
+    NamedUnit {
+        name: Cow<'static, str>,
+    },
+    /// Struct
+    Newtype(Box<Value>),
+    /// Enum or struct
+    NamedNewtype {
+        name: Cow<'static, str>,
+        inner: Box<Value>,
+    },
+    /// Enum or struct
+    NamedStruct(Cow<'static, str>, Map<Cow<'static, str>>),
+    /// Enum or struct
+    NamedTuple(Cow<'static, str>, Vec<Value>),
 }
 
 impl From<bool> for Value {
@@ -202,14 +209,7 @@ impl<'de> Deserializer<'de> for Value {
                 }
             }
             Value::Unit => visitor.visit_unit(),
-            Value::Tuple(vec) => todo!(),
-            Value::UnitStructOrEnumVariant(cow) => todo!(),
-            Value::UnitEnumVariant(cow) => todo!(),
-            Value::UnitStruct(cow) => todo!(),
-            Value::StructOrEnumVariant(cow, map) => todo!(),
-            Value::Struct(cow, map) => todo!(),
-            Value::EnumVariant(cow, map) => todo!(),
-            Value::EnumTuple(cow, vec) => todo!(),
+            _ => todo!(),
         }
     }
 }
@@ -278,6 +278,7 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
 mod tests {
     use alloc::{collections::BTreeMap, vec};
     use core::fmt::Debug;
+    use std::dbg;
 
     use serde::{Deserialize, Serialize};
 
@@ -291,6 +292,7 @@ mod tests {
 
         let direct: T = from_str(s).unwrap();
         let value: Value = from_str(s).unwrap();
+        dbg!(&value);
         let de = T::deserialize(value.clone()).unwrap();
 
         assert_eq!(direct, de, "Deserialization for {:?} is not the same", s);

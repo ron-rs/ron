@@ -234,6 +234,37 @@ impl<'de> Visitor<'de> for ValueVisitor {
 
         Ok(Value::Map(res))
     }
+
+    fn visit_enum<A>(self, mut data: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::EnumAccess<'de>,
+    {
+        // Get the variant name and the VariantAccess
+        let (variant, variant_access) = data.variant::<String>()?;
+
+        // Try to extract the value for the variant
+        use serde::de::VariantAccess;
+        let value = if let Ok(v) = variant_access.unit_variant() {
+            return Ok(Value::NamedUnit {
+                name: variant.into(),
+            });
+        } else {
+            return Ok(Value::Unit);
+        };
+
+        // let value = if let Ok(v) = variant_access.unit_variant() {
+        //     Value::Unit
+        // } else if let Ok(v) = variant_access.newtype_variant_seed(ValueVisitor) {
+        //     v
+        // } else if let Ok(v) = variant_access.tuple_variant(0, ValueVisitor) {
+        //     v
+        // } else if let Ok(v) = variant_access.struct_variant(&[], ValueVisitor) {
+        //     v
+        // } else {
+        //     // fallback: treat as unit
+        //     Value::Unit
+        // };
+    }
 }
 
 #[cfg(test)]

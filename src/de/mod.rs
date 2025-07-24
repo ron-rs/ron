@@ -200,6 +200,9 @@ impl<'de> Deserializer<'de> {
                 // serde's Content type needs the ident for unit variants
                 visitor.visit_str(ident)
             }
+            (StructType::Unit, Some(ident)) => {
+                visitor.visit_str(ident)
+            }
             (StructType::Unit, _) => visitor.visit_unit(),
             (_, Some(ident)) if is_serde_content => {
                 // serde's Content type uses a singleton map encoding for enums
