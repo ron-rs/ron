@@ -25,7 +25,7 @@ pub use raw::RawValue;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Value {
-    /// Can represent a struct with no field, or the Unit typee
+    /// Can represent a struct with no field, or the Unit type
     Unit,
     Bool(bool),
     Char(char),
@@ -34,6 +34,7 @@ pub enum Value {
     Bytes(Vec<u8>),
     Option(Option<Box<Value>>),
     List(Vec<Value>),
+    /// Can be a struct
     Map(Map<Value>),
     Tuple(Vec<Value>),
 
@@ -383,8 +384,10 @@ impl<'a, 'de> VariantAccess<'de> for VariantAccessor {
         V: Visitor<'de>,
     {
         if let Value::NamedStruct(_, mut map) = self.value {
-            let mut items: Vec<(Value, Value)> =
-                map.into_iter().map(|e| (Value::String(e.0.to_string()), e.1)).collect();
+            let mut items: Vec<(Value, Value)> = map
+                .into_iter()
+                .map(|e| (Value::String(e.0.to_string()), e.1))
+                .collect();
             visitor.visit_map(MapAccessor {
                 items: &mut items,
                 value: None,
@@ -553,7 +556,7 @@ mod tests {
     }
 
     #[test]
-    fn seq() {
+    fn list() {
         assert_same::<Vec<f64>>("[1.0, 2.0, 3.0, 4.0]");
 
         assert_eq!(
@@ -645,14 +648,14 @@ mod tests {
     }
 
     #[test]
-    fn empty_struct() {
+    fn unit_struct() {
         #[derive(Debug, Deserialize, PartialEq)]
-        struct A {}
+        struct A;
         assert_same::<A>("A()");
     }
 
     #[test]
-    fn simple_enum() {
+    fn unit_enum() {
         #[derive(Debug, Deserialize, PartialEq)]
         enum A {
             A,
@@ -661,26 +664,82 @@ mod tests {
         assert_same::<A>("A");
     }
 
+    #[test]
+    fn new_type_struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A(i32);
+
+        assert_same::<A>("A(1)");
+    }
+
+    #[test]
+    fn new_type_enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A(i32),
+        }
+
+        assert_same::<A>("A(1)");
+    }
+
+    #[test]
+    fn tuple_struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A(i32, String);
+        assert_same::<A>("A(1, \"hello\")");
+    }
+
+    #[test]
+    fn tuple_enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A(i32, String),
+        }
+
+        assert_same::<A>("A(1, \"hello\")");
+    }
+
+    #[test]
+    fn r#struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A {
+            name: String,
+            age: i32,
+        }
+
+        assert_same::<A>("A(name: \"Alice\", age: 30,)");
+    }
+
+    #[test]
+    fn r#enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A { name: String, age: i32 },
+        }
+
+        assert_same::<A>("A(name: \"Alice\", age: 30,)");
+    }
+
     #[ignore = ""]
     #[test]
     fn test() {
         use std::collections::HashMap;
         use std::println;
         #[derive(Serialize)]
-        enum B {
+        enum Enum {
             A,
             B,
         }
 
         #[derive(Serialize)]
-        struct A {
-            a: B,
-            b: HashMap<String, String>,
+        struct Struct {
+            e: Enum,
+            h: HashMap<String, String>,
         }
 
-        let v = A {
-            a: B::A,
-            b: [("a".into(), "a".into())].into_iter().collect(),
+        let v = Struct {
+            e: Enum::A,
+            h: [("hello".into(), "world".into())].into_iter().collect(),
         };
 
         let ron_str = crate::to_string(&v).unwrap();
@@ -689,7 +748,8 @@ mod tests {
 
         let value = crate::from_str::<Value>(&ron_str).unwrap();
 
-        println!("{:?}", value);
+        dbg!(&value);
+        // println!("{:?}", value);
 
         let ron_str2 = crate::to_string(&value).unwrap();
 
