@@ -15,16 +15,22 @@ use super::Value;
 /// [`IndexMap`](indexmap::IndexMap) internally.
 /// The latter can be used by enabling the `indexmap` feature. This can be used
 /// to preserve the order of the parsed map.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct Map(pub(crate) MapInner);
+pub struct Map<Key: Ord + Hash>(pub(crate) MapInner<Key>);
 
 #[cfg(not(feature = "indexmap"))]
-type MapInner = alloc::collections::BTreeMap<Value, Value>;
+type MapInner<Key> = alloc::collections::BTreeMap<Key, Value>;
 #[cfg(feature = "indexmap")]
-type MapInner = indexmap::IndexMap<Value, Value, std::collections::hash_map::RandomState>;
+type MapInner<Key> = indexmap::IndexMap<Key, Value, std::collections::hash_map::RandomState>;
 
-impl Map {
+impl<Key: Ord + Hash> Default for Map<Key> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<Key: Ord + Hash> Map<Key> {
     /// Creates a new, empty [`Map`].
     #[must_use]
     pub fn new() -> Self {
@@ -45,23 +51,23 @@ impl Map {
 
     /// Immutably looks up an element by its `key`.
     #[must_use]
-    pub fn get(&self, key: &Value) -> Option<&Value> {
+    pub fn get(&self, key: &Key) -> Option<&Value> {
         self.0.get(key)
     }
 
     /// Mutably looks up an element by its `key`.
-    pub fn get_mut(&mut self, key: &Value) -> Option<&mut Value> {
+    pub fn get_mut(&mut self, key: &Key) -> Option<&mut Value> {
         self.0.get_mut(key)
     }
 
     /// Inserts a new element, returning the previous element with this `key` if
     /// there was any.
-    pub fn insert(&mut self, key: impl Into<Value>, value: impl Into<Value>) -> Option<Value> {
+    pub fn insert(&mut self, key: impl Into<Key>, value: impl Into<Value>) -> Option<Value> {
         self.0.insert(key.into(), value.into())
     }
 
     /// Removes an element by its `key`.
-    pub fn remove(&mut self, key: &Value) -> Option<Value> {
+    pub fn remove(&mut self, key: &Key) -> Option<Value> {
         #[cfg(feature = "indexmap")]
         {
             self.0.shift_remove(key)
@@ -74,19 +80,19 @@ impl Map {
 
     /// Iterate all key-value pairs.
     #[must_use]
-    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&Value, &Value)> {
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = (&Key, &Value)> {
         self.0.iter()
     }
 
     /// Iterate all key-value pairs mutably.
     #[must_use]
-    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = (&Value, &mut Value)> {
+    pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = (&Key, &mut Value)> {
         self.0.iter_mut()
     }
 
     /// Iterate all keys.
     #[must_use]
-    pub fn keys(&self) -> impl DoubleEndedIterator<Item = &Value> {
+    pub fn keys(&self) -> impl DoubleEndedIterator<Item = &Key> {
         self.0.keys()
     }
 
@@ -110,39 +116,39 @@ impl Map {
     /// The elements are visited in iteration order.
     pub fn retain<F>(&mut self, keep: F)
     where
-        F: FnMut(&Value, &mut Value) -> bool,
+        F: FnMut(&Key, &mut Value) -> bool,
     {
         self.0.retain(keep);
     }
 }
 
-impl Index<&Value> for Map {
+impl<Key: Ord + Hash> Index<&Key> for Map<Key> {
     type Output = Value;
 
     #[allow(clippy::expect_used)]
-    fn index(&self, index: &Value) -> &Self::Output {
+    fn index(&self, index: &Key) -> &Self::Output {
         self.get(index).expect("no entry found for key")
     }
 }
 
-impl IndexMut<&Value> for Map {
+impl<Key: Ord + Hash> IndexMut<&Key> for Map<Key> {
     #[allow(clippy::expect_used)]
-    fn index_mut(&mut self, index: &Value) -> &mut Self::Output {
+    fn index_mut(&mut self, index: &Key) -> &mut Self::Output {
         self.get_mut(index).expect("no entry found for key")
     }
 }
 
-impl IntoIterator for Map {
-    type Item = (Value, Value);
+impl<Key: Ord + Hash> IntoIterator for Map<Key> {
+    type Item = (Key, Value);
 
-    type IntoIter = <MapInner as IntoIterator>::IntoIter;
+    type IntoIter = <MapInner<Key> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl<K: Into<Value>, V: Into<Value>> FromIterator<(K, V)> for Map {
+impl<Key: Ord + Hash, K: Into<Key>, V: Into<Value>> FromIterator<(K, V)> for Map<Key> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         Map(iter
             .into_iter()
@@ -152,28 +158,28 @@ impl<K: Into<Value>, V: Into<Value>> FromIterator<(K, V)> for Map {
 }
 
 /// Note: equality is only given if both values and order of values match
-impl PartialEq for Map {
-    fn eq(&self, other: &Map) -> bool {
+impl<Key: Ord + Hash> PartialEq for Map<Key> {
+    fn eq(&self, other: &Map<Key>) -> bool {
         self.cmp(other).is_eq()
     }
 }
 
 /// Note: equality is only given if both values and order of values match
-impl Eq for Map {}
+impl<Key: Ord + Hash> Eq for Map<Key> {}
 
-impl PartialOrd for Map {
-    fn partial_cmp(&self, other: &Map) -> Option<Ordering> {
+impl<Key: Ord + Hash> PartialOrd for Map<Key> {
+    fn partial_cmp(&self, other: &Map<Key>) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Map {
-    fn cmp(&self, other: &Map) -> Ordering {
+impl<Key: Ord + Hash> Ord for Map<Key> {
+    fn cmp(&self, other: &Map<Key>) -> Ordering {
         self.iter().cmp(other.iter())
     }
 }
 
-impl Hash for Map {
+impl<Key: Ord + Hash> Hash for Map<Key> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.iter().for_each(|x| x.hash(state));
     }
@@ -258,7 +264,7 @@ mod tests {
     }
 
     #[cfg(feature = "std")]
-    fn assert_same_hash(a: &Map, b: &Map) {
+    fn assert_same_hash(a: &Map<Value>, b: &Map<Value>) {
         use core::hash::{Hash, Hasher};
         use std::collections::hash_map::DefaultHasher;
 

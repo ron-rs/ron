@@ -117,6 +117,11 @@ pub enum Error {
     ExpectedRawValue,
     ExceededRecursionLimit,
     ExpectedStructName(String),
+
+    ExpectedNamedUnit,
+    ExpectedNamedNewType,
+    ExpectedNamedTuple,
+    ExpectedNamedStruct,
 }
 
 impl fmt::Display for SpannedError {
@@ -293,6 +298,10 @@ impl fmt::Display for Error {
                 "Expected the explicit struct name {}, but none was found",
                 Identifier(name)
             ),
+            Error::ExpectedNamedUnit => write!(f, "ExpectedNamedUnit"),
+            Error::ExpectedNamedNewType => write!(f, "ExpectedNamedNewType"),
+            Error::ExpectedNamedTuple => write!(f, "ExpectedNamedTuple"),
+            Error::ExpectedNamedStruct => write!(f, "ExpectedNamedStruct"),
         }
     }
 }
