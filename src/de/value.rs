@@ -252,6 +252,8 @@ impl<'de> Visitor<'de> for ValueVisitor {
             return Ok(Value::Unit);
         };
 
+        // todo: complete this function
+
         // let value = if let Ok(v) = variant_access.unit_variant() {
         //     Value::Unit
         // } else if let Ok(v) = variant_access.newtype_variant_seed(ValueVisitor) {
@@ -274,13 +276,15 @@ impl<'de> Deserialize<'de> for Ident {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_identifier(ValueVisitor).and_then(|e| {
-            if let Value::String(ident) = e {
-                Ok(Ident(ident))
-            } else {
-                unreachable!()
-            }
-        })
+        deserializer
+            .deserialize_identifier(ValueVisitor)
+            .and_then(|e| {
+                if let Value::String(ident) = e {
+                    Ok(Ident(ident))
+                } else {
+                    unreachable!()
+                }
+            })
     }
 }
 
