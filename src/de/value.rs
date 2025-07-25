@@ -1,5 +1,6 @@
 use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
 use core::fmt;
+use std::borrow::Cow;
 
 use serde::{
     de::{Error, MapAccess, SeqAccess, Visitor},
@@ -241,31 +242,48 @@ impl<'de> Visitor<'de> for ValueVisitor {
     {
         // Get the variant name and the VariantAccess
         let (variant, variant_access) = data.variant::<Ident>()?;
-
+        
+        
         // Try to extract the value for the variant
         use serde::de::VariantAccess;
+
         let value = if let Ok(v) = variant_access.unit_variant() {
-            return Ok(Value::NamedUnit {
+            Value::NamedUnit {
                 name: variant.0.into(),
-            });
+            }
+        } else if let Ok(v) = variant_access.newtype_variant() {
+            Value::NamedNewtype {
+                name: variant.0.into(),
+                inner: Box::new(v),
+            }
+        } else if let Ok(v) = variant_access.tuple_variant(0, ValueVisitor) {
+            if let Value::Tuple(values) = v {
+                Value::NamedTuple(variant.0.into(), values)
+            } else {
+                return Err(A::Error::custom("Expected Value::Tuple"));
+            }
+        } else if let Ok(v) = variant_access.struct_variant(&[], ValueVisitor) {
+            if let Value::Map(values) = v {
+                let mut values_new: Map<Cow<'static, str>> = Map::new();
+
+                for e in values {
+                    if let Value::String(k) = e.0 {
+                        values_new.insert(<std::string::String as Into<Cow<str>>>::into(k), e.1);
+                    } else {
+                        return Err(A::Error::custom("Expected Value::String for the key"));
+                    }
+                }
+
+                Value::NamedMap(variant.0.into(), values_new)
+            } else {
+                return Err(A::Error::custom("Expected Value::Map"));
+            }
         } else {
-            return Ok(Value::Unit);
+            // fallback: treat as unit
+            Value::Unit
         };
 
-        // todo: complete this function
-
-        // let value = if let Ok(v) = variant_access.unit_variant() {
-        //     Value::Unit
-        // } else if let Ok(v) = variant_access.newtype_variant_seed(ValueVisitor) {
-        //     v
-        // } else if let Ok(v) = variant_access.tuple_variant(0, ValueVisitor) {
-        //     v
-        // } else if let Ok(v) = variant_access.struct_variant(&[], ValueVisitor) {
-        //     v
-        // } else {
-        //     // fallback: treat as unit
-        //     Value::Unit
-        // };
+        Ok(value)
     }
 }
 

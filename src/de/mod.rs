@@ -198,7 +198,7 @@ impl<'de> Deserializer<'de> {
                 TupleMode::ImpreciseTupleOrNewtype // Tuple and NewtypeOrTuple match equally
             },
         )?;
-        
+
         match (struct_type, ident) {
             (StructType::Unit, Some(ident)) if is_serde_content => {
                 // serde's Content type needs the ident for unit variants
@@ -209,7 +209,7 @@ impl<'de> Deserializer<'de> {
                 let enum_access = Enum::new(self, EnumKind::Unit);
                 visitor.visit_enum(enum_access)
             }
-            (StructType::Unit, _) => visitor.visit_unit(),
+            (StructType::Unit, None) => visitor.visit_unit(),
             (_, Some(ident)) if is_serde_content => {
                 // serde's Content type uses a singleton map encoding for enums
                 visitor.visit_map(SerdeEnumContent {
@@ -217,9 +217,14 @@ impl<'de> Deserializer<'de> {
                     ident: Some(ident),
                 })
             }
-            (StructType::Named, _) => {
+            (StructType::Named, None) => {
                 // giving no name results in worse errors but is necessary here
                 self.handle_struct_after_name("", visitor)
+            }
+            (StructType::Named, Some(ident)) => {
+                self.parser.cursor = cursor;
+                let enum_access = Enum::new(self, EnumKind::Struct);
+                visitor.visit_enum(enum_access)
             }
             (StructType::NewtypeTuple, _) if old_serde_content_newtype => {
                 // deserialize a newtype struct or variant
@@ -231,12 +236,28 @@ impl<'de> Deserializer<'de> {
 
                 result
             }
+            (StructType::AnyTuple | StructType::NonNewtypeTuple, Some(indent)) => {
+                self.parser.cursor = cursor;
+                let enum_access = Enum::new(self, EnumKind::Tuple);
+                visitor.visit_enum(enum_access)
+            }
+            (StructType::EmptyTuple, Some(indent)) => {
+                self.parser.cursor = cursor;
+                // should we use unit ?
+                let enum_access = Enum::new(self, EnumKind::Tuple);
+                visitor.visit_enum(enum_access)
+            }
+            (StructType::NewtypeTuple, Some(indent)) => {
+                self.parser.cursor = cursor;
+                let enum_access = Enum::new(self, EnumKind::NewType);
+                visitor.visit_enum(enum_access)
+            }
             (
                 StructType::AnyTuple
                 | StructType::EmptyTuple
                 | StructType::NewtypeTuple
                 | StructType::NonNewtypeTuple,
-                _,
+                None,
             ) => {
                 // first argument is technically incorrect, but ignored anyway
                 self.deserialize_tuple(0, visitor)
@@ -954,6 +975,7 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
+        // todo: consume () if exist ?
         match self.kind {
             EnumKind::Unknown | EnumKind::Unit => Ok(()),
             EnumKind::NewType => Err(Error::ExpectedNamedNewType),
