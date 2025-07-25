@@ -2,9 +2,13 @@
 
 use alloc::{borrow::Cow, boxed::Box, format, string::String, vec::Vec};
 use core::{cmp::Eq, hash::Hash};
+use std::{borrow::ToOwned, string::ToString};
 
 use serde::{
-    de::{DeserializeOwned, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor},
+    de::{
+        DeserializeOwned, DeserializeSeed, Deserializer, EnumAccess, MapAccess, SeqAccess,
+        VariantAccess, Visitor,
+    },
     forward_to_deserialize_any,
 };
 
@@ -209,8 +213,38 @@ impl<'de> Deserializer<'de> for Value {
                 }
             }
             Value::Unit => visitor.visit_unit(),
-            // Value::NamedUnit { name } => visitor.visit_enum(data),
-            _ => todo!(),
+            Value::Tuple(mut seq) => {
+                let old_len = seq.len();
+
+                seq.reverse();
+                let value = visitor.visit_seq(SeqAccessor { seq: &mut seq })?;
+
+                if seq.is_empty() {
+                    Ok(value)
+                } else {
+                    Err(Error::ExpectedDifferentLength {
+                        expected: format!("a sequence of length {}", old_len - seq.len()),
+                        found: old_len,
+                    })
+                }
+            }
+            Value::Newtype(value) => visitor.visit_newtype_struct(*value),
+            Value::NamedUnit { name } => visitor.visit_enum(EnumAccessor {
+                variant: name.to_string(),
+                value: Value::NamedUnit { name },
+            }),
+            Value::NamedNewtype { name, inner } => visitor.visit_enum(EnumAccessor {
+                variant: name.to_string(),
+                value: Value::NamedNewtype { name, inner },
+            }),
+            Value::NamedStruct(name, map) => visitor.visit_enum(EnumAccessor {
+                variant: name.to_string(),
+                value: Value::NamedStruct(name, map),
+            }),
+            Value::NamedTuple(name, values) => visitor.visit_enum(EnumAccessor {
+                variant: name.to_string(),
+                value: Value::NamedTuple(name, values),
+            }),
         }
     }
 }
@@ -272,6 +306,92 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
 
     fn size_hint(&self) -> Option<usize> {
         Some(self.items.len())
+    }
+}
+
+struct EnumAccessor {
+    variant: String,
+    value: Value,
+}
+
+impl<'de> EnumAccess<'de> for EnumAccessor {
+    type Error = Error;
+
+    type Variant = VariantAccessor;
+
+    fn variant_seed<V>(
+        self,
+        seed: V,
+    ) -> core::result::Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let v = seed.deserialize(Value::String(self.variant))?;
+        Ok((v, VariantAccessor { value: self.value }))
+    }
+}
+
+struct VariantAccessor {
+    value: Value,
+}
+
+impl<'a, 'de> VariantAccess<'de> for VariantAccessor {
+    type Error = Error;
+
+    fn unit_variant(self) -> core::result::Result<(), Self::Error> {
+        if let Value::NamedUnit { .. } = self.value {
+            Ok(())
+        } else {
+            Err(Error::ExpectedUnit)
+        }
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> core::result::Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        if let Value::NamedNewtype { inner, .. } = self.value {
+            seed.deserialize(*inner)
+        } else {
+            Err(Error::ExpectedNamedNewType)
+        }
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> core::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Value::NamedTuple(_, mut items) = self.value {
+            if items.len() != len {
+                return Err(Error::ExpectedDifferentLength {
+                    expected: format!("tuple of length {}", len),
+                    found: items.len(),
+                });
+            }
+            visitor.visit_seq(SeqAccessor { seq: &mut items })
+        } else {
+            Err(Error::ExpectedNamedTuple)
+        }
+    }
+
+    fn struct_variant<V>(
+        self,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> core::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Value::NamedStruct(_, mut map) = self.value {
+            let mut items: Vec<(Value, Value)> =
+                map.into_iter().map(|e| (Value::String(e.0.to_string()), e.1)).collect();
+            visitor.visit_map(MapAccessor {
+                items: &mut items,
+                value: None,
+            })
+        } else {
+            Err(Error::ExpectedNamedStruct)
+        }
     }
 }
 
