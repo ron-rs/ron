@@ -50,7 +50,7 @@ pub enum Value {
         inner: Box<Value>,
     },
     /// Enum or struct
-    NamedStruct(Cow<'static, str>, Map<Cow<'static, str>>),
+    NamedMap(Cow<'static, str>, Map<Cow<'static, str>>),
     /// Enum or struct
     NamedTuple(Cow<'static, str>, Vec<Value>),
 }
@@ -238,9 +238,9 @@ impl<'de> Deserializer<'de> for Value {
                 variant: name.to_string(),
                 value: Value::NamedNewtype { name, inner },
             }),
-            Value::NamedStruct(name, map) => visitor.visit_enum(EnumAccessor {
+            Value::NamedMap(name, map) => visitor.visit_enum(EnumAccessor {
                 variant: name.to_string(),
-                value: Value::NamedStruct(name, map),
+                value: Value::NamedMap(name, map),
             }),
             Value::NamedTuple(name, values) => visitor.visit_enum(EnumAccessor {
                 variant: name.to_string(),
@@ -383,7 +383,7 @@ impl<'a, 'de> VariantAccess<'de> for VariantAccessor {
     where
         V: Visitor<'de>,
     {
-        if let Value::NamedStruct(_, mut map) = self.value {
+        if let Value::NamedMap(_, mut map) = self.value {
             let mut items: Vec<(Value, Value)> = map
                 .into_iter()
                 .map(|e| (Value::String(e.0.to_string()), e.1))
@@ -648,9 +648,16 @@ mod tests {
     }
 
     #[test]
-    fn unit_struct() {
+    fn unit_struct_without_brace() {
         #[derive(Debug, Deserialize, PartialEq)]
         struct A;
+        assert_same::<A>("()");
+    }
+
+    #[test]
+    fn unit_struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A {};
         assert_same::<A>("A()");
     }
 
@@ -673,6 +680,7 @@ mod tests {
     }
 
     #[test]
+    // panic
     fn new_type_enum() {
         #[derive(Debug, Deserialize, PartialEq)]
         enum A {
@@ -690,6 +698,7 @@ mod tests {
     }
 
     #[test]
+    // panic
     fn tuple_enum() {
         #[derive(Debug, Deserialize, PartialEq)]
         enum A {
@@ -711,6 +720,7 @@ mod tests {
     }
 
     #[test]
+    // panic
     fn r#enum() {
         #[derive(Debug, Deserialize, PartialEq)]
         enum A {
@@ -792,5 +802,20 @@ mod tests {
         println!("{}", ron_str2);
 
         assert_eq!(ron_str, ron_str2);
+    }
+
+     #[ignore = ""]
+    #[test]
+    fn test3() {
+        use std::println;
+
+        #[derive(Serialize)]
+        struct A;
+
+        let v = A;
+
+        let ron_str = crate::to_string(&v).unwrap();
+
+        println!("{}", ron_str);
     }
 }

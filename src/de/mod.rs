@@ -173,7 +173,12 @@ impl<'de> Deserializer<'de> {
     /// struct and deserializes it accordingly.
     ///
     /// This method assumes there is no identifier left.
-    fn handle_any_struct<V>(&mut self, visitor: V, ident: Option<&str>, cursor: ParserCursor) -> Result<V::Value>
+    fn handle_any_struct<V>(
+        &mut self,
+        visitor: V,
+        ident: Option<&str>,
+        cursor: ParserCursor,
+    ) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -185,17 +190,16 @@ impl<'de> Deserializer<'de> {
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
 
-        match (
-            self.parser.check_struct_type(
-                NewtypeMode::NoParensMeanUnit,
-                if old_serde_content_newtype {
-                    TupleMode::DifferentiateNewtype // separate match on NewtypeOrTuple below
-                } else {
-                    TupleMode::ImpreciseTupleOrNewtype // Tuple and NewtypeOrTuple match equally
-                },
-            )?,
-            ident,
-        ) {
+        let struct_type = self.parser.check_struct_type(
+            NewtypeMode::NoParensMeanUnit,
+            if old_serde_content_newtype {
+                TupleMode::DifferentiateNewtype // separate match on NewtypeOrTuple below
+            } else {
+                TupleMode::ImpreciseTupleOrNewtype // Tuple and NewtypeOrTuple match equally
+            },
+        )?;
+        
+        match (struct_type, ident) {
             (StructType::Unit, Some(ident)) if is_serde_content => {
                 // serde's Content type needs the ident for unit variants
                 visitor.visit_str(ident)

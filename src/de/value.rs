@@ -269,6 +269,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     }
 }
 
+// todo: use id::Deserializer ?
 struct Ident(String);
 
 impl<'de> Deserialize<'de> for Ident {

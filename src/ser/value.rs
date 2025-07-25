@@ -18,7 +18,7 @@ impl Serialize for Value {
             Value::Bytes(b) => serializer.serialize_bytes(b),
             Value::List(s) => Serialize::serialize(s, serializer),
             Value::Unit => serializer.serialize_unit(),
-            Value::NamedStruct(name, map) => {
+            Value::NamedMap(name, map) => {
                 // serializer.serialize_struct(name, len)
                 // serializer.serialize_struct_variant(name, variant_index, variant, len)
 
