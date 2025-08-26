@@ -22,7 +22,7 @@ const ARRAY_UNINIT_LEN: usize = usize::MAX;
 
 const FLATTEN_CONFLICT_MSG: &str = "ron::fuzz::FlattenFieldConflict";
 
-pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeData> {
+pub fn roundtrip_arbitrary_typed_ron_or_panic(data: &[u8]) -> Option<TypedSerdeData<'_>> {
     if let Ok(typed_value) = TypedSerdeData::arbitrary(&mut Unstructured::new(data)) {
         let options = ron::Options::default().with_recursion_limit(RECURSION_LIMIT);
 

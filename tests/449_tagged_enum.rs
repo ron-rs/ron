@@ -43,16 +43,29 @@ enum OuterEnumUntagged {
 
 #[test]
 fn test_serde_content_hack() {
-    assert_eq!(
+    assert!(matches!(
         std::any::type_name::<serde::__private::de::Content>(),
-        "serde::__private::de::content::Content"
-    );
+        "serde::__private::de::content::Content" | "serde::__private::de::content::Content<'_>"
+    ));
 }
 
 #[test]
 fn test_serde_internally_tagged_hack() {
-    const SERDE_CONTENT_CANARY: &str = "serde::__private::de::content::Content";
-    const SERDE_TAG_KEY_CANARY: &str = "serde::__private::de::content::TagOrContent";
+    // ensure that these are the same as in ron::de module
+    fn is_serde_content<T>() -> bool {
+        matches!(
+            core::any::type_name::<T>(),
+            "serde::__private::de::content::Content" | "serde::__private::de::content::Content<'_>"
+        )
+    }
+
+    fn is_serde_tag_or_content<T>() -> bool {
+        matches!(
+            core::any::type_name::<T>(),
+            "serde::__private::de::content::TagOrContent"
+                | "serde::__private::de::content::TagOrContent<'_>"
+        )
+    }
 
     struct Deserializer {
         tag_key: Option<String>,
@@ -87,7 +100,7 @@ fn test_serde_internally_tagged_hack() {
         where
             K: serde::de::DeserializeSeed<'de>,
         {
-            assert_eq!(std::any::type_name::<K::Value>(), SERDE_TAG_KEY_CANARY);
+            assert!(is_serde_tag_or_content::<K::Value>());
 
             if let Some(tag_key) = self.tag_key.take() {
                 return seed
@@ -109,11 +122,11 @@ fn test_serde_internally_tagged_hack() {
             V: serde::de::DeserializeSeed<'de>,
         {
             if self.field_key.is_some() {
-                assert_ne!(std::any::type_name::<V::Value>(), SERDE_CONTENT_CANARY);
+                assert!(!is_serde_content::<V::Value>());
                 return seed.deserialize(serde::de::value::StrDeserializer::new(&self.tag_value));
             }
 
-            assert_eq!(std::any::type_name::<V::Value>(), SERDE_CONTENT_CANARY);
+            assert!(is_serde_content::<V::Value>());
 
             seed.deserialize(serde::de::value::I32Deserializer::new(self.field_value))
         }

@@ -28,9 +28,6 @@ mod tag;
 mod tests;
 mod value;
 
-const SERDE_CONTENT_CANARY: &str = "serde::__private::de::content::Content";
-const SERDE_TAG_KEY_CANARY: &str = "serde::__private::de::content::TagOrContent";
-
 /// The RON deserializer.
 ///
 /// If you just want to simply deserialize a value,
@@ -179,8 +176,8 @@ impl<'de> Deserializer<'de> {
     {
         // HACK: switch to JSON enum semantics for JSON content
         // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
-        let is_serde_content = core::any::type_name::<V::Value>() == SERDE_CONTENT_CANARY
-            || core::any::type_name::<V::Value>() == SERDE_TAG_KEY_CANARY;
+        let is_serde_content =
+            is_serde_content::<V::Value>() || is_serde_tag_or_content::<V::Value>();
 
         let old_serde_content_newtype = self.serde_content_newtype;
         self.serde_content_newtype = false;
@@ -857,8 +854,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         K: DeserializeSeed<'de>,
     {
         if self.has_element()? {
-            self.inside_internally_tagged_enum =
-                core::any::type_name::<K::Value>() == SERDE_TAG_KEY_CANARY;
+            self.inside_internally_tagged_enum = is_serde_tag_or_content::<K::Value>();
 
             match self.terminator {
                 Terminator::Struct => guard_recursion! { self.de =>
@@ -883,9 +879,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
         if self.de.parser.consume_char(':') {
             self.de.parser.skip_ws()?;
 
-            let res = if self.inside_internally_tagged_enum
-                && core::any::type_name::<V::Value>() != SERDE_CONTENT_CANARY
-            {
+            let res = if self.inside_internally_tagged_enum && !is_serde_content::<V::Value>() {
                 guard_recursion! { self.de =>
                     seed.deserialize(&mut tag::Deserializer::new(&mut *self.de))?
                 }
@@ -1051,4 +1045,20 @@ impl<'de, 'a> de::MapAccess<'de> for SerdeEnumContent<'a, 'de> {
 
         result
     }
+}
+
+// ensure that these are the same as in the 449_tagged_enum test
+fn is_serde_content<T>() -> bool {
+    matches!(
+        core::any::type_name::<T>(),
+        "serde::__private::de::content::Content" | "serde::__private::de::content::Content<'_>"
+    )
+}
+
+fn is_serde_tag_or_content<T>() -> bool {
+    matches!(
+        core::any::type_name::<T>(),
+        "serde::__private::de::content::TagOrContent"
+            | "serde::__private::de::content::TagOrContent<'_>"
+    )
 }
