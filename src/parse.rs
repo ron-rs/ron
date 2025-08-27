@@ -1044,12 +1044,12 @@ impl<'a> Parser<'a> {
             let base64_result = ParsedByteStr::try_from_base64(&base64_str);
 
             if cfg!(not(test)) {
-                // FIXME @juntyr: remove in v0.10
+                // FIXME @juntyr: remove in v0.12
                 #[allow(deprecated)]
                 base64_result.map_err(Error::Base64Error)
             } else {
                 match base64_result {
-                    // FIXME @juntyr: enable in v0.10
+                    // FIXME @juntyr: enable in v0.12
                     Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
                     Err(_) => Err(Error::ExpectedByteString),
                 }
@@ -1059,12 +1059,12 @@ impl<'a> Parser<'a> {
             let base64_result = ParsedByteStr::try_from_base64(&base64_str);
 
             if cfg!(not(test)) {
-                // FIXME @juntyr: remove in v0.10
+                // FIXME @juntyr: remove in v0.12
                 #[allow(deprecated)]
                 base64_result.map_err(Error::Base64Error)
             } else {
                 match base64_result {
-                    // FIXME @juntyr: enable in v0.10
+                    // FIXME @juntyr: enable in v0.12
                     Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
                     Err(_) => Err(Error::ExpectedByteString),
                 }

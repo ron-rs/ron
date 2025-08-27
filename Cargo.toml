@@ -1,7 +1,7 @@
 [package]
 name = "ron"
 # Memo: update version in src/lib.rs too (doc link)
-version = "0.10.1"
+version = "0.11.0"
 license = "MIT OR Apache-2.0"
 keywords = ["parser", "serde", "serialization"]
 authors = [

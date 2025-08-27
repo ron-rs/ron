@@ -6,15 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- Add a new example `file_read_write_vec.rs` for reading and writing `Vec<T>` to/from files. ([#573](https://github.com/ron-rs/ron/pull/573))
+## [0.11.0] - 2025-08-27
 
 ### API Changes
 
-- Breaking: `SpannedError` now stores the full error span in span: Span { start: Position, end: Position }`, to facilitate, e.g., language servers highlighting of syntax errors.
+- Breaking: `SpannedError` now stores the full error span in span: Span { start: Position, end: Position }`, to facilitate, e.g., language server highlighting of syntax errors.
 
 - Breaking: Added `no_std` support via a new `std` feature (enabled by default). With default features disabled, you must enable the `std` feature to access `de::from_reader`, and the `std::io` operations on `Options`, such as `from_reader`, `from_reader_seed`, `to_io_writer`, and `to_io_writer_pretty` ([#567](https://github.com/ron-rs/ron/pull/567))
 
-- Breaking: Fixed `ron::value::Number` to ensure it is non-exhaustive, to avoid breaking `match`es when feature unification enables more of its variants than expected ([#568](https://github.com/ron-rs/ron/pull/568))
+- Breaking: Fixed (again) `ron::value::Number` to ensure it is non-exhaustive, to avoid breaking `match`es when feature unification enables more of its variants than expected ([#568](https://github.com/ron-rs/ron/pull/568))
+
+### Examples
+
+- Add a new example `file_read_write_vec.rs` for reading and writing `Vec<T>` to/from files. ([#573](https://github.com/ron-rs/ron/pull/573))
 
 ## [0.10.1] - 2025-04-08
 
