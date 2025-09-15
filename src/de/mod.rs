@@ -1051,7 +1051,10 @@ impl<'de, 'a> de::MapAccess<'de> for SerdeEnumContent<'a, 'de> {
 fn is_serde_content<T>() -> bool {
     matches!(
         core::any::type_name::<T>(),
-        "serde::__private::de::content::Content" | "serde::__private::de::content::Content<'_>"
+        "serde::__private::de::content::Content"
+            | "serde::__private::de::content::Content<'_>"
+            | "serde_core::__private::content::Content"
+            | "serde_core::__private::content::Content<'_>"
     )
 }
 
