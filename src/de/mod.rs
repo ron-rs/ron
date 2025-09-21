@@ -566,7 +566,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         if name == crate::value::raw::RAW_VALUE_TOKEN {
             let src_before = self.parser.pre_ws_src();
             self.parser.skip_ws()?;
-            let _ignored = self.deserialize_ignored_any(serde::de::IgnoredAny)?;
+            let _ignored = self.deserialize_ignored_any(de::IgnoredAny)?;
             self.parser.skip_ws()?;
             let src_after = self.parser.src();
 
@@ -1028,7 +1028,7 @@ impl<'de, 'a> de::MapAccess<'de> for SerdeEnumContent<'a, 'de> {
     {
         self.ident
             .take()
-            .map(|ident| seed.deserialize(serde::de::value::StrDeserializer::new(ident)))
+            .map(|ident| seed.deserialize(de::value::StrDeserializer::new(ident)))
             .transpose()
     }
 
@@ -1048,11 +1048,11 @@ impl<'de, 'a> de::MapAccess<'de> for SerdeEnumContent<'a, 'de> {
 }
 
 fn is_serde_content<T>() -> bool {
-    #[derive(Deserialize)]
+    #[derive(serde_derive::Deserialize)]
     enum A {}
     type B = A;
 
-    #[derive(Deserialize)]
+    #[derive(serde_derive::Deserialize)]
     #[serde(untagged)]
     enum UntaggedEnum {
         A(A),
@@ -1061,7 +1061,7 @@ fn is_serde_content<T>() -> bool {
 
     struct TypeIdDeserializer;
 
-    impl<'de> serde::de::Deserializer<'de> for TypeIdDeserializer {
+    impl<'de> de::Deserializer<'de> for TypeIdDeserializer {
         type Error = TypeIdError;
 
         fn deserialize_any<V: Visitor<'de>>(self, _visitor: V) -> Result<V::Value, Self::Error> {
@@ -1084,13 +1084,13 @@ fn is_serde_content<T>() -> bool {
         }
     }
 
-    impl serde::de::Error for TypeIdError {
+    impl de::Error for TypeIdError {
         fn custom<T: core::fmt::Display>(_msg: T) -> Self {
             unreachable!()
         }
     }
 
-    impl serde::de::StdError for TypeIdError {}
+    impl de::StdError for TypeIdError {}
 
     fn type_id_of_untagged_enum_default_buffer() -> core::any::TypeId {
         match Deserialize::deserialize(TypeIdDeserializer) {
@@ -1103,10 +1103,10 @@ fn is_serde_content<T>() -> bool {
 }
 
 fn is_serde_tag_or_content<T>() -> bool {
-    #[derive(Deserialize)]
+    #[derive(serde_derive::Deserialize)]
     enum A {}
 
-    #[derive(Deserialize)]
+    #[derive(serde_derive::Deserialize)]
     #[serde(tag = "tag")]
     enum InternallyTaggedEnum {
         A { a: A },
@@ -1114,12 +1114,12 @@ fn is_serde_tag_or_content<T>() -> bool {
 
     struct TypeIdDeserializer;
 
-    impl<'de> serde::Deserializer<'de> for TypeIdDeserializer {
+    impl<'de> de::Deserializer<'de> for TypeIdDeserializer {
         type Error = TypeIdError;
 
         fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
         where
-            V: serde::de::Visitor<'de>,
+            V: Visitor<'de>,
         {
             visitor.visit_map(self)
         }
@@ -1131,14 +1131,20 @@ fn is_serde_tag_or_content<T>() -> bool {
         }
     }
 
-    impl<'de> serde::de::MapAccess<'de> for TypeIdDeserializer {
+    impl<'de> de::MapAccess<'de> for TypeIdDeserializer {
         type Error = TypeIdError;
 
-        fn next_key_seed<K: serde::de::DeserializeSeed<'de>>(&mut self, _seed: K) -> Result<Option<K::Value>, Self::Error> {
+        fn next_key_seed<K: DeserializeSeed<'de>>(
+            &mut self,
+            _seed: K,
+        ) -> Result<Option<K::Value>, Self::Error> {
             Err(TypeIdError(typeid::of::<K::Value>()))
         }
 
-        fn next_value_seed<V: serde::de::DeserializeSeed<'de>>(&mut self, _seed: V) -> Result<V::Value, Self::Error> {
+        fn next_value_seed<V: DeserializeSeed<'de>>(
+            &mut self,
+            _seed: V,
+        ) -> Result<V::Value, Self::Error> {
             unreachable!()
         }
     }
@@ -1152,13 +1158,13 @@ fn is_serde_tag_or_content<T>() -> bool {
         }
     }
 
-    impl serde::de::Error for TypeIdError {
+    impl de::Error for TypeIdError {
         fn custom<T: core::fmt::Display>(_msg: T) -> Self {
             unreachable!()
         }
     }
 
-    impl serde::de::StdError for TypeIdError {}
+    impl de::StdError for TypeIdError {}
 
     fn type_id_of_internally_tagged_enum_default_tag_or_buffer() -> core::any::TypeId {
         match Deserialize::deserialize(TypeIdDeserializer) {
