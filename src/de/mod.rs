@@ -1094,10 +1094,13 @@ fn is_serde_content<T>() -> bool {
     impl de::StdError for TypeIdError {}
 
     fn type_id_of_untagged_enum_default_buffer() -> core::any::TypeId {
-        match Deserialize::deserialize(TypeIdDeserializer) {
+        static TYPE_ID: once_cell::race::OnceBox<core::any::TypeId> =
+            once_cell::race::OnceBox::new();
+
+        *TYPE_ID.get_or_init(|| match Deserialize::deserialize(TypeIdDeserializer) {
             Ok(UntaggedEnum::A(void) | UntaggedEnum::B(void)) => match void {},
-            Err(TypeIdError(typeid)) => typeid,
-        }
+            Err(TypeIdError(typeid)) => alloc::boxed::Box::new(typeid),
+        })
     }
 
     typeid::of::<T>() == type_id_of_untagged_enum_default_buffer()
@@ -1170,10 +1173,13 @@ fn is_serde_tag_or_content<T>() -> bool {
     impl de::StdError for TypeIdError {}
 
     fn type_id_of_internally_tagged_enum_default_tag_or_buffer() -> core::any::TypeId {
-        match Deserialize::deserialize(TypeIdDeserializer) {
+        static TYPE_ID: once_cell::race::OnceBox<core::any::TypeId> =
+            once_cell::race::OnceBox::new();
+
+        *TYPE_ID.get_or_init(|| match Deserialize::deserialize(TypeIdDeserializer) {
             Ok(InternallyTaggedEnum::A { a: void }) => match void {},
-            Err(TypeIdError(typeid)) => typeid,
-        }
+            Err(TypeIdError(typeid)) => alloc::boxed::Box::new(typeid),
+        })
     }
 
     typeid::of::<T>() == type_id_of_internally_tagged_enum_default_tag_or_buffer()
