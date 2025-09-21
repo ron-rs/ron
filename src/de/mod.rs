@@ -1085,6 +1085,7 @@ fn is_serde_content<T>() -> bool {
     }
 
     impl de::Error for TypeIdError {
+        #[allow(clippy::unreachable)]
         fn custom<T: core::fmt::Display>(_msg: T) -> Self {
             unreachable!()
         }
@@ -1141,6 +1142,7 @@ fn is_serde_tag_or_content<T>() -> bool {
             Err(TypeIdError(typeid::of::<K::Value>()))
         }
 
+        #[allow(clippy::unreachable)]
         fn next_value_seed<V: DeserializeSeed<'de>>(
             &mut self,
             _seed: V,
@@ -1159,6 +1161,7 @@ fn is_serde_tag_or_content<T>() -> bool {
     }
 
     impl de::Error for TypeIdError {
+        #[allow(clippy::unreachable)]
         fn custom<T: core::fmt::Display>(_msg: T) -> Self {
             unreachable!()
         }
