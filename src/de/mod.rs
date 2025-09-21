@@ -175,7 +175,7 @@ impl<'de> Deserializer<'de> {
         V: Visitor<'de>,
     {
         // HACK: switch to JSON enum semantics for JSON content
-        // Robust impl blocked on https://github.com/serde-rs/serde/pull/2420
+        // Robust impl blocked on https://github.com/serde-rs/serde/issues/1183
         let is_serde_content =
             is_serde_content::<V::Value>() || is_serde_tag_or_content::<V::Value>();
 
@@ -1047,21 +1047,125 @@ impl<'de, 'a> de::MapAccess<'de> for SerdeEnumContent<'a, 'de> {
     }
 }
 
-// ensure that these are the same as in the 449_tagged_enum test
 fn is_serde_content<T>() -> bool {
-    matches!(
-        core::any::type_name::<T>(),
-        "serde::__private::de::content::Content"
-            | "serde::__private::de::content::Content<'_>"
-            | "serde_core::__private::content::Content"
-            | "serde_core::__private::content::Content<'_>"
-    )
+    #[derive(Deserialize)]
+    enum A {}
+    type B = A;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum UntaggedEnum {
+        A(A),
+        B(B),
+    }
+
+    struct TypeIdDeserializer;
+
+    impl<'de> serde::de::Deserializer<'de> for TypeIdDeserializer {
+        type Error = TypeIdError;
+
+        fn deserialize_any<V: Visitor<'de>>(self, _visitor: V) -> Result<V::Value, Self::Error> {
+            Err(TypeIdError(typeid::of::<V::Value>()))
+        }
+
+        serde::forward_to_deserialize_any! {
+            bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+            bytes byte_buf option unit unit_struct newtype_struct seq tuple
+            tuple_struct map struct enum identifier ignored_any
+        }
+    }
+
+    #[derive(Debug)]
+    struct TypeIdError(core::any::TypeId);
+
+    impl core::fmt::Display for TypeIdError {
+        fn fmt(&self, _fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            Ok(())
+        }
+    }
+
+    impl serde::de::Error for TypeIdError {
+        fn custom<T: core::fmt::Display>(_msg: T) -> Self {
+            unreachable!()
+        }
+    }
+
+    impl serde::de::StdError for TypeIdError {}
+
+    fn type_id_of_untagged_enum_default_buffer() -> core::any::TypeId {
+        match Deserialize::deserialize(TypeIdDeserializer) {
+            Ok(UntaggedEnum::A(void) | UntaggedEnum::B(void)) => match void {},
+            Err(TypeIdError(typeid)) => typeid,
+        }
+    }
+
+    typeid::of::<T>() == type_id_of_untagged_enum_default_buffer()
 }
 
 fn is_serde_tag_or_content<T>() -> bool {
-    matches!(
-        core::any::type_name::<T>(),
-        "serde::__private::de::content::TagOrContent"
-            | "serde::__private::de::content::TagOrContent<'_>"
-    )
+    #[derive(Deserialize)]
+    enum A {}
+
+    #[derive(Deserialize)]
+    #[serde(tag = "tag")]
+    enum InternallyTaggedEnum {
+        A { a: A },
+    }
+
+    struct TypeIdDeserializer;
+
+    impl<'de> serde::Deserializer<'de> for TypeIdDeserializer {
+        type Error = TypeIdError;
+
+        fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+        where
+            V: serde::de::Visitor<'de>,
+        {
+            visitor.visit_map(self)
+        }
+
+        serde::forward_to_deserialize_any! {
+            bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+            bytes byte_buf option unit unit_struct newtype_struct seq tuple
+            tuple_struct map struct enum identifier ignored_any
+        }
+    }
+
+    impl<'de> serde::de::MapAccess<'de> for TypeIdDeserializer {
+        type Error = TypeIdError;
+
+        fn next_key_seed<K: serde::de::DeserializeSeed<'de>>(&mut self, _seed: K) -> Result<Option<K::Value>, Self::Error> {
+            Err(TypeIdError(typeid::of::<K::Value>()))
+        }
+
+        fn next_value_seed<V: serde::de::DeserializeSeed<'de>>(&mut self, _seed: V) -> Result<V::Value, Self::Error> {
+            unreachable!()
+        }
+    }
+
+    #[derive(Debug)]
+    struct TypeIdError(core::any::TypeId);
+
+    impl core::fmt::Display for TypeIdError {
+        fn fmt(&self, _fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+            Ok(())
+        }
+    }
+
+    impl serde::de::Error for TypeIdError {
+        fn custom<T: core::fmt::Display>(_msg: T) -> Self {
+            unreachable!()
+        }
+    }
+
+    impl serde::de::StdError for TypeIdError {}
+
+    fn type_id_of_internally_tagged_enum_default_tag_or_buffer() -> core::any::TypeId {
+        match Deserialize::deserialize(TypeIdDeserializer) {
+            Ok(InternallyTaggedEnum::A { a: void }) => match void {},
+            Err(TypeIdError(typeid)) => typeid,
+        }
+    }
+
+    typeid::of::<T>() == type_id_of_internally_tagged_enum_default_tag_or_buffer()
 }
