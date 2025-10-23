@@ -446,6 +446,12 @@ impl<W: fmt::Write> Serializer<W> {
         })
     }
 
+    /// Unwrap the `Writer` from the `Serializer`.
+    #[inline]
+    pub fn into_inner(self) -> W {
+        self.output
+    }
+
     fn separate_tuple_members(&self) -> bool {
         self.pretty
             .as_ref()
