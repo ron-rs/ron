@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Additions
+- Added `into_inner()` method to `ron::ser::Serializer` to retrieve the inner writer. ([#588](https://github.com/ron-rs/ron/pull/588))
+
 ## [0.11.0] - 2025-08-27
 
 ### API Changes
