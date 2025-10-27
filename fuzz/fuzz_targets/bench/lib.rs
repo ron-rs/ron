@@ -134,6 +134,9 @@ struct ArbitraryPrettyConfig {
     compact_maps: bool,
     /// Enable explicit number type suffixes like `1u16`
     number_suffixes: bool,
+    /// Use braced struct syntax like `Person { age: 42 }` instead of the
+    ///  parenthesised syntax `Person(age: 42)` or just `(age: 42)`
+    braced_structs: bool,
 }
 
 fn arbitrary_ron_extensions(u: &mut Unstructured) -> arbitrary::Result<Extensions> {
@@ -154,6 +157,7 @@ impl From<ArbitraryPrettyConfig> for PrettyConfig {
             .compact_structs(arbitrary.compact_structs)
             .compact_maps(arbitrary.compact_maps)
             .number_suffixes(arbitrary.number_suffixes)
+            .braced_structs(arbitrary.braced_structs)
     }
 }
 
