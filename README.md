@@ -163,17 +163,15 @@ fn main() {
 
 ## Tooling
 
-| Editor         | Plugin                                                      |
-| -------------- | ----------------------------------------------------------- |
-| IntelliJ       | [intellij-ron](https://github.com/ron-rs/intellij-ron)      |
-| VS Code        | [a5huynh/vscode-ron](https://github.com/a5huynh/vscode-ron) |
-| Sublime Text   | [RON](https://packagecontrol.io/packages/RON)               |
-| Atom           | [language-ron](https://atom.io/packages/language-ron)       |
-| Vim            | [ron-rs/ron.vim](https://github.com/ron-rs/ron.vim)         |
-| EMACS          | [emacs-ron]                                                 |
-| Multiple / LSP | [ron-lsp](https://github.com/jasonjmcghee/ron-lsp)          |
-
-[emacs-ron]: https://chiselapp.com/user/Hutzdog/repository/ron-mode/home
+| Editor         | Plugin                                                                   |
+| -------------- | ------------------------------------------------------------------------ |
+| IntelliJ       | [intellij-ron](https://github.com/ron-rs/intellij-ron)                   |
+| VS Code        | [a5huynh/vscode-ron](https://github.com/a5huynh/vscode-ron)              |
+| Sublime Text   | [RON](https://packagecontrol.io/packages/RON)                            |
+| Atom           | [language-ron](https://atom.io/packages/language-ron)                    |
+| Vim            | [ron-rs/ron.vim](https://github.com/ron-rs/ron.vim)                      |
+| EMACS          | [emacs-ron](https://chiselapp.com/user/Hutzdog/repository/ron-mode/home) |
+| Multiple / LSP | [ron-lsp](https://github.com/jasonjmcghee/ron-lsp)                       |
 
 ## Limitations
 
