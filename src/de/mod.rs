@@ -190,6 +190,7 @@ impl<'de> Deserializer<'de> {
                 } else {
                     TupleMode::ImpreciseTupleOrNewtype // Tuple and NewtypeOrTuple match equally
                 },
+                ident.is_some(),
             )?,
             ident,
         ) {
@@ -207,7 +208,11 @@ impl<'de> Deserializer<'de> {
             }
             (StructType::Named, _) => {
                 // giving no name results in worse errors but is necessary here
-                self.handle_struct_after_name("", visitor)
+                self.handle_struct_after_name(ident.is_some(), "", visitor)
+            }
+            (StructType::BracedNamed, _) => {
+                // giving no name results in worse errors but is necessary here
+                self.handle_struct_after_name(true, "", visitor)
             }
             (StructType::NewtypeTuple, _) if old_serde_content_newtype => {
                 // deserialize a newtype struct or variant
@@ -241,19 +246,29 @@ impl<'de> Deserializer<'de> {
     /// This method assumes there is no struct name identifier left.
     fn handle_struct_after_name<V>(
         &mut self,
+        struct_name_was_present: bool,
         name_for_pretty_errors_only: &'static str,
         visitor: V,
     ) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        if self.newtype_variant || self.parser.consume_char('(') {
+        let open_brace = self.parser.check_char('{');
+
+        if self.newtype_variant
+            || self.parser.consume_char('(')
+            || (struct_name_was_present && self.parser.consume_char('{'))
+        {
             let old_newtype_variant = self.newtype_variant;
             self.newtype_variant = false;
 
             let value = guard_recursion! { self =>
                 visitor
-                    .visit_map(CommaSeparated::new(Terminator::Struct, self))
+                    .visit_map(CommaSeparated::new(if open_brace {
+                        Terminator::BracedStruct
+                    } else {
+                        Terminator::Struct
+                    }, self))
                     .map_err(|err| {
                         struct_error_name(
                             err,
@@ -268,7 +283,13 @@ impl<'de> Deserializer<'de> {
 
             self.parser.skip_ws()?;
 
-            if old_newtype_variant || self.parser.consume_char(')') {
+            if old_newtype_variant
+                || (if open_brace {
+                    self.parser.consume_char('}')
+                } else {
+                    self.parser.consume_char(')')
+                })
+            {
                 Ok(value)
             } else {
                 Err(Error::ExpectedStructLikeEnd)
@@ -295,14 +316,20 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             }
 
             #[allow(clippy::wildcard_in_or_patterns)]
-            match self
-                .parser
-                .check_struct_type(NewtypeMode::InsideNewtype, TupleMode::DifferentiateNewtype)?
-            {
+            match self.parser.check_struct_type(
+                NewtypeMode::InsideNewtype,
+                TupleMode::DifferentiateNewtype,
+                false,
+            )? {
+                StructType::BracedNamed => {
+                    let _ident = self.parser.identifier()?;
+                    self.parser.skip_ws()?;
+                    return self.handle_struct_after_name(true, "", visitor);
+                }
                 StructType::Named => {
                     // newtype variant wraps a named struct
                     // giving no name results in worse errors but is necessary here
-                    return self.handle_struct_after_name("", visitor);
+                    return self.handle_struct_after_name(false, "", visitor);
                 }
                 StructType::EmptyTuple | StructType::NonNewtypeTuple => {
                     // newtype variant wraps a tuple (struct)
@@ -721,13 +748,21 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if !self.newtype_variant {
-            self.parser.consume_struct_name(name)?;
-        }
+        let struct_name_was_present = if self.newtype_variant {
+            if self.parser.check_braced_identifier()?.is_some() {
+                // braced structs disable newtype variants
+                self.newtype_variant = false;
+                self.parser.consume_struct_name(name)?
+            } else {
+                false
+            }
+        } else {
+            self.parser.consume_struct_name(name)?
+        };
 
         self.parser.skip_ws()?;
 
-        self.handle_struct_after_name(name, visitor)
+        self.handle_struct_after_name(struct_name_was_present, name, visitor)
     }
 
     fn deserialize_enum<V>(
@@ -780,13 +815,14 @@ enum Terminator {
     MapAsStruct,
     Tuple,
     Struct,
+    BracedStruct,
     Seq,
 }
 
 impl Terminator {
     fn as_char(&self) -> char {
         match self {
-            Terminator::Map | Terminator::MapAsStruct => '}',
+            Terminator::Map | Terminator::MapAsStruct | Terminator::BracedStruct => '}',
             Terminator::Tuple | Terminator::Struct => ')',
             Terminator::Seq => ']',
         }
@@ -857,7 +893,7 @@ impl<'de, 'a> de::MapAccess<'de> for CommaSeparated<'a, 'de> {
             self.inside_internally_tagged_enum = is_serde_tag_or_content::<K::Value>();
 
             match self.terminator {
-                Terminator::Struct => guard_recursion! { self.de =>
+                Terminator::Struct | Terminator::BracedStruct => guard_recursion! { self.de =>
                     seed.deserialize(&mut id::Deserializer::new(&mut *self.de, false)).map(Some)
                 },
                 Terminator::MapAsStruct => guard_recursion! { self.de =>
@@ -986,7 +1022,7 @@ impl<'de, 'a> de::VariantAccess<'de> for Enum<'a, 'de> {
         self.de.parser.skip_ws()?;
 
         self.de
-            .handle_struct_after_name("", visitor)
+            .handle_struct_after_name(true, "", visitor)
             .map_err(|err| struct_error_name(err, struct_variant))
     }
 }
