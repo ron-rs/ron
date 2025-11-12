@@ -1858,7 +1858,10 @@ mod tests {
         assert_eq!(
             crate::from_str::<bytes::Bytes>("\"invalid=\"").unwrap_err(),
             SpannedError {
-                code: Error::ExpectedByteString,
+                code: Error::InvalidValueForType {
+                    expected: String::from("the Rusty byte string b\"\\x8a{\\xda\\x96\\'\""),
+                    found: String::from("the ambiguous base64 string \"invalid=\"")
+                },
                 span: Span {
                     start: Position { line: 1, col: 2 },
                     end: Position { line: 1, col: 11 },
@@ -1869,10 +1872,24 @@ mod tests {
         assert_eq!(
             crate::from_str::<bytes::Bytes>("r\"invalid=\"").unwrap_err(),
             SpannedError {
-                code: Error::ExpectedByteString,
+                code: Error::InvalidValueForType {
+                    expected: String::from("the Rusty byte string b\"\\x8a{\\xda\\x96\\'\""),
+                    found: String::from("the ambiguous base64 string \"invalid=\"")
+                },
                 span: Span {
                     start: Position { line: 1, col: 3 },
                     end: Position { line: 1, col: 12 },
+                }
+            }
+        );
+
+        assert_eq!(
+            crate::from_str::<bytes::Bytes>("r\"invalid\"").unwrap_err(),
+            SpannedError {
+                code: Error::ExpectedByteString,
+                span: Span {
+                    start: Position { line: 1, col: 3 },
+                    end: Position { line: 1, col: 11 },
                 }
             }
         );
