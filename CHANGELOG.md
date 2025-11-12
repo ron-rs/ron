@@ -6,9 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Additions
+### API Changes
 
 - Added `into_inner()` method to `ron::ser::Serializer` to retrieve the inner writer. ([#588](https://github.com/ron-rs/ron/pull/588))
+- Remove `base64` dependency
+
+### Format Changes
+
+- **Format-Breaking:** Remote base64-encoded byte strings deserialisation, replaced by Rusty byte strings in v0.9.0 ([#566](https://github.com/ron-rs/ron/pull/566))
 
 ### Bug Fixes
 
@@ -19,9 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### API Changes
 
 - Breaking: `SpannedError` now stores the full error span in span: Span { start: Position, end: Position }`, to facilitate, e.g., language server highlighting of syntax errors.
-
 - Breaking: Added `no_std` support via a new `std` feature (enabled by default). With default features disabled, you must enable the `std` feature to access `de::from_reader`, and the `std::io` operations on `Options`, such as `from_reader`, `from_reader_seed`, `to_io_writer`, and `to_io_writer_pretty` ([#567](https://github.com/ron-rs/ron/pull/567))
-
 - Breaking: Fixed (again) `ron::value::Number` to ensure it is non-exhaustive, to avoid breaking `match`es when feature unification enables more of its variants than expected ([#568](https://github.com/ron-rs/ron/pull/568))
 
 ### Examples
