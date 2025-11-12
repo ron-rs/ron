@@ -74,6 +74,7 @@ jobs:
           cargo update -p indexmap --precise 2.5.0
           cargo update -p once_cell --precise 1.20.3
           cargo update -p quote --precise 1.0.41
+          cargo update -p syn --precise 2.0.106
         if: ${{ matrix.rust == '1.64.0' }}
       - name: Check
         run: |
