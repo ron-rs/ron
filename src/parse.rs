@@ -1642,7 +1642,7 @@ impl<'a> ParsedByteStr<'a> {
                 return None;
             }
 
-            let bstr_no_padding = str.trim_end_matches(PADDING).as_bytes();
+            let bstr_no_padding = str.trim_end_matches(char::from(PADDING)).as_bytes();
 
             // fast reject for excessive padding
             if (str.len() - bstr_no_padding.len()) > 2 {
@@ -1650,7 +1650,7 @@ impl<'a> ParsedByteStr<'a> {
             }
 
             // fast reject for extraneous bytes after padding
-            if bstr_no_padding.contains(PADDING) {
+            if bstr_no_padding.contains(&PADDING) {
                 return None;
             }
 
@@ -1684,7 +1684,7 @@ impl<'a> ParsedByteStr<'a> {
                 collected_bits -= 8;
             }
 
-            if collected_bits != ((str.len() - bstr_no_padding.len()) * 2) {
+            if usize::from(collected_bits) != ((str.len() - bstr_no_padding.len()) * 2) {
                 return None;
             }
 
