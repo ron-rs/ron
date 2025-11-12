@@ -33,11 +33,6 @@ pub enum Error {
     Fmt,
     Io(String),
     Message(String),
-    #[deprecated(
-        since = "0.9.0",
-        note = "ambiguous base64 byte strings are replaced by strongly typed Rusty b\"byte strings\""
-    )]
-    Base64Error(base64::DecodeError),
     Eof,
     ExpectedArray,
     ExpectedArrayEnd,
@@ -131,8 +126,6 @@ impl fmt::Display for Error {
         match *self {
             Error::Fmt => f.write_str("Formatting RON failed"),
             Error::Io(ref s) | Error::Message(ref s) => f.write_str(s),
-            #[allow(deprecated)]
-            Error::Base64Error(ref e) => write!(f, "Invalid base64: {}", e),
             Error::Eof => f.write_str("Unexpected end of RON"),
             Error::ExpectedArray => f.write_str("Expected opening `[`"),
             Error::ExpectedArrayEnd => f.write_str("Expected closing `]`"),
@@ -530,11 +523,6 @@ mod tests {
         );
         check_error_message(&<Error as SerError>::custom("my-ser-error"), "my-ser-error");
         check_error_message(&<Error as DeError>::custom("my-de-error"), "my-de-error");
-        #[allow(deprecated)]
-        check_error_message(
-            &Error::Base64Error(base64::DecodeError::InvalidPadding),
-            "Invalid base64: Invalid padding",
-        );
         check_error_message(&Error::Eof, "Unexpected end of RON");
         check_error_message(&Error::ExpectedArray, "Expected opening `[`");
         check_error_message(&Error::ExpectedArrayEnd, "Expected closing `]`");

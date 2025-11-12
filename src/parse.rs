@@ -1039,35 +1039,23 @@ impl<'a> Parser<'a> {
             }
         }
 
+        // FIXME @juntyr: remove in v0.13, since only byte_string_no_base64 will
+        //                be used
         if self.consume_char('"') {
             let base64_str = self.escaped_string()?;
             let base64_result = ParsedByteStr::try_from_base64(&base64_str);
 
-            if cfg!(not(test)) {
-                // FIXME @juntyr: remove in v0.12
-                #[allow(deprecated)]
-                base64_result.map_err(Error::Base64Error)
-            } else {
-                match base64_result {
-                    // FIXME @juntyr: enable in v0.12
-                    Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
-                    Err(_) => Err(Error::ExpectedByteString),
-                }
+            match base64_result {
+                Some(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
+                None => Err(Error::ExpectedByteString),
             }
         } else if self.consume_char('r') {
             let base64_str = self.raw_string()?;
             let base64_result = ParsedByteStr::try_from_base64(&base64_str);
 
-            if cfg!(not(test)) {
-                // FIXME @juntyr: remove in v0.12
-                #[allow(deprecated)]
-                base64_result.map_err(Error::Base64Error)
-            } else {
-                match base64_result {
-                    // FIXME @juntyr: enable in v0.12
-                    Ok(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
-                    Err(_) => Err(Error::ExpectedByteString),
-                }
+            match base64_result {
+                Some(byte_str) => Err(expected_byte_string_found_base64(&base64_str, &byte_str)),
+                None => Err(Error::ExpectedByteString),
             }
         } else {
             self.byte_string_no_base64()
@@ -1641,14 +1629,75 @@ impl<'a> ParsedStr<'a> {
 }
 
 impl<'a> ParsedByteStr<'a> {
-    pub fn try_from_base64(str: &ParsedStr<'a>) -> Result<Self, base64::DecodeError> {
+    pub fn try_from_base64(str: &ParsedStr<'a>) -> Option<Self> {
+        // Adapted from MIT licensed Jenin Sutradhar's base 64 decoder
+        // https://github.com/JeninSutradhar/base64-Rust-Encoder-Decoder/blob/ee1fb08cbb78024ec8cf5e786815acb239169f02/src/lib.rs#L84-L128
+        fn try_decode_base64(str: &str) -> Option<Vec<u8>> {
+            const CHARSET: &[u8; 64] =
+                b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            const PADDING: u8 = b'=';
+
+            // fast reject for missing padding
+            if (str.len() % 4) != 0 {
+                return None;
+            }
+
+            let bstr_no_padding = str.trim_end_matches(char::from(PADDING)).as_bytes();
+
+            // fast reject for excessive padding
+            if (str.len() - bstr_no_padding.len()) > 2 {
+                return None;
+            }
+
+            // fast reject for extraneous bytes after padding
+            if bstr_no_padding.contains(&PADDING) {
+                return None;
+            }
+
+            // fast reject for non-ASCII
+            if !str.is_ascii() {
+                return None;
+            }
+
+            let mut collected_bits = 0_u8;
+            let mut byte_buffer = 0_u16;
+            let mut bytes = bstr_no_padding.iter().copied();
+            let mut binary = Vec::new();
+
+            'decodeloop: loop {
+                while collected_bits < 8 {
+                    if let Some(nextbyte) = bytes.next() {
+                        #[allow(clippy::cast_possible_truncation)]
+                        if let Some(idx) = CHARSET.iter().position(|&x| x == nextbyte) {
+                            byte_buffer |= ((idx & 0b0011_1111) as u16) << (10 - collected_bits);
+                            collected_bits += 6;
+                        } else {
+                            return None;
+                        }
+                    } else {
+                        break 'decodeloop;
+                    }
+                }
+
+                binary.push(((0b1111_1111_0000_0000 & byte_buffer) >> 8) as u8);
+                byte_buffer &= 0b0000_0000_1111_1111;
+                byte_buffer <<= 8;
+                collected_bits -= 8;
+            }
+
+            if usize::from(collected_bits) != ((str.len() - bstr_no_padding.len()) * 2) {
+                return None;
+            }
+
+            Some(binary)
+        }
+
         let base64_str = match str {
             ParsedStr::Allocated(string) => string.as_str(),
             ParsedStr::Slice(str) => str,
         };
 
-        base64::engine::Engine::decode(&base64::engine::general_purpose::STANDARD, base64_str)
-            .map(ParsedByteStr::Allocated)
+        try_decode_base64(base64_str).map(ParsedByteStr::Allocated)
     }
 }
 
@@ -1786,7 +1835,7 @@ mod tests {
     }
 
     #[test]
-    fn v0_10_base64_deprecation_error() {
+    fn base64_deprecation_error() {
         let err = crate::from_str::<bytes::Bytes>("\"SGVsbG8gcm9uIQ==\"").unwrap_err();
 
         assert_eq!(
@@ -1810,7 +1859,10 @@ mod tests {
         assert_eq!(
             crate::from_str::<bytes::Bytes>("\"invalid=\"").unwrap_err(),
             SpannedError {
-                code: Error::ExpectedByteString,
+                code: Error::InvalidValueForType {
+                    expected: String::from("the Rusty byte string b\"\\x8a{\\xda\\x96\\'\""),
+                    found: String::from("the ambiguous base64 string \"invalid=\"")
+                },
                 span: Span {
                     start: Position { line: 1, col: 2 },
                     end: Position { line: 1, col: 11 },
@@ -1821,10 +1873,24 @@ mod tests {
         assert_eq!(
             crate::from_str::<bytes::Bytes>("r\"invalid=\"").unwrap_err(),
             SpannedError {
-                code: Error::ExpectedByteString,
+                code: Error::InvalidValueForType {
+                    expected: String::from("the Rusty byte string b\"\\x8a{\\xda\\x96\\'\""),
+                    found: String::from("the ambiguous base64 string \"invalid=\"")
+                },
                 span: Span {
                     start: Position { line: 1, col: 3 },
                     end: Position { line: 1, col: 12 },
+                }
+            }
+        );
+
+        assert_eq!(
+            crate::from_str::<bytes::Bytes>("r\"invalid\"").unwrap_err(),
+            SpannedError {
+                code: Error::ExpectedByteString,
+                span: Span {
+                    start: Position { line: 1, col: 3 },
+                    end: Position { line: 1, col: 11 },
                 }
             }
         );
