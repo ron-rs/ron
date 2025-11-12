@@ -8,8 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### API Changes
 
+- Breaking: Removed the `ron::error::Error::Base64Error` variant. ([#566](https://github.com/ron-rs/ron/pull/566))
 - Added `into_inner()` method to `ron::ser::Serializer` to retrieve the inner writer. ([#588](https://github.com/ron-rs/ron/pull/588))
-- Remove `base64` dependency
+- Removed the `base64` dependency. ([#566](https://github.com/ron-rs/ron/pull/566))
 
 ### Format Changes
 
