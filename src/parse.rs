@@ -1667,8 +1667,9 @@ impl<'a> ParsedByteStr<'a> {
             'decodeloop: loop {
                 while collected_bits < 8 {
                     if let Some(nextbyte) = bytes.next() {
+                        #[allow(clippy::cast_possible_truncation)]
                         if let Some(idx) = CHARSET.iter().position(|&x| x == nextbyte) {
-                            byte_buffer |= ((idx & 0b00111111) as u16) << (10 - collected_bits);
+                            byte_buffer |= ((idx & 0b0011_1111) as u16) << (10 - collected_bits);
                             collected_bits += 6;
                         } else {
                             return None;
@@ -1678,8 +1679,8 @@ impl<'a> ParsedByteStr<'a> {
                     }
                 }
 
-                binary.push(((0b1111111100000000 & byte_buffer) >> 8) as u8);
-                byte_buffer &= 0b0000000011111111;
+                binary.push(((0b1111_1111_0000_0000 & byte_buffer) >> 8) as u8);
+                byte_buffer &= 0b0000_0000_1111_1111;
                 byte_buffer <<= 8;
                 collected_bits -= 8;
             }
