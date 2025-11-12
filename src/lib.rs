@@ -16,7 +16,7 @@
 #![warn(clippy::std_instead_of_alloc)]
 #![warn(clippy::std_instead_of_core)]
 #![doc = include_str!("../README.md")]
-#![doc(html_root_url = "https://docs.rs/ron/0.11.0")]
+#![doc(html_root_url = "https://docs.rs/ron/0.12.0")]
 #![no_std]
 
 #[cfg(feature = "std")]
