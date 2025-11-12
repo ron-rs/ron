@@ -2,14 +2,14 @@ name: CI
 on:
   push:
     branches:
-    - master
-    - 'v*.*'
+      - master
+      - "v*.*"
   pull_request:
     branches:
-    - master
-    - 'v*.*'
+      - master
+      - "v*.*"
   schedule:
-    - cron: '0 0 * * 0'
+    - cron: "0 0 * * 0"
 
 jobs:
   lock:
@@ -73,7 +73,11 @@ jobs:
           cargo update -p serde_bytes --precise 0.11.16
           cargo update -p indexmap --precise 2.5.0
           cargo update -p once_cell --precise 1.20.3
-        if: ${{ matrix.rust == '1.64.0' || matrix.rust == '1.81.0' }}
+          cargo update -p quote --precise 1.0.41
+          cargo update -p syn$(perl -ne 'm/syn (2\.\d+\.\d+)/ && print "\@$1\n"' Cargo.lock) --precise 2.0.106
+          cargo update -p typetag --precise 0.2.20
+          cargo update -p erased-serde --precise 0.4.8
+        if: ${{ matrix.rust == '1.64.0' }}
       - name: Check
         run: |
           cargo hack check --feature-powerset --no-dev-deps
@@ -108,7 +112,7 @@ jobs:
           components: clippy
           override: true
       - run: cd fuzz && cargo clippy --all -- -D warnings
-  
+
   rustfmt:
     name: "Format: stable"
     runs-on: ubuntu-latest
