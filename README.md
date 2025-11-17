@@ -135,7 +135,7 @@ Note the following advantages of RON over JSON:
 
 ```toml
 [dependencies]
-ron = "0.8"
+ron = "0.12"
 serde = { version = "1", features = ["derive"] }
 ```
 
