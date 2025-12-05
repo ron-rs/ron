@@ -621,7 +621,18 @@ impl<W: fmt::Write> Serializer<W> {
     }
 
     fn write_identifier(&mut self, name: &str) -> Result<()> {
-        self.validate_identifier(name)?;
+        let arbitrary_identifiers = self
+            .extensions()
+            .contains(Extensions::ARBITRARY_IDENTIFIERS);
+
+        match self.validate_identifier(name) {
+            Ok(()) => self.write_valid_identifier(name),
+            Err(_) if arbitrary_identifiers => self.write_arbitrary_identifier(name),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn write_valid_identifier(&mut self, name: &str) -> Result<()> {
         let mut chars = name.chars();
         if !chars.next().map_or(false, is_ident_first_char)
             || !chars.all(is_xid_continue)
@@ -635,6 +646,39 @@ impl<W: fmt::Write> Serializer<W> {
         }
         self.output.write_str(name)?;
         Ok(())
+    }
+
+    fn write_arbitrary_identifier(&mut self, name: &str) -> Result<()> {
+        if name.contains('"') || name.contains('\\') {
+            let (_, num_consecutive_hashes) =
+                name.chars().fold((0, 0), |(count, max), c| match c {
+                    '#' => (count + 1, max.max(count + 1)),
+                    _ => (0_usize, max),
+                });
+            let hashes: String = "#".repeat(num_consecutive_hashes + 1);
+            self.output.write_str("ri")?;
+            self.output.write_str(&hashes)?;
+            self.output.write_char('"')?;
+            self.output.write_str(name)?;
+            self.output.write_char('"')?;
+            self.output.write_str(&hashes)?;
+        } else {
+            self.output.write_str(r#"i""#)?;
+            self.output.write_str(name)?;
+            self.output.write_char('"')?;
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::unused_self)]
+    fn validate_identifier_with_arbitrary(&self, name: &str) -> Result<()> {
+        if self
+            .extensions()
+            .contains(Extensions::ARBITRARY_IDENTIFIERS)
+        {
+            return Ok(());
+        }
+        self.validate_identifier(name)
     }
 
     #[allow(clippy::unused_self)]
@@ -865,7 +909,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
 
             Ok(())
         } else {
-            self.validate_identifier(name)?;
+            self.validate_identifier_with_arbitrary(name)?;
             self.serialize_unit()
         }
     }
@@ -876,7 +920,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<()> {
-        self.validate_identifier(name)?;
+        self.validate_identifier_with_arbitrary(name)?;
         self.write_identifier(variant)?;
 
         Ok(())
@@ -906,7 +950,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         if self.extensions().contains(Extensions::UNWRAP_NEWTYPES) || self.newtype_variant {
             self.newtype_variant = false;
 
-            self.validate_identifier(name)?;
+            self.validate_identifier_with_arbitrary(name)?;
 
             return guard_recursion! { self => value.serialize(&mut *self) };
         }
@@ -914,7 +958,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         if self.struct_names() {
             self.write_identifier(name)?;
         } else {
-            self.validate_identifier(name)?;
+            self.validate_identifier_with_arbitrary(name)?;
         }
 
         self.implicit_some_depth = 0;
@@ -936,7 +980,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
     where
         T: ?Sized + Serialize,
     {
-        self.validate_identifier(name)?;
+        self.validate_identifier_with_arbitrary(name)?;
         self.write_identifier(variant)?;
         self.output.write_char('(')?;
 
@@ -996,7 +1040,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         if self.struct_names() && !self.newtype_variant {
             self.write_identifier(name)?;
         } else {
-            self.validate_identifier(name)?;
+            self.validate_identifier_with_arbitrary(name)?;
         }
 
         self.serialize_tuple(len)
@@ -1012,7 +1056,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
-        self.validate_identifier(name)?;
+        self.validate_identifier_with_arbitrary(name)?;
         self.write_identifier(variant)?;
         self.output.write_char('(')?;
 
@@ -1048,12 +1092,12 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         self.implicit_some_depth = 0;
 
         if old_newtype_variant {
-            self.validate_identifier(name)?;
+            self.validate_identifier_with_arbitrary(name)?;
         } else {
             if self.struct_names() {
                 self.write_identifier(name)?;
             } else {
-                self.validate_identifier(name)?;
+                self.validate_identifier_with_arbitrary(name)?;
             }
             self.output.write_char('(')?;
         }
@@ -1076,7 +1120,7 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
-        self.validate_identifier(name)?;
+        self.validate_identifier_with_arbitrary(name)?;
         self.write_identifier(variant)?;
         self.output.write_char('(')?;
 

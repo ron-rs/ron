@@ -870,6 +870,32 @@ impl<'a> Parser<'a> {
             return None;
         }
 
+        if self.exts.contains(Extensions::ARBITRARY_IDENTIFIERS) {
+            // FIXME: optimize
+            if self.check_str("i\"") {
+                let cursor_backup = self.cursor;
+                self.advance_bytes(1);
+                return match self.escaped_string() {
+                    Ok(ParsedStr::Slice(ident)) => Some(ident),
+                    Ok(ParsedStr::Allocated(_)) | Err(_) => {
+                        self.cursor = cursor_backup;
+                        None
+                    }
+                };
+            }
+            if self.check_str("ri#") {
+                let cursor_backup = self.cursor;
+                self.advance_bytes(2);
+                return match self.raw_string() {
+                    Ok(ParsedStr::Slice(ident)) => Some(ident),
+                    Ok(ParsedStr::Allocated(_)) | Err(_) => {
+                        self.cursor = cursor_backup;
+                        None
+                    }
+                };
+            }
+        }
+
         if self.check_str("r#") {
             // maybe a raw identifier
             let len = self.next_chars_while_from_len(2, is_ident_raw_char);
@@ -896,6 +922,30 @@ impl<'a> Parser<'a> {
     }
 
     pub fn identifier(&mut self) -> Result<&'a str> {
+        if self.check_str("i\"") {
+            let cursor_backup = self.cursor;
+            self.advance_bytes(1);
+            return match self.escaped_string() {
+                Ok(ParsedStr::Slice(ident)) => Ok(ident),
+                Ok(ParsedStr::Allocated(_)) | Err(_) => {
+                    self.cursor = cursor_backup;
+                    Err(Error::ExpectedIdentifier)
+                }
+            };
+        }
+
+        if self.check_str("ri#") {
+            let cursor_backup = self.cursor;
+            self.advance_bytes(2);
+            return match self.raw_string() {
+                Ok(ParsedStr::Slice(ident)) => Ok(ident),
+                Ok(ParsedStr::Allocated(_)) | Err(_) => {
+                    self.cursor = cursor_backup;
+                    Err(Error::ExpectedIdentifier)
+                }
+            };
+        }
+
         let first = self.peek_char_or_eof()?;
         if !is_ident_first_char(first) {
             if is_ident_raw_char(first) {
