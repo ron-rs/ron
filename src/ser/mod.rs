@@ -23,6 +23,9 @@ mod value;
 ///
 /// This function does not generate any newlines or nice formatting;
 /// if you want that, you can use [`to_writer_pretty`] instead.
+///
+/// `writer` is required to implement [`core::fmt::Write`]. To use [`std::io::Write`] instead, 
+/// see [`Options::to_io_writer`](crate::options::Options::to_io_writer).
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: fmt::Write,
@@ -32,6 +35,9 @@ where
 }
 
 /// Serializes `value` into `writer` in a pretty way.
+///
+/// `writer` is required to implement [`core::fmt::Write`]. To use [`std::io::Write`] instead, 
+/// see [`Options::to_io_writer_pretty`](crate::options::Options::to_io_writer_pretty).
 pub fn to_writer_pretty<W, T>(writer: W, value: &T, config: PrettyConfig) -> Result<()>
 where
     W: fmt::Write,
