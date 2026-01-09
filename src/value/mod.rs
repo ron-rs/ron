@@ -2,9 +2,13 @@
 
 use alloc::{borrow::Cow, boxed::Box, format, string::String, vec::Vec};
 use core::{cmp::Eq, hash::Hash};
+use std::{borrow::ToOwned, string::ToString};
 
 use serde::{
-    de::{DeserializeOwned, DeserializeSeed, Deserializer, MapAccess, SeqAccess, Visitor},
+    de::{
+        DeserializeOwned, DeserializeSeed, Deserializer, EnumAccess, MapAccess, SeqAccess,
+        VariantAccess, Visitor,
+    },
     forward_to_deserialize_any,
 };
 
@@ -21,15 +25,34 @@ pub use raw::RawValue;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum Value {
+    /// Can represent a struct with no field, or the Unit type
+    Unit,
     Bool(bool),
     Char(char),
-    Map(Map),
     Number(Number),
-    Option(Option<Box<Value>>),
     String(String),
     Bytes(Vec<u8>),
-    Seq(Vec<Value>),
-    Unit,
+    Option(Option<Box<Value>>),
+    List(Vec<Value>),
+    /// Can be a struct
+    Map(Map<Value>),
+    Tuple(Vec<Value>),
+
+    /// Can be either an empty enum or an empty unit variant
+    NamedUnit {
+        name: Cow<'static, str>,
+    },
+    /// Struct
+    Newtype(Box<Value>),
+    /// Enum or struct
+    NamedNewtype {
+        name: Cow<'static, str>,
+        inner: Box<Value>,
+    },
+    /// Enum or struct
+    NamedMap(Cow<'static, str>, Map<Cow<'static, str>>),
+    /// Enum or struct
+    NamedTuple(Cow<'static, str>, Vec<Value>),
 }
 
 impl From<bool> for Value {
@@ -50,8 +73,8 @@ impl<K: Into<Value>, V: Into<Value>> FromIterator<(K, V)> for Value {
     }
 }
 
-impl From<Map> for Value {
-    fn from(value: Map) -> Self {
+impl From<Map<Value>> for Value {
+    fn from(value: Map<Value>) -> Self {
         Self::Map(value)
     }
 }
@@ -95,7 +118,7 @@ impl<const N: usize> From<&'static [u8; N]> for Value {
 
 impl<T: Into<Value>> FromIterator<T> for Value {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Self::Seq(iter.into_iter().map(Into::into).collect())
+        Self::List(iter.into_iter().map(Into::into).collect())
     }
 }
 
@@ -175,7 +198,7 @@ impl<'de> Deserializer<'de> for Value {
             Value::Option(None) => visitor.visit_none(),
             Value::String(s) => visitor.visit_string(s),
             Value::Bytes(b) => visitor.visit_byte_buf(b),
-            Value::Seq(mut seq) => {
+            Value::List(mut seq) => {
                 let old_len = seq.len();
 
                 seq.reverse();
@@ -191,6 +214,38 @@ impl<'de> Deserializer<'de> for Value {
                 }
             }
             Value::Unit => visitor.visit_unit(),
+            Value::Tuple(mut seq) => {
+                let old_len = seq.len();
+
+                seq.reverse();
+                let value = visitor.visit_seq(SeqAccessor { seq: &mut seq })?;
+
+                if seq.is_empty() {
+                    Ok(value)
+                } else {
+                    Err(Error::ExpectedDifferentLength {
+                        expected: format!("a sequence of length {}", old_len - seq.len()),
+                        found: old_len,
+                    })
+                }
+            }
+            Value::Newtype(value) => visitor.visit_newtype_struct(*value),
+            Value::NamedUnit { name } => visitor.visit_enum(EnumAccessor {
+                variant: name.to_string(),
+                value: Value::NamedUnit { name },
+            }),
+            Value::NamedNewtype { name, inner } => visitor.visit_enum(EnumAccessor {
+                variant: name.to_string(),
+                value: Value::NamedNewtype { name, inner },
+            }),
+            Value::NamedMap(name, map) => visitor.visit_enum(EnumAccessor {
+                variant: name.to_string(),
+                value: Value::NamedMap(name, map),
+            }),
+            Value::NamedTuple(name, values) => visitor.visit_enum(EnumAccessor {
+                variant: name.to_string(),
+                value: Value::NamedTuple(name, values),
+            }),
         }
     }
 }
@@ -255,12 +310,101 @@ impl<'a, 'de> MapAccess<'de> for MapAccessor<'a> {
     }
 }
 
+struct EnumAccessor {
+    variant: String,
+    value: Value,
+}
+
+impl<'de> EnumAccess<'de> for EnumAccessor {
+    type Error = Error;
+
+    type Variant = VariantAccessor;
+
+    fn variant_seed<V>(
+        self,
+        seed: V,
+    ) -> core::result::Result<(V::Value, Self::Variant), Self::Error>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        let v = seed.deserialize(Value::String(self.variant))?;
+        Ok((v, VariantAccessor { value: self.value }))
+    }
+}
+
+struct VariantAccessor {
+    value: Value,
+}
+
+impl<'a, 'de> VariantAccess<'de> for VariantAccessor {
+    type Error = Error;
+
+    fn unit_variant(self) -> core::result::Result<(), Self::Error> {
+        if let Value::NamedUnit { .. } = self.value {
+            Ok(())
+        } else {
+            Err(Error::ExpectedUnit)
+        }
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> core::result::Result<T::Value, Self::Error>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        if let Value::NamedNewtype { inner, .. } = self.value {
+            seed.deserialize(*inner)
+        } else {
+            Err(Error::ExpectedNamedNewType)
+        }
+    }
+
+    fn tuple_variant<V>(self, len: usize, visitor: V) -> core::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Value::NamedTuple(_, mut items) = self.value {
+            if items.len() != len {
+                return Err(Error::ExpectedDifferentLength {
+                    expected: format!("tuple of length {}", len),
+                    found: items.len(),
+                });
+            }
+            visitor.visit_seq(SeqAccessor { seq: &mut items })
+        } else {
+            Err(Error::ExpectedNamedTuple)
+        }
+    }
+
+    fn struct_variant<V>(
+        self,
+        fields: &'static [&'static str],
+        visitor: V,
+    ) -> core::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        if let Value::NamedMap(_, mut map) = self.value {
+            let mut items: Vec<(Value, Value)> = map
+                .into_iter()
+                .map(|e| (Value::String(e.0.to_string()), e.1))
+                .collect();
+            visitor.visit_map(MapAccessor {
+                items: &mut items,
+                value: None,
+            })
+        } else {
+            Err(Error::ExpectedNamedStruct)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::{collections::BTreeMap, vec};
     use core::fmt::Debug;
+    use std::dbg;
 
-    use serde::Deserialize;
+    use serde::{Deserialize, Serialize};
 
     use super::*;
 
@@ -272,6 +416,7 @@ mod tests {
 
         let direct: T = from_str(s).unwrap();
         let value: Value = from_str(s).unwrap();
+        dbg!(&value);
         let de = T::deserialize(value.clone()).unwrap();
 
         assert_eq!(direct, de, "Deserialization for {:?} is not the same", s);
@@ -411,12 +556,12 @@ mod tests {
     }
 
     #[test]
-    fn seq() {
+    fn list() {
         assert_same::<Vec<f64>>("[1.0, 2.0, 3.0, 4.0]");
 
         assert_eq!(
             Value::from([-1_i8, 2, -3].as_slice()),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -424,7 +569,7 @@ mod tests {
         );
         assert_eq!(
             Value::from(vec![-1_i8, 2, -3]),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -432,7 +577,7 @@ mod tests {
         );
         assert_eq!(
             Value::from_iter([-1_i8, 2, -3]),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::from(-1_i8),
                 Value::from(2_i8),
                 Value::from(-3_i8)
@@ -500,5 +645,177 @@ mod tests {
             Value::deserialize(NewtypeDeserializer).unwrap(),
             Value::from('🦀')
         );
+    }
+
+    #[test]
+    fn unit_struct_without_brace() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A;
+        assert_same::<A>("()");
+    }
+
+    #[test]
+    fn unit_struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A {};
+        assert_same::<A>("A()");
+    }
+
+    #[test]
+    fn unit_enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A,
+        }
+
+        assert_same::<A>("A");
+    }
+
+    #[test]
+    fn new_type_struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A(i32);
+
+        assert_same::<A>("A(1)");
+    }
+
+    #[test]
+    // panic
+    fn new_type_enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A(i32),
+        }
+
+        assert_same::<A>("A(1)");
+    }
+
+    #[test]
+    fn tuple_struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A(i32, String);
+        assert_same::<A>("A(1, \"hello\")");
+    }
+
+    #[test]
+    // panic
+    fn tuple_enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A(i32, String),
+        }
+
+        assert_same::<A>("A(1, \"hello\")");
+    }
+
+    #[test]
+    fn r#struct() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct A {
+            name: String,
+            age: i32,
+        }
+
+        assert_same::<A>("A(name: \"Alice\", age: 30,)");
+    }
+
+    #[test]
+    // panic
+    fn r#enum() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        enum A {
+            A { name: String, age: i32 },
+        }
+
+        assert_same::<A>("A(name: \"Alice\", age: 30,)");
+    }
+
+    #[ignore = ""]
+    #[test]
+    fn test() {
+        use std::collections::HashMap;
+        use std::println;
+        #[derive(Serialize)]
+        enum Enum {
+            A,
+            B,
+        }
+
+        #[derive(Serialize)]
+        struct Struct {
+            e: Enum,
+            h: HashMap<String, String>,
+        }
+
+        let v = Struct {
+            e: Enum::A,
+            h: [("hello".into(), "world".into())].into_iter().collect(),
+        };
+
+        let ron_str = crate::to_string(&v).unwrap();
+
+        println!("{}", ron_str);
+
+        let value = crate::from_str::<Value>(&ron_str).unwrap();
+
+        dbg!(&value);
+        // println!("{:?}", value);
+
+        let ron_str2 = crate::to_string(&value).unwrap();
+
+        println!("{}", ron_str2);
+
+        assert_eq!(ron_str, ron_str2);
+    }
+
+    #[ignore = ""]
+    #[test]
+    fn test2() {
+        use std::collections::HashMap;
+        use std::println;
+
+        #[derive(Serialize)]
+        enum B {
+            A(Option<String>, i32),
+            B,
+        }
+
+        #[derive(Serialize)]
+        struct A {
+            a: B,
+        }
+
+        let v = A {
+            a: B::A(Some("a".into()), 0),
+        };
+
+        let ron_str = crate::to_string(&v).unwrap();
+
+        println!("{}", ron_str);
+
+        let value = crate::from_str::<Value>(&ron_str).unwrap();
+
+        println!("{:?}", value);
+
+        let ron_str2 = crate::to_string(&value).unwrap();
+
+        println!("{}", ron_str2);
+
+        assert_eq!(ron_str, ron_str2);
+    }
+
+     #[ignore = ""]
+    #[test]
+    fn test3() {
+        use std::println;
+
+        #[derive(Serialize)]
+        struct A;
+
+        let v = A;
+
+        let ron_str = crate::to_string(&v).unwrap();
+
+        println!("{}", ron_str);
     }
 }

@@ -1,5 +1,6 @@
 use alloc::{borrow::ToOwned, boxed::Box, string::String, vec::Vec};
 use core::fmt;
+use std::borrow::Cow;
 
 use serde::{
     de::{Error, MapAccess, SeqAccess, Visitor},
@@ -214,14 +215,14 @@ impl<'de> Visitor<'de> for ValueVisitor {
             vec.push(x);
         }
 
-        Ok(Value::Seq(vec))
+        Ok(Value::List(vec))
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
         A: MapAccess<'de>,
     {
-        let mut res: Map = Map::new();
+        let mut res: Map<Value> = Map::new();
 
         #[cfg(feature = "indexmap")]
         if let Some(cap) = map.size_hint() {
@@ -233,6 +234,76 @@ impl<'de> Visitor<'de> for ValueVisitor {
         }
 
         Ok(Value::Map(res))
+    }
+
+    fn visit_enum<A>(self, mut data: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::EnumAccess<'de>,
+    {
+        // Get the variant name and the VariantAccess
+        let (variant, variant_access) = data.variant::<Ident>()?;
+        
+        
+        // Try to extract the value for the variant
+        use serde::de::VariantAccess;
+
+        let value = if let Ok(v) = variant_access.unit_variant() {
+            Value::NamedUnit {
+                name: variant.0.into(),
+            }
+        } else if let Ok(v) = variant_access.newtype_variant() {
+            Value::NamedNewtype {
+                name: variant.0.into(),
+                inner: Box::new(v),
+            }
+        } else if let Ok(v) = variant_access.tuple_variant(0, ValueVisitor) {
+            if let Value::Tuple(values) = v {
+                Value::NamedTuple(variant.0.into(), values)
+            } else {
+                return Err(A::Error::custom("Expected Value::Tuple"));
+            }
+        } else if let Ok(v) = variant_access.struct_variant(&[], ValueVisitor) {
+            if let Value::Map(values) = v {
+                let mut values_new: Map<Cow<'static, str>> = Map::new();
+
+                for e in values {
+                    if let Value::String(k) = e.0 {
+                        values_new.insert(<std::string::String as Into<Cow<str>>>::into(k), e.1);
+                    } else {
+                        return Err(A::Error::custom("Expected Value::String for the key"));
+                    }
+                }
+
+                Value::NamedMap(variant.0.into(), values_new)
+            } else {
+                return Err(A::Error::custom("Expected Value::Map"));
+            }
+        } else {
+            // fallback: treat as unit
+            Value::Unit
+        };
+
+        Ok(value)
+    }
+}
+
+// todo: use id::Deserializer ?
+struct Ident(String);
+
+impl<'de> Deserialize<'de> for Ident {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer
+            .deserialize_identifier(ValueVisitor)
+            .and_then(|e| {
+                if let Value::String(ident) = e {
+                    Ok(Ident(ident))
+                } else {
+                    unreachable!()
+                }
+            })
     }
 }
 
@@ -265,7 +336,7 @@ mod tests {
     fn test_tuples_basic() {
         assert_eq!(
             eval("(3, 4.0, 5.0)"),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::Number(Number::U8(3)),
                 Value::Number(Number::F32(4.0.into())),
                 Value::Number(Number::F32(5.0.into())),
@@ -277,7 +348,7 @@ mod tests {
     fn test_tuples_ident() {
         assert_eq!(
             eval("(true, 3, 4, 5.0)"),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::Bool(true),
                 Value::Number(Number::U8(3)),
                 Value::Number(Number::U8(4)),
@@ -306,7 +377,7 @@ mod tests {
     fn test_floats() {
         assert_eq!(
             eval("(inf, -inf, NaN)"),
-            Value::Seq(vec![
+            Value::List(vec![
                 Value::Number(Number::new(core::f32::INFINITY)),
                 Value::Number(Number::new(core::f32::NEG_INFINITY)),
                 Value::Number(Number::new(core::f32::NAN)),
@@ -333,7 +404,7 @@ mod tests {
     ),
 ])"
             ),
-            Value::Option(Some(Box::new(Value::Seq(vec![
+            Value::Option(Some(Box::new(Value::List(vec![
                 Value::Map(
                     vec![
                         (
