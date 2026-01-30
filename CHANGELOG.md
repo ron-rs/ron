@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- Ignore `#![type = "..."]` and `#![schema = "..."]` attributes ([#596](https://github.com/ron-rs/ron/pull/596))
+
 ## [0.12.0] - 2025-11-12
 
 ### API Changes
