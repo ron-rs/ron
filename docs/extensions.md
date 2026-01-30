@@ -4,6 +4,13 @@ RON has extensions that can be enabled by adding the following attribute at the 
 
 `#![enable(...)]`
 
+RON also accepts the following document attributes for compatibility with tooling like `ron2`.
+They are parsed and ignored by this crate:
+
+`#![type = "path::To::Type"]`
+
+`#![schema = "./path/to/schema.ron"]`
+
 # unwrap_newtypes
 
 You can add this extension by adding the following attribute at the top of your RON document:

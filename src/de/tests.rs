@@ -584,6 +584,29 @@ fn multiple_attributes() {
 }
 
 #[test]
+fn type_schema_attributes() {
+    check_from_str_bytes_reader::<String>(
+        "#![type = \"my::Type\"] \"Hello\"",
+        Ok("Hello".to_owned()),
+    );
+    check_from_str_bytes_reader::<String>(
+        "#![schema = \"./schemas/app.schema.ron\"] \"Hello\"",
+        Ok("Hello".to_owned()),
+    );
+}
+
+#[test]
+fn mixed_attributes() {
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct New(String);
+
+    check_from_str_bytes_reader(
+        "#![type = \"my::Type\"] #![enable(unwrap_newtypes)] \"Hello\"",
+        Ok(New("Hello".to_owned())),
+    );
+}
+
+#[test]
 fn uglified_attribute() {
     check_from_str_bytes_reader(
         "#   !\

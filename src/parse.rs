@@ -74,6 +74,12 @@ pub struct ParserCursor {
     last_ws_len: usize,
 }
 
+enum ParsedAttribute {
+    None,
+    Extensions(Extensions),
+    Ignored,
+}
+
 const WS_CURSOR_UNCLOSED_LINE: usize = usize::MAX;
 
 impl PartialEq for ParserCursor {
@@ -108,15 +114,16 @@ impl<'a> Parser<'a> {
 
         parser.skip_ws().map_err(|e| parser.span_error(e))?;
 
-        // Loop over all extensions attributes
+        // Loop over all document attributes
         loop {
-            let attribute = parser.extensions().map_err(|e| parser.span_error(e))?;
-
-            if attribute.is_empty() {
-                break;
+            match parser.attribute().map_err(|e| parser.span_error(e))? {
+                ParsedAttribute::None => break,
+                ParsedAttribute::Extensions(extensions) => {
+                    parser.exts |= extensions;
+                }
+                ParsedAttribute::Ignored => {}
             }
 
-            parser.exts |= attribute;
             parser.skip_ws().map_err(|e| parser.span_error(e))?;
         }
 
@@ -712,17 +719,54 @@ impl<'a> Parser<'a> {
         Ok(true)
     }
 
-    /// Returns the extensions bit mask.
-    fn extensions(&mut self) -> Result<Extensions> {
+    /// Parse a document attribute at the current cursor position.
+    fn attribute(&mut self) -> Result<ParsedAttribute> {
         if !self.check_char('#') {
-            return Ok(Extensions::empty());
+            return Ok(ParsedAttribute::None);
         }
 
-        if !self.consume_all(&["#", "!", "[", "enable", "("])? {
+        if !self.consume_all(&["#", "!", "["])? {
             return Err(Error::ExpectedAttribute);
         }
 
         self.skip_ws()?;
+        if self.consume_ident("enable") {
+            self.skip_ws()?;
+            if !self.consume_str("(") {
+                return Err(Error::ExpectedAttribute);
+            }
+
+            self.skip_ws()?;
+            let extensions = self.extension_list()?;
+            self.skip_ws()?;
+
+            if self.consume_all(&[")", "]"])? {
+                Ok(ParsedAttribute::Extensions(extensions))
+            } else {
+                Err(Error::ExpectedAttributeEnd)
+            }
+        } else if self.consume_ident("type") || self.consume_ident("schema") {
+            self.skip_ws()?;
+            if !self.consume_str("=") {
+                return Err(Error::ExpectedAttribute);
+            }
+
+            self.skip_ws()?;
+            self.string()?;
+            self.skip_ws()?;
+
+            if self.consume_str("]") {
+                Ok(ParsedAttribute::Ignored)
+            } else {
+                Err(Error::ExpectedAttributeEnd)
+            }
+        } else {
+            Err(Error::ExpectedAttribute)
+        }
+    }
+
+    /// Returns the extensions bit mask.
+    fn extension_list(&mut self) -> Result<Extensions> {
         let mut extensions = Extensions::empty();
 
         loop {
@@ -747,13 +791,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        self.skip_ws()?;
-
-        if self.consume_all(&[")", "]"])? {
-            Ok(extensions)
-        } else {
-            Err(Error::ExpectedAttributeEnd)
-        }
+        Ok(extensions)
     }
 
     pub fn float<T: Float>(&mut self) -> Result<T> {
