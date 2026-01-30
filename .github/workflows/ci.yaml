@@ -78,6 +78,9 @@ jobs:
           if rg -q '^name = "ryu"$' Cargo.lock; then
             cargo update -p ryu --precise 1.0.20
           fi
+          if rg -q '^name = "itoa"$' Cargo.lock; then
+            cargo update -p itoa --precise 1.0.15
+          fi
           cargo update -p syn$(perl -ne 'm/syn (2\.\d+\.\d+)/ && print "\@$1\n"' Cargo.lock) --precise 2.0.106
           cargo update -p typetag --precise 0.2.20
           cargo update -p erased-serde --precise 0.4.8
