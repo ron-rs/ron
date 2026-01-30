@@ -73,6 +73,7 @@ jobs:
           cargo update -p serde_bytes --precise 0.11.16
           cargo update -p indexmap --precise 2.5.0
           cargo update -p once_cell --precise 1.20.3
+          cargo update -p proc-macro2 --precise 1.0.103
           cargo update -p quote --precise 1.0.41
           cargo update -p syn$(perl -ne 'm/syn (2\.\d+\.\d+)/ && print "\@$1\n"' Cargo.lock) --precise 2.0.106
           cargo update -p typetag --precise 0.2.20
