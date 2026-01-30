@@ -75,6 +75,9 @@ jobs:
           cargo update -p once_cell --precise 1.20.3
           cargo update -p proc-macro2 --precise 1.0.103
           cargo update -p quote --precise 1.0.41
+          if rg -q '^name = "ryu"$' Cargo.lock; then
+            cargo update -p ryu --precise 1.0.20
+          fi
           cargo update -p syn$(perl -ne 'm/syn (2\.\d+\.\d+)/ && print "\@$1\n"' Cargo.lock) --precise 2.0.106
           cargo update -p typetag --precise 0.2.20
           cargo update -p erased-serde --precise 0.4.8
