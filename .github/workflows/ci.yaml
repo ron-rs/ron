@@ -26,8 +26,7 @@ jobs:
           override: true
       - name: Generate the minimum version lockfile
         run: |
-          cargo update -Z minimal-versions
-          cargo update -Z direct-minimal-versions
+          cargo update -Z minimal-versions -Z direct-minimal-versions
           mv Cargo.lock Cargo.lock.min
       - name: Generate the current version lockfile
         run: cargo update
@@ -68,23 +67,15 @@ jobs:
           components: clippy
           override: true
       - uses: taiki-e/install-action@cargo-hack
-      - name: Downgrade dependencies to MSRV 1.64
+      - name: Upgrade dependencies with broken minimum version bounds
         run: |
-          cargo update -p serde_bytes --precise 0.11.16
-          cargo update -p indexmap --precise 2.5.0
-          cargo update -p once_cell --precise 1.20.3
-          cargo update -p proc-macro2 --precise 1.0.103
-          cargo update -p quote --precise 1.0.41
-          if rg -q '^name = "ryu"$' Cargo.lock; then
-            cargo update -p ryu --precise 1.0.20
-          fi
-          if rg -q '^name = "itoa"$' Cargo.lock; then
-            cargo update -p itoa --precise 1.0.15
-          fi
-          cargo update -p syn$(perl -ne 'm/syn (2\.\d+\.\d+)/ && print "\@$1\n"' Cargo.lock) --precise 2.0.106
-          cargo update -p typetag --precise 0.2.20
-          cargo update -p erased-serde --precise 0.4.8
-        if: ${{ matrix.rust == '1.64.0' }}
+          cargo update -p typetag --precise 0.2.14
+          cargo update -p erased-serde --precise 0.4.1
+          cargo update -p serde --precise 1.0.190
+          cargo update -p syn --precise 2.0.28
+          cargo update -p quote --precise 1.0.28
+          cargo update -p proc-macro2 --precise 1.0.63
+        if: ${{ matrix.lock == 'Cargo.lock.min' }}
       - name: Check
         run: |
           cargo hack check --feature-powerset --no-dev-deps
