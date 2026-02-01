@@ -47,6 +47,9 @@ jobs:
       matrix:
         rust: [1.64.0, stable, nightly]
         lock: ["Cargo.lock", "Cargo.lock.min"]
+        exclude:
+          - rust: 1.64.0
+            lock: "Cargo.lock"
 
     steps:
       - uses: actions/checkout@v4
