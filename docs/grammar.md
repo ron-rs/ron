@@ -142,7 +142,7 @@ option_some = "Some", ws, "(", ws, value, ws, ")";
 ## List
 
 ```ebnf
-list = "[", [value, { comma, value }, [comma]], "]";
+list = "[", ws, [value, { comma, value }, [comma]], "]";
 ```
 
 ## Map
