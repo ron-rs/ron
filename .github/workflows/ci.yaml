@@ -70,15 +70,6 @@ jobs:
           components: clippy
           override: true
       - uses: taiki-e/install-action@cargo-hack
-      - name: Upgrade dependencies with broken minimum version bounds
-        run: |
-          cargo update -p typetag --precise 0.2.14
-          cargo update -p erased-serde --precise 0.4.1
-          cargo update -p serde --precise 1.0.190
-          cargo update -p syn --precise 2.0.28
-          cargo update -p quote --precise 1.0.28
-          cargo update -p proc-macro2 --precise 1.0.63
-        if: ${{ matrix.lock == 'Cargo.lock.min' }}
       - name: Check
         run: |
           cargo hack check --feature-powerset --no-dev-deps
