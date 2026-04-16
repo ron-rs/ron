@@ -111,14 +111,14 @@ fn byte_string() {
 
 #[test]
 fn seq() {
-    let seq = Value::Seq(vec![
+    let seq = Value::List(vec![
         Value::Number(Number::U8(1)),
         Value::Number(Number::new(2f32)),
     ]);
     assert_eq!(ron::to_string(&seq).unwrap(), "[1,2.0]");
     assert_eq!("[1, 2.0]".parse(), Ok(seq));
 
-    let err = Value::Seq(vec![Value::Number(Number::new(1))])
+    let err = Value::List(vec![Value::Number(Number::new(1))])
         .into_rust::<[i32; 2]>()
         .unwrap_err();
 
@@ -130,7 +130,7 @@ fn seq() {
         }
     );
 
-    let err = Value::Seq(vec![
+    let err = Value::List(vec![
         Value::Number(Number::new(1)),
         Value::Number(Number::new(2)),
         Value::Number(Number::new(3)),
