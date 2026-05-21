@@ -1224,8 +1224,10 @@ impl RangeCompound {
 
     /// Try to serialize `value` as a number into a String buffer.
     /// Returns `Some(s)` if numeric, `None` otherwise.
-    #[allow(lint)]
-    fn try_serialize_number<T: ?Sized + Serialize>(value: &T) -> Option<crate::value::Number> {
+    fn try_serialize_number<T>(value: &T) -> Option<crate::value::Number>
+    where
+        T: ?Sized + Serialize,
+    {
         struct NumberSerializer;
 
         impl ser::Serializer for NumberSerializer {
