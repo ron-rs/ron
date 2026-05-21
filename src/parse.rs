@@ -466,13 +466,13 @@ impl<'a> Parser<'a> {
 
     pub fn any_number(&mut self) -> Result<Number> {
         if self.consume_ident("inf") || self.consume_ident("inff32") {
-            return Ok(Number::F32(crate::value::F32(core::f32::INFINITY).into()));
+            return Ok(Number::F32(crate::value::F32(core::f32::INFINITY)));
         } else if self.consume_ident("inff64") {
-            return Ok(Number::F64(crate::value::F64(core::f64::INFINITY).into()));
+            return Ok(Number::F64(crate::value::F64(core::f64::INFINITY)));
         } else if self.consume_ident("NaN") || self.consume_ident("NaNf32") {
-            return Ok(Number::F32(crate::value::F32(core::f32::NAN).into()));
+            return Ok(Number::F32(crate::value::F32(core::f32::NAN)));
         } else if self.consume_ident("NaNf64") {
-            return Ok(Number::F64(crate::value::F64(core::f64::NAN).into()));
+            return Ok(Number::F64(crate::value::F64(core::f64::NAN)));
         }
 
         if self.next_bytes_is_float() {
@@ -1040,7 +1040,7 @@ impl<'a> Parser<'a> {
             let valid_float_len = self.src()[skip..]
                 .find("..")
                 .map(|i| i.min(raw_float_len))
-                .unwrap_or(raw_float_len);
+                .map_or(raw_float_len, |i| i.min(raw_float_len));
             let valid_int_len = self.next_chars_while_from_len(skip, is_int_char);
             valid_float_len > valid_int_len
         } else {

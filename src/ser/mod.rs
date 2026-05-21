@@ -1224,6 +1224,7 @@ impl RangeCompound {
 
     /// Try to serialize `value` as a number into a String buffer.
     /// Returns `Some(s)` if numeric, `None` otherwise.
+    #[allow(lint)]
     fn try_serialize_number<T: ?Sized + Serialize>(value: &T) -> Option<crate::value::Number> {
         struct NumberSerializer;
 
@@ -1675,7 +1676,6 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
                     range.second.take().map(|v| ("end", v)),
                 ];
 
-                let _ = drop(range); // release borrow of self.range
                 for (bkey, bval) in buffered.into_iter().flatten() {
                     ser::SerializeStruct::serialize_field(self, bkey, &bval)?;
                 }
