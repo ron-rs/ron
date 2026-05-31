@@ -168,6 +168,23 @@ fn test_unclosed_ranges() {
 fn test_string_range() {
     assert!(ron::from_str::<std::ops::Range<&str>>("\"x\"..\"h\"").is_err());
     assert!(ron::from_str::<std::ops::Range<i32>>("\"x\"..\"h\"").is_err());
+
+    let str_range = "a".."z";
+    let ser = ron::to_string(&str_range).unwrap();
+    assert_eq!(ser, r#"(start:"a",end:"z")"#);
+
+    let pretty_compact = ron::ser::to_string_pretty(
+        &str_range,
+        ron::ser::PrettyConfig::new()
+            .compact_ranges(true)
+            .new_line("")
+            .indentor("")
+            .separator("")
+            .compact_structs(true),
+    )
+    .unwrap();
+
+    assert_eq!(pretty_compact, r#"(start:"a",end:"z")"#);
 }
 
 #[test]
