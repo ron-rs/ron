@@ -1217,6 +1217,201 @@ struct RangeCompound {
     fallback: bool,
 }
 
+/// A serializer that only accepts numeric values, returning a [`crate::value::Number`].
+/// Used by [`RangeCompound`] to detect whether range bounds are numeric.
+struct NumberSerializer;
+
+impl ser::Serializer for NumberSerializer {
+    type Ok = crate::value::Number;
+    type Error = Error;
+    type SerializeSeq = ser::Impossible<crate::value::Number, Error>;
+    type SerializeTuple = ser::Impossible<crate::value::Number, Error>;
+    type SerializeTupleStruct = ser::Impossible<crate::value::Number, Error>;
+    type SerializeTupleVariant = ser::Impossible<crate::value::Number, Error>;
+    type SerializeMap = ser::Impossible<crate::value::Number, Error>;
+    type SerializeStruct = ser::Impossible<crate::value::Number, Error>;
+    type SerializeStructVariant = ser::Impossible<crate::value::Number, Error>;
+
+    fn serialize_i8(self, v: i8) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_i16(self, v: i16) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_i32(self, v: i32) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_i64(self, v: i64) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_u8(self, v: u8) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_u16(self, v: u16) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_u32(self, v: u32) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_u64(self, v: u64) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_f32(self, v: f32) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    fn serialize_f64(self, v: f64) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    #[cfg(feature = "integer128")]
+    fn serialize_i128(self, v: i128) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+    #[cfg(feature = "integer128")]
+    fn serialize_u128(self, v: u128) -> Result<crate::value::Number> {
+        Ok(crate::value::Number::new(v))
+    }
+
+    fn serialize_bool(self, _: bool) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("bool"),
+        })
+    }
+    fn serialize_char(self, _: char) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("char"),
+        })
+    }
+    fn serialize_str(self, _: &str) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("string"),
+        })
+    }
+    fn serialize_bytes(self, _: &[u8]) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("bytes"),
+        })
+    }
+    fn serialize_none(self) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("None"),
+        })
+    }
+    fn serialize_some<T: ?Sized + Serialize>(self, _: &T) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("Some"),
+        })
+    }
+    fn serialize_unit(self) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("unit"),
+        })
+    }
+    fn serialize_unit_struct(self, _: &'static str) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("unit struct"),
+        })
+    }
+    fn serialize_unit_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+    ) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("unit variant"),
+        })
+    }
+    fn serialize_newtype_struct<T: ?Sized + Serialize>(
+        self,
+        _: &'static str,
+        _: &T,
+    ) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("newtype struct"),
+        })
+    }
+    fn serialize_newtype_variant<T: ?Sized + Serialize>(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: &T,
+    ) -> Result<crate::value::Number> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("newtype variant"),
+        })
+    }
+    fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("seq"),
+        })
+    }
+    fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("tuple"),
+        })
+    }
+    fn serialize_tuple_struct(
+        self,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("tuple struct"),
+        })
+    }
+    fn serialize_tuple_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeTupleVariant> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("tuple variant"),
+        })
+    }
+    fn serialize_map(self, _: Option<usize>) -> Result<Self::SerializeMap> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("map"),
+        })
+    }
+    fn serialize_struct(self, _: &'static str, _: usize) -> Result<Self::SerializeStruct> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("struct"),
+        })
+    }
+    fn serialize_struct_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeStructVariant> {
+        Err(Error::InvalidValueForType {
+            expected: String::from("number"),
+            found: String::from("struct variant"),
+        })
+    }
+}
+
 impl RangeCompound {
     fn new(kind: RangeKind) -> Self {
         RangeCompound {
@@ -1229,204 +1424,10 @@ impl RangeCompound {
 
     /// Try to serialize `value` as a number into a String buffer.
     /// Returns `Some(s)` if numeric, `None` otherwise.
-    #[allow(clippy::too_many_lines)]
     fn try_serialize_number<T>(value: &T) -> Option<crate::value::Number>
     where
         T: ?Sized + Serialize,
     {
-        struct NumberSerializer;
-
-        impl ser::Serializer for NumberSerializer {
-            type Ok = crate::value::Number;
-            type Error = Error;
-            type SerializeSeq = ser::Impossible<crate::value::Number, Error>;
-            type SerializeTuple = ser::Impossible<crate::value::Number, Error>;
-            type SerializeTupleStruct = ser::Impossible<crate::value::Number, Error>;
-            type SerializeTupleVariant = ser::Impossible<crate::value::Number, Error>;
-            type SerializeMap = ser::Impossible<crate::value::Number, Error>;
-            type SerializeStruct = ser::Impossible<crate::value::Number, Error>;
-            type SerializeStructVariant = ser::Impossible<crate::value::Number, Error>;
-
-            fn serialize_i8(self, v: i8) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_i16(self, v: i16) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_i32(self, v: i32) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_i64(self, v: i64) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_u8(self, v: u8) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_u16(self, v: u16) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_u32(self, v: u32) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_u64(self, v: u64) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_f32(self, v: f32) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            fn serialize_f64(self, v: f64) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            #[cfg(feature = "integer128")]
-            fn serialize_i128(self, v: i128) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-            #[cfg(feature = "integer128")]
-            fn serialize_u128(self, v: u128) -> Result<crate::value::Number> {
-                Ok(crate::value::Number::new(v))
-            }
-
-            fn serialize_bool(self, _: bool) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("bool"),
-                })
-            }
-            fn serialize_char(self, _: char) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("char"),
-                })
-            }
-            fn serialize_str(self, _: &str) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("string"),
-                })
-            }
-            fn serialize_bytes(self, _: &[u8]) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("bytes"),
-                })
-            }
-            fn serialize_none(self) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("None"),
-                })
-            }
-            fn serialize_some<T: ?Sized + Serialize>(self, _: &T) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("Some"),
-                })
-            }
-            fn serialize_unit(self) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("unit"),
-                })
-            }
-            fn serialize_unit_struct(self, _: &'static str) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("unit struct"),
-                })
-            }
-            fn serialize_unit_variant(
-                self,
-                _: &'static str,
-                _: u32,
-                _: &'static str,
-            ) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("unit variant"),
-                })
-            }
-            fn serialize_newtype_struct<T: ?Sized + Serialize>(
-                self,
-                _: &'static str,
-                _: &T,
-            ) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("newtype struct"),
-                })
-            }
-            fn serialize_newtype_variant<T: ?Sized + Serialize>(
-                self,
-                _: &'static str,
-                _: u32,
-                _: &'static str,
-                _: &T,
-            ) -> Result<crate::value::Number> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("newtype variant"),
-                })
-            }
-            fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("seq"),
-                })
-            }
-            fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("tuple"),
-                })
-            }
-            fn serialize_tuple_struct(
-                self,
-                _: &'static str,
-                _: usize,
-            ) -> Result<Self::SerializeTupleStruct> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("tuple struct"),
-                })
-            }
-            fn serialize_tuple_variant(
-                self,
-                _: &'static str,
-                _: u32,
-                _: &'static str,
-                _: usize,
-            ) -> Result<Self::SerializeTupleVariant> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("tuple variant"),
-                })
-            }
-            fn serialize_map(self, _: Option<usize>) -> Result<Self::SerializeMap> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("map"),
-                })
-            }
-            fn serialize_struct(self, _: &'static str, _: usize) -> Result<Self::SerializeStruct> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("struct"),
-                })
-            }
-            fn serialize_struct_variant(
-                self,
-                _: &'static str,
-                _: u32,
-                _: &'static str,
-                _: usize,
-            ) -> Result<Self::SerializeStructVariant> {
-                Err(Error::InvalidValueForType {
-                    expected: String::from("number"),
-                    found: String::from("struct variant"),
-                })
-            }
-        }
-
         value.serialize(NumberSerializer).ok()
     }
 }
