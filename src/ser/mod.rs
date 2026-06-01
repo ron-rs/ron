@@ -354,6 +354,10 @@ impl PrettyConfig {
     /// Configures whether ranges should be serialized using compact syntax (`true`)
     /// or as regular structs (`false`).
     ///
+    /// Note: compact range syntax is only used when the range bounds are numeric
+    /// values. If the bounds are non-numeric, the range will fall back to the
+    /// regular struct representation regardless of this setting.
+    ///
     /// When `false`, `0..5` will serialize to
     /// ```ignore
     /// (
