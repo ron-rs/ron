@@ -1211,8 +1211,9 @@ enum RangeKind {
 
 struct RangeCompound {
     kind: RangeKind,
-    first: Option<crate::value::Number>,
-    second: Option<crate::value::Number>,
+    // Stores (field_key, number) so the actual key is preserved through fallback replay.
+    first: Option<(&'static str, crate::value::Number)>,
+    second: Option<(&'static str, crate::value::Number)>,
     fallback: bool,
 }
 
@@ -1655,38 +1656,68 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
             if !range.fallback {
                 match RangeCompound::try_serialize_number(value) {
                     Some(s) => {
-                        if range.first.is_none() {
-                            range.first = Some(s);
+                        // Validate that the field key matches what this range variant expects,
+                        // and that we haven't received more fields than the variant allows.
+                        let expected_key = match range.kind {
+                            RangeKind::RangeTo | RangeKind::RangeToInclusive => {
+                                if range.first.is_none() {
+                                    "end"
+                                } else {
+                                    ""
+                                }
+                            }
+                            _ => {
+                                if range.first.is_none() {
+                                    "start"
+                                } else {
+                                    "end"
+                                }
+                            }
+                        };
+
+                        let max_fields = match range.kind {
+                            RangeKind::RangeFrom
+                            | RangeKind::RangeTo
+                            | RangeKind::RangeToInclusive => 1,
+                            RangeKind::Range | RangeKind::RangeInclusive => 2,
+                        };
+
+                        if key != expected_key
+                            || (range.first.is_some() && max_fields < 2)
+                            || range.second.is_some()
+                        {
+                            range.fallback = true;
+                        } else if range.first.is_none() {
+                            // Store the actual key alongside the number so it is
+                            // replayed correctly if we later fall back to struct form.
+                            range.first = Some((key, s));
                         } else {
-                            range.second = Some(s);
+                            range.second = Some((key, s));
                         }
-                        return Ok(());
+
+                        if !range.fallback {
+                            return Ok(());
+                        }
                     }
                     None => {
                         range.fallback = true;
                     }
                 }
+
                 self.ser.output.write_char('(')?;
                 if !self.ser.compact_structs() {
                     self.ser.is_empty = Some(false);
                     self.ser.start_indent()?;
                 }
 
-                let first_key = match range.kind {
-                    RangeKind::RangeTo | RangeKind::RangeToInclusive => "end",
-                    _ => "start",
-                };
-
-                // Collect buffered values before the mutable borrow below
-                let buffered: [Option<(&'static str, crate::value::Number)>; 2] = [
-                    range.first.take().map(|v| (first_key, v)),
-                    range.second.take().map(|v| ("end", v)),
-                ];
+                // Replay any buffered numeric fields using their actual stored keys.
+                let buffered: [Option<(&'static str, crate::value::Number)>; 2] =
+                    [range.first.take(), range.second.take()];
 
                 for (bkey, bval) in buffered.into_iter().flatten() {
                     ser::SerializeStruct::serialize_field(self, bkey, &bval)?;
                 }
-                // fall through to emit the current non-numeric field normally
+                // fall through to emit the current field normally
             }
         }
 
@@ -1755,7 +1786,7 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
     fn end(mut self) -> Result<()> {
         if let Some(ref mut range) = self.range {
             if !range.fallback {
-                // All fields were numeric — emit compact syntax
+                // All fields were numeric — emit compact syntax.
                 let sep = match range.kind {
                     RangeKind::RangeInclusive | RangeKind::RangeToInclusive => "..=",
                     _ => "..",
@@ -1763,23 +1794,23 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
 
                 match range.kind {
                     RangeKind::RangeFrom => {
-                        if let Some(start) = range.first.take() {
+                        if let Some((_, start)) = range.first.take() {
                             start.serialize(&mut *self.ser)?;
                         }
                         self.ser.output.write_str("..")?;
                     }
                     RangeKind::RangeTo | RangeKind::RangeToInclusive => {
                         self.ser.output.write_str(sep)?;
-                        if let Some(end) = range.first.take() {
+                        if let Some((_, end)) = range.first.take() {
                             end.serialize(&mut *self.ser)?;
                         }
                     }
                     RangeKind::Range | RangeKind::RangeInclusive => {
-                        if let Some(start) = range.first.take() {
+                        if let Some((_, start)) = range.first.take() {
                             start.serialize(&mut *self.ser)?;
                         }
                         self.ser.output.write_str(sep)?;
-                        if let Some(end) = range.second.take() {
+                        if let Some((_, end)) = range.second.take() {
                             end.serialize(&mut *self.ser)?;
                         }
                     }
