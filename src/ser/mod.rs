@@ -1649,6 +1649,7 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 
+    #[allow(clippy::too_many_lines)]
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
