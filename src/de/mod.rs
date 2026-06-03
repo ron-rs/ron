@@ -772,8 +772,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         // `RangeInclusive` used `last` as field name before it was renamed to `end` in a newer Rust version
         if (name == "Range" && fields == ["start", "end"])
-            || (name == "RangeInclusive"
-                && (fields == ["start", "end"] || fields == ["start", "last"]))
+            || (name == "RangeInclusive" && matches!(fields, ["start", "end" | "last"]))
         {
             let end_field = fields[1];
             if let Some(c) = self.parser.peek_char() {
