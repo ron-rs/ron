@@ -384,7 +384,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     return self.deserialize_byte_buf(visitor);
                 }
 
-                if self.parser.consume_str("..") {
+                if self.parser.check_str("..")
+                    && !self.parser.src()[2..].starts_with(|c: char| self.parser.is_number_start(c))
+                {
+                    self.parser.consume_str("..");
                     return visitor.visit_unit();
                 }
 
