@@ -385,7 +385,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 }
 
                 if self.parser.check_str("..")
-                    && !self.parser.src()[2..].starts_with(|c: char| self.parser.is_number_start(c))
+                    && !self.parser.src()[2..]
+                        .trim_start_matches(|c: char| matches!(c, ' ' | '\t' | '\n' | '\r'))
+                        .starts_with(|c: char| self.parser.is_number_start(c))
                 {
                     self.parser.consume_str("..");
                     return visitor.visit_unit();
