@@ -393,21 +393,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                 let start = self.parser.any_number()?;
 
-                if self.parser.consume_str("..=") {
-                    let end = self.parser.any_number()?;
-                    return visitor.visit_map(RangeMapAccess::new(start, end, "end"));
-                } else if self.parser.consume_str("..") {
-                    if self.parser.peek_char().map_or(true, |c| {
-                        !matches!(c, '0'..='9' | '+' | '-' | 'b')
-                            || (c == 'b' && !self.parser.src().starts_with("b'"))
-                    }) {
-                        return visitor.visit_map(RangeFromMapAccess::new(start));
-                    }
-                    let end = self.parser.any_number()?;
-                    return visitor.visit_map(RangeMapAccess::new(start, end, "end"));
-                }
-
-                start.visit(visitor)
+                self.handle_float_range_or_value(start, visitor)
             }
             '"' | 'r' => self.deserialize_string(visitor),
             '\'' => self.deserialize_char(visitor),
