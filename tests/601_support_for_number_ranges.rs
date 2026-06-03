@@ -209,3 +209,16 @@ fn test_inf_nan_ranges() {
     assert!(r.start().is_nan());
     assert!(r.end().is_infinite());
 }
+
+#[test]
+fn test_range_full_whitespace_lookahead() {
+    // In deserialize_any context, `..` is a unit value
+    assert!(ron::from_str::<ron::Value>("..").is_ok());
+
+    // `.. 5` with whitespace before number: old code wrongly treated this as unit in
+    // deserialize_any; with the fix it correctly sees a number follows after whitespace
+    assert!(ron::from_str::<ron::Value>(".. 5").is_err());
+
+    // Untagged enum: `.. 5` must not silently match as RangeFull/unit variant
+    assert!(ron::from_str::<MaybeRange>(".. 5").is_err());
+}
