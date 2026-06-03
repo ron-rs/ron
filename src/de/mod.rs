@@ -768,6 +768,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
+        // `RangeInclusive` used `last` as field name before it was renamed to `end` in a newer Rust version
         if (name == "Range" && fields == ["start", "end"])
             || (name == "RangeInclusive" && fields == ["start", "last"])
         {
@@ -838,6 +839,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return visitor.visit_map(RangeToMapAccess::new(end, "end"));
         }
 
+        // `last` is the old field name for `RangeToInclusive`, replaced by `end` in a newer Rust version
         if matches!(fields, ["end" | "last"])
             && name == "RangeToInclusive"
             && (self.parser.check_str("..=") || self.parser.check_str(".."))
