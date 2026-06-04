@@ -384,11 +384,19 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     return self.deserialize_byte_buf(visitor);
                 }
 
-                if self.parser.check_str("..")
-                    && !self.parser.src()[2..]
-                        .trim_start_matches(|c: char| matches!(c, ' ' | '\t' | '\n' | '\r'))
-                        .starts_with(|c: char| self.parser.is_number_start(c))
-                {
+                if self.parser.check_str("..=") {
+                    self.parser.consume_str("..=");
+                    let end = self.parser.any_number()?;
+                    return visitor.visit_map(RangeToMapAccess::new(end, "end"));
+                }
+
+                if self.parser.check_str("..") {
+                    let after_dots = &self.parser.src()[2..];
+                    if after_dots.starts_with(|c: char| self.parser.is_number_start(c)) {
+                        self.parser.consume_str("..");
+                        let end = self.parser.any_number()?;
+                        return visitor.visit_map(RangeToMapAccess::new(end, "end"));
+                    }
                     self.parser.consume_str("..");
                     return visitor.visit_unit();
                 }

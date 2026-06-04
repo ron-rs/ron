@@ -212,13 +212,13 @@ fn test_inf_nan_ranges() {
     assert!(r.end().is_infinite());
 }
 
-// Untagged enum where RangeFull comes after Value: `.. 5` should correctly
-// fall through the RangeFull attempt (trailing garbage) and match Value(5)
+// Untagged enum where RangeFull comes after RangeTo and Value
 #[derive(PartialEq, Deserialize, Serialize, Debug)]
 #[serde(untagged)]
 enum MaybeRangeOrValue {
     Range(std::ops::Range<i32>),
     RangeFrom(std::ops::RangeFrom<i32>),
+    RangeTo(std::ops::RangeTo<i32>),
     Value(i32),
     #[serde(with = "RangeFull")]
     RangeFull(std::ops::RangeFull),
@@ -235,6 +235,15 @@ fn test_range_full_whitespace_lookahead() {
     // Untagged enum: `.. 5` must not silently match as RangeFull/unit variant,
     // because `5` is trailing garbage after `..`
     assert!(ron::from_str::<MaybeRange>(".. 5").is_err());
+
+    assert_eq!(
+        ron::from_str::<MaybeRangeOrValue>("..5").unwrap(),
+        MaybeRangeOrValue::RangeTo(..5)
+    );
+    assert_eq!(
+        ron::from_str::<MaybeRangeOrValue>("..5").unwrap(),
+        MaybeRangeOrValue::RangeTo(..5)
+    );
 
     // Untagged enum where RangeFull comes after Value: `.. 5` is invalid RON
     // regardless of variant order — `..` is not a valid prefix for integers
