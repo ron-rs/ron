@@ -240,10 +240,6 @@ fn test_range_full_whitespace_lookahead() {
         ron::from_str::<MaybeRangeOrValue>("..5").unwrap(),
         MaybeRangeOrValue::RangeTo(..5)
     );
-    assert_eq!(
-        ron::from_str::<MaybeRangeOrValue>("..5").unwrap(),
-        MaybeRangeOrValue::RangeTo(..5)
-    );
 
     // Untagged enum where RangeFull comes after Value: `.. 5` is invalid RON
     // regardless of variant order — `..` is not a valid prefix for integers
