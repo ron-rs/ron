@@ -215,10 +215,7 @@ fn test_inf_nan_ranges() {
 #[test]
 fn test_range_full_whitespace_lookahead() {
     // In deserialize_any context, `..` deserializes as a unit value
-    assert_eq!(
-        ron::from_str::<ron::Value>("..").unwrap(),
-        ron::Value::Unit
-    );
+    assert_eq!(ron::from_str::<ron::Value>("..").unwrap(), ron::Value::Unit);
 
     // `.. 5` is invalid: `..` consumes the range-full token, but `5` is trailing garbage
     assert!(ron::from_str::<ron::Value>(".. 5").is_err());

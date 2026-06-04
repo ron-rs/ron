@@ -3,8 +3,8 @@ use core::{
     hash::{Hash, Hasher},
 };
 
-use serde::{de::Visitor, Serialize, Serializer};
 use crate::error::{Error, Result};
+use serde::{de::Visitor, Serialize, Serializer};
 
 /// A wrapper for any numeric primitive type in Rust.
 ///
@@ -363,74 +363,178 @@ impl serde::Serializer for NumberSerializer {
     type SerializeStruct = serde::ser::Impossible<Number, Error>;
     type SerializeStructVariant = serde::ser::Impossible<Number, Error>;
 
-    fn serialize_i8(self, v: i8) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_i16(self, v: i16) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_i32(self, v: i32) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_i64(self, v: i64) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_u8(self, v: u8) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_u16(self, v: u16) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_u32(self, v: u32) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_u64(self, v: u64) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_f32(self, v: f32) -> Result<Number> { Ok(Number::new(v)) }
-    fn serialize_f64(self, v: f64) -> Result<Number> { Ok(Number::new(v)) }
+    fn serialize_i8(self, v: i8) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_i16(self, v: i16) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_i32(self, v: i32) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_i64(self, v: i64) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_u8(self, v: u8) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_u16(self, v: u16) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_u32(self, v: u32) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_u64(self, v: u64) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_f32(self, v: f32) -> Result<Number> {
+        Ok(Number::new(v))
+    }
+    fn serialize_f64(self, v: f64) -> Result<Number> {
+        Ok(Number::new(v))
+    }
     #[cfg(feature = "integer128")]
-    fn serialize_i128(self, v: i128) -> Result<Number> { Ok(Number::new(v)) }
+    fn serialize_i128(self, v: i128) -> Result<Number> {
+        Ok(Number::new(v))
+    }
     #[cfg(feature = "integer128")]
-    fn serialize_u128(self, v: u128) -> Result<Number> { Ok(Number::new(v)) }
+    fn serialize_u128(self, v: u128) -> Result<Number> {
+        Ok(Number::new(v))
+    }
 
     fn serialize_bool(self, _: bool) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("bool") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("bool"),
+        })
     }
     fn serialize_char(self, _: char) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("char") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("char"),
+        })
     }
     fn serialize_str(self, _: &str) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("string") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("string"),
+        })
     }
     fn serialize_bytes(self, _: &[u8]) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("bytes") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("bytes"),
+        })
     }
     fn serialize_none(self) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("None") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("None"),
+        })
     }
     fn serialize_some<T: ?Sized + Serialize>(self, _: &T) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("Some") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("Some"),
+        })
     }
     fn serialize_unit(self) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("unit") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("unit"),
+        })
     }
     fn serialize_unit_struct(self, _: &'static str) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("unit struct") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("unit struct"),
+        })
     }
     fn serialize_unit_variant(self, _: &'static str, _: u32, _: &'static str) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("unit variant") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("unit variant"),
+        })
     }
-    fn serialize_newtype_struct<T: ?Sized + Serialize>(self, _: &'static str, _: &T) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("newtype struct") })
+    fn serialize_newtype_struct<T: ?Sized + Serialize>(
+        self,
+        _: &'static str,
+        _: &T,
+    ) -> Result<Number> {
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("newtype struct"),
+        })
     }
-    fn serialize_newtype_variant<T: ?Sized + Serialize>(self, _: &'static str, _: u32, _: &'static str, _: &T) -> Result<Number> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("newtype variant") })
+    fn serialize_newtype_variant<T: ?Sized + Serialize>(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: &T,
+    ) -> Result<Number> {
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("newtype variant"),
+        })
     }
     fn serialize_seq(self, _: Option<usize>) -> Result<Self::SerializeSeq> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("seq") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("seq"),
+        })
     }
     fn serialize_tuple(self, _: usize) -> Result<Self::SerializeTuple> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("tuple") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("tuple"),
+        })
     }
-    fn serialize_tuple_struct(self, _: &'static str, _: usize) -> Result<Self::SerializeTupleStruct> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("tuple struct") })
+    fn serialize_tuple_struct(
+        self,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("tuple struct"),
+        })
     }
-    fn serialize_tuple_variant(self, _: &'static str, _: u32, _: &'static str, _: usize) -> Result<Self::SerializeTupleVariant> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("tuple variant") })
+    fn serialize_tuple_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeTupleVariant> {
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("tuple variant"),
+        })
     }
     fn serialize_map(self, _: Option<usize>) -> Result<Self::SerializeMap> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("map") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("map"),
+        })
     }
     fn serialize_struct(self, _: &'static str, _: usize) -> Result<Self::SerializeStruct> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("struct") })
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("struct"),
+        })
     }
-    fn serialize_struct_variant(self, _: &'static str, _: u32, _: &'static str, _: usize) -> Result<Self::SerializeStructVariant> {
-        Err(Error::InvalidValueForType { expected: alloc::string::String::from("number"), found: alloc::string::String::from("struct variant") })
+    fn serialize_struct_variant(
+        self,
+        _: &'static str,
+        _: u32,
+        _: &'static str,
+        _: usize,
+    ) -> Result<Self::SerializeStructVariant> {
+        Err(Error::InvalidValueForType {
+            expected: alloc::string::String::from("number"),
+            found: alloc::string::String::from("struct variant"),
+        })
     }
 }
 
