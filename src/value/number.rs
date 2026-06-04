@@ -349,6 +349,7 @@ number_from_impl! { Number::F64(F64(f64)) }
 
 /// A serializer that only accepts numeric values, returning a [`Number`].
 /// Used by [`crate::ser::RangeCompound`] to detect whether range bounds are numeric.
+#[allow(clippy::module_name_repetitions)]
 pub struct NumberSerializer;
 
 impl serde::Serializer for NumberSerializer {
