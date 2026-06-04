@@ -95,6 +95,8 @@ fn test_range_integer_bases() {
 enum MaybeRange {
     Range(std::ops::Range<i32>),
     RangeFrom(std::ops::RangeFrom<i32>),
+    #[serde(with = "RangeFull")]
+    RangeFull(std::ops::RangeFull),
     Value(i32),
 }
 
@@ -212,13 +214,22 @@ fn test_inf_nan_ranges() {
 
 #[test]
 fn test_range_full_whitespace_lookahead() {
-    // In deserialize_any context, `..` is a unit value
-    assert!(ron::from_str::<ron::Value>("..").is_ok());
+    // In deserialize_any context, `..` deserializes as a unit value
+    assert_eq!(
+        ron::from_str::<ron::Value>("..").unwrap(),
+        ron::Value::Unit
+    );
 
-    // `.. 5` with whitespace before number: old code wrongly treated this as unit in
-    // deserialize_any; with the fix it correctly sees a number follows after whitespace
+    // `.. 5` is invalid: `..` consumes the range-full token, but `5` is trailing garbage
     assert!(ron::from_str::<ron::Value>(".. 5").is_err());
 
-    // Untagged enum: `.. 5` must not silently match as RangeFull/unit variant
+    // Untagged enum: `.. 5` must not silently match as RangeFull/unit variant,
+    // because `5` is trailing garbage after `..`
     assert!(ron::from_str::<MaybeRange>(".. 5").is_err());
+
+    // Untagged enum: plain `..` correctly matches the RangeFull variant
+    assert_eq!(
+        ron::from_str::<MaybeRange>("..").unwrap(),
+        MaybeRange::RangeFull(std::ops::RangeFull)
+    );
 }
