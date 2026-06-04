@@ -144,6 +144,10 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn is_number_start(&self, c: char) -> bool {
+        matches!(c, '0'..='9' | '+' | '-' | '.' | 'b') && (c != 'b' || self.src().starts_with("b'"))
+    }
+
     pub fn advance_bytes(&mut self, bytes: usize) {
         self.prev_cursor = self.cursor;
         self.cursor.cursor += bytes;
@@ -461,6 +465,16 @@ impl<'a> Parser<'a> {
     }
 
     pub fn any_number(&mut self) -> Result<Number> {
+        if self.consume_ident("inf") || self.consume_ident("inff32") {
+            return Ok(Number::F32(crate::value::F32(core::f32::INFINITY)));
+        } else if self.consume_ident("inff64") {
+            return Ok(Number::F64(crate::value::F64(core::f64::INFINITY)));
+        } else if self.consume_ident("NaN") || self.consume_ident("NaNf32") {
+            return Ok(Number::F32(crate::value::F32(core::f32::NAN)));
+        } else if self.consume_ident("NaNf64") {
+            return Ok(Number::F64(crate::value::F64(core::f64::NAN)));
+        }
+
         if self.next_bytes_is_float() {
             return match self.float::<ParsedFloat>()? {
                 ParsedFloat::F32(v) => Ok(Number::F32(v.into())),
@@ -837,7 +851,9 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let num_bytes = self.next_chars_while_len(is_float_char);
+        let raw_bytes = self.next_chars_while_len(is_float_char);
+        let src = &self.src()[..raw_bytes];
+        let num_bytes = src.find("..").unwrap_or(raw_bytes);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedFloat);
@@ -1019,7 +1035,12 @@ impl<'a> Parser<'a> {
                 '+' | '-' => 1,
                 _ => 0,
             };
-            let valid_float_len = self.next_chars_while_from_len(skip, is_float_char);
+            let raw_float_len = self.next_chars_while_from_len(skip, is_float_char);
+            // Trim at ".." to avoid treating range operators as float chars
+            let valid_float_len = self.src()[skip..]
+                .find("..")
+                .map(|i| i.min(raw_float_len))
+                .map_or(raw_float_len, |i| i.min(raw_float_len));
             let valid_int_len = self.next_chars_while_from_len(skip, is_int_char);
             valid_float_len > valid_int_len
         } else {

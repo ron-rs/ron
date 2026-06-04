@@ -112,6 +112,7 @@ pub enum Error {
     ExpectedRawValue,
     ExceededRecursionLimit,
     ExpectedStructName(String),
+    ExpectedRangeSyntax,
 }
 
 impl fmt::Display for SpannedError {
@@ -286,6 +287,7 @@ impl fmt::Display for Error {
                 "Expected the explicit struct name {}, but none was found",
                 Identifier(name)
             ),
+            Error::ExpectedRangeSyntax => f.write_str("Expected `..` or `..=` for range syntax"),
         }
     }
 }

@@ -12,7 +12,7 @@
 
 RON is a simple readable data serialization format that looks similar to Rust syntax.
 It's designed to support all of [Serde's data model](https://serde.rs/data-model.html), so
-structs, enums, tuples, arrays, generic maps, and primitive values.
+structs, enums, tuples, arrays, generic maps, ranges, and primitive values.
 
 ## Example
 
@@ -57,6 +57,7 @@ GameConfig( // optional struct name
 * Lists: `["abc", "def"]`
 * Structs: `( foo: 1.0, bar: ( baz: "I'm nested" ) )`
 * Maps: `{ "arbitrary": "keys", "are": "allowed" }`
+* Ranges: `3..5`, `-2.1..=7.3`, `..-15`, `..10.5`, `..=13`, `..`
 
 > **Note:** Serde's data model represents fixed-size Rust arrays as tuple (instead of as list)
 

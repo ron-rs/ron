@@ -120,6 +120,8 @@ pub struct PrettyConfig {
     pub number_suffixes: bool,
     /// Additional path-based field metadata to serialize
     pub path_meta: Option<path_meta::Field>,
+    /// Enable compact range syntax, e.g. `0..5` instead of `(start: 0, end: 5)`.
+    pub compact_ranges: bool,
 }
 
 impl PrettyConfig {
@@ -348,6 +350,39 @@ impl PrettyConfig {
 
         self
     }
+
+    /// Configures whether ranges should be serialized using compact syntax (`true`)
+    /// or as regular structs (`false`).
+    ///
+    /// Note: compact range syntax is only used when the range bounds are numeric
+    /// values. If the bounds are non-numeric, the range will fall back to the
+    /// regular struct representation regardless of this setting.
+    ///
+    /// When `false`, `0..5` will serialize to
+    /// ```ignore
+    /// (
+    ///     start: 0,
+    ///     end: 5,
+    /// )
+    /// # ;
+    /// ```
+    /// When `true`, `0..5` will instead serialize to
+    /// ```ignore
+    /// 0..5
+    /// # ;
+    /// ```
+    /// and `1..=3` will serialize to
+    /// ```ignore
+    /// 1..=3
+    /// # ;
+    /// ```
+    ///
+    /// Default: `false`
+    #[must_use]
+    pub fn compact_ranges(mut self, compact_ranges: bool) -> Self {
+        self.compact_ranges = compact_ranges;
+        self
+    }
 }
 
 impl Default for PrettyConfig {
@@ -371,6 +406,7 @@ impl Default for PrettyConfig {
             compact_maps: false,
             number_suffixes: false,
             path_meta: None,
+            compact_ranges: false,
         }
     }
 }
@@ -486,6 +522,12 @@ impl<W: fmt::Write> Serializer<W> {
         self.pretty
             .as_ref()
             .map_or(false, |(ref config, _)| config.number_suffixes)
+    }
+
+    fn compact_ranges(&self) -> bool {
+        self.pretty
+            .as_ref()
+            .map_or(false, |(ref config, _)| config.compact_ranges)
     }
 
     fn extensions(&self) -> Extensions {
@@ -866,6 +908,11 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
     }
 
     fn serialize_unit_struct(self, name: &'static str) -> Result<()> {
+        if self.compact_ranges() && name == "RangeFull" {
+            self.output.write_str("..")?;
+            return Ok(());
+        }
+
         if self.struct_names() && !self.newtype_variant {
             self.write_identifier(name)?;
 
@@ -1050,6 +1097,29 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
 
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         let old_newtype_variant = self.newtype_variant;
+        if self.compact_ranges()
+            && ((len == 2 && (name == "Range" || name == "RangeInclusive"))
+                || (len == 1
+                    && (name == "RangeFrom" || name == "RangeTo" || name == "RangeToInclusive")))
+        {
+            self.newtype_variant = false;
+            self.implicit_some_depth = 0;
+            return Ok(Compound::new_range(
+                self,
+                if name == "RangeInclusive" {
+                    RangeKind::RangeInclusive
+                } else if name == "RangeFrom" {
+                    RangeKind::RangeFrom
+                } else if name == "RangeTo" {
+                    RangeKind::RangeTo
+                } else if name == "RangeToInclusive" {
+                    RangeKind::RangeToInclusive
+                } else {
+                    RangeKind::Range
+                },
+            ));
+        }
+
         self.newtype_variant = false;
         self.implicit_some_depth = 0;
 
@@ -1106,6 +1176,7 @@ pub struct Compound<'a, W: fmt::Write> {
     state: State,
     newtype_variant: bool,
     sequence_index: usize,
+    range: Option<RangeCompound>,
 }
 
 impl<'a, W: fmt::Write> Compound<'a, W> {
@@ -1115,7 +1186,54 @@ impl<'a, W: fmt::Write> Compound<'a, W> {
             state: State::First,
             newtype_variant,
             sequence_index: 0,
+            range: None,
         }
+    }
+
+    fn new_range(ser: &'a mut Serializer<W>, kind: RangeKind) -> Self {
+        Compound {
+            ser,
+            state: State::First,
+            newtype_variant: false,
+            sequence_index: 0,
+            range: Some(RangeCompound::new(kind)),
+        }
+    }
+}
+
+enum RangeKind {
+    Range,
+    RangeInclusive,
+    RangeFrom,
+    RangeTo,
+    RangeToInclusive,
+}
+
+struct RangeCompound {
+    kind: RangeKind,
+    // Stores (field_key, number) so the actual key is preserved through fallback replay.
+    first: Option<(&'static str, crate::value::Number)>,
+    second: Option<(&'static str, crate::value::Number)>,
+    fallback: bool,
+}
+
+impl RangeCompound {
+    fn new(kind: RangeKind) -> Self {
+        RangeCompound {
+            kind,
+            first: None,
+            second: None,
+            fallback: false,
+        }
+    }
+
+    /// Try to serialize `value` as a number into a String buffer.
+    /// Returns `Some(s)` if numeric, `None` otherwise.
+    fn try_serialize_number<T>(value: &T) -> Option<crate::value::Number>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(crate::value::NumberSerializer).ok()
     }
 }
 
@@ -1336,10 +1454,80 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
 
+    #[allow(clippy::too_many_lines)]
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
+        if let Some(ref mut range) = self.range {
+            if !range.fallback {
+                match RangeCompound::try_serialize_number(value) {
+                    Some(s) => {
+                        // Validate that the field key matches what this range variant expects,
+                        // and that we haven't received more fields than the variant allows.
+                        let expected_key = match range.kind {
+                            RangeKind::RangeTo | RangeKind::RangeToInclusive => {
+                                if range.first.is_none() {
+                                    "end"
+                                } else {
+                                    ""
+                                }
+                            }
+                            _ => {
+                                if range.first.is_none() {
+                                    "start"
+                                } else {
+                                    "end"
+                                }
+                            }
+                        };
+
+                        let max_fields = match range.kind {
+                            RangeKind::RangeFrom
+                            | RangeKind::RangeTo
+                            | RangeKind::RangeToInclusive => 1,
+                            RangeKind::Range | RangeKind::RangeInclusive => 2,
+                        };
+
+                        if key != expected_key
+                            || (range.first.is_some() && max_fields < 2)
+                            || range.second.is_some()
+                        {
+                            range.fallback = true;
+                        } else if range.first.is_none() {
+                            // Store the actual key alongside the number so it is
+                            // replayed correctly if we later fall back to struct form.
+                            range.first = Some((key, s));
+                        } else {
+                            range.second = Some((key, s));
+                        }
+
+                        if !range.fallback {
+                            return Ok(());
+                        }
+                    }
+                    None => {
+                        range.fallback = true;
+                    }
+                }
+
+                self.ser.output.write_char('(')?;
+                if !self.ser.compact_structs() {
+                    self.ser.is_empty = Some(false);
+                    self.ser.start_indent()?;
+                }
+
+                // Replay any buffered numeric fields using their actual stored keys.
+                let buffered: [Option<(&'static str, crate::value::Number)>; 2] =
+                    [range.first.take(), range.second.take()];
+
+                for (bkey, bval) in buffered.into_iter().flatten() {
+                    ser::SerializeStruct::serialize_field(self, bkey, &bval)?;
+                }
+                // fall through to emit the current field normally
+            }
+        }
+
         let mut restore_field = self.ser.pretty.as_mut().and_then(|(config, _)| {
             config.path_meta.take().map(|mut field| {
                 if let Some(fields) = field.fields_mut() {
@@ -1402,7 +1590,43 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
         Ok(())
     }
 
-    fn end(self) -> Result<()> {
+    fn end(mut self) -> Result<()> {
+        if let Some(ref mut range) = self.range {
+            if !range.fallback {
+                // All fields were numeric — emit compact syntax.
+                let sep = match range.kind {
+                    RangeKind::RangeInclusive | RangeKind::RangeToInclusive => "..=",
+                    _ => "..",
+                };
+
+                match range.kind {
+                    RangeKind::RangeFrom => {
+                        if let Some((_, start)) = range.first.take() {
+                            start.serialize(&mut *self.ser)?;
+                        }
+                        self.ser.output.write_str("..")?;
+                    }
+                    RangeKind::RangeTo | RangeKind::RangeToInclusive => {
+                        self.ser.output.write_str(sep)?;
+                        if let Some((_, end)) = range.first.take() {
+                            end.serialize(&mut *self.ser)?;
+                        }
+                    }
+                    RangeKind::Range | RangeKind::RangeInclusive => {
+                        if let Some((_, start)) = range.first.take() {
+                            start.serialize(&mut *self.ser)?;
+                        }
+                        self.ser.output.write_str(sep)?;
+                        if let Some((_, end)) = range.second.take() {
+                            end.serialize(&mut *self.ser)?;
+                        }
+                    }
+                }
+                return Ok(());
+            }
+            // fallback: close the struct normally (end_indent + ')' handled below)
+        }
+
         if let State::Rest = self.state {
             if let Some((ref config, ref pretty)) = self.ser.pretty {
                 if pretty.indent <= config.depth_limit && !config.compact_structs {

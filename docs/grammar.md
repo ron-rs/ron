@@ -40,7 +40,7 @@ For the extension names see the [`extensions.md`][exts] document.
 ## Value
 
 ```ebnf
-value = integer | byte | float | string | byte_string | char | bool | option | list | map | tuple | struct | enum_variant;
+value = integer | byte | float | string | byte_string | char | bool | option | list | map | tuple | struct | enum_variant | range;
 ```
 
 ## Numbers
@@ -50,6 +50,8 @@ digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 digit_binary = "0" | "1";
 digit_octal = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7";
 digit_hexadecimal = digit | "A" | "a" | "B" | "b" | "C" | "c" | "D" | "d" | "E" | "e" | "F" | "f";
+
+number = integer | byte | float;
 
 integer = ["+" | "-"], unsigned, [integer_suffix];
 integer_suffix = ("i", "u"), ("8", "16", "32", "64", "128");
@@ -138,6 +140,24 @@ bool = "true" | "false";
 option = "None" | option_some;
 option_some = "Some", ws, "(", ws, value, ws, ")";
 ```
+
+## Range
+
+```ebnf
+range = range_from_to_inclusive | range_from_to_exclusive | range_from | range_to_inclusive | range_to_exclusive | range_full;
+range_from_to_inclusive = number, ws, "..=", ws, number;
+range_from_to_exclusive = number, ws, "..", ws, number;
+range_from = number, ws, "..";
+range_to_inclusive = "..=", ws, number;
+range_to_exclusive = "..", ws, number;
+range_full = "..";
+```
+
+> Note: Alternatives are ordered by specificity — `..=` must be matched before `..`
+  to avoid ambiguity. A parser should attempt the longer token (`..=`) first.
+  The six range forms correspond directly to Rust's range types:
+  `x..y` → `Range`, `x..=y` → `RangeInclusive`, `x..` → `RangeFrom`,
+  `..y` → `RangeTo`, `..=y` → `RangeToInclusive`, `..` → `RangeFull`.
 
 ## List
 
