@@ -538,6 +538,25 @@ impl serde::Serializer for NumberSerializer {
     }
 }
 
+pub(crate) struct NumberDeserializer(pub(crate) Number);
+
+impl<'de> serde::de::Deserializer<'de> for NumberDeserializer {
+    type Error = crate::error::Error;
+
+    fn deserialize_any<V: serde::de::Visitor<'de>>(
+        self,
+        visitor: V,
+    ) -> crate::error::Result<V::Value> {
+        self.0.visit(visitor)
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64
+        char str string bytes byte_buf option unit unit_struct
+        newtype_struct seq tuple tuple_struct map struct enum identifier ignored_any
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
