@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.12.2] - 2026-06-22
+
+### Format Changes
+
+- Add support for number ranges ([#602](https://github.com/ron-rs/ron/pull/602))
+
 ## [0.12.1] - 2026-03-30
 
 ### Format Changes
