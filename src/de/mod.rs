@@ -784,7 +784,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         {
             let end_field = fields[1];
             if let Some(c) = self.parser.peek_char() {
-                if self.parser.is_number_start(c) {
+                if self.parser.is_number_start(c)
+                    || self.parser.check_ident("inf")
+                    || self.parser.check_ident("inff32")
+                    || self.parser.check_ident("inff64")
+                    || self.parser.check_ident("NaN")
+                    || self.parser.check_ident("NaNf32")
+                    || self.parser.check_ident("NaNf64")
+                {
                     let start = self.parser.any_number()?;
 
                     let inclusive = if self.parser.consume_str("..=") {
