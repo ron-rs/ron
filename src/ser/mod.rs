@@ -413,7 +413,7 @@ impl Default for PrettyConfig {
 
 /// The RON serializer.
 ///
-/// You can just use [`to_string`] for deserializing a value.
+/// You can just use [`to_string`] for serializing a value.
 /// If you want it pretty-printed, take a look at [`to_string_pretty`].
 pub struct Serializer<W: fmt::Write> {
     output: W,
