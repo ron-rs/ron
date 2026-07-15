@@ -1217,17 +1217,21 @@ impl<'a> Parser<'a> {
                     },
                 }
 
-                // Checking for '"' and '\\' separately is faster than searching for both at the same time
-                let new_str_end = self.src().find('"').ok_or(Error::ExpectedStringEnd)?;
-                let new_escape = self.src()[..new_str_end].find('\\');
+                // Unlike the non-escaped case above, searching for '"' and '\\'
+                // separately is *not* sound here: `find('"')` scans all the way to
+                // the closing quote, but the cursor only advances by one escape per
+                // iteration, so a string with N escapes rescans the tail N times.
+                // Only the first of '"' / '\\' is needed, and scanning just to the
+                // nearest delimiter keeps the loop linear.
+                let next = self.src().find(['"', '\\']).ok_or(Error::ExpectedStringEnd)?;
+                s.extend_from_slice(&self.src().as_bytes()[..next]);
 
-                if let Some(new_escape) = new_escape {
-                    s.extend_from_slice(&self.src().as_bytes()[..new_escape]);
-                    i = new_escape;
+                // `next` indexes an ASCII byte, so byte indexing is valid here.
+                if self.src().as_bytes()[next] == b'\\' {
+                    i = next;
                 } else {
-                    s.extend_from_slice(&self.src().as_bytes()[..new_str_end]);
                     // Advance to the end of the string + 1 for the `"`.
-                    break Ok((ParsedByteStr::Allocated(s), new_str_end + 1));
+                    break Ok((ParsedByteStr::Allocated(s), next + 1));
                 }
             }
         } else {
