@@ -88,6 +88,27 @@ jobs:
         run: |
           cargo hack test --feature-powerset --clean-per-run
 
+  scaling:
+    name: "Scaling: complexity regression tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          key: scaling
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      # The `complexity_scaling` tests are `#[ignore]`d so they never slow down
+      # (or flake) the normal test job. They assert on the *ratio* of parse time
+      # as the input doubles, not on wall-clock ms, and must run in release and
+      # single-threaded to keep the timing signal clean.
+      - name: Run the scaling regression tests
+        run: |
+          cargo test --release --test complexity_scaling -- --ignored --nocapture --test-threads=1
+
   clippy-fuzz:
     name: "Clippy: Fuzzer"
     runs-on: ubuntu-latest
