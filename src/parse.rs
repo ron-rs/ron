@@ -255,7 +255,11 @@ impl<'a> Parser<'a> {
     }
 
     #[must_use]
-    pub fn next_chars_while_from_len(&self, from: usize, condition: impl Fn(char) -> bool) -> usize {
+    pub fn next_chars_while_from_len(
+        &self,
+        from: usize,
+        condition: impl Fn(char) -> bool,
+    ) -> usize {
         // Byte scan instead of `str::find(|c| !condition(c))`, which ran StrSearcher and
         // decoded UTF-8 per char. `impl Fn` (vs `fn(char)->bool`) monomorphizes the
         // predicate into a tight loop. ASCII bytes take `b as char`; non-ASCII (b>=0x80)
@@ -272,8 +276,9 @@ impl<'a> Parser<'a> {
                 }
                 i += 1;
             } else {
-                // i is the start of a multi-byte sequence => valid boundary.
-                let c = s[i..].chars().next().unwrap();
+                // i is the start of a multi-byte sequence => valid boundary, so
+                // `chars().next()` is always `Some` (crate denies `unwrap_used`).
+                let c = s[i..].chars().next().expect("i on a char boundary");
                 if !condition(c) {
                     break;
                 }
