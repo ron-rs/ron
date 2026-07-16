@@ -276,9 +276,14 @@ impl<'a> Parser<'a> {
                 }
                 i += 1;
             } else {
-                // i is the start of a multi-byte sequence => valid boundary, so
-                // `chars().next()` is always `Some` (crate denies `unwrap_used`).
-                let c = s[i..].chars().next().expect("i on a char boundary");
+                // i is the start of a multi-byte sequence => a valid boundary, so
+                // `chars().next()` always yields `Some`. The crate denies
+                // unwrap/expect/panic in non-test code, so on the impossible
+                // `None` we simply stop scanning (a harmless no-op).
+                let c = match s[i..].chars().next() {
+                    Some(c) => c,
+                    None => break,
+                };
                 if !condition(c) {
                     break;
                 }
