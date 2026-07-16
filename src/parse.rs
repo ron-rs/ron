@@ -1963,3 +1963,27 @@ mod tests {
         );
     }
 }
+
+// Kani proofs that live INSIDE `mod parse` so they can reach the private,
+// allocation-free, string-scan-free helpers. Unlike the full `from_str` path
+// (which overwhelms CBMC), these discharge quickly and prove totality over the
+// ENTIRE `char` domain, not sampled inputs.
+#[cfg(kani)]
+mod kani_parse_proofs {
+    use super::{is_int_char, Parser};
+
+    /// `decode_hex` is total and panic/overflow-free for every `char`
+    /// (covers the `10 + c - b'a'` arithmetic in the hex-digit branches).
+    #[kani::proof]
+    fn decode_hex_total_no_panic() {
+        let c: char = kani::any();
+        let _ = Parser::<'static>::decode_hex(c);
+    }
+
+    /// `is_int_char` is total for every `char`.
+    #[kani::proof]
+    fn is_int_char_total_no_panic() {
+        let c: char = kani::any();
+        let _ = is_int_char(c);
+    }
+}
