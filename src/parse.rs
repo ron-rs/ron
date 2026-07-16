@@ -1036,10 +1036,20 @@ impl<'a> Parser<'a> {
                 _ => 0,
             };
             let raw_float_len = self.next_chars_while_from_len(skip, is_float_char);
-            // Trim at ".." to avoid treating range operators as float chars
-            let valid_float_len = self.src()[skip..]
+            // Trim at ".." to avoid treating range operators as float chars.
+            //
+            // Only search within the float-char run: the result is clamped to
+            // `raw_float_len` anyway, so a match at or beyond it cannot change the
+            // outcome. Searching the whole remaining input made this O(remaining)
+            // per number, i.e. quadratic in the number count for documents that
+            // contain no ".." at all (every number then scanned to EOF).
+            //
+            // A ".." cannot straddle the end of the run: that would require
+            // `src[raw_float_len] == '.'`, but '.' is a float char and would have
+            // been part of the run. `any_number` above already uses this same
+            // bounded-slice form.
+            let valid_float_len = self.src()[skip..][..raw_float_len]
                 .find("..")
-                .map(|i| i.min(raw_float_len))
                 .map_or(raw_float_len, |i| i.min(raw_float_len));
             let valid_int_len = self.next_chars_while_from_len(skip, is_int_char);
             valid_float_len > valid_int_len
