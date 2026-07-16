@@ -25,10 +25,8 @@ fn seq_of_floats(n: usize) -> String {
 fn parse_millis(n: usize) -> f64 {
     let src = seq_of_floats(n);
     let start = Instant::now();
-    // Bind (and later drop) the parsed value without `std::hint::black_box`,
-    // which is only stable since Rust 1.66 and would break the 1.64 MSRV.
-    // The parse can't be optimized away regardless: `from_str::<Value>` is a
-    // cross-crate, non-inlined call that allocates and is `.unwrap()`ed.
+    // No `black_box` (it needs Rust 1.66, MSRV is 1.64): the unwrapped
+    // cross-crate `from_str` allocates, so the parse isn't optimized away.
     let _value: ron::Value = ron::from_str(&src).unwrap();
     let elapsed = start.elapsed().as_secs_f64() * 1000.0;
     elapsed
