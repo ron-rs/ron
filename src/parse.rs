@@ -1223,7 +1223,10 @@ impl<'a> Parser<'a> {
                 // iteration, so a string with N escapes rescans the tail N times.
                 // Only the first of '"' / '\\' is needed, and scanning just to the
                 // nearest delimiter keeps the loop linear.
-                let next = self.src().find(['"', '\\']).ok_or(Error::ExpectedStringEnd)?;
+                let next = self
+                    .src()
+                    .find(['"', '\\'])
+                    .ok_or(Error::ExpectedStringEnd)?;
                 s.extend_from_slice(&self.src().as_bytes()[..next]);
 
                 // `next` indexes an ASCII byte, so byte indexing is valid here.
