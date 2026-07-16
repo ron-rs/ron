@@ -162,7 +162,7 @@ range_full = "..";
 ## List
 
 ```ebnf
-list = "[", [value, { comma, value }, [comma]], "]";
+list = "[", ws, [value, { comma, value }, [comma]], "]";
 ```
 
 ## Map
@@ -184,7 +184,7 @@ tuple = "(", [value, { comma, value }, [comma]], ")";
 struct = unit_struct | tuple_struct | named_struct;
 unit_struct = ident | "()";
 tuple_struct = [ident], ws, tuple;
-named_struct = [ident], ws, "(", ws, [named_field, { comma, named_field }, [comma]], ")";
+named_struct = [ident], ws, "(", ws, [named_field, { comma, named_field }, [comma]], ws, ")";
 named_field = ident, ws, ":", ws, value;
 ```
 
