@@ -21,3 +21,15 @@ name = "from_str"
 path = "fuzz_targets/from_str.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "roundtrip"
+path = "fuzz_targets/roundtrip.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "raw_value"
+path = "fuzz_targets/raw_value.rs"
+test = false
+doc = false
