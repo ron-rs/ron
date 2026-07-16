@@ -29,12 +29,23 @@ fn implicit_some_map_key_collision_loses_entry() {
 
     // Re-parsing deduplicates: two entries in, one entry out — silent loss.
     let back: Value = opts.from_str(&s).unwrap();
-    let Value::Map(m) = &back else { panic!("expected a map") };
-    assert_eq!(m.len(), 1, "entry silently lost on round-trip under IMPLICIT_SOME");
+    // `let...else` is 1.65+, but ron's MSRV is 1.64 — use an explicit match.
+    let m = match &back {
+        Value::Map(m) => m,
+        _ => panic!("expected a map"),
+    };
+    assert_eq!(
+        m.len(),
+        1,
+        "entry silently lost on round-trip under IMPLICIT_SOME"
+    );
 
     // Sanity: WITHOUT implicit_some the two keys stay distinct and it round-trips.
     let plain = ron::to_string(&v).unwrap();
     let plain_back: Value = ron::from_str(&plain).unwrap();
-    let Value::Map(m2) = &plain_back else { panic!("expected a map") };
+    let m2 = match &plain_back {
+        Value::Map(m2) => m2,
+        _ => panic!("expected a map"),
+    };
     assert_eq!(m2.len(), 2, "default config must preserve both keys");
 }

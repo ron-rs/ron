@@ -25,11 +25,15 @@ fn suffix_number_type_not_preserved_across_roundtrip() {
 
     // Same for the NaN input the fuzzer actually minimised to:
     assert_eq!(parse("NaNf64"), Value::Number(Number::F64(f64::NAN.into())));
-    assert_eq!(parse(&ron::to_string(&parse("NaNf64")).unwrap()),
-               Value::Number(Number::F32(f32::NAN.into())));
+    assert_eq!(
+        parse(&ron::to_string(&parse("NaNf64")).unwrap()),
+        Value::Number(Number::F32(f32::NAN.into()))
+    );
 
     // Integers narrow the same way: a u16 literal comes back as u8.
     assert_eq!(parse("5u16"), Value::Number(Number::U16(5)));
-    assert_eq!(parse(&ron::to_string(&parse("5u16")).unwrap()),
-               Value::Number(Number::U8(5)));
+    assert_eq!(
+        parse(&ron::to_string(&parse("5u16")).unwrap()),
+        Value::Number(Number::U8(5))
+    );
 }

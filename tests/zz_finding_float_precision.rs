@@ -48,5 +48,8 @@ fn number_suffixes_fixes_the_drift() {
     assert!(s.contains("f32"), "expected a type suffix, got {s:?}");
 
     let back: Value = ron::from_str(&s).unwrap();
-    assert_eq!(v, back, "with number_suffixes the f32 Value round-trips exactly");
+    assert_eq!(
+        v, back,
+        "with number_suffixes the f32 Value round-trips exactly"
+    );
 }

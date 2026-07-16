@@ -61,8 +61,7 @@ fn arb_value() -> impl Strategy<Value = Value> {
     // Well under the default recursion limit of 128 so nesting itself is legal.
     leaf.prop_recursive(5, 64, 10, |inner| {
         prop_oneof![
-            proptest::option::of(inner.clone())
-                .prop_map(|o| Value::Option(o.map(Box::new))),
+            proptest::option::of(inner.clone()).prop_map(|o| Value::Option(o.map(Box::new))),
             proptest::collection::vec(inner.clone(), 0..8).prop_map(Value::Seq),
             proptest::collection::vec((inner.clone(), inner.clone()), 0..6)
                 .prop_map(|kvs| kvs.into_iter().collect::<Value>()),
@@ -74,15 +73,48 @@ fn arb_value() -> impl Strategy<Value = Value> {
 /// unusual states far more often than `any::<String>()` would.
 fn arb_ron_like() -> impl Strategy<Value = String> {
     let token = prop_oneof![
-        Just("("), Just(")"), Just("["), Just("]"), Just("{"), Just("}"),
-        Just(":"), Just(","), Just("\""), Just("'"), Just("\\"), Just("//"),
-        Just("/*"), Just("*/"), Just("Some"), Just("None"), Just("true"),
-        Just("false"), Just("inf"), Just("-inf"), Just("NaN"), Just("0x1f"),
-        Just("0b10"), Just("0o7"), Just("1_000"), Just("1.5e-3"), Just("42u8"),
-        Just("#![enable(implicit_some)]"), Just("#![enable(unwrap_newtypes)]"),
-        Just("#![enable(unwrap_variant_newtypes)]"), Just("r#raw"), Just("b\"\""),
-        Just("r\"x\""), Just("\\u{1F600}"), Just("-"), Just("+"), Just("."),
-        Just(" "), Just("\n"), Just("\t"), Just("ident"), Just("北"),
+        Just("("),
+        Just(")"),
+        Just("["),
+        Just("]"),
+        Just("{"),
+        Just("}"),
+        Just(":"),
+        Just(","),
+        Just("\""),
+        Just("'"),
+        Just("\\"),
+        Just("//"),
+        Just("/*"),
+        Just("*/"),
+        Just("Some"),
+        Just("None"),
+        Just("true"),
+        Just("false"),
+        Just("inf"),
+        Just("-inf"),
+        Just("NaN"),
+        Just("0x1f"),
+        Just("0b10"),
+        Just("0o7"),
+        Just("1_000"),
+        Just("1.5e-3"),
+        Just("42u8"),
+        Just("#![enable(implicit_some)]"),
+        Just("#![enable(unwrap_newtypes)]"),
+        Just("#![enable(unwrap_variant_newtypes)]"),
+        Just("r#raw"),
+        Just("b\"\""),
+        Just("r\"x\""),
+        Just("\\u{1F600}"),
+        Just("-"),
+        Just("+"),
+        Just("."),
+        Just(" "),
+        Just("\n"),
+        Just("\t"),
+        Just("ident"),
+        Just("北"),
     ];
     proptest::collection::vec(token, 0..60).prop_map(|v| v.concat())
 }
@@ -103,7 +135,10 @@ fn configs() -> Vec<(&'static str, Options)> {
             "unwrap_newtypes",
             Options::default().with_default_extension(Extensions::UNWRAP_NEWTYPES),
         ),
-        ("all_extensions", Options::default().with_default_extension(all_ext)),
+        (
+            "all_extensions",
+            Options::default().with_default_extension(all_ext),
+        ),
     ]
 }
 
@@ -115,7 +150,9 @@ fn pretty_configs() -> Vec<PrettyConfig> {
             .compact_arrays(true)
             .compact_maps(true)
             .compact_structs(true),
-        PrettyConfig::default().indentor("\t".to_string()).depth_limit(64),
+        PrettyConfig::default()
+            .indentor("\t".to_string())
+            .depth_limit(64),
         PrettyConfig::default().enumerate_arrays(true),
     ]
 }
@@ -170,7 +207,11 @@ proptest! {
     #[test]
     fn compact_fixpoint(v in arb_value()) {
         for (name, opts) in configs() {
-            let Ok(s1) = opts.to_string(&v) else { continue };
+            // `let...else` is 1.65+, but ron's MSRV is 1.64 — use an explicit match.
+            let s1 = match opts.to_string(&v) {
+                Ok(s1) => s1,
+                Err(_) => continue,
+            };
             // (2) our own output must always parse — a serializer that emits
             // text its own parser rejects is a genuine hole.
             let canon: Value = opts.from_str(&s1)
@@ -197,10 +238,20 @@ proptest! {
     /// back to the same canonical Value, for every PrettyConfig.
     #[test]
     fn pretty_agrees_with_compact(v in arb_value()) {
-        let Ok(compact) = ron::to_string(&v) else { return Ok(()) };
-        let Ok(canon): Result<Value, _> = ron::from_str(&compact) else { return Ok(()) };
+        // `let...else` is 1.65+, but ron's MSRV is 1.64 — use explicit matches.
+        let compact = match ron::to_string(&v) {
+            Ok(c) => c,
+            Err(_) => return Ok(()),
+        };
+        let canon: Value = match ron::from_str(&compact) {
+            Ok(c) => c,
+            Err(_) => return Ok(()),
+        };
         for pc in pretty_configs() {
-            let Ok(pretty) = ron::ser::to_string_pretty(&v, pc.clone()) else { continue };
+            let pretty = match ron::ser::to_string_pretty(&v, pc.clone()) {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
             let reparsed: Value = ron::from_str(&pretty)
                 .map_err(|e| TestCaseError::fail(
                     format!("pretty output rejected by parser: {e}\n---\n{pretty}\n---")))?;
