@@ -17,6 +17,7 @@
 //! Correctness/fidelity, not a soundness hole — but the value actually changes,
 //! which makes it the sharpest of the three findings.
 
+use ron::ser::PrettyConfig;
 use ron::value::{Number, Value};
 
 #[test]
@@ -33,4 +34,19 @@ fn f32_value_drifts_across_roundtrip() {
     let back: Value = ron::from_str(&s).unwrap();
     assert_ne!(v, back, "value must have changed across the round-trip");
     assert_eq!(back, Value::Number(Number::F64(924444500.0.into())));
+}
+
+#[test]
+fn number_suffixes_fixes_the_drift() {
+    // The disambiguator already exists: `number_suffixes` writes `...f32`, so
+    // the parser recovers the exact type/value. It is off by default and only
+    // honoured by `to_string_pretty` (compact `to_string` ignores it) — so the
+    // "fix" for a lossless f32 Value round-trip is to opt in here.
+    let v = Value::Number(Number::F32(924444480.0f32.into()));
+
+    let s = ron::ser::to_string_pretty(&v, PrettyConfig::default().number_suffixes(true)).unwrap();
+    assert!(s.contains("f32"), "expected a type suffix, got {s:?}");
+
+    let back: Value = ron::from_str(&s).unwrap();
+    assert_eq!(v, back, "with number_suffixes the f32 Value round-trips exactly");
 }
