@@ -1,6 +1,7 @@
 #![allow(clippy::identity_op)]
 
 use alloc::{
+    borrow::Cow,
     format,
     string::{String, ToString},
     vec::Vec,
@@ -24,6 +25,26 @@ const fn is_int_char(c: char) -> bool {
 
 const fn is_float_char(c: char) -> bool {
     c.is_ascii_digit() || matches!(c, 'e' | 'E' | '.' | '+' | '-' | '_')
+}
+
+/// Index of the start of the `".."` range operator inside a float run, or `None`.
+///
+/// Replaces `str::find("..")` on the hot float path: for a 2-byte needle `str::find`
+/// spins up `StrSearcher` plus an internal `memchr` per call, which profiling showed to
+/// be a large fraction of float parsing even though a typical float has no ".." at all.
+/// `.` is single-byte ASCII, so this byte scan is equivalent and returns the first dot
+/// of the pair, just like `find`.
+#[must_use]
+fn find_double_dot(s: &str) -> Option<usize> {
+    let b = s.as_bytes();
+    let mut i = 1;
+    while i < b.len() {
+        if b[i] == b'.' && b[i - 1] == b'.' {
+            return Some(i - 1);
+        }
+        i += 1;
+    }
+    None
 }
 
 pub fn is_ident_first_char(c: char) -> bool {
@@ -64,7 +85,10 @@ pub struct Parser<'a> {
     pub exts: Extensions,
     src: &'a str,
     cursor: ParserCursor,
-    prev_cursor: ParserCursor,
+    // Only the previous cursor's byte offset is ever consumed (span_error's span start).
+    // Storing the full ParserCursor copied 24 bytes per token, 16 of them dead writes;
+    // a bare usize collapses that to a single 8-byte store on the hot skip_ws path.
+    prev_cursor: usize,
 }
 
 #[derive(Copy, Clone)] // GRCOV_EXCL_LINE
@@ -105,11 +129,7 @@ impl<'a> Parser<'a> {
                 pre_ws_cursor: 0,
                 last_ws_len: 0,
             },
-            prev_cursor: ParserCursor {
-                cursor: 0,
-                pre_ws_cursor: 0,
-                last_ws_len: 0,
-            },
+            prev_cursor: 0,
         };
 
         parser.skip_ws().map_err(|e| parser.span_error(e))?;
@@ -138,7 +158,7 @@ impl<'a> Parser<'a> {
         SpannedError {
             code,
             span: Span {
-                start: Position::from_src_end(&self.src[..self.prev_cursor.cursor]),
+                start: Position::from_src_end(&self.src[..self.prev_cursor]),
                 end: Position::from_src_end(&self.src[..self.cursor.cursor]),
             },
         }
@@ -149,7 +169,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn advance_bytes(&mut self, bytes: usize) {
-        self.prev_cursor = self.cursor;
+        self.prev_cursor = self.cursor.cursor;
         self.cursor.cursor += bytes;
     }
 
@@ -230,15 +250,37 @@ impl<'a> Parser<'a> {
     }
 
     #[must_use]
-    pub fn next_chars_while_len(&self, condition: fn(char) -> bool) -> usize {
+    pub fn next_chars_while_len(&self, condition: impl Fn(char) -> bool) -> usize {
         self.next_chars_while_from_len(0, condition)
     }
 
     #[must_use]
-    pub fn next_chars_while_from_len(&self, from: usize, condition: fn(char) -> bool) -> usize {
-        self.src()[from..]
-            .find(|c| !condition(c))
-            .unwrap_or(self.src().len() - from)
+    pub fn next_chars_while_from_len(&self, from: usize, condition: impl Fn(char) -> bool) -> usize {
+        // Byte scan instead of `str::find(|c| !condition(c))`, which ran StrSearcher and
+        // decoded UTF-8 per char. `impl Fn` (vs `fn(char)->bool`) monomorphizes the
+        // predicate into a tight loop. ASCII bytes take `b as char`; non-ASCII (b>=0x80)
+        // decodes one char so unicode predicates (is_whitespace_char, XID_Continue) still
+        // hold. `i` stays on a char boundary (advance by 1 or len_utf8).
+        let s = self.src();
+        let bytes = s.as_bytes();
+        let mut i = from;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b < 0x80 {
+                if !condition(b as char) {
+                    break;
+                }
+                i += 1;
+            } else {
+                // i is the start of a multi-byte sequence => valid boundary.
+                let c = s[i..].chars().next().unwrap();
+                if !condition(c) {
+                    break;
+                }
+                i += c.len_utf8();
+            }
+        }
+        i - from
     }
 }
 
@@ -248,12 +290,18 @@ impl<'a> Parser<'a> {
         &mut self,
         s: &str,
         base: u8,
-        f: fn(&mut T, u8) -> bool,
+        f: impl Fn(&mut T, u8) -> bool,
     ) -> Result<T> {
+        // Tight byte-wise digit loop. `f: impl Fn` (not a `fn` pointer) plus a byte scan
+        // with inline hex decode replace `char_indices()` + `decode_hex(c)?`, so
+        // `checked_add/sub` inline instead of going through an indirect call per digit.
+        // The `is_int_char` scan guarantees bytes are in [0-9a-fA-F_], so the byte path
+        // is equivalent to the char path and index `i` matches. Error positions are
+        // preserved byte-for-byte.
         let mut num_acc = T::from_u8(0);
 
-        for (i, c) in s.char_indices() {
-            if c == '_' {
+        for (i, &b) in s.as_bytes().iter().enumerate() {
+            if b == b'_' {
                 continue;
             }
 
@@ -262,11 +310,27 @@ impl<'a> Parser<'a> {
                 return Err(Error::IntegerOutOfBounds);
             }
 
-            let digit = Self::decode_hex(c)?;
+            // Inline decode_hex: `b` is a guaranteed ASCII hexdigit; the `_` arm is a
+            // fail-safe returning the same error.
+            let digit = match b {
+                b'0'..=b'9' => b - b'0',
+                b'a'..=b'f' => 10 + b - b'a',
+                b'A'..=b'F' => 10 + b - b'A',
+                _ => {
+                    self.advance_bytes(i);
+                    return Err(Error::InvalidIntegerDigit {
+                        digit: b as char,
+                        base,
+                    });
+                }
+            };
 
             if digit >= base {
                 self.advance_bytes(i);
-                return Err(Error::InvalidIntegerDigit { digit: c, base });
+                return Err(Error::InvalidIntegerDigit {
+                    digit: b as char,
+                    base,
+                });
             }
 
             if f(&mut num_acc, digit) {
@@ -853,7 +917,7 @@ impl<'a> Parser<'a> {
 
         let raw_bytes = self.next_chars_while_len(is_float_char);
         let src = &self.src()[..raw_bytes];
-        let num_bytes = src.find("..").unwrap_or(raw_bytes);
+        let num_bytes = find_double_dot(src).unwrap_or(raw_bytes);
 
         if num_bytes == 0 {
             return Err(Error::ExpectedFloat);
@@ -863,24 +927,32 @@ impl<'a> Parser<'a> {
             return Err(Error::UnderscoreAtBeginning);
         }
 
-        let mut f = String::with_capacity(num_bytes);
-        let mut allow_underscore = false;
-
-        for (i, c) in self.src()[..num_bytes].char_indices() {
-            match c {
-                '_' if allow_underscore => continue,
-                '_' => {
-                    self.advance_bytes(i);
-                    return Err(Error::FloatUnderscore);
+        // Fast path: most floats have no `_` separators (`1.5`, `100.25`). The old code
+        // allocated a String per float just to strip a possible `_`. `self.src()` is a
+        // `&'a str`, so with no `_` we borrow the slice (Cow::Borrowed, no alloc);
+        // underscores take the old strip-and-validate path.
+        let num_slice = &self.src()[..num_bytes];
+        let f: Cow<str> = if num_slice.as_bytes().contains(&b'_') {
+            let mut f = String::with_capacity(num_bytes);
+            let mut allow_underscore = false;
+            for (i, c) in num_slice.char_indices() {
+                match c {
+                    '_' if allow_underscore => continue,
+                    '_' => {
+                        self.advance_bytes(i);
+                        return Err(Error::FloatUnderscore);
+                    }
+                    '0'..='9' | 'e' | 'E' => allow_underscore = true,
+                    '.' => allow_underscore = false,
+                    _ => (),
                 }
-                '0'..='9' | 'e' | 'E' => allow_underscore = true,
-                '.' => allow_underscore = false,
-                _ => (),
+                // we know that the byte is an ASCII character here
+                f.push(c);
             }
-
-            // we know that the byte is an ASCII character here
-            f.push(c);
-        }
+            Cow::Owned(f)
+        } else {
+            Cow::Borrowed(num_slice)
+        };
 
         if self.src()[num_bytes..].starts_with('f') {
             let backup_cursor = self.cursor;
@@ -1048,8 +1120,7 @@ impl<'a> Parser<'a> {
             // `src[raw_float_len] == '.'`, but '.' is a float char and would have
             // been part of the run. `any_number` above already uses this same
             // bounded-slice form.
-            let valid_float_len = self.src()[skip..][..raw_float_len]
-                .find("..")
+            let valid_float_len = find_double_dot(&self.src()[skip..][..raw_float_len])
                 .map_or(raw_float_len, |i| i.min(raw_float_len));
             let valid_int_len = self.next_chars_while_from_len(skip, is_int_char);
             valid_float_len > valid_int_len
@@ -1066,8 +1137,27 @@ impl<'a> Parser<'a> {
             self.cursor.pre_ws_cursor = self.cursor.cursor;
         }
 
-        if self.src().is_empty() {
-            return Ok(());
+        // Happy path: almost every skip_ws call lands on a non-whitespace token (compact
+        // RON has no spaces/comments), where the loop below spins empty yet still pays for
+        // src() slices and a cursor copy per token. Fast-exit when the first byte is ASCII,
+        // not whitespace, and not '/' (comment start): nothing to skip, and only the same
+        // last_ws_len write as the slow path remains. Non-ASCII (b>=0x80: possible unicode
+        // ws) and '/' fall through unchanged. Empty input exits early as before.
+        match self.src().as_bytes().first() {
+            None => return Ok(()),
+            Some(&b)
+                if b < 0x80
+                    && !matches!(b, b' ' | b'\t' | b'\n' | b'\r' | 0x0B | 0x0C)
+                    && b != b'/' =>
+            {
+                // Exact replica of the slow path's single no-op iteration: advance_bytes(0)
+                // sets prev_cursor = cursor.cursor (needed for error-span positions), then
+                // the same last_ws_len write. cursor stays put — nothing to skip.
+                self.prev_cursor = self.cursor.cursor;
+                self.cursor.last_ws_len = self.cursor.cursor - self.cursor.pre_ws_cursor;
+                return Ok(());
+            }
+            _ => {}
         }
 
         loop {
