@@ -256,3 +256,53 @@ fn test_range_full_whitespace_lookahead() {
         MaybeRange::RangeFull(std::ops::RangeFull)
     );
 }
+
+#[test]
+fn test_range_inf_nan_start_bound_roundtrips() {
+    // Regression: the compact-range serializer emits `inf`/`NaN` start bounds
+    // (e.g. `inf..2.0`, `NaN..=2.0`), but the `Range`/`RangeInclusive`
+    // deserializers only entered the compact-range path when the first byte
+    // was recognised by `is_number_start` (digit / `+` / `-` / `.` / `b`).
+    // Since `inf` and `NaN` start with a letter, those inputs failed to
+    // round-trip with `ExpectedNamedStructLike`, even though `RangeFrom`
+    // (e.g. `inf..`) round-tripped fine.
+    let compact = ron::ser::PrettyConfig::new().compact_ranges(true);
+
+    // Range<f64> with +inf start
+    let r = f64::INFINITY..2.0;
+    let s = ron::ser::to_string_pretty(&r, compact.clone()).unwrap();
+    assert_eq!(s, "inf..2.0");
+    let de: std::ops::Range<f64> = ron::from_str(&s).unwrap();
+    assert!(de.start.is_infinite() && de.start.is_sign_positive());
+    assert_eq!(de.end, 2.0);
+
+    // Range<f64> with NaN start
+    let r = f64::NAN..2.0;
+    let s = ron::ser::to_string_pretty(&r, compact.clone()).unwrap();
+    assert_eq!(s, "NaN..2.0");
+    let de: std::ops::Range<f64> = ron::from_str(&s).unwrap();
+    assert!(de.start.is_nan());
+    assert_eq!(de.end, 2.0);
+
+    // RangeInclusive<f64> with +inf start
+    let r = f64::INFINITY..=2.0;
+    let s = ron::ser::to_string_pretty(&r, compact.clone()).unwrap();
+    assert_eq!(s, "inf..=2.0");
+    let de: std::ops::RangeInclusive<f64> = ron::from_str(&s).unwrap();
+    assert!(de.start().is_infinite() && de.start().is_sign_positive());
+    assert_eq!(*de.end(), 2.0);
+
+    // RangeInclusive<f64> with NaN start
+    let r = f64::NAN..=2.0;
+    let s = ron::ser::to_string_pretty(&r, compact.clone()).unwrap();
+    assert_eq!(s, "NaN..=2.0");
+    let de: std::ops::RangeInclusive<f64> = ron::from_str(&s).unwrap();
+    assert!(de.start().is_nan());
+    assert_eq!(*de.end(), 2.0);
+
+    // Direct parse of the serializer output (independent of the serializer).
+    let de: std::ops::Range<f64> = ron::from_str("inf..2.0").unwrap();
+    assert!(de.start.is_infinite());
+    let de: std::ops::Range<f64> = ron::from_str("NaN..2.0").unwrap();
+    assert!(de.start.is_nan());
+}
