@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Format Changes
+
+- Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/issues/585))
+
 ## [0.12.2] - 2026-06-22
 
 ### Format Changes

@@ -50,6 +50,10 @@ pub const fn is_whitespace_char(c: char) -> bool {
     )
 }
 
+const fn is_string_continuation_whitespace(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\n' | '\r')
+}
+
 #[cfg(feature = "integer128")]
 pub(crate) type LargeUInt = u128;
 #[cfg(not(feature = "integer128"))]
@@ -1215,16 +1219,18 @@ impl<'a> Parser<'a> {
             loop {
                 self.advance_bytes(i + 1);
 
-                match self.parse_escape(encoding, false)? {
-                    EscapeCharacter::Ascii(c) => s.push(c),
-                    EscapeCharacter::Utf8(c) => match c.len_utf8() {
-                        1 => s.push(c as u8),
-                        len => {
-                            let start = s.len();
-                            s.extend(core::iter::repeat(0).take(len));
-                            c.encode_utf8(&mut s[start..]);
-                        }
-                    },
+                if !self.consume_string_continuation() {
+                    match self.parse_escape(encoding, false)? {
+                        EscapeCharacter::Ascii(c) => s.push(c),
+                        EscapeCharacter::Utf8(c) => match c.len_utf8() {
+                            1 => s.push(c as u8),
+                            len => {
+                                let start = s.len();
+                                s.extend(core::iter::repeat(0).take(len));
+                                c.encode_utf8(&mut s[start..]);
+                            }
+                        },
+                    }
                 }
 
                 // Unlike the non-escaped case above, searching for '"' and '\\'
@@ -1253,6 +1259,27 @@ impl<'a> Parser<'a> {
             // Advance by the number of bytes of the string + 1 for the `"`.
             Ok((ParsedByteStr::Slice(s), str_end + 1))
         }
+    }
+
+    /// Consumes a string continuation after its leading `\`.
+    ///
+    /// Rust [normalizes CRLF before lexing](https://doc.rust-lang.org/reference/input-format.html#crlf-normalization),
+    /// so RON accepts CRLF directly too.
+    fn consume_string_continuation(&mut self) -> bool {
+        let line_ending_len = if self.check_str("\r\n") {
+            2
+        } else if self.check_char('\n') {
+            1
+        } else {
+            return false;
+        };
+
+        self.advance_bytes(line_ending_len);
+
+        let whitespace = self.next_chars_while_len(is_string_continuation_whitespace);
+        self.advance_bytes(whitespace);
+
+        true
     }
 
     fn raw_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {
