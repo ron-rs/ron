@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/issues/585))
 
+### Additions
+
+- Add the `from_value` convenience function to deserialize a `T` from a `Value` ([#255](https://github.com/ron-rs/ron/issues/255))
+
 ## [0.12.2] - 2026-06-22
 
 ### Format Changes
