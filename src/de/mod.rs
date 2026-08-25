@@ -133,6 +133,19 @@ where
     Options::default().from_bytes(s)
 }
 
+/// A convenience function for deserializing a value of type `T`
+/// from a [`Value`](crate::Value).
+///
+/// Unlike the other convenience functions this returns a plain [`Error`]
+/// rather than a [`SpannedError`], since an in-memory [`Value`](crate::Value)
+/// has no source text to point a span into.
+pub fn from_value<T>(value: crate::Value) -> Result<T>
+where
+    T: de::DeserializeOwned,
+{
+    value.into_rust()
+}
+
 macro_rules! guard_recursion {
     ($self:expr => $expr:expr) => {{
         if let Some(limit) = &mut $self.recursion_limit {
