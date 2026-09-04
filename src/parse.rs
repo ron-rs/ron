@@ -464,6 +464,24 @@ impl<'a> Parser<'a> {
         T::parse(self, sign, base)
     }
 
+    /// Check whether [`Parser::any_number`] has a number literal to parse at
+    /// the cursor. The `inf` and `NaN` literals start with a letter, so they
+    /// are not covered by [`Parser::is_number_start`].
+    pub fn check_any_number_start(&mut self) -> bool {
+        match self.peek_char() {
+            None => false,
+            Some(c) => {
+                self.is_number_start(c)
+                    || self.check_ident("inf")
+                    || self.check_ident("inff32")
+                    || self.check_ident("inff64")
+                    || self.check_ident("NaN")
+                    || self.check_ident("NaNf32")
+                    || self.check_ident("NaNf64")
+            }
+        }
+    }
+
     pub fn any_number(&mut self) -> Result<Number> {
         if self.consume_ident("inf") || self.consume_ident("inff32") {
             return Ok(Number::F32(crate::value::F32(core::f32::INFINITY)));

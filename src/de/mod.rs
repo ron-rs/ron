@@ -783,63 +783,43 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             || (name == "RangeInclusive" && matches!(fields, ["start", "end" | "last"]))
         {
             let end_field = fields[1];
-            if let Some(c) = self.parser.peek_char() {
-                if self.parser.is_number_start(c)
-                    || self.parser.check_ident("inf")
-                    || self.parser.check_ident("inff32")
-                    || self.parser.check_ident("inff64")
-                    || self.parser.check_ident("NaN")
-                    || self.parser.check_ident("NaNf32")
-                    || self.parser.check_ident("NaNf64")
-                {
-                    let start = self.parser.any_number()?;
+            if self.parser.check_any_number_start() {
+                let start = self.parser.any_number()?;
 
-                    let inclusive = if self.parser.consume_str("..=") {
-                        true
-                    } else if self.parser.consume_str("..") {
-                        false
-                    } else {
-                        return Err(Error::ExpectedRangeSyntax);
-                    };
+                let inclusive = if self.parser.consume_str("..=") {
+                    true
+                } else if self.parser.consume_str("..") {
+                    false
+                } else {
+                    return Err(Error::ExpectedRangeSyntax);
+                };
 
-                    if inclusive && name == "Range" {
-                        return Err(Error::Message(String::from(
-                            "expected `..` for `Range`, found `..=`",
-                        )));
-                    }
-                    if !inclusive && name == "RangeInclusive" {
-                        return Err(Error::Message(String::from(
-                            "expected `..=` for `RangeInclusive`, found `..`",
-                        )));
-                    }
-
-                    let end = self.parser.any_number()?;
-                    return visitor.visit_map(RangeMapAccess::new(start, end, end_field));
+                if inclusive && name == "Range" {
+                    return Err(Error::Message(String::from(
+                        "expected `..` for `Range`, found `..=`",
+                    )));
                 }
+                if !inclusive && name == "RangeInclusive" {
+                    return Err(Error::Message(String::from(
+                        "expected `..=` for `RangeInclusive`, found `..`",
+                    )));
+                }
+
+                let end = self.parser.any_number()?;
+                return visitor.visit_map(RangeMapAccess::new(start, end, end_field));
             }
         }
 
-        if fields == ["start"] && name == "RangeFrom" {
-            if let Some(c) = self.parser.peek_char() {
-                if self.parser.is_number_start(c)
-                    || self.parser.check_ident("inf")
-                    || self.parser.check_ident("inff32")
-                    || self.parser.check_ident("inff64")
-                    || self.parser.check_ident("NaN")
-                    || self.parser.check_ident("NaNf32")
-                    || self.parser.check_ident("NaNf64")
-                {
-                    let start = self.parser.any_number()?;
-                    if self.parser.consume_str("..=") {
-                        return Err(Error::Message(String::from(
-                            "expected `..` for `RangeFrom`, found `..=`",
-                        )));
-                    } else if !self.parser.consume_str("..") {
-                        return Err(Error::ExpectedRangeSyntax);
-                    }
-                    return visitor.visit_map(RangeFromMapAccess::new(start));
-                }
+        if fields == ["start"] && name == "RangeFrom" && self.parser.check_any_number_start() {
+            let start = self.parser.any_number()?;
+            if self.parser.consume_str("..=") {
+                return Err(Error::Message(String::from(
+                    "expected `..` for `RangeFrom`, found `..=`",
+                )));
+            } else if !self.parser.consume_str("..") {
+                return Err(Error::ExpectedRangeSyntax);
             }
+            return visitor.visit_map(RangeFromMapAccess::new(start));
         }
 
         if fields == ["end"]
