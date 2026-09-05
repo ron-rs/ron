@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Bug Fixes
+
+- Fixed round-tripping of compact ranges whose bounds are `inf` or `NaN` ([#605](https://github.com/ron-rs/ron/pull/605))
+
 ## [0.12.2] - 2026-06-22
 
 ### Format Changes
