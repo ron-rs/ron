@@ -81,14 +81,23 @@ float_suffix = "f", ("32", "64");
 ```ebnf
 string = string_std | string_raw;
 string_std = "\"", { no_double_quotation_marks | string_escape }, "\"";
-string_escape = "\\", (escape_ascii | escape_byte | escape_unicode);
+string_escape = "\\", (escape_ascii | escape_byte | escape_unicode | escape_line);
 string_raw = "r", string_raw_content;
 string_raw_content = ("#", string_raw_content, "#") | "\"", { unicode_non_greedy }, "\"";
 
 escape_ascii = "'" | "\"" | "\\" | "n" | "r" | "t" | "0";
 escape_byte = "x", digit_hexadecimal, digit_hexadecimal;
 escape_unicode = "u", digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal]]]]];
+escape_line = ("\n" | "\r\n"), { "\t" | "\n" | "\r" | " " };
 ```
+
+> Note: RON supports [Rust-style string continuation escapes]. A backslash
+  immediately before LF removes that LF and all subsequent spaces, tabs,
+  carriage returns, and line feeds. RON also accepts CRLF at the continuation
+  site, treating it as LF. String continuation escapes are supported in both
+  standard strings and standard byte strings. Raw strings and raw byte strings
+  keep string continuation escapes as-is. Rust warns when a continuation skips
+  additional lines; RON accepts them without a warning.
 
 > Note: Raw strings start with an `r`, followed by n `#`s and a quotation mark
   `"`. They may contain any characters or escapes (except the end sequence).
@@ -103,6 +112,7 @@ Raw strings cannot be written in EBNF, as they are context-sensitive.
 Also see [the Rust document] about context-sensitivity of raw strings.
 
 [the Rust document]: https://github.com/rust-lang/rust/blob/d046ffddc4bd50e04ffc3ff9f766e2ac71f74d50/src/grammar/raw-string-literal-ambiguity.md
+[Rust-style string continuation escapes]: https://doc.rust-lang.org/reference/expressions/literal-expr.html#string-continuation-escapes
 
 ## Byte String
 

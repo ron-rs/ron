@@ -50,6 +50,10 @@ pub const fn is_whitespace_char(c: char) -> bool {
     )
 }
 
+const fn is_string_continuation_whitespace(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\n' | '\r')
+}
+
 #[cfg(feature = "integer128")]
 pub(crate) type LargeUInt = u128;
 #[cfg(not(feature = "integer128"))]
@@ -1054,10 +1058,20 @@ impl<'a> Parser<'a> {
                 _ => 0,
             };
             let raw_float_len = self.next_chars_while_from_len(skip, is_float_char);
-            // Trim at ".." to avoid treating range operators as float chars
-            let valid_float_len = self.src()[skip..]
+            // Trim at ".." to avoid treating range operators as float chars.
+            //
+            // Only search within the float-char run: the result is clamped to
+            // `raw_float_len` anyway, so a match at or beyond it cannot change the
+            // outcome. Searching the whole remaining input made this O(remaining)
+            // per number, i.e. quadratic in the number count for documents that
+            // contain no ".." at all (every number then scanned to EOF).
+            //
+            // A ".." cannot straddle the end of the run: that would require
+            // `src[raw_float_len] == '.'`, but '.' is a float char and would have
+            // been part of the run. `any_number` above already uses this same
+            // bounded-slice form.
+            let valid_float_len = self.src()[skip..][..raw_float_len]
                 .find("..")
-                .map(|i| i.min(raw_float_len))
                 .map_or(raw_float_len, |i| i.min(raw_float_len));
             let valid_int_len = self.next_chars_while_from_len(skip, is_int_char);
             valid_float_len > valid_int_len
@@ -1223,29 +1237,38 @@ impl<'a> Parser<'a> {
             loop {
                 self.advance_bytes(i + 1);
 
-                match self.parse_escape(encoding, false)? {
-                    EscapeCharacter::Ascii(c) => s.push(c),
-                    EscapeCharacter::Utf8(c) => match c.len_utf8() {
-                        1 => s.push(c as u8),
-                        len => {
-                            let start = s.len();
-                            s.extend(core::iter::repeat(0).take(len));
-                            c.encode_utf8(&mut s[start..]);
-                        }
-                    },
+                if !self.consume_string_continuation() {
+                    match self.parse_escape(encoding, false)? {
+                        EscapeCharacter::Ascii(c) => s.push(c),
+                        EscapeCharacter::Utf8(c) => match c.len_utf8() {
+                            1 => s.push(c as u8),
+                            len => {
+                                let start = s.len();
+                                s.extend(core::iter::repeat(0).take(len));
+                                c.encode_utf8(&mut s[start..]);
+                            }
+                        },
+                    }
                 }
 
-                // Checking for '"' and '\\' separately is faster than searching for both at the same time
-                let new_str_end = self.src().find('"').ok_or(Error::ExpectedStringEnd)?;
-                let new_escape = self.src()[..new_str_end].find('\\');
+                // Unlike the non-escaped case above, searching for '"' and '\\'
+                // separately is *not* sound here: `find('"')` scans all the way to
+                // the closing quote, but the cursor only advances by one escape per
+                // iteration, so a string with N escapes rescans the tail N times.
+                // Only the first of '"' / '\\' is needed, and scanning just to the
+                // nearest delimiter keeps the loop linear.
+                let next = self
+                    .src()
+                    .find(['"', '\\'])
+                    .ok_or(Error::ExpectedStringEnd)?;
+                s.extend_from_slice(&self.src().as_bytes()[..next]);
 
-                if let Some(new_escape) = new_escape {
-                    s.extend_from_slice(&self.src().as_bytes()[..new_escape]);
-                    i = new_escape;
+                // `next` indexes an ASCII byte, so byte indexing is valid here.
+                if self.src().as_bytes()[next] == b'\\' {
+                    i = next;
                 } else {
-                    s.extend_from_slice(&self.src().as_bytes()[..new_str_end]);
                     // Advance to the end of the string + 1 for the `"`.
-                    break Ok((ParsedByteStr::Allocated(s), new_str_end + 1));
+                    break Ok((ParsedByteStr::Allocated(s), next + 1));
                 }
             }
         } else {
@@ -1254,6 +1277,27 @@ impl<'a> Parser<'a> {
             // Advance by the number of bytes of the string + 1 for the `"`.
             Ok((ParsedByteStr::Slice(s), str_end + 1))
         }
+    }
+
+    /// Consumes a string continuation after its leading `\`.
+    ///
+    /// Rust [normalizes CRLF before lexing](https://doc.rust-lang.org/reference/input-format.html#crlf-normalization),
+    /// so RON accepts CRLF directly too.
+    fn consume_string_continuation(&mut self) -> bool {
+        let line_ending_len = if self.check_str("\r\n") {
+            2
+        } else if self.check_char('\n') {
+            1
+        } else {
+            return false;
+        };
+
+        self.advance_bytes(line_ending_len);
+
+        let whitespace = self.next_chars_while_len(is_string_continuation_whitespace);
+        self.advance_bytes(whitespace);
+
+        true
     }
 
     fn raw_byte_buf(&mut self) -> Result<(ParsedByteStr<'a>, usize)> {

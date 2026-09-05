@@ -98,3 +98,71 @@ fn test_nul_in_string() {
     check_same("Hello\x00World!".to_owned());
     check_same("Hello\u{0}World!".to_owned());
 }
+
+#[test]
+fn test_string_continuation_escape() {
+    let cases = [
+        (concat!("\"foo\\", "\n    bar\""), "foobar"),
+        (concat!("\"foo\\", "\n\n    \\nbar\""), "foo\nbar"),
+        (concat!("\"foo\\", "\r\n \tbar\""), "foobar"),
+        (concat!("\"foo\\", "\n\r \tbar\""), "foobar"),
+        (concat!("\"foo\\", "\n\""), "foo"),
+    ];
+
+    for (source, expected) in cases {
+        assert_eq!(from_str::<String>(source).unwrap(), expected);
+    }
+
+    for source in [
+        concat!("b\"foo\\", "\n    bar\""),
+        concat!("b\"foo\\", "\r\n    bar\""),
+    ] {
+        let bytes = from_str::<bytes::Bytes>(source).unwrap();
+        assert_eq!(&*bytes, b"foobar");
+    }
+}
+
+#[test]
+fn test_string_continuation_whitespace_boundary() {
+    let retained = "\u{a0}\u{b}\u{c}\u{85}\u{200e}\u{200f}\u{2028}\u{2029}";
+    let source = ["\"foo\\\n", retained, "bar\""].concat();
+    let expected = ["foo", retained, "bar"].concat();
+
+    assert_eq!(from_str::<String>(&source).unwrap(), expected);
+}
+
+#[test]
+fn test_string_continuation_rejected_outside_strings() {
+    for error in [
+        from_str::<char>(concat!("'\\", "\n'")).unwrap_err().code,
+        from_str::<u8>(concat!("b'\\", "\n'")).unwrap_err().code,
+    ] {
+        assert_eq!(error, ron::Error::InvalidEscape("Unknown escape character"));
+    }
+}
+
+#[test]
+fn test_string_continuation_raw_strings_are_unchanged() {
+    let raw = from_str::<String>(concat!("r\"foo\\", "\n  bar\"")).unwrap();
+    assert_eq!(raw, concat!("foo\\", "\n  bar"));
+
+    let raw_bytes = from_str::<bytes::Bytes>(concat!("br\"foo\\", "\n  bar\"")).unwrap();
+    assert_eq!(&*raw_bytes, concat!("foo\\", "\n  bar").as_bytes());
+}
+
+#[test]
+fn test_string_continuation_errors() {
+    assert_eq!(
+        from_str::<String>(concat!("\"foo\\", "\rbar\""))
+            .unwrap_err()
+            .code,
+        ron::Error::InvalidEscape("Unknown escape character")
+    );
+
+    assert_eq!(
+        from_str::<String>(concat!("\"foo\\", "\n"))
+            .unwrap_err()
+            .code,
+        ron::Error::ExpectedStringEnd
+    );
+}
