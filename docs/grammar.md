@@ -84,6 +84,7 @@ string_std = "\"", { no_double_quotation_marks | string_escape }, "\"";
 string_escape = "\\", (escape_ascii | escape_byte | escape_unicode | escape_line);
 string_raw = "r", string_raw_content;
 string_raw_content = ("#", string_raw_content, "#") | "\"", { unicode_non_greedy }, "\"";
+unicode_non_greedy = ? any character ?;
 
 escape_ascii = "'" | "\"" | "\\" | "n" | "r" | "t" | "0";
 escape_byte = "x", digit_hexadecimal, digit_hexadecimal;
