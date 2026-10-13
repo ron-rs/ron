@@ -1359,11 +1359,37 @@ fn is_serde_content<T>() -> bool {
 
     impl de::StdError for TypeIdError {}
 
+    #[allow(unsafe_code)]
     fn type_id_of_untagged_enum_default_buffer() -> core::any::TypeId {
-        match Deserialize::deserialize(TypeIdDeserializer) {
-            Ok(UntaggedEnum::A(void) | UntaggedEnum::B(void)) => match void {},
-            Err(TypeIdError(typeid)) => typeid,
+        static TYPE_ID: core::sync::atomic::AtomicPtr<core::any::TypeId> =
+            core::sync::atomic::AtomicPtr::new(core::ptr::null_mut());
+
+        let mut ptr = TYPE_ID.load(core::sync::atomic::Ordering::Acquire);
+        if ptr.is_null() {
+            let typeid = match Deserialize::deserialize(TypeIdDeserializer) {
+                Ok(UntaggedEnum::A(void) | UntaggedEnum::B(void)) => match void {},
+                Err(TypeIdError(typeid)) => typeid,
+            };
+            let new_ptr = alloc::boxed::Box::into_raw(alloc::boxed::Box::new(typeid));
+
+            match TYPE_ID.compare_exchange(
+                core::ptr::null_mut(),
+                new_ptr,
+                core::sync::atomic::Ordering::AcqRel,
+                core::sync::atomic::Ordering::Acquire,
+            ) {
+                Ok(_) => ptr = new_ptr,
+                Err(actual) => {
+                    // SAFETY: `new_ptr` was created via `Box::into_raw` above and lost the CAS race, so it is safe to deallocate.
+                    unsafe {
+                        drop(alloc::boxed::Box::from_raw(new_ptr));
+                    }
+                    ptr = actual;
+                }
+            }
         }
+        // SAFETY: `ptr` points to a valid, leaked `TypeId` stored in the atomic static that lives for `'static`.
+        unsafe { *ptr }
     }
 
     typeid::of::<T>() == type_id_of_untagged_enum_default_buffer()
@@ -1435,11 +1461,37 @@ fn is_serde_tag_or_content<T>() -> bool {
 
     impl de::StdError for TypeIdError {}
 
+    #[allow(unsafe_code)]
     fn type_id_of_internally_tagged_enum_default_tag_or_buffer() -> core::any::TypeId {
-        match Deserialize::deserialize(TypeIdDeserializer) {
-            Ok(InternallyTaggedEnum::A { a: void }) => match void {},
-            Err(TypeIdError(typeid)) => typeid,
+        static TYPE_ID: core::sync::atomic::AtomicPtr<core::any::TypeId> =
+            core::sync::atomic::AtomicPtr::new(core::ptr::null_mut());
+        let mut ptr = TYPE_ID.load(core::sync::atomic::Ordering::Acquire);
+
+        if ptr.is_null() {
+            let typeid = match Deserialize::deserialize(TypeIdDeserializer) {
+                Ok(InternallyTaggedEnum::A { a: void }) => match void {},
+                Err(TypeIdError(typeid)) => typeid,
+            };
+            let new_ptr = alloc::boxed::Box::into_raw(alloc::boxed::Box::new(typeid));
+
+            match TYPE_ID.compare_exchange(
+                core::ptr::null_mut(),
+                new_ptr,
+                core::sync::atomic::Ordering::AcqRel,
+                core::sync::atomic::Ordering::Acquire,
+            ) {
+                Ok(_) => ptr = new_ptr,
+                Err(actual) => {
+                    // SAFETY: `new_ptr` was created via `Box::into_raw` above and lost the CAS race, so it is safe to deallocate.
+                    unsafe {
+                        drop(alloc::boxed::Box::from_raw(new_ptr));
+                    }
+                    ptr = actual;
+                }
+            }
         }
+        // SAFETY: `ptr` points to a valid, leaked `TypeId` stored in the atomic static that lives for `'static`.
+        unsafe { *ptr }
     }
 
     typeid::of::<T>() == type_id_of_internally_tagged_enum_default_tag_or_buffer()
