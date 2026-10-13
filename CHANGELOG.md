@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### API Changes
+
+- Removed the `once_cell` dependency. ([#625](https://github.com/ron-rs/ron/pull/625))
+
 ### Format Changes
 
 - Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/issues/585))
