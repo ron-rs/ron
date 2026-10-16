@@ -3,7 +3,10 @@ use core::{
     hash::{Hash, Hasher},
 };
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    extensions::Extensions,
+};
 use serde::{de::Visitor, Serialize, Serializer};
 
 /// A wrapper for any numeric primitive type in Rust.
@@ -538,7 +541,7 @@ impl serde::Serializer for NumberSerializer {
     }
 }
 
-pub(crate) struct NumberDeserializer(pub(crate) Number);
+pub(crate) struct NumberDeserializer(pub(crate) Number, pub(crate) Extensions);
 
 impl<'de> serde::de::Deserializer<'de> for NumberDeserializer {
     type Error = crate::error::Error;
@@ -550,10 +553,22 @@ impl<'de> serde::de::Deserializer<'de> for NumberDeserializer {
         self.0.visit(visitor)
     }
 
+    fn deserialize_newtype_struct<V: serde::de::Visitor<'de>>(
+        self,
+        _: &'static str,
+        visitor: V,
+    ) -> crate::error::Result<V::Value> {
+        if self.1.contains(Extensions::UNWRAP_NEWTYPES) {
+            visitor.visit_newtype_struct(self)
+        } else {
+            self.deserialize_any(visitor)
+        }
+    }
+
     serde::forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64
         char str string bytes byte_buf option unit unit_struct
-        newtype_struct seq tuple tuple_struct map struct enum identifier ignored_any
+        seq tuple tuple_struct map struct enum identifier ignored_any
     }
 }
 
