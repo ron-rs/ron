@@ -6,9 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Documentation
+
+- Document `no_std` configuration and the global allocator requirement ([#574](https://github.com/ron-rs/ron/pull/626))
+
 ### Format Changes
 
-- Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/issues/585))
+- Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/pull/617))
 
 ### Bug Fixes
 

@@ -162,6 +162,27 @@ fn main() {
 }
 ```
 
+### `no_std`
+
+To use RON without the standard library, disable the default features for both
+RON and Serde:
+
+```toml
+[dependencies]
+ron = { version = "0.12", default-features = false }
+serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
+```
+
+RON still requires the `alloc` crate, so your application must provide a global
+allocator. Disabling `std` does not make RON allocation-free: even deserializing
+into types that do not allocate can require allocations when reporting errors.
+
+String and byte-slice deserialization and string serialization remain available.
+The `std::io` interfaces, such as `ron::de::from_reader` and
+`ron::Options::to_io_writer`, require the `std` feature. The `indexmap` feature
+also enables `std`; ensure other dependencies do not enable RON's or Serde's
+`std` features through Cargo's feature unification.
+
 ## Tooling
 
 | Editor         | Plugin                                                                   |
