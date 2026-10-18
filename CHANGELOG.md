@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 
 - Fixed round-tripping of compact ranges whose start bound is `inf` or `NaN` ([#605](https://github.com/ron-rs/ron/pull/605))
+- Fixed `compact_ranges` dropping the struct name and newtype variant unwrapping when a range with non-numeric bounds is written as a struct ([#629](https://github.com/ron-rs/ron/pull/629))
 
 ## [0.12.2] - 2026-06-22
 
