@@ -193,6 +193,7 @@ also enables `std`; ensure other dependencies do not enable RON's or Serde's
 | Atom           | [language-ron](https://atom.io/packages/language-ron)                    |
 | Vim            | [ron-rs/ron.vim](https://github.com/ron-rs/ron.vim)                      |
 | EMACS          | [emacs-ron](https://chiselapp.com/user/Hutzdog/repository/ron-mode/home) |
+| Zed            | [RON](https://zed.dev/extensions/ron)                                    |
 | Multiple / LSP | [ron-lsp](https://github.com/jasonjmcghee/ron-lsp)                       |
 
 ## Limitations

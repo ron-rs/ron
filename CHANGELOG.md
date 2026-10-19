@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Mention the Zed extension in the tooling table ([#630](https://github.com/ron-rs/ron/pull/630))
 - Document `no_std` configuration and the global allocator requirement ([#574](https://github.com/ron-rs/ron/pull/626))
 
 ### Format Changes
