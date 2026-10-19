@@ -56,6 +56,7 @@ GameConfig( // optional struct name
 * Tuples: `("abc", 1.23, true)`, `()`
 * Lists: `["abc", "def"]`
 * Structs: `( foo: 1.0, bar: ( baz: "I'm nested" ) )`
+* Enums: `Unit`, `Newtype(1.5)`, `Tuple(1, "two")`, `Struct(x: 1.0, y: 2.0)`
 * Maps: `{ "arbitrary": "keys", "are": "allowed" }`
 * Ranges: `3..5`, `-2.1..=7.3`, `..-15`, `..10.5`, `..=13`, `..`
 
