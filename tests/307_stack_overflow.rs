@@ -1,10 +1,25 @@
 use std::cell::Cell;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[test]
 fn test_deeply_nested_map() {
     let err = ron::from_str::<ron::Value>(&"{".repeat(10_000)).unwrap_err();
+
+    assert_eq!(err.code, ron::Error::ExceededRecursionLimit)
+}
+
+#[test]
+fn test_deeply_nested_untagged_enum_variant() {
+    #[derive(Debug, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        #[allow(dead_code)]
+        Unit(()),
+    }
+
+    let ron = format!("{}(){}", "A(".repeat(1_000), ")".repeat(1_000));
+    let err = ron::from_str::<Untagged>(&ron).unwrap_err();
 
     assert_eq!(err.code, ron::Error::ExceededRecursionLimit)
 }
