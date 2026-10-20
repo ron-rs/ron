@@ -15,8 +15,12 @@ fn test_deeply_nested_untagged_enum_variant() {
     #[serde(untagged)]
     enum Untagged {
         #[allow(dead_code)]
-        Unit(()),
+        Any(serde::de::IgnoredAny),
     }
+
+    // the variant name is arbitrary, untagged enums first buffer the input as serde's Content
+    let ron = format!("{}(){}", "A(".repeat(32), ")".repeat(32));
+    assert!(ron::from_str::<Untagged>(&ron).is_ok());
 
     let ron = format!("{}(){}", "A(".repeat(1_000), ")".repeat(1_000));
     let err = ron::from_str::<Untagged>(&ron).unwrap_err();
