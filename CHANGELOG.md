@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 
 - Fixed round-tripping of compact ranges whose start bound is `inf` or `NaN` ([#605](https://github.com/ron-rs/ron/pull/605))
+- Fixed `-NaN` losing its sign when parsed as an untyped number on some targets, such as riscv64 ([#592](https://github.com/ron-rs/ron/issues/592))
 
 ## [0.12.2] - 2026-06-22
 
