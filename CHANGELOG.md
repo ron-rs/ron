@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Document `no_std` configuration and the global allocator requirement ([#574](https://github.com/ron-rs/ron/pull/626))
+- Added "Other implementations" to the project readme. ([#628](https://github.com/ron-rs/ron/pull/628))
 
 ### Format Changes
 
