@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-- Fixed deserializing compact ranges with newtype bounds when `unwrap_newtypes` is enabled
+- Fixed deserializing compact ranges with newtype bounds when `unwrap_newtypes` is enabled ([#627](https://github.com/ron-rs/ron/pull/627))
 - Fixed round-tripping of compact ranges whose start bound is `inf` or `NaN` ([#605](https://github.com/ron-rs/ron/pull/605))
 
 ## [0.12.2] - 2026-06-22

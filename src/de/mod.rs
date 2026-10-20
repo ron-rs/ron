@@ -1022,11 +1022,17 @@ impl<'de> de::MapAccess<'de> for RangeMapAccess {
         match self.state {
             RangeMapState::StartValue => {
                 self.state = RangeMapState::EndKey;
-                seed.deserialize(NumberDeserializer(self.start, self.exts))
+                seed.deserialize(NumberDeserializer {
+                    number: self.start,
+                    extensions: self.exts,
+                })
             }
             RangeMapState::EndValue => {
                 self.state = RangeMapState::Done;
-                seed.deserialize(NumberDeserializer(self.end, self.exts))
+                seed.deserialize(NumberDeserializer {
+                    number: self.end,
+                    extensions: self.exts,
+                })
             }
             _ => Err(Error::ExpectedDifferentLength {
                 expected: String::from("map of length 2"),
@@ -1071,7 +1077,10 @@ impl<'de> de::MapAccess<'de> for RangeFromMapAccess {
             });
         }
         self.done = true;
-        seed.deserialize(NumberDeserializer(self.start, self.exts))
+        seed.deserialize(NumberDeserializer {
+            number: self.start,
+            extensions: self.exts,
+        })
     }
 }
 
@@ -1112,7 +1121,10 @@ impl<'de> de::MapAccess<'de> for RangeToMapAccess {
             });
         }
         self.done = true;
-        seed.deserialize(NumberDeserializer(self.end, self.exts))
+        seed.deserialize(NumberDeserializer {
+            number: self.end,
+            extensions: self.exts,
+        })
     }
 }
 

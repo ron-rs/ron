@@ -541,7 +541,10 @@ impl serde::Serializer for NumberSerializer {
     }
 }
 
-pub(crate) struct NumberDeserializer(pub(crate) Number, pub(crate) Extensions);
+pub(crate) struct NumberDeserializer {
+    pub(crate) number: Number,
+    pub(crate) extensions: Extensions,
+}
 
 impl<'de> serde::de::Deserializer<'de> for NumberDeserializer {
     type Error = crate::error::Error;
@@ -550,7 +553,7 @@ impl<'de> serde::de::Deserializer<'de> for NumberDeserializer {
         self,
         visitor: V,
     ) -> crate::error::Result<V::Value> {
-        self.0.visit(visitor)
+        self.number.visit(visitor)
     }
 
     fn deserialize_newtype_struct<V: serde::de::Visitor<'de>>(
@@ -558,7 +561,7 @@ impl<'de> serde::de::Deserializer<'de> for NumberDeserializer {
         _: &'static str,
         visitor: V,
     ) -> crate::error::Result<V::Value> {
-        if self.1.contains(Extensions::UNWRAP_NEWTYPES) {
+        if self.extensions.contains(Extensions::UNWRAP_NEWTYPES) {
             visitor.visit_newtype_struct(self)
         } else {
             self.deserialize_any(visitor)
