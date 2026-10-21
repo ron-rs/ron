@@ -10,7 +10,7 @@ If extensions are enabled, some rules will be replaced. For that, see the
 ## RON file
 
 ```ebnf
-RON = [extensions], ws, value, ws;
+RON = ws, [extensions], ws, value, ws;
 ```
 
 ## Whitespace and comments
@@ -80,7 +80,7 @@ float_suffix = "f", ("32", "64");
 
 ```ebnf
 string = string_std | string_raw;
-string_std = "\"", { no_double_quotation_marks | string_escape }, "\"";
+string_std = "\"", { no_double_quotation_marks_or_backslash | string_escape }, "\"";
 string_escape = "\\", (escape_ascii | escape_byte | escape_unicode | escape_line);
 string_raw = "r", string_raw_content;
 string_raw_content = ("#", string_raw_content, "#") | "\"", { unicode_non_greedy }, "\"";
@@ -88,9 +88,13 @@ unicode_non_greedy = ? any character ?;
 
 escape_ascii = "'" | "\"" | "\\" | "n" | "r" | "t" | "0";
 escape_byte = "x", digit_hexadecimal, digit_hexadecimal;
-escape_unicode = "u", digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal]]]]];
+escape_unicode = "u", "{", digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal]]]]], "}";
 escape_line = ("\n" | "\r\n"), { "\t" | "\n" | "\r" | " " };
 ```
+
+> Note: A Unicode escape is written as `\u{...}` with 1 to 6 hex digits, and
+  the value has to be a valid Unicode scalar value, so `\u{D800}` or
+  `\u{110000}` are rejected.
 
 > Note: RON supports [Rust-style string continuation escapes]. A backslash
   immediately before LF removes that LF and all subsequent spaces, tabs,
@@ -119,7 +123,7 @@ Also see [the Rust document] about context-sensitivity of raw strings.
 
 ```ebnf
 byte_string = byte_string_std | byte_string_raw;
-byte_string_std = "b\"", { no_double_quotation_marks | string_escape }, "\"";
+byte_string_std = "b\"", { no_double_quotation_marks_or_backslash | string_escape }, "\"";
 byte_string_raw = "br", string_raw_content;
 ```
 
@@ -136,8 +140,14 @@ byte_string_raw = "br", string_raw_content;
 ## Char
 
 ```ebnf
-char = "'", (no_apostrophe | "\\\\" | "\\'"), "'";
+char = "'", (no_apostrophe_or_backslash | char_escape), "'";
+char_escape = "\\", (escape_ascii | escape_byte | escape_unicode);
 ```
+
+> Note: A char accepts the same escapes as a string, except for string
+  continuation escapes. A `\x` escape in a char must be a single ASCII
+  character (`\x00` to `\x7F`), so several byte escapes can't be combined
+  into one UTF-8 character like they can in a string.
 
 ## Boolean
 
@@ -156,11 +166,11 @@ option_some = "Some", ws, "(", ws, value, ws, ")";
 
 ```ebnf
 range = range_from_to_inclusive | range_from_to_exclusive | range_from | range_to_inclusive | range_to_exclusive | range_full;
-range_from_to_inclusive = number, ws, "..=", ws, number;
-range_from_to_exclusive = number, ws, "..", ws, number;
-range_from = number, ws, "..";
-range_to_inclusive = "..=", ws, number;
-range_to_exclusive = "..", ws, number;
+range_from_to_inclusive = number, "..=", number;
+range_from_to_exclusive = number, "..", number;
+range_from = number, "..";
+range_to_inclusive = "..=", number;
+range_to_exclusive = "..", number;
 range_full = "..";
 ```
 
