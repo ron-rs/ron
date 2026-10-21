@@ -183,6 +183,39 @@ fn test_raw_value_serde_json() {
 }
 
 #[test]
+fn test_raw_value_serde_json_same_checks_as_from_ron() {
+    // an unclosed line comment would swallow the rest of the line on serialisation
+    let err = serde_json::from_str::<WithRawValue>("{\"a\":true,\"b\":\"42 //\"}").unwrap_err();
+    assert!(err.to_string().contains("unclosed line comment"), "{}", err);
+    let err = serde_json::from_str::<&RawValue>("\"42 //\"").unwrap_err();
+    assert!(err.to_string().contains("unclosed line comment"), "{}", err);
+    let err =
+        Box::<RawValue>::deserialize(serde::de::value::StrDeserializer::<Error>::new("42 //"))
+            .unwrap_err();
+    assert!(err.to_string().contains("unclosed line comment"), "{}", err);
+
+    // extensions cannot be enabled inside a raw value
+    let err =
+        serde_json::from_str::<WithRawValue>("{\"a\":true,\"b\":\"#![enable(implicit_some)] 42\"}")
+            .unwrap_err();
+    assert!(
+        err.to_string().contains("cannot enable extensions"),
+        "{}",
+        err
+    );
+
+    let with: WithRawValue = serde_json::from_str("{\"a\":true,\"b\":\"42 //\\n\"}").unwrap();
+    assert_eq!(with.b.get_ron(), "42 //\n");
+    assert_eq!(
+        ron::from_str::<WithRawValue>(&ron::to_string(&with).unwrap())
+            .unwrap()
+            .b
+            .get_ron(),
+        "42 //\n"
+    );
+}
+
+#[test]
 fn test_raw_value_clone_into() {
     let raw = RawValue::from_boxed_ron(String::from("(None, 4.2)").into_boxed_str()).unwrap();
     let raw2 = raw.clone();
