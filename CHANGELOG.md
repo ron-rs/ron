@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed round-tripping of compact ranges whose start bound is `inf` or `NaN` ([#605](https://github.com/ron-rs/ron/pull/605))
 - Fixed enforcement of `recursion_limit` for nested enum variants deserialised through `serde`'s `Content` (e.g. untagged enums) ([#632](https://github.com/ron-rs/ron/pull/632))
 - Fixed `-NaN` losing its sign when parsed as an untyped float on some targets, e.g. riscv64 ([#634](https://github.com/ron-rs/ron/pull/634))
+- Fixed `RawValue` accepting unclosed line comments and extensions when deserialised from a non-RON format, e.g. JSON, which produced invalid RON on serialisation ([#636](https://github.com/ron-rs/ron/pull/636))
 - Fixed `compact_ranges` dropping the struct name and newtype variant unwrapping when a range with non-numeric bounds is written as a struct ([#629](https://github.com/ron-rs/ron/pull/629))
 
 ### Documentation

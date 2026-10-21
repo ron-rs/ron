@@ -106,7 +106,12 @@ impl RawValue {
             ))));
         }
 
-        let _ = <&Self>::deserialize(&mut deserializer).map_err(|e| deserializer.span_error(e))?;
+        let _ = de::Deserializer::deserialize_newtype_struct(
+            &mut deserializer,
+            RAW_VALUE_TOKEN,
+            de::IgnoredAny,
+        )
+        .map_err(|e| deserializer.span_error(e))?;
 
         deserializer.end().map_err(|e| deserializer.span_error(e))?;
 
@@ -185,8 +190,8 @@ impl<'de: 'a, 'a> Deserialize<'de> for &'a RawValue {
             }
 
             fn visit_borrowed_str<E: de::Error>(self, ron: &'de str) -> Result<Self::Value, E> {
-                match Options::default().from_str::<de::IgnoredAny>(ron) {
-                    Ok(_) => Ok(RawValue::from_borrowed_str(ron)),
+                match RawValue::from_ron(ron) {
+                    Ok(raw_value) => Ok(raw_value),
                     Err(err) => Err(de::Error::custom(format!("invalid RON value at {}", err))),
                 }
             }
@@ -216,15 +221,15 @@ impl<'de> Deserialize<'de> for Box<RawValue> {
             }
 
             fn visit_str<E: de::Error>(self, ron: &str) -> Result<Self::Value, E> {
-                match Options::default().from_str::<de::IgnoredAny>(ron) {
-                    Ok(_) => Ok(RawValue::from_boxed_str(ron.to_owned().into_boxed_str())),
+                match RawValue::from_ron(ron) {
+                    Ok(raw_value) => Ok(raw_value.to_owned()),
                     Err(err) => Err(de::Error::custom(format!("invalid RON value at {}", err))),
                 }
             }
 
             fn visit_string<E: de::Error>(self, ron: String) -> Result<Self::Value, E> {
-                match Options::default().from_str::<de::IgnoredAny>(&ron) {
-                    Ok(_) => Ok(RawValue::from_boxed_str(ron.into_boxed_str())),
+                match RawValue::from_boxed_ron(ron.into_boxed_str()) {
+                    Ok(raw_value) => Ok(raw_value),
                     Err(err) => Err(de::Error::custom(format!("invalid RON value at {}", err))),
                 }
             }
