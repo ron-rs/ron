@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed enforcement of `recursion_limit` for nested enum variants deserialised through `serde`'s `Content` (e.g. untagged enums) ([#632](https://github.com/ron-rs/ron/pull/632))
 - Fixed `-NaN` losing its sign when parsed as an untyped float on some targets, e.g. riscv64 ([#634](https://github.com/ron-rs/ron/pull/634))
 
+### API Changes
+
+- Added the `ron::de::from_value` convenience function to deserialize a `T` from a `Value` ([#618](https://github.com/ron-rs/ron/pull/618))
+
 ## [0.12.2] - 2026-06-22
 
 ### Format Changes
