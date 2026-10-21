@@ -8,15 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### API Changes
 
-- Removed the `once_cell` dependency. ([#625](https://github.com/ron-rs/ron/pull/625))
+- Removed the `once_cell` dependency ([#625](https://github.com/ron-rs/ron/pull/625))
+
+### Documentation
+
+- Mention the Zed extension in the tooling table ([#630](https://github.com/ron-rs/ron/pull/630))
+- Add enum variants to the syntax overview in the README ([#575](https://github.com/ron-rs/ron/pull/633))
+- Document `no_std` configuration and the global allocator requirement ([#574](https://github.com/ron-rs/ron/pull/626))
+- Added "[other implementations](https://github.com/ron-rs/ron/blob/master/README.md#other-implementations)" section to the README ([#628](https://github.com/ron-rs/ron/pull/628))
 
 ### Format Changes
 
-- Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/issues/585))
+- Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/pull/617))
 
 ### Bug Fixes
 
 - Fixed round-tripping of compact ranges whose start bound is `inf` or `NaN` ([#605](https://github.com/ron-rs/ron/pull/605))
+- Fixed enforcement of `recursion_limit` for nested enum variants deserialised through `serde`'s `Content` (e.g. untagged enums) ([#632](https://github.com/ron-rs/ron/pull/632))
+- Fixed `-NaN` losing its sign when parsed as an untyped float on some targets, e.g. riscv64 ([#634](https://github.com/ron-rs/ron/pull/634))
 
 ## [0.12.2] - 2026-06-22
 

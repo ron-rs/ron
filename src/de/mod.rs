@@ -201,10 +201,12 @@ impl<'de> Deserializer<'de> {
             (StructType::Unit, _) => visitor.visit_unit(),
             (_, Some(ident)) if is_serde_content => {
                 // serde's Content type uses a singleton map encoding for enums
-                visitor.visit_map(SerdeEnumContent {
-                    de: self,
-                    ident: Some(ident),
-                })
+                guard_recursion! { self =>
+                    visitor.visit_map(SerdeEnumContent {
+                        de: &mut *self,
+                        ident: Some(ident),
+                    })
+                }
             }
             (StructType::Named, _) => {
                 // giving no name results in worse errors but is necessary here
@@ -214,7 +216,7 @@ impl<'de> Deserializer<'de> {
                 // deserialize a newtype struct or variant
                 self.parser.consume_char('(');
                 self.parser.skip_ws()?;
-                let result = self.deserialize_any(visitor);
+                let result = guard_recursion! { self => self.deserialize_any(visitor) };
                 self.parser.skip_ws()?;
                 self.parser.consume_char(')');
 
