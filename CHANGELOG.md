@@ -6,18 +6,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Documentation
+### API Changes
 
-- Document `no_std` configuration and the global allocator requirement ([#574](https://github.com/ron-rs/ron/pull/626))
+- Added the `ron::de::from_value` convenience function to deserialize a `T` from a `Value` ([#618](https://github.com/ron-rs/ron/pull/618))
 
 ### Format Changes
 
-- Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/pull/617))
+- Add support for parsing Rust-style string continuation escapes ([#617](https://github.com/ron-rs/ron/pull/617))
 
 ### Bug Fixes
 
 - Fixed round-tripping of compact ranges whose start bound is `inf` or `NaN` ([#605](https://github.com/ron-rs/ron/pull/605))
+- Fixed enforcement of `recursion_limit` for nested enum variants deserialised through `serde`'s `Content` (e.g. untagged enums) ([#632](https://github.com/ron-rs/ron/pull/632))
+- Fixed `-NaN` losing its sign when parsed as an untyped float on some targets, e.g. riscv64 ([#634](https://github.com/ron-rs/ron/pull/634))
 - Fixed `compact_ranges` dropping the struct name and newtype variant unwrapping when a range with non-numeric bounds is written as a struct ([#629](https://github.com/ron-rs/ron/pull/629))
+
+### Documentation
+
+- Mention the Zed extension in the tooling table ([#630](https://github.com/ron-rs/ron/pull/630))
+- Add enum variants to the syntax overview in the README ([#633](https://github.com/ron-rs/ron/pull/633))
+- Document `no_std` configuration and the global allocator requirement ([#626](https://github.com/ron-rs/ron/pull/626))
+- Added "[other implementations](https://github.com/ron-rs/ron/blob/master/README.md#other-implementations)" section to the README ([#628](https://github.com/ron-rs/ron/pull/628))
 
 ## [0.12.2] - 2026-06-22
 

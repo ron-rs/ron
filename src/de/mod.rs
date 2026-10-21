@@ -133,6 +133,19 @@ where
     Options::default().from_bytes(s)
 }
 
+/// A convenience function for deserializing a value of type `T`
+/// from a [`Value`](crate::Value).
+///
+/// Unlike the other convenience functions this returns a plain [`Error`]
+/// rather than a [`SpannedError`], since an in-memory [`Value`](crate::Value)
+/// has no source text to point a span into.
+pub fn from_value<T>(value: crate::Value) -> Result<T>
+where
+    T: de::DeserializeOwned,
+{
+    value.into_rust()
+}
+
 macro_rules! guard_recursion {
     ($self:expr => $expr:expr) => {{
         if let Some(limit) = &mut $self.recursion_limit {
@@ -201,10 +214,12 @@ impl<'de> Deserializer<'de> {
             (StructType::Unit, _) => visitor.visit_unit(),
             (_, Some(ident)) if is_serde_content => {
                 // serde's Content type uses a singleton map encoding for enums
-                visitor.visit_map(SerdeEnumContent {
-                    de: self,
-                    ident: Some(ident),
-                })
+                guard_recursion! { self =>
+                    visitor.visit_map(SerdeEnumContent {
+                        de: &mut *self,
+                        ident: Some(ident),
+                    })
+                }
             }
             (StructType::Named, _) => {
                 // giving no name results in worse errors but is necessary here
@@ -214,7 +229,7 @@ impl<'de> Deserializer<'de> {
                 // deserialize a newtype struct or variant
                 self.parser.consume_char('(');
                 self.parser.skip_ws()?;
-                let result = self.deserialize_any(visitor);
+                let result = guard_recursion! { self => self.deserialize_any(visitor) };
                 self.parser.skip_ws()?;
                 self.parser.consume_char(')');
 
