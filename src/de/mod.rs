@@ -245,17 +245,17 @@ impl<'de> Deserializer<'de> {
     {
         if self.parser.consume_str("..=") {
             let end = self.parser.any_number()?;
-            return visitor.visit_map(RangeMapAccess::new(number, end, "end"));
+            return visitor.visit_map(RangeMapAccess::new(number, end, "end", self.parser.exts));
         } else if self.parser.consume_str("..") {
             if self
                 .parser
                 .peek_char()
                 .map_or(true, |c| !self.parser.is_number_start(c))
             {
-                return visitor.visit_map(RangeFromMapAccess::new(number));
+                return visitor.visit_map(RangeFromMapAccess::new(number, self.parser.exts));
             }
             let end = self.parser.any_number()?;
-            return visitor.visit_map(RangeMapAccess::new(number, end, "end"));
+            return visitor.visit_map(RangeMapAccess::new(number, end, "end", self.parser.exts));
         }
         number.visit(visitor)
     }
@@ -389,7 +389,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 if self.parser.check_str("..=") {
                     self.parser.consume_str("..=");
                     let end = self.parser.any_number()?;
-                    return visitor.visit_map(RangeToMapAccess::new(end, "end"));
+                    return visitor.visit_map(RangeToMapAccess::new(end, "end", self.parser.exts));
                 }
 
                 if self.parser.check_str("..") {
@@ -397,7 +397,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     if after_dots.starts_with(|c: char| self.parser.is_number_start(c)) {
                         self.parser.consume_str("..");
                         let end = self.parser.any_number()?;
-                        return visitor.visit_map(RangeToMapAccess::new(end, "end"));
+                        return visitor.visit_map(RangeToMapAccess::new(
+                            end,
+                            "end",
+                            self.parser.exts,
+                        ));
                     }
                     self.parser.consume_str("..");
                     return visitor.visit_unit();
@@ -808,7 +812,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 }
 
                 let end = self.parser.any_number()?;
-                return visitor.visit_map(RangeMapAccess::new(start, end, end_field));
+                return visitor.visit_map(RangeMapAccess::new(
+                    start,
+                    end,
+                    end_field,
+                    self.parser.exts,
+                ));
             }
         }
 
@@ -821,7 +830,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             } else if !self.parser.consume_str("..") {
                 return Err(Error::ExpectedRangeSyntax);
             }
-            return visitor.visit_map(RangeFromMapAccess::new(start));
+            return visitor.visit_map(RangeFromMapAccess::new(start, self.parser.exts));
         }
 
         if fields == ["end"]
@@ -835,7 +844,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             }
             self.parser.consume_str("..");
             let end = self.parser.any_number()?;
-            return visitor.visit_map(RangeToMapAccess::new(end, "end"));
+            return visitor.visit_map(RangeToMapAccess::new(end, "end", self.parser.exts));
         }
 
         // `last` is the old field name for `RangeToInclusive`, replaced by `end` in a newer Rust version
@@ -850,7 +859,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 )));
             }
             let end = self.parser.any_number()?;
-            return visitor.visit_map(RangeToMapAccess::new(end, fields[0]));
+            return visitor.visit_map(RangeToMapAccess::new(end, fields[0], self.parser.exts));
         }
 
         if !self.newtype_variant {
@@ -972,15 +981,22 @@ struct RangeMapAccess {
     end: crate::value::Number,
     state: RangeMapState,
     end_key: &'static str,
+    exts: Extensions,
 }
 
 impl RangeMapAccess {
-    fn new(start: crate::value::Number, end: crate::value::Number, end_key: &'static str) -> Self {
+    fn new(
+        start: crate::value::Number,
+        end: crate::value::Number,
+        end_key: &'static str,
+        exts: Extensions,
+    ) -> Self {
         RangeMapAccess {
             start,
             end,
             state: RangeMapState::StartKey,
             end_key,
+            exts,
         }
     }
 }
@@ -1008,11 +1024,17 @@ impl<'de> de::MapAccess<'de> for RangeMapAccess {
         match self.state {
             RangeMapState::StartValue => {
                 self.state = RangeMapState::EndKey;
-                seed.deserialize(NumberDeserializer(self.start))
+                seed.deserialize(NumberDeserializer {
+                    number: self.start,
+                    extensions: self.exts,
+                })
             }
             RangeMapState::EndValue => {
                 self.state = RangeMapState::Done;
-                seed.deserialize(NumberDeserializer(self.end))
+                seed.deserialize(NumberDeserializer {
+                    number: self.end,
+                    extensions: self.exts,
+                })
             }
             _ => Err(Error::ExpectedDifferentLength {
                 expected: String::from("map of length 2"),
@@ -1025,11 +1047,16 @@ impl<'de> de::MapAccess<'de> for RangeMapAccess {
 struct RangeFromMapAccess {
     start: crate::value::Number,
     done: bool,
+    exts: Extensions,
 }
 
 impl RangeFromMapAccess {
-    fn new(start: crate::value::Number) -> Self {
-        RangeFromMapAccess { start, done: false }
+    fn new(start: crate::value::Number, exts: Extensions) -> Self {
+        RangeFromMapAccess {
+            start,
+            done: false,
+            exts,
+        }
     }
 }
 
@@ -1052,7 +1079,10 @@ impl<'de> de::MapAccess<'de> for RangeFromMapAccess {
             });
         }
         self.done = true;
-        seed.deserialize(NumberDeserializer(self.start))
+        seed.deserialize(NumberDeserializer {
+            number: self.start,
+            extensions: self.exts,
+        })
     }
 }
 
@@ -1060,14 +1090,16 @@ struct RangeToMapAccess {
     end: crate::value::Number,
     end_key: &'static str,
     done: bool,
+    exts: Extensions,
 }
 
 impl RangeToMapAccess {
-    fn new(end: crate::value::Number, end_key: &'static str) -> Self {
+    fn new(end: crate::value::Number, end_key: &'static str, exts: Extensions) -> Self {
         RangeToMapAccess {
             end,
             end_key,
             done: false,
+            exts,
         }
     }
 }
@@ -1091,7 +1123,10 @@ impl<'de> de::MapAccess<'de> for RangeToMapAccess {
             });
         }
         self.done = true;
-        seed.deserialize(NumberDeserializer(self.end))
+        seed.deserialize(NumberDeserializer {
+            number: self.end,
+            extensions: self.exts,
+        })
     }
 }
 

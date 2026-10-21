@@ -306,3 +306,32 @@ fn test_range_inf_nan_start_bound_roundtrips() {
     let de: std::ops::Range<f64> = ron::from_str("NaN..2.0").unwrap();
     assert!(de.start.is_nan());
 }
+
+#[test]
+fn test_range_newtype_bounds() {
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct Bound<T>(T);
+
+    fn check<T>(compact: &str, expanded: &str, expected: T)
+    where
+        T: serde::de::DeserializeOwned + std::fmt::Debug + PartialEq,
+    {
+        assert!(ron::from_str::<T>(compact).is_err());
+        for input in [expanded, compact] {
+            assert_eq!(
+                ron::from_str::<T>(&format!("#![enable(unwrap_newtypes)] {input}")).unwrap(),
+                expected
+            );
+        }
+    }
+
+    check("0..5", "(start:0,end:5)", Bound(0u32)..Bound(5));
+    check("-2..=3", "(start:-2,end:3)", Bound(-2i32)..=Bound(3));
+    check("0.5..", "(start:0.5)", Bound(0.5f64)..);
+    check("..5", "(end:5)", ..Bound(5u32));
+    check(
+        "0..5",
+        "(start:0,end:5)",
+        Bound(Bound(0u32))..Bound(Bound(5)),
+    );
+}
