@@ -1702,6 +1702,17 @@ impl Float for ParsedFloat {
     fn parse(float: &str) -> Result<Self> {
         let value = f64::from_str(float).map_err(|_| Error::ExpectedFloat)?;
 
+        // Casting a NaN with `as` gives an unspecified NaN, and some targets
+        // (e.g. riscv64) drop the sign, so build the f32 NaN by hand.
+        if value.is_nan() {
+            let nan = if value.is_sign_negative() {
+                -f32::NAN
+            } else {
+                f32::NAN
+            };
+            return Ok(ParsedFloat::F32(nan));
+        }
+
         #[allow(clippy::cast_possible_truncation)]
         if value.total_cmp(&f64::from(value as f32)).is_eq() {
             Ok(ParsedFloat::F32(value as f32))
