@@ -1295,6 +1295,49 @@ fn struct_error_name(error: Error, name: Option<&str>) -> Error {
     }
 }
 
+// Note: OnceLock is only stable with MSRV 1.70 and requires std
+struct OnceBox<T> {
+    ptr: core::sync::atomic::AtomicPtr<T>,
+}
+
+impl<T> OnceBox<T> {
+    const fn new() -> Self {
+        Self {
+            ptr: core::sync::atomic::AtomicPtr::new(core::ptr::null_mut()),
+        }
+    }
+
+    #[allow(unsafe_code)]
+    fn get_or_init<F>(&self, f: F) -> &T
+    where
+        F: FnOnce() -> T,
+    {
+        let mut ptr = self.ptr.load(core::sync::atomic::Ordering::Acquire);
+        if ptr.is_null() {
+            let val = f();
+            let new_ptr = alloc::boxed::Box::into_raw(alloc::boxed::Box::new(val));
+
+            match self.ptr.compare_exchange(
+                core::ptr::null_mut(),
+                new_ptr,
+                core::sync::atomic::Ordering::AcqRel,
+                core::sync::atomic::Ordering::Acquire,
+            ) {
+                Ok(_) => ptr = new_ptr,
+                Err(actual) => {
+                    // SAFETY: `new_ptr` was created via `Box::into_raw` above and lost the CAS race, so it is safe to deallocate.
+                    unsafe {
+                        drop(alloc::boxed::Box::from_raw(new_ptr));
+                    }
+                    ptr = actual;
+                }
+            }
+        }
+        // SAFETY: `ptr` points to a valid, leaked `T` stored in the atomic static that lives for `'static`.
+        unsafe { &*ptr }
+    }
+}
+
 struct SerdeEnumContent<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     ident: Option<&'a str>,
@@ -1375,12 +1418,11 @@ fn is_serde_content<T>() -> bool {
     impl de::StdError for TypeIdError {}
 
     fn type_id_of_untagged_enum_default_buffer() -> core::any::TypeId {
-        static TYPE_ID: once_cell::race::OnceBox<core::any::TypeId> =
-            once_cell::race::OnceBox::new();
+        static TYPE_ID: OnceBox<core::any::TypeId> = OnceBox::new();
 
         *TYPE_ID.get_or_init(|| match Deserialize::deserialize(TypeIdDeserializer) {
             Ok(UntaggedEnum::A(void) | UntaggedEnum::B(void)) => match void {},
-            Err(TypeIdError(typeid)) => alloc::boxed::Box::new(typeid),
+            Err(TypeIdError(typeid)) => typeid,
         })
     }
 
@@ -1454,12 +1496,11 @@ fn is_serde_tag_or_content<T>() -> bool {
     impl de::StdError for TypeIdError {}
 
     fn type_id_of_internally_tagged_enum_default_tag_or_buffer() -> core::any::TypeId {
-        static TYPE_ID: once_cell::race::OnceBox<core::any::TypeId> =
-            once_cell::race::OnceBox::new();
+        static TYPE_ID: OnceBox<core::any::TypeId> = OnceBox::new();
 
         *TYPE_ID.get_or_init(|| match Deserialize::deserialize(TypeIdDeserializer) {
             Ok(InternallyTaggedEnum::A { a: void }) => match void {},
-            Err(TypeIdError(typeid)) => alloc::boxed::Box::new(typeid),
+            Err(TypeIdError(typeid)) => typeid,
         })
     }
 

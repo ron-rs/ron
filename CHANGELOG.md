@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### API Changes
 
 - Added the `ron::de::from_value` convenience function to deserialize a `T` from a `Value` ([#618](https://github.com/ron-rs/ron/pull/618))
+- Removed the `once_cell` dependency ([#625](https://github.com/ron-rs/ron/pull/625))
 
 ### Format Changes
 
