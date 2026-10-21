@@ -197,6 +197,15 @@ also enables `std`; ensure other dependencies do not enable RON's or Serde's
 | Zed            | [RON](https://zed.dev/extensions/ron)                                    |
 | Multiple / LSP | [ron-lsp](https://github.com/jasonjmcghee/ron-lsp)                       |
 
+## Other Implementations
+
+| Source     | Implementation                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| Jackson    | [jackson-dataformat-ron](https://github.com/chriskilding/jackson-dataformat-ron)                                     |
+| Python     | [Python Script](https://github.com/sdfgeoff/blender_bevy_toolkit/blob/master/blender_bevy_toolkit/rust_types/ron.py) |
+| Javascript | [ron-js](https://github.com/whiteand/ron-js)                                                                         |
+| C#         | [RonCS](https://github.com/CriusNyx/RonCS)                                                                           |
+
 ## Limitations
 
 RON requires struct, enum, and variant names to be valid Rust identifiers and will reject invalid ones created by `#[serde(rename = "...")]` at serialization / deserialization time.
