@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `RawValue::from_ron` accepting `#![type = "..."]` and `#![schema = "..."]` attributes, which produced invalid RON when the raw value was serialised inside another value ([#642](https://github.com/ron-rs/ron/pull/642))
 - Fixed `compact_ranges` dropping the struct name and newtype variant unwrapping when a range with non-numeric bounds is written as a struct ([#629](https://github.com/ron-rs/ron/pull/629))
 - Fixed quadratic backtracking over malformed strings when checking for a newtype or tuple inside untagged enums or unwrapped newtype variants ([#639](https://github.com/ron-rs/ron/pull/639))
+- Fixed `RawValue` accumulating extra whitespace around nested values each time a pretty-printed file is read and written again; non-comment whitespace around a nested `RawValue` is now trimmed on deserialisation ([#640](https://github.com/ron-rs/ron/pull/640))
 
 ### Documentation
 
