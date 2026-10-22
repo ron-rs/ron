@@ -55,3 +55,49 @@ fn exponent_floats_with_number_suffixes() {
     assert_eq!(ron, "1e30f32");
     assert_eq!(ron::from_str::<f32>(&ron).unwrap(), 1e30);
 }
+
+#[test]
+fn nan_sign_roundtrips() {
+    let config = ron::ser::PrettyConfig::default().number_suffixes(true);
+
+    for (v, expected) in [(f64::NAN, "NaN"), (-f64::NAN, "-NaN")] {
+        let ron = ron::to_string(&v).unwrap();
+        assert_eq!(ron, expected);
+
+        let de = ron::from_str::<f64>(&ron).unwrap();
+        assert!(de.is_nan());
+        assert_eq!(de.is_sign_negative(), v.is_sign_negative());
+
+        let ron = ron::ser::to_string_pretty(&v, config.clone()).unwrap();
+        assert_eq!(ron, format!("{}f64", expected));
+
+        let de = ron::from_str::<f64>(&ron).unwrap();
+        assert!(de.is_nan());
+        assert_eq!(de.is_sign_negative(), v.is_sign_negative());
+    }
+
+    for (v, expected) in [(f32::NAN, "NaN"), (-f32::NAN, "-NaN")] {
+        let ron = ron::to_string(&v).unwrap();
+        assert_eq!(ron, expected);
+
+        let de = ron::from_str::<f32>(&ron).unwrap();
+        assert!(de.is_nan());
+        assert_eq!(de.is_sign_negative(), v.is_sign_negative());
+
+        // Untyped values keep the sign as well
+        match ron::from_str::<ron::Value>(&ron).unwrap() {
+            ron::Value::Number(ron::value::Number::F32(de)) => {
+                assert!(de.get().is_nan());
+                assert_eq!(de.get().is_sign_negative(), v.is_sign_negative());
+            }
+            other => panic!("expected an f32 NaN, got {:?}", other),
+        }
+
+        let ron = ron::ser::to_string_pretty(&v, config.clone()).unwrap();
+        assert_eq!(ron, format!("{}f32", expected));
+
+        let de = ron::from_str::<f32>(&ron).unwrap();
+        assert!(de.is_nan());
+        assert_eq!(de.is_sign_negative(), v.is_sign_negative());
+    }
+}
