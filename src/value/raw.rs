@@ -106,6 +106,14 @@ impl RawValue {
             ))));
         }
 
+        // neither can ignored attributes like `#![type = ".."]`, which only
+        //  leave a trace in the whitespace cursor once they have been skipped
+        if deserializer.parser.pre_ws_src().len() != ron.len() {
+            return Err(deserializer.span_error(Error::Message(String::from(
+                "ron::value::RawValue cannot contain attributes",
+            ))));
+        }
+
         let _ = de::Deserializer::deserialize_newtype_struct(
             &mut deserializer,
             RAW_VALUE_TOKEN,
