@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Format Changes
 
 - Add support for parsing Rust-style string continuation escapes ([#617](https://github.com/ron-rs/ron/pull/617))
+- Serialise very large and very small floats in exponent notation, e.g. `1e300` instead of a 303-character decimal expansion ([#638](https://github.com/ron-rs/ron/pull/638))
 
 ### Bug Fixes
 
