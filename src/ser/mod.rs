@@ -789,13 +789,11 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             write!(self.output, "-")?;
         }
 
-        write!(self.output, "{}", v)?;
-
-        // Equivalent to v.fract() == 0.0
-        // See: https://docs.rs/num-traits/0.2.19/src/num_traits/float.rs.html#459-465
-        if v % 1. == 0.0 {
-            write!(self.output, ".0")?;
-        }
+        // `Debug` emits the shortest representation that round-trips, using
+        // exponent notation for very large or small magnitudes (e.g. `1e300`)
+        // and always including a `.0` or exponent for finite values, so they
+        // are never parsed back as integers.
+        write!(self.output, "{:?}", v)?;
 
         if self.number_suffixes() {
             write!(self.output, "f32")?;
@@ -809,13 +807,11 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             write!(self.output, "-")?;
         }
 
-        write!(self.output, "{}", v)?;
-
-        // Equivalent to v.fract() == 0.0
-        // See: https://docs.rs/num-traits/0.2.19/src/num_traits/float.rs.html#459-465
-        if v % 1. == 0.0 {
-            write!(self.output, ".0")?;
-        }
+        // `Debug` emits the shortest representation that round-trips, using
+        // exponent notation for very large or small magnitudes (e.g. `1e300`)
+        // and always including a `.0` or exponent for finite values, so they
+        // are never parsed back as integers.
+        write!(self.output, "{:?}", v)?;
 
         if self.number_suffixes() {
             write!(self.output, "f64")?;

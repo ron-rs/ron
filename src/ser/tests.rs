@@ -223,11 +223,8 @@ fn test_any_number_precision() {
     test_min_max! { i128, u128 }
 }
 
-fn check_ser_any_number<T: Copy + Into<Number> + core::fmt::Display + serde::Serialize>(n: T) {
-    let mut fmt = format!("{}", n);
-    if !fmt.contains('.') && core::any::type_name::<T>().contains('f') {
-        fmt.push_str(".0");
-    }
+fn check_ser_any_number<T: Copy + Into<Number> + core::fmt::Debug + serde::Serialize>(n: T) {
+    let fmt = format!("{:?}", n);
 
     check_to_string_writer(&n.into(), &fmt, &fmt);
     check_to_string_writer(&n, &fmt, &fmt);
