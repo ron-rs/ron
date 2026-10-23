@@ -229,11 +229,14 @@ impl<'de> Deserializer<'de> {
                 // deserialize a newtype struct or variant
                 self.parser.consume_char('(');
                 self.parser.skip_ws()?;
-                let result = guard_recursion! { self => self.deserialize_any(visitor) };
-                self.parser.skip_ws()?;
-                self.parser.consume_char(')');
+                let value = guard_recursion! { self => self.deserialize_any(visitor)? };
+                self.parser.comma()?;
 
-                result
+                if self.parser.consume_char(')') {
+                    Ok(value)
+                } else {
+                    Err(Error::ExpectedStructLikeEnd)
+                }
             }
             (
                 StructType::AnyTuple

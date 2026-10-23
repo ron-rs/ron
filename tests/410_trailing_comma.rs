@@ -95,3 +95,31 @@ fn test_trailing_comma_enum_struct_variant() {
     assert!(from_str::<Enum>("Struct(a:1,b:2,)").is_ok());
     assert!(from_str::<Enum>("Struct(a:1,b:2,,)").is_err());
 }
+
+#[test]
+fn test_trailing_comma_untagged_newtype_variant() {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    #[allow(dead_code)]
+    enum Untagged {
+        Enum(Enum),
+    }
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    #[allow(dead_code)]
+    enum Element {
+        Int(i32),
+        Tuple((Untagged,)),
+    }
+
+    assert!(from_str::<Untagged>("Newtype(1)").is_ok());
+    assert!(from_str::<Untagged>("Newtype(1,)").is_ok());
+    assert!(from_str::<Untagged>("Newtype( 1 , )").is_ok());
+    assert!(from_str::<Untagged>("Newtype(1,,)").is_err());
+
+    // The `)` of the newtype variant must not be skipped and then taken from
+    // the enclosing tuple, which would accept unbalanced parentheses
+    assert!(from_str::<Vec<Element>>("[(Newtype(1,), 2]").is_err());
+    assert!(from_str::<Vec<Element>>("[(Newtype(1,),), 2]").is_ok());
+}
