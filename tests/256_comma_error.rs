@@ -5,7 +5,7 @@ use ron::error::{Error, Position, Span, SpannedError};
 #[cfg(feature = "internal-span-substring-test")]
 use ron::util::span_substring::check_error_span_inclusive;
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, PartialEq, serde::Deserialize)]
 struct Test {
     a: i32,
     b: i32,
@@ -29,6 +29,19 @@ fn test_missing_comma_error() {
         }
     );
 
+    #[cfg(feature = "internal-span-substring-test")]
+    check_error_span_inclusive::<(i32, i32)>(
+        tuple_string,
+        Err(SpannedError {
+            code: Error::ExpectedComma,
+            span: Span {
+                start: Position { line: 3, col: 9 },
+                end: Position { line: 3, col: 9 },
+            },
+        }),
+        "2",
+    );
+
     let list_string = r#"[
         0,
         1 // <-- forgotten comma here
@@ -44,6 +57,19 @@ fn test_missing_comma_error() {
                 end: Position { line: 4, col: 9 }
             }
         }
+    );
+
+    #[cfg(feature = "internal-span-substring-test")]
+    check_error_span_inclusive::<Vec<i32>>(
+        list_string,
+        Err(SpannedError {
+            code: Error::ExpectedComma,
+            span: Span {
+                start: Position { line: 4, col: 9 },
+                end: Position { line: 4, col: 9 },
+            },
+        }),
+        "2",
     );
 
     let struct_string = r#"Test(
@@ -62,6 +88,19 @@ fn test_missing_comma_error() {
         }
     );
 
+    #[cfg(feature = "internal-span-substring-test")]
+    check_error_span_inclusive::<Test>(
+        struct_string,
+        Err(SpannedError {
+            code: Error::ExpectedComma,
+            span: Span {
+                start: Position { line: 3, col: 9 },
+                end: Position { line: 3, col: 9 },
+            },
+        }),
+        "b",
+    );
+
     let map_string = r#"{
         "a": 1 // <-- forgotten comma here
         "b": 2
@@ -76,6 +115,19 @@ fn test_missing_comma_error() {
                 end: Position { line: 3, col: 9 }
             }
         }
+    );
+
+    #[cfg(feature = "internal-span-substring-test")]
+    check_error_span_inclusive::<std::collections::HashMap<String, i32>>(
+        map_string,
+        Err(SpannedError {
+            code: Error::ExpectedComma,
+            span: Span {
+                start: Position { line: 3, col: 9 },
+                end: Position { line: 3, col: 9 },
+            },
+        }),
+        "\"",
     );
 
     let extensions_string = r#"#![enable(

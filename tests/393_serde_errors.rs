@@ -219,6 +219,22 @@ fn test_struct_fields() {
         })
     );
 
+    #[cfg(feature = "internal-span-substring-test")]
+    check_error_span_inclusive::<TestStruct>(
+        "TestStruct(a: true, c: -42)",
+        Err(SpannedError {
+            code: ron::Error::MissingStructField {
+                field: "b",
+                outer: Some(String::from("TestStruct")),
+            },
+            span: Span {
+                start: Position { line: 1, col: 27 },
+                end: Position { line: 1, col: 27 },
+            },
+        }),
+        ")",
+    );
+
     let bogus_struct = "TestStruct(a: true, b: 'b', a: false, c: -42)";
     let expected_err = Err(SpannedError {
         code: ron::Error::DuplicateStructField {
@@ -282,6 +298,22 @@ fn test_adjacently_tagged_enum() {
                 end: Position { line: 1, col: 37 },
             }
         })
+    );
+
+    #[cfg(feature = "internal-span-substring-test")]
+    check_error_span_inclusive::<TestEnumAdjacent>(
+        "(type: StructVariant, content: (d: 4))",
+        Err(SpannedError {
+            code: ron::Error::MissingStructField {
+                field: "a",
+                outer: Some(String::from("TestEnumAdjacent")),
+            },
+            span: Span {
+                start: Position { line: 1, col: 37 },
+                end: Position { line: 1, col: 37 },
+            },
+        }),
+        ")",
     );
 }
 
