@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Document `no_std` configuration and the global allocator requirement ([#626](https://github.com/ron-rs/ron/pull/626))
 - Added "[other implementations](https://github.com/ron-rs/ron/blob/master/README.md#other-implementations)" section to the README ([#628](https://github.com/ron-rs/ron/pull/628))
 
+### Performance
+
+- Scalar hot-path optimizations in the deserializer's parser: byte-wise integer/float
+  scanning, borrowed (non-allocating) float parsing, a `memchr`-free `".."` scan, a
+  `skip_ws` fast path, and a smaller `prev_cursor`. No behavior change.
+
 ## [0.12.2] - 2026-06-22
 
 ### Format Changes
