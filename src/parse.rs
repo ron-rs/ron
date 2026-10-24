@@ -66,6 +66,9 @@ pub(crate) type LargeSInt = i64;
 pub struct Parser<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
+    /// Set if the document starts with global attributes, like
+    /// `#![type = ".."]`, that do not affect parsing.
+    pub(crate) global_attributes: bool,
     src: &'a str,
     cursor: ParserCursor,
     prev_cursor: ParserCursor,
@@ -103,6 +106,7 @@ impl<'a> Parser<'a> {
     pub fn new(src: &'a str) -> SpannedResult<Self> {
         let mut parser = Parser {
             exts: Extensions::empty(),
+            global_attributes: false,
             src,
             cursor: ParserCursor {
                 cursor: 0,
@@ -125,7 +129,9 @@ impl<'a> Parser<'a> {
                 ParsedAttribute::Extensions(extensions) => {
                     parser.exts |= extensions;
                 }
-                ParsedAttribute::Ignored => {}
+                ParsedAttribute::Ignored => {
+                    parser.global_attributes = true;
+                }
             }
 
             parser.skip_ws().map_err(|e| parser.span_error(e))?;
