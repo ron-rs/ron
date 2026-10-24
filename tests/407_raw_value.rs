@@ -216,6 +216,40 @@ fn test_raw_value_serde_json_same_checks_as_from_ron() {
 }
 
 #[test]
+fn test_raw_value_rejects_ignored_attributes() {
+    // leading whitespace and comments are still fine
+    assert_eq!(
+        RawValue::from_ron(" /* a */ 42").unwrap().get_ron(),
+        " /* a */ 42"
+    );
+
+    // the attribute would end up in the middle of the serialised document
+    for ron in ["#![type = \"x\"] 42", " #![schema = \"s.ron\"] (a: 1)"] {
+        let err = RawValue::from_ron(ron).unwrap_err();
+        assert_eq!(
+            err.code,
+            Error::Message(String::from(
+                "ron::value::RawValue cannot contain attributes"
+            ))
+        );
+        assert!(RawValue::from_boxed_ron(String::from(ron).into_boxed_str()).is_err());
+    }
+
+    let err =
+        serde_json::from_str::<WithRawValue>("{\"a\":true,\"b\":\"#![type = \\\"x\\\"] 42\"}")
+            .unwrap_err();
+    assert!(
+        err.to_string().contains("cannot contain attributes"),
+        "{}",
+        err
+    );
+
+    // attributes are still allowed at the start of a document holding a raw value
+    let with: WithRawValue = ron::from_str("#![type = \"x\"] (a: true, b: 42)").unwrap();
+    assert_eq!(with.b.get_ron(), " 42");
+}
+
+#[test]
 fn test_raw_value_clone_into() {
     let raw = RawValue::from_boxed_ron(String::from("(None, 4.2)").into_boxed_str()).unwrap();
     let raw2 = raw.clone();
