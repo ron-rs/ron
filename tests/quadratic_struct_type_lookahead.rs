@@ -46,13 +46,10 @@ fn assert_linear(prefix: &str) {
     let base = parse_millis(prefix, N);
     let double = parse_millis(prefix, N * 2);
 
-    // Guard against a uselessly small, noisy denominator. The linear parse
-    // takes around a millisecond, the quadratic one takes seconds.
-    if base < 10.0 {
-        return;
-    }
-
-    let ratio = double / base;
+    // Floor the denominator so timer noise on a fast linear parse (a few
+    // milliseconds at most) can't inflate the ratio. The quadratic parse takes
+    // seconds, so the floor doesn't hide it.
+    let ratio = double / base.max(10.0);
     assert!(
         ratio < 3.0,
         "a malformed {}string with {} escapes took {:.1}ms but {} escapes took {:.1}ms \
