@@ -197,6 +197,12 @@ impl<'a> Parser<'a> {
         &self.src[self.cursor.pre_ws_cursor..]
     }
 
+    /// Whether no source has been consumed before the last whitespace,
+    /// i.e. whether we are at the start of the top-level value.
+    pub fn is_at_start(&self) -> bool {
+        self.cursor.pre_ws_cursor == 0
+    }
+
     pub fn consume_str(&mut self, s: &str) -> bool {
         if self.check_str(s) {
             self.advance_bytes(s.len());

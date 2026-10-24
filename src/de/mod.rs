@@ -637,8 +637,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if name == crate::value::raw::RAW_VALUE_TOKEN {
             let src_before = self.parser.pre_ws_src();
+            let is_nested = !self.parser.is_at_start();
             self.parser.skip_ws()?;
             let _ignored = self.deserialize_ignored_any(de::IgnoredAny)?;
+            let src_value_end = self.parser.src();
             self.parser.skip_ws()?;
             let src_after = self.parser.src();
 
@@ -646,7 +648,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 return Err(Error::UnclosedLineComment);
             }
 
-            let ron_str = &src_before[..src_before.len() - src_after.len()];
+            let ron_str = if is_nested {
+                trim_raw_value_whitespace(src_before, src_value_end, src_after)
+            } else {
+                &src_before[..src_before.len() - src_after.len()]
+            };
 
             return visitor
                 .visit_borrowed_str::<Error>(ron_str)
@@ -1505,4 +1511,35 @@ fn is_serde_tag_or_content<T>() -> bool {
     }
 
     typeid::of::<T>() == type_id_of_internally_tagged_enum_default_tag_or_buffer()
+}
+
+/// Trim the plain (non-comment) whitespace around a `RawValue`, so that
+/// re-serialising it, e.g. with pretty-printing, does not accumulate whitespace.
+/// Comments are kept, and whitespace is only trimmed from the end if that does
+/// not leave an unclosed line comment behind.
+///
+/// `src_before` is the source from the start of the whitespace before the value,
+/// `src_value_end` the source right after the value (before the trailing
+/// whitespace), and `src_after` the source after the trailing whitespace.
+fn trim_raw_value_whitespace<'a>(
+    src_before: &'a str,
+    src_value_end: &str,
+    src_after: &str,
+) -> &'a str {
+    let start = src_before.len() - src_before.trim_start().len();
+
+    let trailing_start = src_before.len() - src_value_end.len();
+    let trailing = &src_before[trailing_start..src_before.len() - src_after.len()];
+    let trimmed = trailing.trim_end();
+    let mut end = trailing_start + trimmed.len();
+
+    // Only the (trimmed) trailing whitespace needs to be re-parsed to find out
+    // if it ends in a line comment that the trimmed whitespace would leave open
+    if Parser::new(trimmed).map_or(false, |parser| parser.has_unclosed_line_comment()) {
+        // Keep the whitespace up to and including the line break that closes the comment
+        let rest = &trailing[trimmed.len()..];
+        end += rest.find('\n').map_or(rest.len(), |i| i + 1);
+    }
+
+    &src_before[start..end]
 }
