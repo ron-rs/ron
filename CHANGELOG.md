@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed quadratic backtracking over malformed strings when checking for a newtype or tuple inside untagged enums or unwrapped newtype variants ([#639](https://github.com/ron-rs/ron/pull/639))
 - Fixed `RawValue` accumulating extra whitespace around nested values each time a pretty-printed file is read and written again; non-comment whitespace around a nested `RawValue` is now trimmed on deserialisation ([#640](https://github.com/ron-rs/ron/pull/640))
 - Fixed newtype variants deserialised through `serde`'s `Content` (e.g. untagged enums) rejecting a trailing comma and not checking for the closing `)`, which accepted unbalanced parentheses ([#643](https://github.com/ron-rs/ron/pull/643))
+- Fixed a comment directly after a string, byte string, or char literal being read as code when checking for a newtype or tuple inside untagged enums or unwrapped newtype variants, which rejected valid input or changed how it was deserialised ([#644](https://github.com/ron-rs/ron/pull/644))
 
 ### Documentation
 

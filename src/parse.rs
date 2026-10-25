@@ -704,6 +704,9 @@ impl<'a> Parser<'a> {
                     Err(err) => return Err(err),
                 }
 
+                // Skip whitespace and comments directly after a skipped literal,
+                // otherwise e.g. the `/*,*/` in `("a"/*,*/)` would be read as a comma
+                parser.skip_ws()?;
                 let c = parser.next_char()?;
                 if matches!(c, '(' | '[' | '{') {
                     braces += 1;

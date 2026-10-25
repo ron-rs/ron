@@ -77,3 +77,52 @@ fn test_unexpected_byte() {
         })
     );
 }
+
+#[test]
+fn test_comment_after_literal_in_newtype_lookahead() {
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    enum Cmd {
+        Echo(Msg),
+    }
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[serde(untagged)]
+    enum Msg {
+        One(ron::Value),
+        Many(Vec<ron::Value>),
+    }
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Cmd(Cmd),
+    }
+
+    // A comment directly after a literal must not be scanned as code
+    for (ron, inner) in [
+        ("\"hi\"", ron::Value::String(String::from("hi"))),
+        ("'h'", ron::Value::Char('h')),
+        ("b\"hi\"", ron::Value::Bytes(b"hi".to_vec())),
+    ] {
+        let expected = Cmd::Echo(Msg::One(inner));
+
+        for comment in ["", "/*,x*/", "// note\n"] {
+            let ron = format!("Echo({}{})", ron, comment);
+
+            assert_eq!(
+                from_str::<Cmd>(&format!("#![enable(unwrap_variant_newtypes)] {}", ron)).as_ref(),
+                Ok(&expected),
+                "{}",
+                ron,
+            );
+            assert_eq!(
+                from_str::<Untagged>(&ron)
+                    .map(|Untagged::Cmd(cmd)| cmd)
+                    .as_ref(),
+                Ok(&expected),
+                "{}",
+                ron,
+            );
+        }
+    }
+}
