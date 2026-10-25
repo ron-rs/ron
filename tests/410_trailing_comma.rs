@@ -98,28 +98,46 @@ fn test_trailing_comma_enum_struct_variant() {
 
 #[test]
 fn test_trailing_comma_untagged_newtype_variant() {
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    #[allow(dead_code)]
-    enum Untagged {
-        Enum(Enum),
+    #[derive(Debug, PartialEq, Deserialize)]
+    enum Inner {
+        Newtype(i32),
     }
 
-    #[derive(Deserialize)]
+    #[derive(Debug, PartialEq, Deserialize)]
     #[serde(untagged)]
-    #[allow(dead_code)]
+    enum Untagged {
+        Enum(Inner),
+    }
+
+    #[derive(Debug, PartialEq, Deserialize)]
+    #[serde(untagged)]
     enum Element {
         Int(i32),
         Tuple((Untagged,)),
     }
 
-    assert!(from_str::<Untagged>("Newtype(1)").is_ok());
-    assert!(from_str::<Untagged>("Newtype(1,)").is_ok());
-    assert!(from_str::<Untagged>("Newtype( 1 , )").is_ok());
+    assert_eq!(
+        from_str::<Untagged>("Newtype(1)").unwrap(),
+        Untagged::Enum(Inner::Newtype(1))
+    );
+    assert_eq!(
+        from_str::<Untagged>("Newtype(1,)").unwrap(),
+        Untagged::Enum(Inner::Newtype(1))
+    );
+    assert_eq!(
+        from_str::<Untagged>("Newtype( 1 , )").unwrap(),
+        Untagged::Enum(Inner::Newtype(1))
+    );
     assert!(from_str::<Untagged>("Newtype(1,,)").is_err());
 
     // The `)` of the newtype variant must not be skipped and then taken from
     // the enclosing tuple, which would accept unbalanced parentheses
     assert!(from_str::<Vec<Element>>("[(Newtype(1,), 2]").is_err());
-    assert!(from_str::<Vec<Element>>("[(Newtype(1,),), 2]").is_ok());
+    assert_eq!(
+        from_str::<Vec<Element>>("[(Newtype(1,),), 2]").unwrap(),
+        vec![
+            Element::Tuple((Untagged::Enum(Inner::Newtype(1)),)),
+            Element::Int(2)
+        ]
+    );
 }
