@@ -66,6 +66,9 @@ pub(crate) type LargeSInt = i64;
 pub struct Parser<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
+    /// Set if the document starts with global attributes, like
+    /// `#![type = ".."]`, that do not affect parsing.
+    pub(crate) global_attributes: bool,
     src: &'a str,
     cursor: ParserCursor,
     prev_cursor: ParserCursor,
@@ -103,6 +106,7 @@ impl<'a> Parser<'a> {
     pub fn new(src: &'a str) -> SpannedResult<Self> {
         let mut parser = Parser {
             exts: Extensions::empty(),
+            global_attributes: false,
             src,
             cursor: ParserCursor {
                 cursor: 0,
@@ -125,7 +129,9 @@ impl<'a> Parser<'a> {
                 ParsedAttribute::Extensions(extensions) => {
                     parser.exts |= extensions;
                 }
-                ParsedAttribute::Ignored => {}
+                ParsedAttribute::Ignored => {
+                    parser.global_attributes = true;
+                }
             }
 
             parser.skip_ws().map_err(|e| parser.span_error(e))?;
@@ -189,6 +195,12 @@ impl<'a> Parser<'a> {
 
     pub fn pre_ws_src(&self) -> &'a str {
         &self.src[self.cursor.pre_ws_cursor..]
+    }
+
+    /// Whether no source has been consumed before the last whitespace,
+    /// i.e. whether we are at the start of the top-level value.
+    pub fn is_at_start(&self) -> bool {
+        self.cursor.pre_ws_cursor == 0
     }
 
     pub fn consume_str(&mut self, s: &str) -> bool {
@@ -675,17 +687,21 @@ impl<'a> Parser<'a> {
                 let cursor_backup = parser.cursor;
                 match parser.string() {
                     Ok(_) => (),
-                    // prevent quadratic complexity backtracking for unterminated string
-                    Err(err @ (Error::ExpectedStringEnd | Error::Eof)) => return Err(err),
-                    Err(_) => parser.set_cursor(cursor_backup),
+                    // not a string, so backtrack
+                    Err(Error::ExpectedString) => parser.set_cursor(cursor_backup),
+                    // prevent quadratic complexity backtracking for malformed string,
+                    // e.g. with an invalid escape or without a terminating quote
+                    Err(err) => return Err(err),
                 }
                 let cursor_backup = parser.cursor;
                 // we have already checked for strings, which subsume base64 byte strings
                 match parser.byte_string_no_base64() {
                     Ok(_) => (),
-                    // prevent quadratic complexity backtracking for unterminated byte string
-                    Err(err @ (Error::ExpectedStringEnd | Error::Eof)) => return Err(err),
-                    Err(_) => parser.set_cursor(cursor_backup),
+                    // not a byte string, so backtrack
+                    Err(Error::ExpectedByteString) => parser.set_cursor(cursor_backup),
+                    // prevent quadratic complexity backtracking for malformed byte string,
+                    // e.g. with an invalid escape or without a terminating quote
+                    Err(err) => return Err(err),
                 }
 
                 let c = parser.next_char()?;

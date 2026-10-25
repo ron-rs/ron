@@ -23,21 +23,21 @@ fn test_raw_value_simple() {
 #[test]
 fn test_raw_value_inner() {
     let raw: WithRawValue = from_str("(a: false, b: [1, /* lol */ 2, 3])").unwrap();
-    assert_eq!(raw.b.get_ron(), " [1, /* lol */ 2, 3]");
+    assert_eq!(raw.b.get_ron(), "[1, /* lol */ 2, 3]");
     let ser = to_string(&raw).unwrap();
-    assert_eq!(ser, "(a:false,b: [1, /* lol */ 2, 3])");
+    assert_eq!(ser, "(a:false,b:[1, /* lol */ 2, 3])");
 }
 
 #[test]
 fn test_raw_value_comment() {
     let raw: WithRawValue = from_str("(a: false, b: /* yeah */ 4)").unwrap();
-    assert_eq!(raw.b.get_ron(), " /* yeah */ 4");
+    assert_eq!(raw.b.get_ron(), "/* yeah */ 4");
 
     let raw: WithRawValue = from_str("(a: false, b: 4 /* yes */)").unwrap();
-    assert_eq!(raw.b.get_ron(), " 4 /* yes */");
+    assert_eq!(raw.b.get_ron(), "4 /* yes */");
 
     let raw: WithRawValue = from_str("(a: false, b: (/* this */ 4 /* too */))").unwrap();
-    assert_eq!(raw.b.get_ron(), " (/* this */ 4 /* too */)");
+    assert_eq!(raw.b.get_ron(), "(/* this */ 4 /* too */)");
 }
 
 #[test]
@@ -111,7 +111,7 @@ fn test_raw_value_into_rust() {
         with,
         WithRawValue {
             a: false,
-            b: from_str(" None").unwrap(),
+            b: from_str("None").unwrap(),
         }
     );
 
@@ -216,6 +216,40 @@ fn test_raw_value_serde_json_same_checks_as_from_ron() {
 }
 
 #[test]
+fn test_raw_value_rejects_ignored_attributes() {
+    // leading whitespace and comments are still fine
+    assert_eq!(
+        RawValue::from_ron(" /* a */ 42").unwrap().get_ron(),
+        " /* a */ 42"
+    );
+
+    // the attribute would end up in the middle of the serialised document
+    for ron in ["#![type = \"x\"] 42", " #![schema = \"s.ron\"] (a: 1)"] {
+        let err = RawValue::from_ron(ron).unwrap_err();
+        assert_eq!(
+            err.code,
+            Error::Message(String::from(
+                "ron::value::RawValue cannot contain attributes"
+            ))
+        );
+        assert!(RawValue::from_boxed_ron(String::from(ron).into_boxed_str()).is_err());
+    }
+
+    let err =
+        serde_json::from_str::<WithRawValue>("{\"a\":true,\"b\":\"#![type = \\\"x\\\"] 42\"}")
+            .unwrap_err();
+    assert!(
+        err.to_string().contains("cannot contain attributes"),
+        "{}",
+        err
+    );
+
+    // attributes are still allowed at the start of a document holding a raw value
+    let with: WithRawValue = ron::from_str("#![type = \"x\"] (a: true, b: 42)").unwrap();
+    assert_eq!(with.b.get_ron(), "42");
+}
+
+#[test]
 fn test_raw_value_clone_into() {
     let raw = RawValue::from_boxed_ron(String::from("(None, 4.2)").into_boxed_str()).unwrap();
     let raw2 = raw.clone();
@@ -274,16 +308,16 @@ fn test_whitespace_rountrip_issues_and_trim() {
         b: RawValue::from_ron("42 ").unwrap().to_owned(),
     };
     v = ron::from_str(&ron::to_string(&v).unwrap()).unwrap();
-    assert_eq!(v.b.get_ron(), "42 ");
+    assert_eq!(v.b.get_ron(), "42");
     assert_eq!(v.b.trim().get_ron(), "42");
     assert_eq!(v.b.to_owned().trim_boxed().get_ron(), "42");
 
-    for i in 1..=10 {
+    for _ in 1..=10 {
         v = ron::from_str(
             &ron::ser::to_string_pretty(&v, ron::ser::PrettyConfig::default()).unwrap(),
         )
         .unwrap();
-        assert_eq!(v.b.get_ron(), &format!("{: <1$}42 ", "", i));
+        assert_eq!(v.b.get_ron(), "42");
         assert_eq!(v.b.trim().get_ron(), "42");
         assert_eq!(v.b.to_owned().trim_boxed().get_ron(), "42");
     }
@@ -440,4 +474,47 @@ fn test_fuzzer_found_issue() {
         ron::from_str::<Option<Option<&RawValue>>>("Some(Some(None))").unwrap(),
         Some(Some(RawValue::from_ron("None").unwrap()))
     );
+}
+
+#[test]
+fn test_raw_value_trims_surrounding_whitespace() {
+    let raw: WithRawValue = from_str("(a: false, b:   [1, 2]  \n )").unwrap();
+    assert_eq!(raw.b.get_ron(), "[1, 2]");
+
+    // line comments must stay closed
+    let raw: WithRawValue = from_str("(a: false, b: 4 // yes\n  \n )").unwrap();
+    assert_eq!(raw.b.get_ron(), "4 // yes\n");
+
+    // ... including when there is extra whitespace before the first line break
+    let raw: WithRawValue = from_str("(a: false, b: 4   // yes  \n  \n )").unwrap();
+    assert_eq!(raw.b.get_ron(), "4   // yes  \n");
+
+    let raw: WithRawValue = from_str("(a: false, b:\n  // so\n  4  )").unwrap();
+    assert_eq!(raw.b.get_ron(), "// so\n  4");
+}
+
+#[test]
+fn test_raw_value_pretty_roundtrip_is_stable() {
+    let config = ron::ser::PrettyConfig::default();
+
+    for ron in [
+        "(a: false, b: [1, 2])",
+        "(a: false, b: /* hi */ [1, 2] /* bye */)",
+        "(a: false, b: 4 // bye\n)",
+    ] {
+        let first =
+            ron::ser::to_string_pretty(&from_str::<WithRawValue>(ron).unwrap(), config.clone())
+                .unwrap();
+        let second =
+            ron::ser::to_string_pretty(&from_str::<WithRawValue>(&first).unwrap(), config.clone())
+                .unwrap();
+        assert_eq!(first, second);
+    }
+
+    let first = ron::ser::to_string_pretty(
+        &from_str::<WithRawValue>("(a: false, b: [1, 2])").unwrap(),
+        config,
+    )
+    .unwrap();
+    assert_eq!(first, "(\n    a: false,\n    b: [1, 2],\n)");
 }

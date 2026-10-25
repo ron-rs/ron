@@ -106,6 +106,13 @@ impl RawValue {
             ))));
         }
 
+        // neither can global attributes like `#![type = ".."]`
+        if deserializer.parser.global_attributes {
+            return Err(deserializer.span_error(Error::Message(String::from(
+                "ron::value::RawValue cannot contain attributes",
+            ))));
+        }
+
         let _ = de::Deserializer::deserialize_newtype_struct(
             &mut deserializer,
             RAW_VALUE_TOKEN,
