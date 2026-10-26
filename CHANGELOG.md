@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add enum variants to the syntax overview in the README ([#633](https://github.com/ron-rs/ron/pull/633))
 - Document `no_std` configuration and the global allocator requirement ([#626](https://github.com/ron-rs/ron/pull/626))
 - Added "[other implementations](https://github.com/ron-rs/ron/blob/master/README.md#other-implementations)" section to the README ([#628](https://github.com/ron-rs/ron/pull/628))
+- Fix the `unwrap_variant_newtypes` and `implicit_some` examples in the extensions docs, which did not enable their extension ([#645](https://github.com/ron-rs/ron/pull/645))
 
 ## [0.12.2] - 2026-06-22
 
