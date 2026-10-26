@@ -347,6 +347,14 @@ fn test_whitespace_rountrip_issues_and_trim() {
             .get_ron(),
         "42"
     );
+    assert_eq!(
+        RawValue::from_ron("\u{2028}/* ä */\u{85}\"ö\"\u{2029}// ü\n\u{200E}")
+            .unwrap()
+            .to_owned()
+            .trim_boxed()
+            .get_ron(),
+        "\"ö\""
+    );
 }
 
 #[test]
