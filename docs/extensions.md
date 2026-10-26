@@ -4,6 +4,18 @@ RON has extensions that can be enabled by adding the following attribute at the 
 
 `#![enable(...)]`
 
+Alternatively, extensions can also be enabled programmatically, e.g. using
+
+```rust
+use ron::extensions::Extensions;
+use ron::options::Options;
+
+let options = Options::default().with_default_extension(Extensions::UNWRAP_NEWTYPES);
+
+let ron_str = options.to_string(&value)?;
+let value = options.from_str(&ron_str)?;
+```
+
 RON also accepts the following document attributes for compatibility with tooling like `ron2`.
 They are parsed and ignored by this crate:
 
