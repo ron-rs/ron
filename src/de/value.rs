@@ -207,7 +207,7 @@ impl<'de> Visitor<'de> for ValueVisitor {
     {
         let mut vec = Vec::new();
         if let Some(cap) = seq.size_hint() {
-            vec.reserve_exact(cap);
+            vec.reserve_exact(cautious_size_hint::<Value>(cap));
         }
 
         while let Some(x) = seq.next_element()? {
@@ -225,7 +225,8 @@ impl<'de> Visitor<'de> for ValueVisitor {
 
         #[cfg(feature = "indexmap")]
         if let Some(cap) = map.size_hint() {
-            res.0.reserve_exact(cap);
+            res.0
+                .reserve_exact(cautious_size_hint::<(Value, Value)>(cap));
         }
 
         while let Some(entry) = map.next_entry::<Value, Value>()? {
@@ -233,6 +234,17 @@ impl<'de> Visitor<'de> for ValueVisitor {
         }
 
         Ok(Value::Map(res))
+    }
+}
+
+/// Caps a size hint to at most 1 MiB of preallocation, like serde's own
+/// collection impls, since other formats read it from untrusted input
+fn cautious_size_hint<T>(hint: usize) -> usize {
+    const MAX_PREALLOC_BYTES: usize = 1024 * 1024;
+
+    match core::mem::size_of::<T>() {
+        0 => 0,
+        size => hint.min(MAX_PREALLOC_BYTES / size),
     }
 }
 
