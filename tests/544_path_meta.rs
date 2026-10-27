@@ -127,3 +127,37 @@ fn serialize_field() {
 ])"#
     );
 }
+
+#[test]
+fn doc_comments_use_new_line() {
+    #[derive(serde::Serialize)]
+    struct Pet {
+        name: &'static str,
+        age: u8,
+    }
+
+    let mut config = PrettyConfig::default().new_line("\r\n");
+
+    config
+        .path_meta
+        .get_or_insert_with(Field::empty)
+        .build_fields(|fields| {
+            fields
+                .field("age")
+                .with_doc("age of the pet\nmust be within range 0..256");
+        });
+
+    let s = ron::ser::to_string_pretty(
+        &Pet {
+            name: "Herbert",
+            age: 7,
+        },
+        config,
+    )
+    .unwrap();
+
+    assert_eq!(
+        s,
+        "(\r\n    name: \"Herbert\",\r\n    /// age of the pet\r\n    /// must be within range 0..256\r\n    age: 7,\r\n)"
+    );
+}
