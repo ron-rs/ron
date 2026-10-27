@@ -226,3 +226,33 @@ fn map_roundtrip_338() {
 
     assert_eq!(v, roundtrip);
 }
+
+/// An empty iterator that claims to yield `usize::MAX` items, like a
+/// length-prefixed format (e.g. CBOR) reading a forged length
+struct LyingIter<T>(core::marker::PhantomData<T>);
+
+impl<T> Iterator for LyingIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        None
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (usize::MAX, Some(usize::MAX))
+    }
+}
+
+#[test]
+fn untrusted_size_hint() {
+    use serde::{
+        de::value::{Error, MapDeserializer, SeqDeserializer},
+        Deserialize,
+    };
+
+    let seq = SeqDeserializer::<_, Error>::new(LyingIter::<u8>(core::marker::PhantomData));
+    assert_eq!(Value::deserialize(seq), Ok(Value::Seq(vec![])));
+
+    let map = MapDeserializer::<_, Error>::new(LyingIter::<(u8, u8)>(core::marker::PhantomData));
+    assert_eq!(Value::deserialize(map), Ok(Value::Map(Map::new())));
+}
