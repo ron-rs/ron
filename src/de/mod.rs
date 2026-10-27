@@ -263,11 +263,7 @@ impl<'de> Deserializer<'de> {
             let end = self.parser.any_number()?;
             return visitor.visit_map(RangeMapAccess::new(number, end, "end"));
         } else if self.parser.consume_str("..") {
-            if self
-                .parser
-                .peek_char()
-                .map_or(true, |c| !self.parser.is_number_start(c))
-            {
+            if !self.parser.check_any_number_start() {
                 return visitor.visit_map(RangeFromMapAccess::new(number));
             }
             let end = self.parser.any_number()?;
@@ -408,14 +404,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     return visitor.visit_map(RangeToMapAccess::new(end, "end"));
                 }
 
-                if self.parser.check_str("..") {
-                    let after_dots = &self.parser.src()[2..];
-                    if after_dots.starts_with(|c: char| self.parser.is_number_start(c)) {
-                        self.parser.consume_str("..");
+                if self.parser.consume_str("..") {
+                    if self.parser.check_any_number_start() {
                         let end = self.parser.any_number()?;
                         return visitor.visit_map(RangeToMapAccess::new(end, "end"));
                     }
-                    self.parser.consume_str("..");
                     return visitor.visit_unit();
                 }
 

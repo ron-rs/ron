@@ -365,3 +365,50 @@ fn test_non_numeric_range_falls_back_to_struct_form() {
     let de: RangeVariant = ron::from_str(&ser).unwrap();
     assert_eq!(de, variant);
 }
+
+#[derive(PartialEq, Deserialize, Serialize, Debug)]
+#[serde(untagged)]
+enum MaybeFloatRange {
+    Range(std::ops::Range<f64>),
+    RangeTo(std::ops::RangeTo<f64>),
+    Value(f64),
+}
+
+#[test]
+fn test_untyped_range_inf_nan_end_bound() {
+    // `inf` and `NaN` start with a letter, so they were not recognised as
+    // the end bound of an untyped range, and e.g. `0.0..inf` was read as
+    // `0.0..` followed by trailing characters. The same happened to a byte
+    // literal end bound after a bare `..`, e.g. `..b'z'`.
+    for (range, fields) in [
+        ("0.0..inf", "(start: 0.0, end: inf)"),
+        ("-inf..inf", "(start: -inf, end: inf)"),
+        ("1..NaN", "(start: 1, end: NaN)"),
+        ("0.0..inff64", "(start: 0.0, end: inff64)"),
+        ("0.0..NaNf32", "(start: 0.0, end: NaNf32)"),
+        ("inf..=inf", "(start: inf, end: inf)"),
+        ("..inf", "(end: inf)"),
+        ("..NaN", "(end: NaN)"),
+        ("..=inff64", "(end: inff64)"),
+        ("..b'z'", "(end: b'z')"),
+    ] {
+        assert_eq!(
+            ron::from_str::<ron::Value>(range).unwrap(),
+            ron::from_str::<ron::Value>(fields).unwrap(),
+            "{}",
+            range
+        );
+    }
+
+    let compact = ron::ser::PrettyConfig::new().compact_ranges(true);
+
+    let range = MaybeFloatRange::Range(0.0..f64::INFINITY);
+    let ser = ron::ser::to_string_pretty(&range, compact.clone()).unwrap();
+    assert_eq!(ser, "0.0..inf");
+    assert_eq!(ron::from_str::<MaybeFloatRange>(&ser).unwrap(), range);
+
+    let range = MaybeFloatRange::RangeTo(..f64::INFINITY);
+    let ser = ron::ser::to_string_pretty(&range, compact).unwrap();
+    assert_eq!(ser, "..inf");
+    assert_eq!(ron::from_str::<MaybeFloatRange>(&ser).unwrap(), range);
+}

@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed newtype variants deserialised through `serde`'s `Content` (e.g. untagged enums) rejecting a trailing comma and not checking for the closing `)`, which accepted unbalanced parentheses ([#643](https://github.com/ron-rs/ron/pull/643))
 - Fixed a comment directly after a string, byte string, or char literal being read as code when checking for a newtype or tuple inside untagged enums or unwrapped newtype variants, which rejected valid input or changed how it was deserialised ([#644](https://github.com/ron-rs/ron/pull/644))
 - Fixed `Value` preallocating its sequence or map from an uncapped size hint when deserialised from a non-RON format, e.g. CBOR, so that a forged length aborted the process ([#647](https://github.com/ron-rs/ron/pull/647))
+- Fixed untyped ranges, e.g. `Value` or untagged enums, rejecting an `inf` or `NaN` end bound after `..` (as in `0.0..inf` and `..NaN`) or a byte literal end bound after a bare `..` (as in `..b'z'`), which broke round-tripping compact ranges with an infinite end bound ([#648](https://github.com/ron-rs/ron/pull/648))
 
 ### Documentation
 
