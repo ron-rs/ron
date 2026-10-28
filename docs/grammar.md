@@ -20,6 +20,7 @@ ws = { ws_single | comment };
 ws_single = "\n" | "\t" | "\r" | " " | U+000B | U+000C | U+0085 | U+200E | U+200F | U+2028 | U+2029;
 comment = ["//", { no_newline }, "\n"] | ["/*", nested_block_comment, "*/"];
 nested_block_comment = { ? any characters except "/*" or "*/" ? }, [ "/*", nested_block_comment, "*/", nested_block_comment ];
+no_newline = ? any character except "\n" ?;
 ```
 
 ## Commas
@@ -33,6 +34,7 @@ comma = ws, ",", ws;
 ```ebnf
 extensions = { "#", ws, "!", ws, "[", ws, extensions_inner, ws, "]", ws };
 extensions_inner = "enable", ws, "(", extension_name, { comma, extension_name }, [comma], ws, ")";
+extension_name = "unwrap_newtypes" | "implicit_some" | "unwrap_variant_newtypes" | "explicit_struct_names";
 ```
 
 For the extension names see the [`extensions.md`][exts] document.
@@ -63,7 +65,8 @@ unsigned_hexadecimal = "0x", digit_hexadecimal, { digit_hexadecimal | "_" };
 unsigned_decimal = digit, { digit | "_" };
 
 byte = "b", "'", byte_content, "'";
-byte_content = ascii | ("\\", (escape_ascii | escape_byte));
+byte_content = ascii | ("\", (escape_ascii | escape_byte));
+ascii = ? any ASCII character in range 0x00 ..= 0x7F ?;
 
 float = ["+" | "-"], ("inf" | "NaN" | float_num), [float_suffix];
 float_num = (float_int | float_std | float_frac), [float_exp];
@@ -80,14 +83,14 @@ float_suffix = "f", ("32", "64");
 
 ```ebnf
 string = string_std | string_raw;
-string_std = "\"", { unicode_without_double_quotation_marks_or_backslash | string_escape }, "\"";
-string_escape = "\\", (escape_ascii | escape_byte | escape_unicode | escape_line);
+string_std = '"', { unicode_without_double_quotation_marks_or_backslash | string_escape }, '"';
+string_escape = "\", (escape_ascii | escape_byte | escape_unicode | escape_line);
 string_raw = "r", string_raw_content;
-string_raw_content = ("#", string_raw_content, "#") | "\"", { unicode_non_greedy }, "\"";
+string_raw_content = ("#", string_raw_content, "#") | '"', { unicode_non_greedy }, '"';
 unicode_non_greedy = ? any character ?;
 unicode_without_double_quotation_marks_or_backslash = ? any character except backslash or double quotation mark ?;
 
-escape_ascii = "'" | "\"" | "\\" | "n" | "r" | "t" | "0";
+escape_ascii = "'" | '"' | "\" | "n" | "r" | "t" | "0";
 escape_byte = "x", digit_hexadecimal, digit_hexadecimal;
 escape_unicode = "u", "{", digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal, [digit_hexadecimal]]]]], "}";
 escape_line = ("\n" | "\r\n"), { "\t" | "\n" | "\r" | " " };
@@ -124,7 +127,7 @@ Also see [the Rust document] about context-sensitivity of raw strings.
 
 ```ebnf
 byte_string = byte_string_std | byte_string_raw;
-byte_string_std = "b\"", { unicode_without_double_quotation_marks_or_backslash | string_escape }, "\"";
+byte_string_std = 'b"', { unicode_without_double_quotation_marks_or_backslash | string_escape }, '"';
 byte_string_raw = "br", string_raw_content;
 ```
 
@@ -142,7 +145,7 @@ byte_string_raw = "br", string_raw_content;
 
 ```ebnf
 char = "'", (unicode_without_apostrophe_or_backslash | char_escape), "'";
-char_escape = "\\", (escape_ascii | escape_byte | escape_unicode);
+char_escape = "\", (escape_ascii | escape_byte | escape_unicode);
 unicode_without_apostrophe_or_backslash = ? any character except backslash or apostrophe ?;
 ```
 
