@@ -232,6 +232,8 @@ ident_std_first = XID_Start | "_";
 ident_std_rest = XID_Continue;
 ident_raw = "r", "#", ident_raw_rest, { ident_raw_rest };
 ident_raw_rest = ident_std_rest | "." | "+" | "-";
+XID_Start = ? any character in the Unicode XID_Start character set ?;
+XID_Continue = ? any character in the Unicode XID_Continue character set ?;
 ```
 
 > Note: [XID_Start](http://unicode.org/cldr/utility/list-unicodeset.jsp?a=%5B%3AXID_Start%3A%5D&abb=on&g=&i=) and [XID_Continue](http://unicode.org/cldr/utility/list-unicodeset.jsp?a=%5B%3AXID_Continue%3A%5D&abb=on&g=&i=) refer to Unicode character sets.
