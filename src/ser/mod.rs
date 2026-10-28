@@ -1576,7 +1576,7 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
                     for doc_line in field.doc().lines() {
                         self.ser.output.write_str("/// ")?;
                         self.ser.output.write_str(doc_line)?;
-                        self.ser.output.write_char('\n')?;
+                        self.ser.output.write_str(&config.new_line)?;
                         indent(&mut self.ser.output, config, pretty)?;
                     }
                 }
