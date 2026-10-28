@@ -601,7 +601,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.newtype_variant || self.parser.consume_str("()") {
+        if self.newtype_variant || self.parser.consume_unit()? {
             self.newtype_variant = false;
 
             visitor.visit_unit()

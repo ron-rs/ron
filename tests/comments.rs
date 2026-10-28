@@ -126,3 +126,47 @@ fn test_comment_after_literal_in_newtype_lookahead() {
         }
     }
 }
+
+#[test]
+fn test_whitespace_and_comments_inside_unit() {
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct Unit;
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct Struct {
+        a: (),
+        b: Unit,
+    }
+
+    for unit in ["()", "( )", "(\n)", "(/* empty */)", "( // empty\n)"] {
+        assert_eq!(from_str::<()>(unit), Ok(()), "{}", unit);
+        assert_eq!(from_str::<Unit>(unit), Ok(Unit), "{}", unit);
+        assert_eq!(
+            from_str::<Struct>(&format!("(a: {0}, b: {0})", unit)),
+            Ok(Struct { a: (), b: Unit }),
+            "{}",
+            unit,
+        );
+    }
+
+    assert_eq!(
+        from_str::<()>("( 42 )"),
+        Err(RonErr {
+            code: Error::ExpectedUnit,
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
+        })
+    );
+    assert_eq!(
+        from_str::<()>("( /* )"),
+        Err(RonErr {
+            code: Error::UnclosedBlockComment,
+            span: Span {
+                start: Position { line: 1, col: 5 },
+                end: Position { line: 1, col: 7 },
+            }
+        })
+    );
+}

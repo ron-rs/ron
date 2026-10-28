@@ -223,6 +223,26 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Consumes a unit `()`, which may contain whitespace and comments
+    /// between the parentheses. Does not change state if it fails.
+    pub fn consume_unit(&mut self) -> Result<bool> {
+        let backup_cursor = self.cursor;
+        let backup_prev_cursor = self.prev_cursor;
+
+        if self.consume_char('(') {
+            self.skip_ws()?;
+
+            if self.consume_char(')') {
+                return Ok(true);
+            }
+        }
+
+        self.set_cursor(backup_cursor);
+        self.prev_cursor = backup_prev_cursor;
+
+        Ok(false)
+    }
+
     fn consume_all(&mut self, all: &[&str]) -> Result<bool> {
         all.iter()
             .map(|elem| {
