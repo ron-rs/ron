@@ -1246,14 +1246,6 @@ impl RangeCompound {
     }
 }
 
-impl<'a, W: fmt::Write> Drop for Compound<'a, W> {
-    fn drop(&mut self) {
-        if let Some(limit) = &mut self.ser.recursion_limit {
-            *limit = limit.saturating_add(1);
-        }
-    }
-}
-
 impl<'a, W: fmt::Write> ser::SerializeSeq for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
