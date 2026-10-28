@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [0.12.3] - 2026-10-28
+
 ### API Changes
 
 - Added the `ron::de::from_value` convenience function to deserialize a `T` from a `Value` ([#618](https://github.com/ron-rs/ron/pull/618))
@@ -39,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Document `no_std` configuration and the global allocator requirement ([#626](https://github.com/ron-rs/ron/pull/626))
 - Added "[other implementations](https://github.com/ron-rs/ron/blob/master/README.md#other-implementations)" section to the README ([#628](https://github.com/ron-rs/ron/pull/628))
 - Fix the `unwrap_variant_newtypes` and `implicit_some` examples in the extensions docs, which did not enable their extension, and show how to enable extensions programmatically ([#645](https://github.com/ron-rs/ron/pull/645))
+- Fixed mismatches between the `docs/grammar.md` and parser (char and Unicode escapes, backslashes in strings, whitespace around range operators and before extensions) ([#635](https://github.com/ron-rs/ron/pull/635))
 
 ### Miscellaneous
 
