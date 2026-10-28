@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add enum variants to the syntax overview in the README ([#575](https://github.com/ron-rs/ron/pull/633))
 - Document `no_std` configuration and the global allocator requirement ([#574](https://github.com/ron-rs/ron/pull/626))
 - Added "[other implementations](https://github.com/ron-rs/ron/blob/master/README.md#other-implementations)" section to the README ([#628](https://github.com/ron-rs/ron/pull/628))
+- Fixed mismatches between the `docs/grammar.md` and parser (char and Unicode escapes, backslashes in strings, whitespace around range operators and before extensions) ([#635](https://github.com/ron-rs/ron/pull/635))
 
 ### Format Changes
 
