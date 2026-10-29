@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-- Fixed `()` and unit structs failing to deserialise with `ExpectedUnit` when written with whitespace or comments between the parentheses, e.g. `( )` or `(/* none */)` ([#650](https://github.com/ron-rs/ron/pull/650))
+- Fixed `()` and unit structs failing to deserialise with `ExpectedUnit` when written with whitespace or comments between the parentheses, e.g. `( )` or `(/* none */)`, and `deserialize_any` (e.g. `Value` or untagged enums) reading them as an empty tuple instead of a unit ([#650](https://github.com/ron-rs/ron/pull/650))
 
 ## [0.12.3] - 2026-10-28
 

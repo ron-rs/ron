@@ -366,7 +366,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return self.deserialize_option(visitor);
         } else if self.parser.consume_ident("None") {
             return visitor.visit_none();
-        } else if self.parser.consume_str("()") {
+        } else if self.parser.consume_unit()? {
             return visitor.visit_unit();
         } else if self.parser.consume_ident("inf") || self.parser.consume_ident("inff32") {
             let number = crate::value::Number::F32(crate::value::F32(core::f32::INFINITY));

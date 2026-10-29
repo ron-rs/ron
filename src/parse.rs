@@ -233,6 +233,9 @@ impl<'a> Parser<'a> {
             self.skip_ws()?;
 
             if self.consume_char(')') {
+                // Errors for the unit should span all of it, like for `()`
+                self.prev_cursor = backup_cursor;
+
                 return Ok(true);
             }
         }

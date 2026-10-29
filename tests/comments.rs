@@ -170,3 +170,62 @@ fn test_whitespace_and_comments_inside_unit() {
         })
     );
 }
+
+#[test]
+fn test_whitespace_and_comments_inside_untyped_unit() {
+    use ron::value::{Map, Number, Value};
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Struct { a: () },
+    }
+
+    for unit in ["()", "( )", "(\n)", "(/* empty */)", "( // empty\n)"] {
+        assert_eq!(from_str::<Value>(unit), Ok(Value::Unit), "{}", unit);
+        assert_eq!(
+            from_str::<Untagged>(&format!("(a: {})", unit)),
+            Ok(Untagged::Struct { a: () }),
+            "{}",
+            unit,
+        );
+    }
+
+    assert_eq!(
+        from_str::<Value>("( /* 1, */ 2 )"),
+        Ok(Value::Seq(vec![Value::Number(Number::U8(2))]))
+    );
+    assert_eq!(
+        from_str::<Value>("( 1, 2 )"),
+        Ok(Value::Seq(vec![
+            Value::Number(Number::U8(1)),
+            Value::Number(Number::U8(2)),
+        ]))
+    );
+
+    let mut map = Map::new();
+    map.insert(
+        Value::String(String::from("a")),
+        Value::Number(Number::U8(1)),
+    );
+    assert_eq!(from_str::<Value>("( /* a */ a: 1 )"), Ok(Value::Map(map)));
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[serde(untagged)]
+    enum NotUnit {
+        Newtype(i32),
+    }
+
+    assert_eq!(
+        from_str::<NotUnit>("( )"),
+        Err(RonErr {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum NotUnit"
+            )),
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 4 },
+            }
+        })
+    );
+}
