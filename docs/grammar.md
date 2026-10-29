@@ -208,7 +208,7 @@ tuple = "(", [value, { comma, value }, [comma]], ")";
 
 ```ebnf
 struct = unit_struct | tuple_struct | named_struct;
-unit_struct = ident | "()";
+unit_struct = ident | ("(", ws, ")");
 tuple_struct = [ident], ws, tuple;
 named_struct = [ident], ws, "(", ws, [named_field, { comma, named_field }, [comma]], ")";
 named_field = ident, ws, ":", ws, value;
