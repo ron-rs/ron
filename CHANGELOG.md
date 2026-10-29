@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed named tuple structs failing to deserialise with `ExpectedNamedStructLike` when there is whitespace or a comment between the struct name and the opening parenthesis, e.g. `Point (1, 2)` ([#651](https://github.com/ron-rs/ron/pull/651))
 - Fixed `recursion_limit` being raised by one for every sequence, map, or struct serialised before, which let deeply nested values that come later overflow the stack ([#653](https://github.com/ron-rs/ron/pull/653))
 - Fixed `path_meta` doc comments not being closed when `PrettyConfig::new_line` contains no `\n`, e.g. `""`, which commented out the following fields or, with `escape_strings(false)`, let a string containing `\n` end the comment early and be read as RON ([#652](https://github.com/ron-rs/ron/pull/652))
+- Fixed `implicit_some` silently dropping a `Some` that is not followed by `(`, which accepted e.g. `Some 5` or `Some "a"` instead of rejecting it with `ExpectedOption` like without the extension ([#653](https://github.com/ron-rs/ron/pull/653))
 
 ## [0.12.3] - 2026-10-28
 
