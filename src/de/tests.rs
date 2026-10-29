@@ -474,6 +474,11 @@ fn test_perm_ws() {
         "\nMyStruct  \t ( \n x   : 3.5 , \t y\n: 4.5 \n ) \t\n",
         Ok(MyStruct { x: 3.5, y: 4.5 }),
     );
+    check_from_str_bytes_reader(
+        "\nTupleStruct  \t ( \n 3.5 , \t\n 4.5 \n ) \t\n",
+        Ok(TupleStruct(3.5, 4.5)),
+    );
+    check_from_str_bytes_reader("\nNewType  \t ( \n 42 \n ) \t\n", Ok(NewType(42)));
 }
 
 #[test]
