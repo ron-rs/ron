@@ -1612,7 +1612,7 @@ macro_rules! impl_integer {
                     _ => Err(Error::InvalidValueForType {
                         expected: format!(
                             "a{} {}-bit {}signed integer",
-                            if <$ty>::BITS == 8 { "n" } else { "n" },
+                            if <$ty>::BITS == 8 { "n" } else { "" },
                             <$ty>::BITS,
                             if <$ty>::MIN == 0 { "un" } else { "" },
                         ),
