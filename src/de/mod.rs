@@ -740,6 +740,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             self.parser.consume_struct_name(name)?;
         }
 
+        self.parser.skip_ws()?;
+
         self.deserialize_tuple(len, visitor).map_err(|e| match e {
             Error::ExpectedStructLike if !name.is_empty() => Error::ExpectedNamedStructLike(name),
             e => e,
