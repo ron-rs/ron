@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed `()` and unit structs failing to deserialise with `ExpectedUnit` when written with whitespace or comments between the parentheses, e.g. `( )` or `(/* none */)`, and `deserialize_any` (e.g. `Value` or untagged enums) reading them as an empty tuple instead of a unit ([#650](https://github.com/ron-rs/ron/pull/650))
 - Fixed named tuple structs failing to deserialise with `ExpectedNamedStructLike` when there is whitespace or a comment between the struct name and the opening parenthesis, e.g. `Point (1, 2)` ([#651](https://github.com/ron-rs/ron/pull/651))
-- Fixed `recursion_limit` being raised by one for every sequence, map, or struct serialised before, which let deeply nested values that come later overflow the stack ([#650](https://github.com/ron-rs/ron/pull/650))
+- Fixed `recursion_limit` being raised by one for every sequence, map, or struct serialised before, which let deeply nested values that come later overflow the stack ([#653](https://github.com/ron-rs/ron/pull/653))
 
 ## [0.12.3] - 2026-10-28
 
