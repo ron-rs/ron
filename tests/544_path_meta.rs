@@ -161,3 +161,34 @@ fn doc_comments_use_new_line() {
         "(\r\n    name: \"Herbert\",\r\n    /// age of the pet\r\n    /// must be within range 0..256\r\n    age: 7,\r\n)"
     );
 }
+
+#[test]
+fn doc_comments_end_with_line_break() {
+    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+    struct User {
+        name: String,
+        admin: bool,
+    }
+
+    let user = User {
+        name: String::from("\nname: \"x\", admin: true) //"),
+        admin: false,
+    };
+
+    for new_line in ["", " ", "\r"] {
+        let mut config = PrettyConfig::default()
+            .new_line(new_line)
+            .escape_strings(false);
+
+        config
+            .path_meta
+            .get_or_insert_with(Field::empty)
+            .build_fields(|fields| {
+                fields.field("name").with_doc("display name");
+            });
+
+        let s = ron::ser::to_string_pretty(&user, config).unwrap();
+
+        assert_eq!(ron::from_str::<User>(&s).unwrap(), user, "{:?}", s);
+    }
+}

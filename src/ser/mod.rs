@@ -1246,14 +1246,6 @@ impl RangeCompound {
     }
 }
 
-impl<'a, W: fmt::Write> Drop for Compound<'a, W> {
-    fn drop(&mut self) {
-        if let Some(limit) = &mut self.ser.recursion_limit {
-            *limit = limit.saturating_add(1);
-        }
-    }
-}
-
 impl<'a, W: fmt::Write> ser::SerializeSeq for Compound<'a, W> {
     type Error = Error;
     type Ok = ();
@@ -1576,7 +1568,13 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
                     for doc_line in field.doc().lines() {
                         self.ser.output.write_str("/// ")?;
                         self.ser.output.write_str(doc_line)?;
-                        self.ser.output.write_str(&config.new_line)?;
+                        // A line comment only ends at `\n`, so a `new_line`
+                        // without one (e.g. "") must not be used to close it
+                        if config.new_line.contains('\n') {
+                            self.ser.output.write_str(&config.new_line)?;
+                        } else {
+                            self.ser.output.write_char('\n')?;
+                        }
                         indent(&mut self.ser.output, config, pretty)?;
                     }
                 }
