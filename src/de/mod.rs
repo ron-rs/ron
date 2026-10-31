@@ -567,10 +567,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if self.parser.consume_ident("None") {
             visitor.visit_none()
-        } else if self.parser.consume_ident("Some") && {
+        } else if self.parser.consume_ident("Some") {
             self.parser.skip_ws()?;
-            self.parser.consume_char('(')
-        } {
+
+            // `Some` without its parentheses must not fall through to
+            // `implicit_some`, which would silently drop the consumed `Some`
+            if !self.parser.consume_char('(') {
+                return Err(Error::ExpectedOption);
+            }
+
             self.parser.skip_ws()?;
 
             self.newtype_variant = self
