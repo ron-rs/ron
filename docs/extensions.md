@@ -4,6 +4,18 @@ RON has extensions that can be enabled by adding the following attribute at the 
 
 `#![enable(...)]`
 
+Alternatively, extensions can also be enabled programmatically, e.g. using
+
+```rust
+use ron::extensions::Extensions;
+use ron::options::Options;
+
+let options = Options::default().with_default_extension(Extensions::UNWRAP_NEWTYPES);
+
+let ron_str = options.to_string(&value)?;
+let value = options.from_str(&ron_str)?;
+```
+
 RON also accepts the following document attributes for compatibility with tooling like `ron2`.
 They are parsed and ignored by this crate:
 
@@ -68,6 +80,7 @@ Without this feature, you would have to write this RON document.
 Enabling the feature would automatically infer `Some(x)` if `x` is given. In this case, RON automatically casts this `5` into a `Some(5)`.
 
 ```ron
+#![enable(implicit_some)]
 (
     value: 5,
 )
@@ -114,7 +127,7 @@ Without `unwrap_variant_newtypes`, your RON document would look like this:
 With the `unwrap_variant_newtypes` extension, the first structural layer inside a newtype variant will be unwrapped automatically:
 
 ```ron
-#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
 (
     variant: A(a: 4, b: true),
 )

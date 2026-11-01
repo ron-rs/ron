@@ -335,3 +335,109 @@ fn test_range_newtype_bounds() {
         Bound(Bound(0u32))..Bound(Bound(5)),
     );
 }
+
+#[derive(PartialEq, Deserialize, Serialize, Debug)]
+enum RangeVariant {
+    Strings(std::ops::Range<String>),
+    Numbers(std::ops::Range<i32>),
+}
+
+#[test]
+fn test_non_numeric_range_falls_back_to_struct_form() {
+    // A range whose bounds are not numbers is written as a struct even when
+    // `compact_ranges` is enabled. That struct must be written as it would be
+    // without `compact_ranges`, including the struct name and newtype variant
+    // unwrapping, so that it can be read back.
+    let compact = ron::ser::PrettyConfig::new()
+        .new_line("")
+        .indentor("")
+        .separator("")
+        .compact_structs(true)
+        .compact_ranges(true);
+
+    let str_range = String::from("a")..String::from("z");
+
+    let ser = ron::ser::to_string_pretty(&str_range, compact.clone().struct_names(true)).unwrap();
+    assert_eq!(ser, r#"Range(start:"a",end:"z")"#);
+
+    let ser = ron::ser::to_string_pretty(
+        &str_range,
+        compact
+            .clone()
+            .extensions(ron::extensions::Extensions::EXPLICIT_STRUCT_NAMES),
+    )
+    .unwrap();
+    assert_eq!(
+        ser,
+        r#"#![enable(explicit_struct_names)]Range(start:"a",end:"z")"#
+    );
+    let de: std::ops::Range<String> = ron::from_str(&ser).unwrap();
+    assert_eq!(de, str_range);
+
+    let unwrap_variant_newtypes = compact
+        .clone()
+        .extensions(ron::extensions::Extensions::UNWRAP_VARIANT_NEWTYPES);
+
+    let variant = RangeVariant::Strings(str_range);
+    let ser = ron::ser::to_string_pretty(&variant, unwrap_variant_newtypes.clone()).unwrap();
+    assert_eq!(
+        ser,
+        r#"#![enable(unwrap_variant_newtypes)]Strings(start:"a",end:"z")"#
+    );
+    let de: RangeVariant = ron::from_str(&ser).unwrap();
+    assert_eq!(de, variant);
+
+    // Numeric bounds still use the compact syntax inside the variant
+    let variant = RangeVariant::Numbers(0..5);
+    let ser = ron::ser::to_string_pretty(&variant, unwrap_variant_newtypes).unwrap();
+    assert_eq!(ser, "#![enable(unwrap_variant_newtypes)]Numbers(0..5)");
+    let de: RangeVariant = ron::from_str(&ser).unwrap();
+    assert_eq!(de, variant);
+}
+
+#[derive(PartialEq, Deserialize, Serialize, Debug)]
+#[serde(untagged)]
+enum MaybeFloatRange {
+    Range(std::ops::Range<f64>),
+    RangeTo(std::ops::RangeTo<f64>),
+    Value(f64),
+}
+
+#[test]
+fn test_untyped_range_inf_nan_end_bound() {
+    // `inf` and `NaN` start with a letter, so they were not recognised as
+    // the end bound of an untyped range, and e.g. `0.0..inf` was read as
+    // `0.0..` followed by trailing characters. The same happened to a byte
+    // literal end bound after a bare `..`, e.g. `..b'z'`.
+    for (range, fields) in [
+        ("0.0..inf", "(start: 0.0, end: inf)"),
+        ("-inf..inf", "(start: -inf, end: inf)"),
+        ("1..NaN", "(start: 1, end: NaN)"),
+        ("0.0..inff64", "(start: 0.0, end: inff64)"),
+        ("0.0..NaNf32", "(start: 0.0, end: NaNf32)"),
+        ("inf..=inf", "(start: inf, end: inf)"),
+        ("..inf", "(end: inf)"),
+        ("..NaN", "(end: NaN)"),
+        ("..=inff64", "(end: inff64)"),
+        ("..b'z'", "(end: b'z')"),
+    ] {
+        assert_eq!(
+            ron::from_str::<ron::Value>(range).unwrap(),
+            ron::from_str::<ron::Value>(fields).unwrap(),
+            "{}",
+            range
+        );
+    }
+
+    let compact = ron::ser::PrettyConfig::new().compact_ranges(true);
+
+    let range = MaybeFloatRange::Range(0.0..f64::INFINITY);
+    let ser = ron::ser::to_string_pretty(&range, compact.clone()).unwrap();
+    assert_eq!(ser, "0.0..inf");
+    assert_eq!(ron::from_str::<MaybeFloatRange>(&ser).unwrap(), range);
+
+    let range = MaybeFloatRange::RangeTo(..f64::INFINITY);
+    let ser = ron::ser::to_string_pretty(&range, compact).unwrap();
+    assert_eq!(ser, "..inf");
+    assert_eq!(ron::from_str::<MaybeFloatRange>(&ser).unwrap(), range);
+}

@@ -133,6 +133,19 @@ where
     Options::default().from_bytes(s)
 }
 
+/// A convenience function for deserializing a value of type `T`
+/// from a [`Value`](crate::Value).
+///
+/// Unlike the other convenience functions this returns a plain [`Error`]
+/// rather than a [`SpannedError`], since an in-memory [`Value`](crate::Value)
+/// has no source text to point a span into.
+pub fn from_value<T>(value: crate::Value) -> Result<T>
+where
+    T: de::DeserializeOwned,
+{
+    value.into_rust()
+}
+
 macro_rules! guard_recursion {
     ($self:expr => $expr:expr) => {{
         if let Some(limit) = &mut $self.recursion_limit {
@@ -201,10 +214,12 @@ impl<'de> Deserializer<'de> {
             (StructType::Unit, _) => visitor.visit_unit(),
             (_, Some(ident)) if is_serde_content => {
                 // serde's Content type uses a singleton map encoding for enums
-                visitor.visit_map(SerdeEnumContent {
-                    de: self,
-                    ident: Some(ident),
-                })
+                guard_recursion! { self =>
+                    visitor.visit_map(SerdeEnumContent {
+                        de: &mut *self,
+                        ident: Some(ident),
+                    })
+                }
             }
             (StructType::Named, _) => {
                 // giving no name results in worse errors but is necessary here
@@ -214,11 +229,14 @@ impl<'de> Deserializer<'de> {
                 // deserialize a newtype struct or variant
                 self.parser.consume_char('(');
                 self.parser.skip_ws()?;
-                let result = self.deserialize_any(visitor);
-                self.parser.skip_ws()?;
-                self.parser.consume_char(')');
+                let value = guard_recursion! { self => self.deserialize_any(visitor)? };
+                self.parser.comma()?;
 
-                result
+                if self.parser.consume_char(')') {
+                    Ok(value)
+                } else {
+                    Err(Error::ExpectedStructLikeEnd)
+                }
             }
             (
                 StructType::AnyTuple
@@ -245,11 +263,7 @@ impl<'de> Deserializer<'de> {
             let end = self.parser.any_number()?;
             return visitor.visit_map(RangeMapAccess::new(number, end, "end", self.parser.exts));
         } else if self.parser.consume_str("..") {
-            if self
-                .parser
-                .peek_char()
-                .map_or(true, |c| !self.parser.is_number_start(c))
-            {
+            if !self.parser.check_any_number_start() {
                 return visitor.visit_map(RangeFromMapAccess::new(number, self.parser.exts));
             }
             let end = self.parser.any_number()?;
@@ -352,7 +366,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             return self.deserialize_option(visitor);
         } else if self.parser.consume_ident("None") {
             return visitor.visit_none();
-        } else if self.parser.consume_str("()") {
+        } else if self.parser.consume_unit()? {
             return visitor.visit_unit();
         } else if self.parser.consume_ident("inf") || self.parser.consume_ident("inff32") {
             let number = crate::value::Number::F32(crate::value::F32(core::f32::INFINITY));
@@ -390,10 +404,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     return visitor.visit_map(RangeToMapAccess::new(end, "end", self.parser.exts));
                 }
 
-                if self.parser.check_str("..") {
-                    let after_dots = &self.parser.src()[2..];
-                    if after_dots.starts_with(|c: char| self.parser.is_number_start(c)) {
-                        self.parser.consume_str("..");
+                if self.parser.consume_str("..") {
+                    if self.parser.check_any_number_start() {
                         let end = self.parser.any_number()?;
                         return visitor.visit_map(RangeToMapAccess::new(
                             end,
@@ -401,7 +413,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                             self.parser.exts,
                         ));
                     }
-                    self.parser.consume_str("..");
                     return visitor.visit_unit();
                 }
 
@@ -560,10 +571,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if self.parser.consume_ident("None") {
             visitor.visit_none()
-        } else if self.parser.consume_ident("Some") && {
+        } else if self.parser.consume_ident("Some") {
             self.parser.skip_ws()?;
-            self.parser.consume_char('(')
-        } {
+
+            // `Some` without its parentheses must not fall through to
+            // `implicit_some`, which would silently drop the consumed `Some`
+            if !self.parser.consume_char('(') {
+                return Err(Error::ExpectedOption);
+            }
+
             self.parser.skip_ws()?;
 
             self.newtype_variant = self
@@ -594,7 +610,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        if self.newtype_variant || self.parser.consume_str("()") {
+        if self.newtype_variant || self.parser.consume_unit()? {
             self.newtype_variant = false;
 
             visitor.visit_unit()
@@ -626,8 +642,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         if name == crate::value::raw::RAW_VALUE_TOKEN {
             let src_before = self.parser.pre_ws_src();
+            let is_nested = !self.parser.is_at_start();
             self.parser.skip_ws()?;
             let _ignored = self.deserialize_ignored_any(de::IgnoredAny)?;
+            let src_value_end = self.parser.src();
             self.parser.skip_ws()?;
             let src_after = self.parser.src();
 
@@ -635,7 +653,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 return Err(Error::UnclosedLineComment);
             }
 
-            let ron_str = &src_before[..src_before.len() - src_after.len()];
+            let ron_str = if is_nested {
+                trim_raw_value_whitespace(src_before, src_value_end, src_after)
+            } else {
+                &src_before[..src_before.len() - src_after.len()]
+            };
 
             return visitor
                 .visit_borrowed_str::<Error>(ron_str)
@@ -726,6 +748,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         if !self.newtype_variant {
             self.parser.consume_struct_name(name)?;
         }
+
+        self.parser.skip_ws()?;
 
         self.deserialize_tuple(len, visitor).map_err(|e| match e {
             Error::ExpectedStructLike if !name.is_empty() => Error::ExpectedNamedStructLike(name),
@@ -1315,6 +1339,49 @@ fn struct_error_name(error: Error, name: Option<&str>) -> Error {
     }
 }
 
+// Note: OnceLock is only stable with MSRV 1.70 and requires std
+struct OnceBox<T> {
+    ptr: core::sync::atomic::AtomicPtr<T>,
+}
+
+impl<T> OnceBox<T> {
+    const fn new() -> Self {
+        Self {
+            ptr: core::sync::atomic::AtomicPtr::new(core::ptr::null_mut()),
+        }
+    }
+
+    #[allow(unsafe_code)]
+    fn get_or_init<F>(&self, f: F) -> &T
+    where
+        F: FnOnce() -> T,
+    {
+        let mut ptr = self.ptr.load(core::sync::atomic::Ordering::Acquire);
+        if ptr.is_null() {
+            let val = f();
+            let new_ptr = alloc::boxed::Box::into_raw(alloc::boxed::Box::new(val));
+
+            match self.ptr.compare_exchange(
+                core::ptr::null_mut(),
+                new_ptr,
+                core::sync::atomic::Ordering::AcqRel,
+                core::sync::atomic::Ordering::Acquire,
+            ) {
+                Ok(_) => ptr = new_ptr,
+                Err(actual) => {
+                    // SAFETY: `new_ptr` was created via `Box::into_raw` above and lost the CAS race, so it is safe to deallocate.
+                    unsafe {
+                        drop(alloc::boxed::Box::from_raw(new_ptr));
+                    }
+                    ptr = actual;
+                }
+            }
+        }
+        // SAFETY: `ptr` points to a valid, leaked `T` stored in the atomic static that lives for `'static`.
+        unsafe { &*ptr }
+    }
+}
+
 struct SerdeEnumContent<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     ident: Option<&'a str>,
@@ -1395,12 +1462,11 @@ fn is_serde_content<T>() -> bool {
     impl de::StdError for TypeIdError {}
 
     fn type_id_of_untagged_enum_default_buffer() -> core::any::TypeId {
-        static TYPE_ID: once_cell::race::OnceBox<core::any::TypeId> =
-            once_cell::race::OnceBox::new();
+        static TYPE_ID: OnceBox<core::any::TypeId> = OnceBox::new();
 
         *TYPE_ID.get_or_init(|| match Deserialize::deserialize(TypeIdDeserializer) {
             Ok(UntaggedEnum::A(void) | UntaggedEnum::B(void)) => match void {},
-            Err(TypeIdError(typeid)) => alloc::boxed::Box::new(typeid),
+            Err(TypeIdError(typeid)) => typeid,
         })
     }
 
@@ -1474,14 +1540,44 @@ fn is_serde_tag_or_content<T>() -> bool {
     impl de::StdError for TypeIdError {}
 
     fn type_id_of_internally_tagged_enum_default_tag_or_buffer() -> core::any::TypeId {
-        static TYPE_ID: once_cell::race::OnceBox<core::any::TypeId> =
-            once_cell::race::OnceBox::new();
+        static TYPE_ID: OnceBox<core::any::TypeId> = OnceBox::new();
 
         *TYPE_ID.get_or_init(|| match Deserialize::deserialize(TypeIdDeserializer) {
             Ok(InternallyTaggedEnum::A { a: void }) => match void {},
-            Err(TypeIdError(typeid)) => alloc::boxed::Box::new(typeid),
+            Err(TypeIdError(typeid)) => typeid,
         })
     }
 
     typeid::of::<T>() == type_id_of_internally_tagged_enum_default_tag_or_buffer()
+}
+
+/// Trim the plain (non-comment) whitespace around a `RawValue`, so that
+/// re-serialising it, e.g. with pretty-printing, does not accumulate whitespace.
+/// Comments are kept, and whitespace is only trimmed from the end if that does
+/// not leave an unclosed line comment behind.
+///
+/// `src_before` is the source from the start of the whitespace before the value,
+/// `src_value_end` the source right after the value (before the trailing
+/// whitespace), and `src_after` the source after the trailing whitespace.
+fn trim_raw_value_whitespace<'a>(
+    src_before: &'a str,
+    src_value_end: &str,
+    src_after: &str,
+) -> &'a str {
+    let start = src_before.len() - src_before.trim_start().len();
+
+    let trailing_start = src_before.len() - src_value_end.len();
+    let trailing = &src_before[trailing_start..src_before.len() - src_after.len()];
+    let trimmed = trailing.trim_end();
+    let mut end = trailing_start + trimmed.len();
+
+    // Only the (trimmed) trailing whitespace needs to be re-parsed to find out
+    // if it ends in a line comment that the trimmed whitespace would leave open
+    if Parser::new(trimmed).map_or(false, |parser| parser.has_unclosed_line_comment()) {
+        // Keep the whitespace up to and including the line break that closes the comment
+        let rest = &trailing[trimmed.len()..];
+        end += rest.find('\n').map_or(rest.len(), |i| i + 1);
+    }
+
+    &src_before[start..end]
 }

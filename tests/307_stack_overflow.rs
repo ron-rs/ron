@@ -1,10 +1,29 @@
 use std::cell::Cell;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[test]
 fn test_deeply_nested_map() {
     let err = ron::from_str::<ron::Value>(&"{".repeat(10_000)).unwrap_err();
+
+    assert_eq!(err.code, ron::Error::ExceededRecursionLimit)
+}
+
+#[test]
+fn test_deeply_nested_untagged_enum_variant() {
+    #[derive(Debug, Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        #[allow(dead_code)]
+        Any(serde::de::IgnoredAny),
+    }
+
+    // the variant name is arbitrary, untagged enums first buffer the input as serde's Content
+    let ron = format!("{}(){}", "A(".repeat(32), ")".repeat(32));
+    assert!(ron::from_str::<Untagged>(&ron).is_ok());
+
+    let ron = format!("{}(){}", "A(".repeat(1_000), ")".repeat(1_000));
+    let err = ron::from_str::<Untagged>(&ron).unwrap_err();
 
     assert_eq!(err.code, ron::Error::ExceededRecursionLimit)
 }
@@ -24,6 +43,24 @@ fn test_deeply_nested_struct() {
     let err = ron::to_string(&value).unwrap_err();
 
     assert_eq!(err, ron::Error::ExceededRecursionLimit)
+}
+
+#[test]
+fn test_deeply_nested_seq_after_siblings() {
+    let mut deep = ron::Value::Unit;
+    for _ in 0..200 {
+        deep = ron::Value::Seq(vec![deep]);
+    }
+
+    let err = ron::to_string(&deep).unwrap_err();
+    assert_eq!(err, ron::Error::ExceededRecursionLimit);
+
+    // serialising earlier sequences must not raise the limit for later ones
+    let mut siblings = vec![ron::Value::Seq(vec![]); 200];
+    siblings.push(deep);
+
+    let err = ron::to_string(&ron::Value::Seq(siblings)).unwrap_err();
+    assert_eq!(err, ron::Error::ExceededRecursionLimit);
 }
 
 #[test]

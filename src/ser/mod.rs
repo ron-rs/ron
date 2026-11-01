@@ -789,13 +789,11 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             write!(self.output, "-")?;
         }
 
-        write!(self.output, "{}", v)?;
-
-        // Equivalent to v.fract() == 0.0
-        // See: https://docs.rs/num-traits/0.2.19/src/num_traits/float.rs.html#459-465
-        if v % 1. == 0.0 {
-            write!(self.output, ".0")?;
-        }
+        // `Debug` emits the shortest representation that round-trips, using
+        // exponent notation for very large or small magnitudes (e.g. `1e300`)
+        // and always including a `.0` or exponent for finite values, so they
+        // are never parsed back as integers.
+        write!(self.output, "{:?}", v)?;
 
         if self.number_suffixes() {
             write!(self.output, "f32")?;
@@ -809,13 +807,11 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             write!(self.output, "-")?;
         }
 
-        write!(self.output, "{}", v)?;
-
-        // Equivalent to v.fract() == 0.0
-        // See: https://docs.rs/num-traits/0.2.19/src/num_traits/float.rs.html#459-465
-        if v % 1. == 0.0 {
-            write!(self.output, ".0")?;
-        }
+        // `Debug` emits the shortest representation that round-trips, using
+        // exponent notation for very large or small magnitudes (e.g. `1e300`)
+        // and always including a `.0` or exponent for finite values, so they
+        // are never parsed back as integers.
+        write!(self.output, "{:?}", v)?;
 
         if self.number_suffixes() {
             write!(self.output, "f64")?;
@@ -1106,6 +1102,8 @@ impl<'a, W: fmt::Write> ser::Serializer for &'a mut Serializer<W> {
             self.implicit_some_depth = 0;
             return Ok(Compound::new_range(
                 self,
+                name,
+                old_newtype_variant,
                 if name == "RangeInclusive" {
                     RangeKind::RangeInclusive
                 } else if name == "RangeFrom" {
@@ -1190,13 +1188,18 @@ impl<'a, W: fmt::Write> Compound<'a, W> {
         }
     }
 
-    fn new_range(ser: &'a mut Serializer<W>, kind: RangeKind) -> Self {
+    fn new_range(
+        ser: &'a mut Serializer<W>,
+        name: &'static str,
+        newtype_variant: bool,
+        kind: RangeKind,
+    ) -> Self {
         Compound {
             ser,
             state: State::First,
             newtype_variant: false,
             sequence_index: 0,
-            range: Some(RangeCompound::new(kind)),
+            range: Some(RangeCompound::new(name, newtype_variant, kind)),
         }
     }
 }
@@ -1210,6 +1213,10 @@ enum RangeKind {
 }
 
 struct RangeCompound {
+    name: &'static str,
+    // Whether the range is the content of an unwrapped newtype variant, which
+    // the struct form fallback must then write without its own parentheses.
+    newtype_variant: bool,
     kind: RangeKind,
     // Stores (field_key, number) so the actual key is preserved through fallback replay.
     first: Option<(&'static str, crate::value::Number)>,
@@ -1218,8 +1225,10 @@ struct RangeCompound {
 }
 
 impl RangeCompound {
-    fn new(kind: RangeKind) -> Self {
+    fn new(name: &'static str, newtype_variant: bool, kind: RangeKind) -> Self {
         RangeCompound {
+            name,
+            newtype_variant,
             kind,
             first: None,
             second: None,
@@ -1234,14 +1243,6 @@ impl RangeCompound {
         T: ?Sized + Serialize,
     {
         value.serialize(crate::value::NumberSerializer).ok()
-    }
-}
-
-impl<'a, W: fmt::Write> Drop for Compound<'a, W> {
-    fn drop(&mut self) {
-        if let Some(limit) = &mut self.ser.recursion_limit {
-            *limit = limit.saturating_add(1);
-        }
     }
 }
 
@@ -1511,7 +1512,15 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
                     }
                 }
 
-                self.ser.output.write_char('(')?;
+                // Write the struct opening as `serialize_struct` would have
+                if range.newtype_variant {
+                    self.newtype_variant = true;
+                } else {
+                    if self.ser.struct_names() {
+                        self.ser.write_identifier(range.name)?;
+                    }
+                    self.ser.output.write_char('(')?;
+                }
                 if !self.ser.compact_structs() {
                     self.ser.is_empty = Some(false);
                     self.ser.start_indent()?;
@@ -1559,7 +1568,13 @@ impl<'a, W: fmt::Write> ser::SerializeStruct for Compound<'a, W> {
                     for doc_line in field.doc().lines() {
                         self.ser.output.write_str("/// ")?;
                         self.ser.output.write_str(doc_line)?;
-                        self.ser.output.write_char('\n')?;
+                        // A line comment only ends at `\n`, so a `new_line`
+                        // without one (e.g. "") must not be used to close it
+                        if config.new_line.contains('\n') {
+                            self.ser.output.write_str(&config.new_line)?;
+                        } else {
+                            self.ser.output.write_char('\n')?;
+                        }
                         indent(&mut self.ser.output, config, pretty)?;
                     }
                 }

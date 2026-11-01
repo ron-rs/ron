@@ -66,6 +66,9 @@ pub(crate) type LargeSInt = i64;
 pub struct Parser<'a> {
     /// Bits set according to the [`Extensions`] enum.
     pub exts: Extensions,
+    /// Set if the document starts with global attributes, like
+    /// `#![type = ".."]`, that do not affect parsing.
+    pub(crate) global_attributes: bool,
     src: &'a str,
     cursor: ParserCursor,
     prev_cursor: ParserCursor,
@@ -103,6 +106,7 @@ impl<'a> Parser<'a> {
     pub fn new(src: &'a str) -> SpannedResult<Self> {
         let mut parser = Parser {
             exts: Extensions::empty(),
+            global_attributes: false,
             src,
             cursor: ParserCursor {
                 cursor: 0,
@@ -125,7 +129,9 @@ impl<'a> Parser<'a> {
                 ParsedAttribute::Extensions(extensions) => {
                     parser.exts |= extensions;
                 }
-                ParsedAttribute::Ignored => {}
+                ParsedAttribute::Ignored => {
+                    parser.global_attributes = true;
+                }
             }
 
             parser.skip_ws().map_err(|e| parser.span_error(e))?;
@@ -191,6 +197,12 @@ impl<'a> Parser<'a> {
         &self.src[self.cursor.pre_ws_cursor..]
     }
 
+    /// Whether no source has been consumed before the last whitespace,
+    /// i.e. whether we are at the start of the top-level value.
+    pub fn is_at_start(&self) -> bool {
+        self.cursor.pre_ws_cursor == 0
+    }
+
     pub fn consume_str(&mut self, s: &str) -> bool {
         if self.check_str(s) {
             self.advance_bytes(s.len());
@@ -209,6 +221,29 @@ impl<'a> Parser<'a> {
         } else {
             false
         }
+    }
+
+    /// Consumes a unit `()`, which may contain whitespace and comments
+    /// between the parentheses. Does not change state if it fails.
+    pub fn consume_unit(&mut self) -> Result<bool> {
+        let backup_cursor = self.cursor;
+        let backup_prev_cursor = self.prev_cursor;
+
+        if self.consume_char('(') {
+            self.skip_ws()?;
+
+            if self.consume_char(')') {
+                // Errors for the unit should span all of it, like for `()`
+                self.prev_cursor = backup_cursor;
+
+                return Ok(true);
+            }
+        }
+
+        self.set_cursor(backup_cursor);
+        self.prev_cursor = backup_prev_cursor;
+
+        Ok(false)
     }
 
     fn consume_all(&mut self, all: &[&str]) -> Result<bool> {
@@ -675,19 +710,26 @@ impl<'a> Parser<'a> {
                 let cursor_backup = parser.cursor;
                 match parser.string() {
                     Ok(_) => (),
-                    // prevent quadratic complexity backtracking for unterminated string
-                    Err(err @ (Error::ExpectedStringEnd | Error::Eof)) => return Err(err),
-                    Err(_) => parser.set_cursor(cursor_backup),
+                    // not a string, so backtrack
+                    Err(Error::ExpectedString) => parser.set_cursor(cursor_backup),
+                    // prevent quadratic complexity backtracking for malformed string,
+                    // e.g. with an invalid escape or without a terminating quote
+                    Err(err) => return Err(err),
                 }
                 let cursor_backup = parser.cursor;
                 // we have already checked for strings, which subsume base64 byte strings
                 match parser.byte_string_no_base64() {
                     Ok(_) => (),
-                    // prevent quadratic complexity backtracking for unterminated byte string
-                    Err(err @ (Error::ExpectedStringEnd | Error::Eof)) => return Err(err),
-                    Err(_) => parser.set_cursor(cursor_backup),
+                    // not a byte string, so backtrack
+                    Err(Error::ExpectedByteString) => parser.set_cursor(cursor_backup),
+                    // prevent quadratic complexity backtracking for malformed byte string,
+                    // e.g. with an invalid escape or without a terminating quote
+                    Err(err) => return Err(err),
                 }
 
+                // Skip whitespace and comments directly after a skipped literal,
+                // otherwise e.g. the `/*,*/` in `("a"/*,*/)` would be read as a comma
+                parser.skip_ws()?;
                 let c = parser.next_char()?;
                 if matches!(c, '(' | '[' | '{') {
                     braces += 1;
@@ -1570,7 +1612,7 @@ macro_rules! impl_integer {
                     _ => Err(Error::InvalidValueForType {
                         expected: format!(
                             "a{} {}-bit {}signed integer",
-                            if <$ty>::BITS == 8 { "n" } else { "n" },
+                            if <$ty>::BITS == 8 { "n" } else { "" },
                             <$ty>::BITS,
                             if <$ty>::MIN == 0 { "un" } else { "" },
                         ),
@@ -1701,6 +1743,17 @@ pub enum ParsedFloat {
 impl Float for ParsedFloat {
     fn parse(float: &str) -> Result<Self> {
         let value = f64::from_str(float).map_err(|_| Error::ExpectedFloat)?;
+
+        // Casting a NaN with `as` gives an unspecified NaN, and some targets
+        // (e.g. riscv64) drop the sign, so build the f32 NaN by hand.
+        if value.is_nan() {
+            let nan = if value.is_sign_negative() {
+                -f32::NAN
+            } else {
+                f32::NAN
+            };
+            return Ok(ParsedFloat::F32(nan));
+        }
 
         #[allow(clippy::cast_possible_truncation)]
         if value.total_cmp(&f64::from(value as f32)).is_eq() {

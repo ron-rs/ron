@@ -6,18 +6,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Documentation
+### Bug Fixes
 
-- Document `no_std` configuration and the global allocator requirement ([#574](https://github.com/ron-rs/ron/pull/626))
+- Fixed `()` and unit structs failing to deserialise with `ExpectedUnit` when written with whitespace or comments between the parentheses, e.g. `( )` or `(/* none */)`, and `deserialize_any` (e.g. `Value` or untagged enums) reading them as an empty tuple instead of a unit ([#650](https://github.com/ron-rs/ron/pull/650))
+- Fixed named tuple structs failing to deserialise with `ExpectedNamedStructLike` when there is whitespace or a comment between the struct name and the opening parenthesis, e.g. `Point (1, 2)` ([#651](https://github.com/ron-rs/ron/pull/651))
+- Fixed the error message for an integer with a mismatched type suffix, e.g. `1u8` for an `i16`, saying `an 16-bit signed integer` instead of `a 16-bit signed integer` for integer types wider than 8 bits ([#654](https://github.com/ron-rs/ron/pull/654))
+- Fixed `recursion_limit` being raised by one for every sequence, map, or struct serialised before, which let deeply nested values that come later overflow the stack ([#653](https://github.com/ron-rs/ron/pull/653))
+- Fixed `path_meta` doc comments not being closed when `PrettyConfig::new_line` contains no `\n`, e.g. `""`, which commented out the following fields or, with `escape_strings(false)`, let a string containing `\n` end the comment early and be read as RON ([#652](https://github.com/ron-rs/ron/pull/652))
+- Fixed `implicit_some` silently dropping a `Some` that is not followed by `(`, which accepted e.g. `Some 5` or `Some "a"` instead of rejecting it with `ExpectedOption` like without the extension ([#655](https://github.com/ron-rs/ron/pull/655))
+
+## [0.12.3] - 2026-10-28
+
+### API Changes
+
+- Added the `ron::de::from_value` convenience function to deserialize a `T` from a `Value` ([#618](https://github.com/ron-rs/ron/pull/618))
+- Removed the `once_cell` dependency ([#625](https://github.com/ron-rs/ron/pull/625))
 
 ### Format Changes
 
-- Add support for parsing Rust-style string continuation escapes ([#585](https://github.com/ron-rs/ron/pull/617))
+- Add support for parsing Rust-style string continuation escapes ([#617](https://github.com/ron-rs/ron/pull/617))
+- Serialise very large and very small floats in exponent notation, e.g. `1e300` instead of a 303-character decimal expansion ([#638](https://github.com/ron-rs/ron/pull/638))
 
 ### Bug Fixes
 
 - Fixed deserializing compact ranges with newtype bounds when `unwrap_newtypes` is enabled ([#627](https://github.com/ron-rs/ron/pull/627))
 - Fixed round-tripping of compact ranges whose start bound is `inf` or `NaN` ([#605](https://github.com/ron-rs/ron/pull/605))
+- Fixed enforcement of `recursion_limit` for nested enum variants deserialised through `serde`'s `Content` (e.g. untagged enums) ([#632](https://github.com/ron-rs/ron/pull/632))
+- Fixed `-NaN` losing its sign when parsed as an untyped float on some targets, e.g. riscv64 ([#634](https://github.com/ron-rs/ron/pull/634))
+- Fixed `RawValue` accepting unclosed line comments and extensions when deserialised from a non-RON format, e.g. JSON, which produced invalid RON on serialisation ([#636](https://github.com/ron-rs/ron/pull/636))
+- Fixed `RawValue::from_ron` accepting `#![type = "..."]` and `#![schema = "..."]` attributes, which produced invalid RON when the raw value was serialised inside another value ([#642](https://github.com/ron-rs/ron/pull/642))
+- Fixed `compact_ranges` dropping the struct name and newtype variant unwrapping when a range with non-numeric bounds is written as a struct ([#629](https://github.com/ron-rs/ron/pull/629))
+- Fixed quadratic backtracking over malformed strings when checking for a newtype or tuple inside untagged enums or unwrapped newtype variants ([#639](https://github.com/ron-rs/ron/pull/639))
+- Fixed `RawValue` accumulating extra whitespace around nested values each time a pretty-printed file is read and written again; non-comment whitespace around a nested `RawValue` is now trimmed on deserialisation ([#640](https://github.com/ron-rs/ron/pull/640))
+- Fixed newtype variants deserialised through `serde`'s `Content` (e.g. untagged enums) rejecting a trailing comma and not checking for the closing `)`, which accepted unbalanced parentheses ([#643](https://github.com/ron-rs/ron/pull/643))
+- Fixed a comment directly after a string, byte string, or char literal being read as code when checking for a newtype or tuple inside untagged enums or unwrapped newtype variants, which rejected valid input or changed how it was deserialised ([#644](https://github.com/ron-rs/ron/pull/644))
+- Fixed `Value` preallocating its sequence or map from an uncapped size hint when deserialised from a non-RON format, e.g. CBOR, so that a forged length aborted the process ([#647](https://github.com/ron-rs/ron/pull/647))
+- Fixed untyped ranges, e.g. `Value` or untagged enums, rejecting an `inf` or `NaN` end bound after `..` (as in `0.0..inf` and `..NaN`) or a byte literal end bound after a bare `..` (as in `..b'z'`), which broke round-tripping compact ranges with an infinite end bound ([#648](https://github.com/ron-rs/ron/pull/648))
+- Fixed `path_meta` doc comments always ending with `\n` instead of `PrettyConfig::new_line`, which mixed line endings when using e.g. `"\r\n"` ([#649](https://github.com/ron-rs/ron/pull/649))
+
+### Documentation
+
+- Mention the Zed extension in the tooling table ([#630](https://github.com/ron-rs/ron/pull/630))
+- Add enum variants to the syntax overview in the README ([#633](https://github.com/ron-rs/ron/pull/633))
+- Document `no_std` configuration and the global allocator requirement ([#626](https://github.com/ron-rs/ron/pull/626))
+- Added "[other implementations](https://github.com/ron-rs/ron/blob/master/README.md#other-implementations)" section to the README ([#628](https://github.com/ron-rs/ron/pull/628))
+- Fix the `unwrap_variant_newtypes` and `implicit_some` examples in the extensions docs, which did not enable their extension, and show how to enable extensions programmatically ([#645](https://github.com/ron-rs/ron/pull/645))
+- Fixed mismatches between the `docs/grammar.md` and parser (char and Unicode escapes, backslashes in strings, whitespace around range operators and before extensions) ([#635](https://github.com/ron-rs/ron/pull/635))
+
+### Miscellaneous
+
+- Remove the `unsafe` block from `RawValue::trim_boxed` ([#646](https://github.com/ron-rs/ron/pull/646))
 
 ## [0.12.2] - 2026-06-22
 

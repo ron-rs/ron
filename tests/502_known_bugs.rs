@@ -1227,8 +1227,7 @@ fn raw_value_inside_adjacently_tagged() {
             },
             PrettyConfig::default()
         ),
-        // adds an extra space
-        Err(Ok(Error::Message(String::from("ROUNDTRIP error: B { ho: 24, a: A { hi: RawValue(42) } } != B { ho: 24, a: A { hi: RawValue( 42) } }"))))
+        Ok(())
     );
     assert_eq!(
         ron::from_str::<AdjacentlyTagged>("(tag: B, content: (ho: 24, a: (hi:42)))"),

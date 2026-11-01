@@ -56,6 +56,7 @@ GameConfig( // optional struct name
 * Tuples: `("abc", 1.23, true)`, `()`
 * Lists: `["abc", "def"]`
 * Structs: `( foo: 1.0, bar: ( baz: "I'm nested" ) )`
+* Enums: `Unit`, `Newtype(1.5)`, `Tuple(1, "two")`, `Struct(x: 1.0, y: 2.0)`
 * Maps: `{ "arbitrary": "keys", "are": "allowed" }`
 * Ranges: `3..5`, `-2.1..=7.3`, `..-15`, `..10.5`, `..=13`, `..`
 
@@ -193,7 +194,17 @@ also enables `std`; ensure other dependencies do not enable RON's or Serde's
 | Atom           | [language-ron](https://atom.io/packages/language-ron)                    |
 | Vim            | [ron-rs/ron.vim](https://github.com/ron-rs/ron.vim)                      |
 | EMACS          | [emacs-ron](https://chiselapp.com/user/Hutzdog/repository/ron-mode/home) |
+| Zed            | [RON](https://zed.dev/extensions/ron)                                    |
 | Multiple / LSP | [ron-lsp](https://github.com/jasonjmcghee/ron-lsp)                       |
+
+## Other Implementations
+
+| Source     | Implementation                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| Jackson    | [jackson-dataformat-ron](https://github.com/chriskilding/jackson-dataformat-ron)                                     |
+| Python     | [Python Script](https://github.com/sdfgeoff/blender_bevy_toolkit/blob/master/blender_bevy_toolkit/rust_types/ron.py) |
+| Javascript | [ron-js](https://github.com/whiteand/ron-js)                                                                         |
+| C#         | [RonCS](https://github.com/CriusNyx/RonCS)                                                                           |
 
 ## Limitations
 

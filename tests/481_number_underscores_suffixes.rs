@@ -479,6 +479,34 @@ fn number_type_mismatch() {
     );
 
     assert_eq!(
+        ron::from_str::<i16>("1u8"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::InvalidValueForType {
+                expected: String::from("a 16-bit signed integer"),
+                found: String::from("1u8")
+            },
+            span: ron::error::Span {
+                start: ron::error::Position { line: 1, col: 2 },
+                end: ron::error::Position { line: 1, col: 4 },
+            }
+        })
+    );
+
+    assert_eq!(
+        ron::from_str::<u64>("1i32"),
+        Err(ron::error::SpannedError {
+            code: ron::Error::InvalidValueForType {
+                expected: String::from("a 64-bit unsigned integer"),
+                found: String::from("1i32")
+            },
+            span: ron::error::Span {
+                start: ron::error::Position { line: 1, col: 2 },
+                end: ron::error::Position { line: 1, col: 5 },
+            }
+        })
+    );
+
+    assert_eq!(
         ron::from_str::<i64>("-1u8"),
         Err(ron::error::SpannedError {
             code: ron::Error::IntegerOutOfBounds,

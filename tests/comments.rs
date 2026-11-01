@@ -77,3 +77,155 @@ fn test_unexpected_byte() {
         })
     );
 }
+
+#[test]
+fn test_comment_after_literal_in_newtype_lookahead() {
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    enum Cmd {
+        Echo(Msg),
+    }
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[serde(untagged)]
+    enum Msg {
+        One(ron::Value),
+        Many(Vec<ron::Value>),
+    }
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Cmd(Cmd),
+    }
+
+    // A comment directly after a literal must not be scanned as code
+    for (ron, inner) in [
+        ("\"hi\"", ron::Value::String(String::from("hi"))),
+        ("'h'", ron::Value::Char('h')),
+        ("b\"hi\"", ron::Value::Bytes(b"hi".to_vec())),
+    ] {
+        let expected = Cmd::Echo(Msg::One(inner));
+
+        for comment in ["", "/*,x*/", "// note\n"] {
+            let ron = format!("Echo({}{})", ron, comment);
+
+            assert_eq!(
+                from_str::<Cmd>(&format!("#![enable(unwrap_variant_newtypes)] {}", ron)).as_ref(),
+                Ok(&expected),
+                "{}",
+                ron,
+            );
+            assert_eq!(
+                from_str::<Untagged>(&ron)
+                    .map(|Untagged::Cmd(cmd)| cmd)
+                    .as_ref(),
+                Ok(&expected),
+                "{}",
+                ron,
+            );
+        }
+    }
+}
+
+#[test]
+fn test_whitespace_and_comments_inside_unit() {
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct Unit;
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct Struct {
+        a: (),
+        b: Unit,
+    }
+
+    for unit in ["()", "( )", "(\n)", "(/* empty */)", "( // empty\n)"] {
+        assert_eq!(from_str::<()>(unit), Ok(()), "{}", unit);
+        assert_eq!(from_str::<Unit>(unit), Ok(Unit), "{}", unit);
+        assert_eq!(
+            from_str::<Struct>(&format!("(a: {0}, b: {0})", unit)),
+            Ok(Struct { a: (), b: Unit }),
+            "{}",
+            unit,
+        );
+    }
+
+    assert_eq!(
+        from_str::<()>("( 42 )"),
+        Err(RonErr {
+            code: Error::ExpectedUnit,
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 1 },
+            }
+        })
+    );
+    assert_eq!(
+        from_str::<()>("( /* )"),
+        Err(RonErr {
+            code: Error::UnclosedBlockComment,
+            span: Span {
+                start: Position { line: 1, col: 5 },
+                end: Position { line: 1, col: 7 },
+            }
+        })
+    );
+}
+
+#[test]
+fn test_whitespace_and_comments_inside_untyped_unit() {
+    use ron::value::{Map, Number, Value};
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[serde(untagged)]
+    enum Untagged {
+        Struct { a: () },
+    }
+
+    for unit in ["()", "( )", "(\n)", "(/* empty */)", "( // empty\n)"] {
+        assert_eq!(from_str::<Value>(unit), Ok(Value::Unit), "{}", unit);
+        assert_eq!(
+            from_str::<Untagged>(&format!("(a: {})", unit)),
+            Ok(Untagged::Struct { a: () }),
+            "{}",
+            unit,
+        );
+    }
+
+    assert_eq!(
+        from_str::<Value>("( /* 1, */ 2 )"),
+        Ok(Value::Seq(vec![Value::Number(Number::U8(2))]))
+    );
+    assert_eq!(
+        from_str::<Value>("( 1, 2 )"),
+        Ok(Value::Seq(vec![
+            Value::Number(Number::U8(1)),
+            Value::Number(Number::U8(2)),
+        ]))
+    );
+
+    let mut map = Map::new();
+    map.insert(
+        Value::String(String::from("a")),
+        Value::Number(Number::U8(1)),
+    );
+    assert_eq!(from_str::<Value>("( /* a */ a: 1 )"), Ok(Value::Map(map)));
+
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    #[serde(untagged)]
+    enum NotUnit {
+        Newtype(i32),
+    }
+
+    assert_eq!(
+        from_str::<NotUnit>("( )"),
+        Err(RonErr {
+            code: Error::Message(String::from(
+                "data did not match any variant of untagged enum NotUnit"
+            )),
+            span: Span {
+                start: Position { line: 1, col: 1 },
+                end: Position { line: 1, col: 4 },
+            }
+        })
+    );
+}

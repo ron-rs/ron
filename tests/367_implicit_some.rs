@@ -1,3 +1,5 @@
+use ron::error::{Error, Position, Span, SpannedError};
+
 #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 struct MaybeFields {
     f1: i64,
@@ -104,6 +106,69 @@ fn test_nested_implicit_some() {
             "#![enable(implicit_some)]\nSome(Some(Some(5)))"
         ),
         Ok(Some(Some(Some(5))))
+    );
+}
+
+#[test]
+fn test_implicit_some_requires_parens_after_some() {
+    #[derive(Debug, PartialEq, serde::Deserialize)]
+    struct Config {
+        name: Option<String>,
+        limit: Option<Option<u32>>,
+    }
+
+    // whitespace and comments are still allowed between `Some` and `(`
+    assert_eq!(
+        ron::from_str::<Config>(
+            "#![enable(implicit_some)]\n(name: Some (\"a\"), limit: Some /* x */ (None))"
+        ),
+        Ok(Config {
+            name: Some(String::from("a")),
+            limit: Some(None),
+        })
+    );
+
+    // `Some` without `(` is rejected like without implicit_some,
+    //  instead of being dropped before the implicit `Some`
+    assert_eq!(
+        ron::from_str::<Config>("(name: Some \"a\", limit: None)"),
+        Err(SpannedError {
+            code: Error::ExpectedOption,
+            span: Span {
+                start: Position { line: 1, col: 12 },
+                end: Position { line: 1, col: 13 },
+            }
+        })
+    );
+    assert_eq!(
+        ron::from_str::<Config>("#![enable(implicit_some)]\n(name: Some \"a\", limit: None)"),
+        Err(SpannedError {
+            code: Error::ExpectedOption,
+            span: Span {
+                start: Position { line: 2, col: 12 },
+                end: Position { line: 2, col: 13 },
+            }
+        })
+    );
+    assert_eq!(
+        ron::from_str::<Config>("#![enable(implicit_some)]\n(name: \"a\", limit: Some None)"),
+        Err(SpannedError {
+            code: Error::ExpectedOption,
+            span: Span {
+                start: Position { line: 2, col: 24 },
+                end: Position { line: 2, col: 25 },
+            }
+        })
+    );
+    assert_eq!(
+        ron::from_str::<ron::Value>("#![enable(implicit_some)]\n[Some 5]"),
+        Err(SpannedError {
+            code: Error::ExpectedOption,
+            span: Span {
+                start: Position { line: 2, col: 6 },
+                end: Position { line: 2, col: 7 },
+            }
+        })
     );
 }
 
