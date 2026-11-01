@@ -1,0 +1,19 @@
+# Grammar-conformance differential for ron. Kept as an isolated sub-crate (like
+# `fuzz/`) so `pest` never enters ron's own dependency graph or its MSRV job:
+# ron's parser is checked against a PEG reference transcribed verbatim from
+# `docs/grammar.md`, and any divergence is a parser bug OR a doc bug.
+[package]
+name = "ron-conformance"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[dependencies]
+ron = { path = "..", default-features = false, features = ["std"] }
+serde = { version = "1.0.193", default-features = false, features = ["std"] }
+pest = "2.7"
+pest_derive = "2.7"
+
+# Prevent this from interfering with workspaces (same guard as fuzz/Cargo.toml).
+[workspace]
+members = ["."]
