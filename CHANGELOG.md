@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `recursion_limit` being raised by one for every sequence, map, or struct serialised before, which let deeply nested values that come later overflow the stack ([#653](https://github.com/ron-rs/ron/pull/653))
 - Fixed `path_meta` doc comments not being closed when `PrettyConfig::new_line` contains no `\n`, e.g. `""`, which commented out the following fields or, with `escape_strings(false)`, let a string containing `\n` end the comment early and be read as RON ([#652](https://github.com/ron-rs/ron/pull/652))
 - Fixed `implicit_some` silently dropping a `Some` that is not followed by `(`, which accepted e.g. `Some 5` or `Some "a"` instead of rejecting it with `ExpectedOption` like without the extension ([#655](https://github.com/ron-rs/ron/pull/655))
+- Fixed `'''` and `b'''` being accepted as the char and byte literal `'`, which the grammar requires to be escaped as `'\''` and `b'\''` ([#656](https://github.com/ron-rs/ron/pull/656))
 
 ## [0.12.3] - 2026-10-28
 

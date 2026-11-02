@@ -364,6 +364,8 @@ impl<'a> Parser<'a> {
                             ))
                         }
                     },
+                    // an apostrophe must be escaped, so `b''` and `b'''` are not byte literals
+                    '\'' => return Err(Error::ExpectedByteLiteral),
                     b if b.is_ascii() => b as u8,
                     _ => return Err(Error::ExpectedByteLiteral),
                 };
@@ -596,6 +598,9 @@ impl<'a> Parser<'a> {
                 EscapeCharacter::Ascii(b) => char::from(b),
                 EscapeCharacter::Utf8(c) => c,
             }
+        } else if c == '\'' {
+            // an apostrophe must be escaped, so `''` and `'''` are not chars
+            return Err(Error::ExpectedChar);
         } else {
             c
         };
