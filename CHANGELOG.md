@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed `implicit_some` silently dropping a `Some` that is not followed by `(`, which accepted e.g. `Some 5` or `Some "a"` instead of rejecting it with `ExpectedOption` like without the extension ([#655](https://github.com/ron-rs/ron/pull/655))
 - Fixed `'''` and `b'''` being accepted as the char and byte literal `'`, which the grammar requires to be escaped as `'\''` and `b'\''` ([#656](https://github.com/ron-rs/ron/pull/656))
 
+### Changes
+
+- Sped up serialising escaped strings by writing runs of printable ASCII in one go instead of escaping each character separately ([#657](https://github.com/ron-rs/ron/pull/657))
+
 ## [0.12.3] - 2026-10-28
 
 ### API Changes

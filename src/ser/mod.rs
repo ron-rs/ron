@@ -586,8 +586,26 @@ impl<W: fmt::Write> Serializer<W> {
     fn serialize_escaped_str(&mut self, value: &str) -> fmt::Result {
         self.output.write_char('"')?;
         let mut scalar = [0u8; 4];
-        for c in value.chars().flat_map(char::escape_debug) {
-            self.output.write_str(c.encode_utf8(&mut scalar))?;
+        let mut rest = value;
+        while !rest.is_empty() {
+            // Printable ASCII other than quotes and backslash is never escaped,
+            // so write such runs in one go instead of char by char.
+            let run = rest
+                .bytes()
+                .position(|b| !matches!(b, b' '..=b'~') || matches!(b, b'"' | b'\'' | b'\\'))
+                .unwrap_or(rest.len());
+            if run > 0 {
+                self.output.write_str(&rest[..run])?;
+                rest = &rest[run..];
+                continue;
+            }
+            let mut chars = rest.chars();
+            if let Some(c) = chars.next() {
+                for e in c.escape_debug() {
+                    self.output.write_str(e.encode_utf8(&mut scalar))?;
+                }
+            }
+            rest = chars.as_str();
         }
         self.output.write_char('"')?;
         Ok(())
