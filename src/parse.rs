@@ -987,17 +987,30 @@ impl<'a> Parser<'a> {
         Ok(value)
     }
 
-    pub fn skip_identifier(&mut self) -> Option<&'a str> {
+    /// Whether the next 2-3 bytes signify the start of a (raw) (byte)
+    ///  string literal, which looks like an identifier starting with `b` or `r`.
+    fn check_string_literal_start(&self) -> bool {
+        // All of the prefixes below start with `b` or `r`, so most
+        //  identifiers can skip the individual checks.
+        if !matches!(self.src().as_bytes().first(), Some(b'b' | b'r')) {
+            return false;
+        }
+
         #[allow(clippy::nonminimal_bool)]
-        if self.check_str("b\"") // byte string
+        let is_string_literal = self.check_str("b\"") // byte string
             || self.check_str("b'") // byte literal
             || self.check_str("br#") // raw byte string
             || self.check_str("br\"") // raw byte string
             || self.check_str("r\"") // raw string
             || self.check_str("r#\"") // raw string
             || self.check_str("r##") // raw string
-            || false
-        {
+            || false;
+
+        is_string_literal
+    }
+
+    pub fn skip_identifier(&mut self) -> Option<&'a str> {
+        if self.check_string_literal_start() {
             return None;
         }
 
@@ -1041,16 +1054,7 @@ impl<'a> Parser<'a> {
 
         // If the next 2-3 bytes signify the start of a (raw) (byte) string
         //  literal, return an error.
-        #[allow(clippy::nonminimal_bool)]
-        if self.check_str("b\"") // byte string
-            || self.check_str("b'") // byte literal
-            || self.check_str("br#") // raw byte string
-            || self.check_str("br\"") // raw byte string
-            || self.check_str("r\"") // raw string
-            || self.check_str("r#\"") // raw string
-            || self.check_str("r##") // raw string
-            || false
-        {
+        if self.check_string_literal_start() {
             return Err(Error::ExpectedIdentifier);
         }
 
