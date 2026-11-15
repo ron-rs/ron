@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changes
 
 - Sped up serialising escaped strings by writing runs of printable ASCII in one go instead of escaping each character separately ([#657](https://github.com/ron-rs/ron/pull/657))
+- Sped up parsing by skipping keyword, string literal and `inf`/`NaN` prefix checks that cannot match the first byte of the input ([#NNN](https://github.com/ron-rs/ron/pull/NNN))
 
 ## [0.12.3] - 2026-10-28
 
