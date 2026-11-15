@@ -358,28 +358,35 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             }
         }
 
-        if self.parser.consume_ident("true") {
-            return visitor.visit_bool(true);
-        } else if self.parser.consume_ident("false") {
-            return visitor.visit_bool(false);
-        } else if self.parser.check_ident("Some") {
-            return self.deserialize_option(visitor);
-        } else if self.parser.consume_ident("None") {
-            return visitor.visit_none();
-        } else if self.parser.consume_unit()? {
-            return visitor.visit_unit();
-        } else if self.parser.consume_ident("inf") || self.parser.consume_ident("inff32") {
-            let number = crate::value::Number::F32(crate::value::F32(core::f32::INFINITY));
-            return self.handle_float_range_or_value(number, visitor);
-        } else if self.parser.consume_ident("inff64") {
-            let number = crate::value::Number::F64(crate::value::F64(core::f64::INFINITY));
-            return self.handle_float_range_or_value(number, visitor);
-        } else if self.parser.consume_ident("NaN") || self.parser.consume_ident("NaNf32") {
-            let number = crate::value::Number::F32(crate::value::F32(core::f32::NAN));
-            return self.handle_float_range_or_value(number, visitor);
-        } else if self.parser.consume_ident("NaNf64") {
-            let number = crate::value::Number::F64(crate::value::F64(core::f64::NAN));
-            return self.handle_float_range_or_value(number, visitor);
+        // All of the keywords and the unit `()` below start with one of these
+        //  bytes, so other values can skip the whole chain of checks.
+        if matches!(
+            self.parser.src().as_bytes().first(),
+            Some(b't' | b'f' | b'S' | b'N' | b'i' | b'(')
+        ) {
+            if self.parser.consume_ident("true") {
+                return visitor.visit_bool(true);
+            } else if self.parser.consume_ident("false") {
+                return visitor.visit_bool(false);
+            } else if self.parser.check_ident("Some") {
+                return self.deserialize_option(visitor);
+            } else if self.parser.consume_ident("None") {
+                return visitor.visit_none();
+            } else if self.parser.consume_unit()? {
+                return visitor.visit_unit();
+            } else if self.parser.consume_ident("inf") || self.parser.consume_ident("inff32") {
+                let number = crate::value::Number::F32(crate::value::F32(core::f32::INFINITY));
+                return self.handle_float_range_or_value(number, visitor);
+            } else if self.parser.consume_ident("inff64") {
+                let number = crate::value::Number::F64(crate::value::F64(core::f64::INFINITY));
+                return self.handle_float_range_or_value(number, visitor);
+            } else if self.parser.consume_ident("NaN") || self.parser.consume_ident("NaNf32") {
+                let number = crate::value::Number::F32(crate::value::F32(core::f32::NAN));
+                return self.handle_float_range_or_value(number, visitor);
+            } else if self.parser.consume_ident("NaNf64") {
+                let number = crate::value::Number::F64(crate::value::F64(core::f64::NAN));
+                return self.handle_float_range_or_value(number, visitor);
+            }
         }
 
         // `skip_identifier` does not change state if it fails
