@@ -889,14 +889,26 @@ impl<'a> Parser<'a> {
         const F32_SUFFIX: &str = "f32";
         const F64_SUFFIX: &str = "f64";
 
-        for (literal, value_f32, value_f64) in &[
-            ("inf", f32::INFINITY, f64::INFINITY),
-            ("+inf", f32::INFINITY, f64::INFINITY),
-            ("-inf", f32::NEG_INFINITY, f64::NEG_INFINITY),
-            ("NaN", f32::NAN, f64::NAN),
-            ("+NaN", f32::NAN, f64::NAN),
-            ("-NaN", -f32::NAN, -f64::NAN),
-        ] {
+        // All of the special literals below start with `i` or `N` after an
+        //  optional sign, so ordinary floats can skip checking each of them.
+        let unsigned = self
+            .src()
+            .strip_prefix(['+', '-'])
+            .unwrap_or_else(|| self.src());
+        let special_literals: &[(&str, f32, f64)] = if unsigned.starts_with(['i', 'N']) {
+            &[
+                ("inf", f32::INFINITY, f64::INFINITY),
+                ("+inf", f32::INFINITY, f64::INFINITY),
+                ("-inf", f32::NEG_INFINITY, f64::NEG_INFINITY),
+                ("NaN", f32::NAN, f64::NAN),
+                ("+NaN", f32::NAN, f64::NAN),
+                ("-NaN", -f32::NAN, -f64::NAN),
+            ]
+        } else {
+            &[]
+        };
+
+        for (literal, value_f32, value_f64) in special_literals {
             if self.consume_ident(literal) {
                 return T::parse(literal);
             }
@@ -987,17 +999,30 @@ impl<'a> Parser<'a> {
         Ok(value)
     }
 
-    pub fn skip_identifier(&mut self) -> Option<&'a str> {
+    /// Whether the next 2-3 bytes signify the start of a (raw) (byte)
+    ///  string literal, which looks like an identifier starting with `b` or `r`.
+    fn check_string_literal_start(&self) -> bool {
+        // All of the prefixes below start with `b` or `r`, so most
+        //  identifiers can skip the individual checks.
+        if !matches!(self.src().as_bytes().first(), Some(b'b' | b'r')) {
+            return false;
+        }
+
         #[allow(clippy::nonminimal_bool)]
-        if self.check_str("b\"") // byte string
+        let is_string_literal = self.check_str("b\"") // byte string
             || self.check_str("b'") // byte literal
             || self.check_str("br#") // raw byte string
             || self.check_str("br\"") // raw byte string
             || self.check_str("r\"") // raw string
             || self.check_str("r#\"") // raw string
             || self.check_str("r##") // raw string
-            || false
-        {
+            || false;
+
+        is_string_literal
+    }
+
+    pub fn skip_identifier(&mut self) -> Option<&'a str> {
+        if self.check_string_literal_start() {
             return None;
         }
 
@@ -1041,16 +1066,7 @@ impl<'a> Parser<'a> {
 
         // If the next 2-3 bytes signify the start of a (raw) (byte) string
         //  literal, return an error.
-        #[allow(clippy::nonminimal_bool)]
-        if self.check_str("b\"") // byte string
-            || self.check_str("b'") // byte literal
-            || self.check_str("br#") // raw byte string
-            || self.check_str("br\"") // raw byte string
-            || self.check_str("r\"") // raw string
-            || self.check_str("r#\"") // raw string
-            || self.check_str("r##") // raw string
-            || false
-        {
+        if self.check_string_literal_start() {
             return Err(Error::ExpectedIdentifier);
         }
 
