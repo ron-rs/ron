@@ -889,14 +889,26 @@ impl<'a> Parser<'a> {
         const F32_SUFFIX: &str = "f32";
         const F64_SUFFIX: &str = "f64";
 
-        for (literal, value_f32, value_f64) in &[
-            ("inf", f32::INFINITY, f64::INFINITY),
-            ("+inf", f32::INFINITY, f64::INFINITY),
-            ("-inf", f32::NEG_INFINITY, f64::NEG_INFINITY),
-            ("NaN", f32::NAN, f64::NAN),
-            ("+NaN", f32::NAN, f64::NAN),
-            ("-NaN", -f32::NAN, -f64::NAN),
-        ] {
+        // All of the special literals below start with `i` or `N` after an
+        //  optional sign, so ordinary floats can skip checking each of them.
+        let unsigned = self
+            .src()
+            .strip_prefix(['+', '-'])
+            .unwrap_or_else(|| self.src());
+        let special_literals: &[(&str, f32, f64)] = if unsigned.starts_with(['i', 'N']) {
+            &[
+                ("inf", f32::INFINITY, f64::INFINITY),
+                ("+inf", f32::INFINITY, f64::INFINITY),
+                ("-inf", f32::NEG_INFINITY, f64::NEG_INFINITY),
+                ("NaN", f32::NAN, f64::NAN),
+                ("+NaN", f32::NAN, f64::NAN),
+                ("-NaN", -f32::NAN, -f64::NAN),
+            ]
+        } else {
+            &[]
+        };
+
+        for (literal, value_f32, value_f64) in special_literals {
             if self.consume_ident(literal) {
                 return T::parse(literal);
             }
