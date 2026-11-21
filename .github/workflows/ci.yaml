@@ -105,6 +105,25 @@ jobs:
           override: true
       - run: cd fuzz && cargo clippy --all -- -D warnings
 
+  conformance:
+    name: "Conformance: grammar differential"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          key: conformance
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      # The grammar-conformance differential lives in an isolated sub-crate (like
+      # `fuzz/`) so `pest` never enters ron's own dependency graph or MSRV job. It
+      # transcribes docs/grammar.md into a PEG acceptor and diffs it, input by
+      # input, against the parser; a divergence is a parser bug or a doc bug.
+      - run: cd conformance && cargo test -- --nocapture
+
   rustfmt:
     name: "Format: stable"
     runs-on: ubuntu-latest

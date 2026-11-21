@@ -1,0 +1,163 @@
+// PEG acceptor for RON, transcribed from docs/grammar.md.
+//
+// A pure acceptor: it only decides whether a string is one valid RON value,
+// never which production matched. A divergence from the parser means either a
+// parser bug or a grammar-doc bug.
+//
+// There is deliberately no `WHITESPACE` rule, so pest inserts no implicit
+// whitespace; every `ws` is threaded explicitly, as the grammar does.
+//
+// Each deviation from a verbatim transcription is tagged `ADAPT:` with a reason.
+
+// ADAPT: `extensions` are optional (spec `[extensions]`), realized as `*`.
+RON = { SOI ~ extensions ~ ws ~ value ~ ws ~ EOI }
+
+// ---------------------------------------------------------------- whitespace
+ws         = { (ws_single | comment)* }
+ws_single  = { "\n" | "\t" | "\r" | " "
+             | "\u{000B}" | "\u{000C}" | "\u{0085}"
+             | "\u{200E}" | "\u{200F}" | "\u{2028}" | "\u{2029}" }
+
+// ADAPT: spec wraps each comment form in `[...]` (optional), which lets a
+// comment match empty — treated here as a plain ordered choice.
+comment       = { line_comment | block_comment }
+// ADAPT: allow a `//` line comment to be closed by EOI, not only "\n".
+line_comment  = { "//" ~ (!"\n" ~ ANY)* ~ ("\n" | EOI) }
+block_comment = { "/*" ~ (block_comment | (!"*/" ~ ANY))* ~ "*/" }
+
+comma = { ws ~ "," ~ ws }
+
+// ---------------------------------------------------------------- extensions
+extensions       = { extension_decl* }
+extension_decl   = { "#" ~ ws ~ "!" ~ ws ~ "[" ~ ws ~ extensions_inner ~ ws ~ "]" ~ ws }
+extensions_inner = { "enable" ~ ws ~ "(" ~ ws ~ extension_name ~ (comma ~ extension_name)* ~ comma? ~ ws ~ ")" }
+// Spec defers to extensions.md for valid names; ron enforces this CLOSED set,
+// so the reference does too (an open ident class would falsely accept typo'd
+// names that ron rejects — a semantic, not syntactic, distinction).
+extension_name   = { "implicit_some" | "unwrap_newtypes" | "unwrap_variant_newtypes" }
+
+// -------------------------------------------------------------------- value
+// Spec: value = integer | byte | float | string | byte_string | char | bool
+//             | option | list | map | tuple | struct | enum_variant | range
+//
+// ADAPT: ordering is the substance of the PEG realization.
+//  * ranges come first so `1..2` / `..2` aren't committed to a bare number.
+//  * numbers are one maximal-munch token (like ron's `any_number`), not the
+//    spec's integer|byte|float split (which mis-handles `1u8` vs `1.5` in a PEG).
+//  * bool / option / anonymous tuple all fold into `composite` (ident + optional
+//    paren body); for a pure acceptor only the union matters, not which arm wins.
+value = {
+      prefix_range
+    | atom_or_range
+    | byte_string_raw | byte_string_std | byte
+    | string_raw | string_std
+    | char
+    | list
+    | map
+    | composite
+}
+
+// ---------------------------------------------------------------- numbers
+// ADAPT: one maximal-munch numeric token (like ron's `any_number`); the spec's
+// integer|byte|float split can't be transcribed verbatim in a PEG. The suffix
+// stays coupled to the body shape, as the spec's integer_suffix/float_suffix do:
+//   * hex/oct/bin           -> int_suffix only
+//   * decimal with dot/exp  -> float_suffix only
+//   * bare decimal digits   -> either
+number = @{ sign? ~ number_body }
+sign   = { "+" | "-" }
+
+number_body = {
+      special_float ~ float_suffix?
+    | based_int ~ int_suffix?
+    | dec_float ~ float_suffix?
+    | int_part ~ (int_suffix | float_suffix)?
+}
+
+special_float = { ("inf" | "NaN") ~ !xid_continue } // ADAPT: word boundary so `information` stays an ident
+
+// A base-digit is REQUIRED immediately after the prefix
+// (spec: unsigned_hexadecimal = "0x", digit_hex, { digit_hex | "_" }).
+based_int = { "0b" ~ digit_binary ~ (digit_binary | "_")*
+            | "0o" ~ digit_octal ~ (digit_octal | "_")*
+            | "0x" ~ digit_hex ~ (digit_hex | "_")* }
+
+// decimal carrying a float marker (dot and/or exponent).
+dec_float     = { int_part ~ (trailing_frac ~ exp? | exp) | leading_frac ~ exp? }
+int_part      = { digit ~ (digit | "_")* }
+// spec float_std: integer part then ".", fractional digits OPTIONAL (`1.`).
+// ADAPT: `!"."` so `1..2` (range) does not munch the first `.` as `1.` — ron
+// gives the `..` range operator precedence over a trailing-dot float.
+trailing_frac = { "." ~ !"." ~ (digit ~ (digit | "_")*)? }
+// spec float_frac: ".", then at least one digit REQUIRED (`.5`, never bare `.`).
+leading_frac  = { "." ~ !"." ~ digit ~ (digit | "_")* }
+// ADAPT: pest `*` is possessive (no backtracking), so the spec's
+// `{digit|_}, digit, {digit|_}` cannot be transcribed verbatim. Equivalent:
+// optional underscores, then a required digit, then any digits/underscores.
+exp           = { ("e" | "E") ~ sign? ~ "_"* ~ digit ~ (digit | "_")* }
+
+int_suffix    = { ("i" | "u") ~ ("8" | "16" | "32" | "64" | "128") }
+float_suffix  = { "f" ~ ("32" | "64") }
+
+digit         = { '0'..'9' }
+digit_binary  = { '0'..'1' }
+digit_octal   = { '0'..'7' }
+digit_hex     = { '0'..'9' | 'a'..'f' | 'A'..'F' }
+
+// ---------------------------------------------------------------- ranges
+// from-forms: number, then optionally a `..`/`..=` tail (with optional bound).
+atom_or_range   = { number ~ range_from_tail? }
+range_from_tail = { ws ~ ("..=" ~ ws ~ number | ".." ~ ws ~ number | "..") }
+// to-forms and full range.
+prefix_range    = { "..=" ~ ws ~ number | ".." ~ ws ~ number | ".." }
+
+// ---------------------------------------------------------------- byte
+byte         = { "b'" ~ byte_content ~ "'" }
+byte_content = { ("\\" ~ (escape_ascii | escape_byte)) | ASCII }
+
+// ---------------------------------------------------------------- strings
+// ADAPT (faithful): `no_double_quotation_marks` excludes only `"`, so a lone
+// backslash is a literal char here. `string_escape` is tried first, but when it
+// fails (invalid escape) the char still matches as literal. This is exactly the
+// spec's loose semantics — and where ron is expected to be *stricter*.
+string_std    = @{ "\"" ~ (string_escape | (!"\"" ~ ANY))* ~ "\"" }
+string_escape = { "\\" ~ (escape_ascii | escape_byte | escape_unicode) }
+escape_ascii  = { "'" | "\"" | "\\" | "n" | "r" | "t" | "0" }
+escape_byte   = { "x" ~ digit_hex ~ digit_hex }
+escape_unicode= { "u" ~ digit_hex ~ (digit_hex ~ (digit_hex ~ (digit_hex ~ (digit_hex ~ digit_hex?)?)?)?)? }
+
+// Raw strings via pest's stack (context-sensitive `#`^n delimiter) — the one
+// production the spec says "cannot be written in EBNF".
+string_raw    = @{ "r" ~ raw_body }
+byte_string_std = @{ "b\"" ~ (string_escape | (!"\"" ~ ANY))* ~ "\"" }
+byte_string_raw = @{ "br" ~ raw_body }
+raw_body      = @{ PUSH("#"*) ~ "\"" ~ (!("\"" ~ PEEK) ~ ANY)* ~ "\"" ~ POP }
+
+// ---------------------------------------------------------------- char
+// ADAPT (faithful): spec allows only `\\` and `\'` escapes plus any single
+// non-apostrophe char — so `'\n'` is expected to be *rejected* here while ron
+// accepts it. Divergence = spec-doc gap.
+char        = @{ "'" ~ (char_escape | (!"'" ~ ANY)) ~ "'" }
+char_escape = { "\\\\" | "\\'" }
+
+// ---------------------------------------------------------------- collections
+list = { "[" ~ ws ~ (value ~ (comma ~ value)* ~ comma?)? ~ ws ~ "]" }
+map  = { "{" ~ ws ~ (map_entry ~ (comma ~ map_entry)* ~ comma?)? ~ ws ~ "}" }
+map_entry = { value ~ ws ~ ":" ~ ws ~ value }
+
+// composite = anonymous tuple / struct / enum-variant / bool / option / unit.
+// ident? then an optional parenthesized body (values OR named fields).
+composite  = { ident ~ (ws ~ paren)? | paren }
+paren      = { "(" ~ ws ~ paren_body? ~ ws ~ ")" }
+paren_body = { named_fields | value_seq }
+named_fields = { named_field ~ (comma ~ named_field)* ~ comma? }
+named_field  = { ident ~ ws ~ ":" ~ ws ~ value }
+value_seq    = { value ~ (comma ~ value)* ~ comma? }
+
+// ---------------------------------------------------------------- identifiers
+ident        = { ident_raw | ident_std }
+ident_std    = @{ ident_std_first ~ xid_continue* }
+ident_std_first = { XID_START | "_" }
+ident_raw    = @{ "r#" ~ ident_raw_rest+ }
+ident_raw_rest  = { xid_continue | "." | "+" | "-" }
+xid_continue = { XID_CONTINUE }
