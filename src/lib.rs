@@ -24,6 +24,9 @@ extern crate std;
 
 extern crate alloc;
 
+#[cfg(kani)]
+mod kani_verification;
+
 pub mod de;
 pub mod ser;
 
